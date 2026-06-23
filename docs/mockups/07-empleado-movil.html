@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Portal empleado móvil</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+
+<div class="phones">
+
+  <!-- Phone 1: Mi semana -->
+  <div class="phone">
+    <div class="phone-header">
+      <svg class="curve" viewBox="0 0 180 54" preserveAspectRatio="none">
+        <path d="M0,36 Q60,4 120,24 T180,16 L180,0 L0,0 Z" fill="#c0dd97" opacity="0.85"/>
+        <path d="M60,48 Q110,22 150,38 T180,34 L180,48 L60,54 Z" fill="#ef9f27" opacity="0.9"/>
+      </svg>
+      <i class="ti ti-menu-2" style="font-size:18px;color:var(--text);z-index:1"></i>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:10px;z-index:1">
+        <div class="phone-logo"></div>
+        <div>
+          <div class="phone-brand-name">parking</div>
+          <div class="phone-brand-sub">ALEATICA</div>
+        </div>
+      </div>
+      <div class="phone-avatar">VS</div>
+    </div>
+
+    <div class="phone-body">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">Bienvenido</div>
+      <div style="font-size:16px;color:var(--text);font-weight:500;margin-bottom:14px">Vega Salinas</div>
+
+      <div style="font-size:11px;color:var(--text-muted);font-weight:500;letter-spacing:0.5px;margin-bottom:8px">MI SEMANA · 11–15 MAY</div>
+
+      <div class="week-card assigned">
+        <div class="day-abbr-m">LUN</div>
+        <div class="desc">Plaza P-12 asignada</div>
+        <i class="ti ti-check" style="font-size:14px"></i>
+      </div>
+      <div class="week-card assigned">
+        <div class="day-abbr-m">MAR</div>
+        <div class="desc">Plaza P-12 asignada</div>
+        <i class="ti ti-check" style="font-size:14px"></i>
+      </div>
+      <div class="week-card released">
+        <div class="day-abbr-m">MIÉ</div>
+        <div class="desc">Plaza liberada</div>
+        <i class="ti ti-arrow-back" style="font-size:14px"></i>
+      </div>
+      <div class="week-card request">
+        <div class="day-abbr-m">JUE</div>
+        <div class="desc">Solicitud pendiente</div>
+        <i class="ti ti-clock" style="font-size:14px"></i>
+      </div>
+      <div class="week-card free">
+        <div class="day-abbr-m">VIE</div>
+        <div class="desc">Sin plaza</div>
+        <button style="background:var(--blue);color:#fff;border:none;border-radius:4px;font-size:10px;padding:3px 8px;cursor:pointer;font-weight:500">Solicitar</button>
+      </div>
+
+      <button class="btn btn-green" style="width:100%;justify-content:center;margin-top:14px;margin-bottom:8px;height:auto;padding:10px"><i class="ti ti-plus"></i> Solicitar plaza</button>
+      <button class="btn btn-white" style="width:100%;justify-content:center;height:auto;padding:10px"><i class="ti ti-arrow-back"></i> Liberar mi plaza</button>
+    </div>
+  </div>
+
+  <!-- Phone 2: Solicitar plaza -->
+  <div class="phone">
+    <div class="phone-header">
+      <svg class="curve" viewBox="0 0 180 54" preserveAspectRatio="none">
+        <path d="M0,36 Q60,4 120,24 T180,16 L180,0 L0,0 Z" fill="#c0dd97" opacity="0.85"/>
+        <path d="M60,48 Q110,22 150,38 T180,34 L180,48 L60,54 Z" fill="#ef9f27" opacity="0.9"/>
+      </svg>
+      <i class="ti ti-arrow-left" style="font-size:18px;color:var(--text);z-index:1"></i>
+      <div style="margin-left:10px;font-size:13px;color:var(--text);font-weight:500;z-index:1">Solicitar plaza</div>
+    </div>
+
+    <div class="phone-body">
+
+      <div class="field-label">Día *</div>
+      <div class="field-value focused with-icon" style="margin-bottom:14px">
+        <span><i class="ti ti-calendar" style="font-size:14px;color:var(--text-muted);margin-right:6px"></i> Viernes 15/05/2026</span>
+        <i class="ti ti-chevron-down" style="color:var(--text-muted)"></i>
+      </div>
+
+      <div class="info-banner green" style="margin-bottom:14px">
+        <i class="ti ti-info-circle" style="color:var(--green);font-size:16px"></i>
+        <div style="font-size:11px;line-height:1.5">Hay <strong style="font-weight:500">3 plazas potencialmente disponibles</strong> ese día.</div>
+      </div>
+
+      <div class="field-label">Motivo (opcional)</div>
+      <textarea placeholder="Ej. reunión presencial con cliente" style="margin-bottom:14px;min-height:80px"></textarea>
+
+      <div style="background:var(--bg-soft);border:0.5px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:18px">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:500;letter-spacing:0.3px;margin-bottom:6px">RESUMEN</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0">
+          <span>Empleado</span><span style="font-weight:500">Vega Salinas</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0">
+          <span>Día</span><span style="font-weight:500">Vie 15/05/2026</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;align-items:center">
+          <span>Estado inicial</span><span class="pill pill-amber">PENDIENTE</span>
+        </div>
+      </div>
+
+      <button class="btn btn-green" style="width:100%;justify-content:center;margin-bottom:8px;height:auto;padding:11px"><i class="ti ti-send"></i> Enviar solicitud</button>
+      <button style="width:100%;background:transparent;color:var(--text-muted);border:none;font-size:12px;cursor:pointer;padding:6px">Cancelar</button>
+
+    </div>
+  </div>
+
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'',showSidebar:false,active:'07-empleado-movil.html'})</script>
+</body>
+</html>

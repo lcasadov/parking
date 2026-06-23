@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Aprobar solicitud</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+
+<div class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header green">
+      <div class="title">Solicitud de plaza</div>
+      <div style="display:flex;gap:12px;color:#fff">
+        <i class="ti ti-maximize"></i>
+        <i class="ti ti-x"></i>
+      </div>
+    </div>
+
+    <div class="modal-tabs">
+      <div class="modal-tab active">DETALLES</div>
+      <div class="modal-tab">HISTÓRICO</div>
+      <div class="modal-tab">COMENTARIOS</div>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Empleado *</div>
+          <div class="field-value readonly">Berta Kowalski</div>
+        </div>
+        <div>
+          <div class="field-label">Departamento</div>
+          <div class="field-value readonly">Operaciones</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Día solicitado *</div>
+          <div class="field-value readonly with-icon">
+            <span><i class="ti ti-calendar" style="color:var(--text-muted)"></i> Miércoles 20/05/2026</span>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Estado</div>
+          <div><span class="pill pill-amber">PENDIENTE</span></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="font-size:13px;color:var(--text);font-weight:500;margin-bottom:10px">Asignación</div>
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Plaza disponible *</div>
+          <div class="field-value focused with-icon">
+            <span>P-07</span>
+            <i class="ti ti-chevron-down" style="color:var(--text-muted)"></i>
+          </div>
+          <div class="hint">4 plazas libres ese día</div>
+        </div>
+        <div>
+          <div class="field-label">Origen de la plaza</div>
+          <div class="field-value readonly">Plaza liberada por Diego Castaño</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:18px">
+        <div class="field-label">Observaciones para el empleado</div>
+        <textarea>Plaza junto a la entrada principal. Llegada flexible hasta las 9:30.</textarea>
+      </div>
+
+      <div class="info-banner blue">
+        <i class="ti ti-mail" style="font-size:16px"></i>
+        <span>Al aprobar, se enviará un email automático a <strong style="font-weight:500">berta.kowalski@aleatica.com</strong></span>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-back">CERRAR</button>
+      <button class="btn-danger-outline" style="height:32px"><i class="ti ti-x"></i> RECHAZAR</button>
+      <button class="btn btn-green"><i class="ti ti-check"></i> APROBAR</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'',activeSidebar:'requests',active:'05-modal-aprobar-solicitud.html',showSidebar:false})</script>
+</body>
+</html>

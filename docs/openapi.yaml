@@ -1,0 +1,1696 @@
+# =============================================================================
+# parking API — OpenAPI 3.1 contract
+#
+# Convención de nomenclatura (autoridad: README "Nomenclatura del código"):
+#   - Identificadores de código en INGLÉS: rutas, operationId, tags, schemas,
+#     enums y campos. El prompt original venía en español (/empleados, Empleado,
+#     EstadoSolicitud, mensaje, campos…); aquí aparecen sus equivalentes en
+#     inglés (/employees, Employee, RequestStatus, message, fields…).
+#   - Esquema de datos: docs/data-model.md (no se inventan campos de entidad).
+#   - Auth / RBAC: docs/security-design.md.
+#   - Endpoints: lista del prompt 4 (el README ya no incluye sección "API REST").
+#   - Alcance: núcleo de parking (plazas). Puestos/plano (desks) quedan fuera.
+#   - operationId: convención <verb><Resource> en camelCase.
+# =============================================================================
+openapi: 3.1.0
+info:
+  title: parking API
+  description: |
+    API REST de gestión de plazas de parking de ALEATICA.
+    Autenticación por cookie de sesión (`parking_SESSION`). Fase 1: login local.
+    Fase 2: SSO ALEATICA (la landing autentica, parking autoriza).
+  version: 1.0.0
+  contact:
+    name: Equipo parking
+    email: "_[pendiente]_"
+servers:
+  - url: http://localhost:8080/parking-api/api/v1
+    description: Desarrollo local
+  - url: https://parking.aleatica.com/parking-api/api/v1
+    description: Producción
+
+tags:
+  - name: Auth
+    description: Autenticación y sesión (Fase 1 local, Fase 2 SSO)
+  - name: Employees
+    description: Gestión de empleados (Empleados)
+  - name: ParkingSpaces
+    description: Gestión de plazas (Plazas)
+  - name: FixedAssignments
+    description: Asignaciones fijas por día de la semana
+  - name: Requests
+    description: Solicitudes puntuales de plaza
+  - name: Releases
+    description: Liberaciones voluntarias y administrativas
+  - name: Visitors
+    description: Fichas de visitante
+  - name: VisitorReservations
+    description: Reservas de plaza para visitantes
+  - name: Availability
+    description: Disponibilidad de recursos por fecha
+  - name: Calendar
+    description: Calendario semanal admin y "Mi Semana"
+  - name: Audit
+    description: Auditoría funcional y logs de login
+  - name: Exports
+    description: Exportaciones a CSV/XLSX
+
+# Por defecto toda operación exige la cookie de sesión.
+# Los endpoints públicos la anulan con `security: []`.
+security:
+  - sessionCookie: []
+
+paths:
+
+  # ---------------------------------------------------------------------------
+  # Auth
+  # ---------------------------------------------------------------------------
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Login local (Fase 1)
+      description: >
+        🟢 Fase 1. Autentica con login y contraseña (BCrypt). Bloqueo tras 5
+        intentos fallidos durante 15 min. Devuelve la identidad y setea la
+        cookie `parking_SESSION`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Autenticado; cookie de sesión emitida
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Cierra la sesión actual
+      responses:
+        '204': { description: Sesión invalidada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getCurrentUser
+      summary: Identidad del usuario autenticado
+      responses:
+        '200':
+          description: Usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      operationId: changePassword
+      summary: Cambio de la propia contraseña
+      description: >
+        Política: ≥10 caracteres, mayúscula + minúscula + dígito + símbolo,
+        distinta de login y email. Obligatorio en primer login tras reset.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204': { description: Contraseña actualizada }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /ssocallback:
+    servers:
+      - url: http://localhost:8080/parking-api
+        description: Desarrollo local (fuera de /api/v1)
+      - url: https://parking.aleatica.com/parking-api
+        description: Producción (fuera de /api/v1)
+    get:
+      tags: [Auth]
+      operationId: ssoCallback
+      summary: Callback SSO (Fase 2)
+      description: >
+        🔵 Fase 2. Recibe el `id_token` de la landing, valida firma/iss/aud/exp,
+        autoriza contra `employees` por `login=username` y crea la sesión.
+        Montado fuera de `/api/v1`.
+      security: []
+      parameters:
+        - name: id_token
+          in: query
+          required: true
+          schema: { type: string }
+        - name: client_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: redirect_uri
+          in: query
+          required: true
+          schema: { type: string, format: uri }
+      responses:
+        '302':
+          description: Autorizado; redirección a `redirect_uri` con cookie
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+            Set-Cookie:
+              schema: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /CloseSSOSessionID:
+    servers:
+      - url: http://localhost:8080/parking-api
+        description: Desarrollo local (fuera de /api/v1)
+      - url: https://parking.aleatica.com/parking-api
+        description: Producción (fuera de /api/v1)
+    post:
+      tags: [Auth]
+      operationId: closeSsoSession
+      summary: Single Logout desde la landing (Fase 2)
+      description: >
+        🔵 Fase 2. Valida `slo_token` y localiza la sesión por `client_sid` en
+        `SPRING_SESSION` para invalidarla. Autenticado por el token firmado, no
+        por la cookie.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseSsoSessionRequest'
+      responses:
+        '200': { description: Sesión invalidada }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Employees
+  # ---------------------------------------------------------------------------
+  /employees:
+    get:
+      tags: [Employees]
+      operationId: listEmployees
+      summary: Lista empleados (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/QParam'
+        - name: active
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Página de empleados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageEmployee'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Employees]
+      operationId: createEmployee
+      summary: Crea un empleado (ADMIN)
+      description: >
+        Alta manual. `login` y `email` únicos (409 en colisión). En Fase 2 nace
+        sin contraseña local; la contraseña se obtiene vía reset.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreate'
+      responses:
+        '201':
+          description: Empleado creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /employees/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [Employees]
+      operationId: updateEmployee
+      summary: Modifica un empleado (ADMIN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeUpdate'
+      responses:
+        '200':
+          description: Empleado actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    delete:
+      tags: [Employees]
+      operationId: deactivateEmployee
+      summary: Baja lógica de un empleado (ADMIN)
+      description: Marca `active=false`; no borra la fila.
+      responses:
+        '204': { description: Empleado dado de baja }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /employees/{id}/reactivate:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Employees]
+      operationId: reactivateEmployee
+      summary: Reactiva un empleado dado de baja (ADMIN)
+      responses:
+        '204': { description: Empleado reactivado }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /employees/{id}/reset-password:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Employees]
+      operationId: resetEmployeePassword
+      summary: Reset administrativo de contraseña (ADMIN)
+      description: >
+        🟢 Fase 1: devuelve la contraseña temporal para mostrarla en pantalla
+        una sola vez. 🔵 Fase 2: se envía por email y no se devuelve en claro.
+        Marca `passwordMustChange=true`.
+      responses:
+        '200':
+          description: Contraseña reseteada (temporal en claro solo en Fase 1)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResetPasswordResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /employees/export:
+    get:
+      tags: [Employees, Exports]
+      operationId: exportEmployees
+      summary: Exporta empleados a CSV/XLSX (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/ExportFormatParam'
+      responses:
+        '200': { $ref: '#/components/responses/FileExport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /employees/me/export:
+    get:
+      tags: [Employees, Exports]
+      operationId: exportMyData
+      summary: Exporta mis propios datos personales (EMPLOYEE/ADMIN)
+      description: >
+        Derecho de acceso RGPD (security-design §12): el usuario autenticado
+        exporta sus propios datos personales. Cada uno solo accede a los suyos.
+      parameters:
+        - $ref: '#/components/parameters/ExportFormatParam'
+      responses:
+        '200': { $ref: '#/components/responses/FileExport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # ParkingSpaces
+  # ---------------------------------------------------------------------------
+  /parking-spaces:
+    get:
+      tags: [ParkingSpaces]
+      operationId: listParkingSpaces
+      summary: Lista plazas (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: active
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Página de plazas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageParkingSpace'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [ParkingSpaces]
+      operationId: createParkingSpace
+      summary: Crea una plaza (ADMIN)
+      description: '`label` único (409 en colisión).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParkingSpaceCreate'
+      responses:
+        '201':
+          description: Plaza creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParkingSpace'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /parking-spaces/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [ParkingSpaces]
+      operationId: updateParkingSpace
+      summary: Modifica una plaza (ADMIN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParkingSpaceCreate'
+      responses:
+        '200':
+          description: Plaza actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParkingSpace'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /parking-spaces/configure:
+    post:
+      tags: [ParkingSpaces]
+      operationId: configureParkingSpaces
+      summary: Configura el número total de plazas (ADMIN)
+      description: Alta/ajuste masivo del total de plazas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParkingSpaceConfigureRequest'
+      responses:
+        '200':
+          description: Configuración aplicada
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ParkingSpace'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # FixedAssignments
+  # ---------------------------------------------------------------------------
+  /fixed-assignments:
+    get:
+      tags: [FixedAssignments]
+      operationId: listFixedAssignments
+      summary: Lista todas las asignaciones fijas activas (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Página de asignaciones fijas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageFixedAssignment'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /fixed-assignments/employee/{employeeId}:
+    parameters:
+      - name: employeeId
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    get:
+      tags: [FixedAssignments]
+      operationId: getEmployeeFixedAssignments
+      summary: Asignaciones fijas de un empleado
+      description: ADMIN cualquiera; EMPLOYEE solo las suyas (verificación de objeto).
+      responses:
+        '200':
+          description: Asignaciones fijas del empleado
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FixedAssignment'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    put:
+      tags: [FixedAssignments]
+      operationId: setEmployeeFixedAssignments
+      summary: Asigna/modifica la asignación fija de un empleado (ADMIN)
+      description: >
+        Una plaza no puede asignarse a dos empleados el mismo día; un empleado no
+        puede tener dos recursos el mismo día (409). Aplica solo desde la fecha
+        actual; no afecta a días pasados ni a aprobaciones previas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FixedAssignmentPutRequest'
+      responses:
+        '200':
+          description: Asignación fija establecida
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FixedAssignment'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    delete:
+      tags: [FixedAssignments]
+      operationId: revokeEmployeeFixedAssignment
+      summary: Revoca (lógicamente) la asignación fija de un empleado (ADMIN)
+      description: Marca `active=false`, `revoked_at`, `revoked_by_id`. No borra.
+      responses:
+        '204': { description: Asignación revocada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Releases
+  # ---------------------------------------------------------------------------
+  /releases/mine:
+    get:
+      tags: [Releases]
+      operationId: listMyReleases
+      summary: Mis liberaciones (EMPLOYEE)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Página de liberaciones propias
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageRelease'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /releases:
+    post:
+      tags: [Releases]
+      operationId: createRelease
+      summary: Liberación voluntaria (EMPLOYEE)
+      description: >
+        Solo el dueño de la asignación fija, y solo para fechas presentes o
+        futuras. Tipo `VOLUNTARY`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseCreateRequest'
+      responses:
+        '201':
+          description: Liberación creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Release'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /releases/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    delete:
+      tags: [Releases]
+      operationId: cancelRelease
+      summary: Anula una liberación futura propia (EMPLOYEE)
+      responses:
+        '204': { description: Liberación anulada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /releases/administrative:
+    post:
+      tags: [Releases]
+      operationId: createAdministrativeRelease
+      summary: Liberación administrativa (ADMIN)
+      description: >
+        El admin libera el recurso fijo de cualquier empleado para una fecha
+        presente o futura, con motivo. Tipo `ADMINISTRATIVE`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdministrativeReleaseRequest'
+      responses:
+        '201':
+          description: Liberación administrativa creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Release'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Requests
+  # ---------------------------------------------------------------------------
+  /requests/mine:
+    get:
+      tags: [Requests]
+      operationId: listMyRequests
+      summary: Mis solicitudes (EMPLOYEE)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/RequestStatus'
+      responses:
+        '200':
+          description: Página de solicitudes propias
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests:
+    post:
+      tags: [Requests]
+      operationId: createRequest
+      summary: Crea una solicitud para una fecha (EMPLOYEE)
+      description: >
+        Ventana: hoy..hoy+14 días naturales. Máximo una solicitud `PENDING` por
+        empleado y fecha (409 en duplicado).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestCreateRequest'
+      responses:
+        '201':
+          description: Solicitud creada en estado PENDING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/pending:
+    get:
+      tags: [Requests]
+      operationId: listPendingRequests
+      summary: Solicitudes pendientes, orden FIFO (ADMIN)
+      description: Ordenadas por `created_at ASC` (FIFO informativo).
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Página de solicitudes pendientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [Requests]
+      operationId: getRequest
+      summary: Detalle de una solicitud (ADMIN)
+      responses:
+        '200':
+          description: Solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Requests]
+      operationId: cancelRequest
+      summary: Cancela la propia solicitud en PENDING (EMPLOYEE)
+      responses:
+        '200':
+          description: Solicitud cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/{id}/approve:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Requests]
+      operationId: approveRequest
+      summary: Aprueba una solicitud asignando plaza (ADMIN)
+      description: >
+        Valida disponibilidad de la plaza elegida; si no está disponible o
+        colisiona (concurrencia), devuelve 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestApproveRequest'
+      responses:
+        '200':
+          description: Solicitud aprobada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/{id}/reject:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Requests]
+      operationId: rejectRequest
+      summary: Rechaza una solicitud con motivo (ADMIN)
+      description: '`rejectionReason` obligatorio, mínimo 5 caracteres.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestRejectRequest'
+      responses:
+        '200':
+          description: Solicitud rechazada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/mine/export:
+    get:
+      tags: [Requests, Exports]
+      operationId: exportMyRequests
+      summary: Exporta mis solicitudes a CSV/XLSX (EMPLOYEE)
+      parameters:
+        - $ref: '#/components/parameters/ExportFormatParam'
+      responses:
+        '200': { $ref: '#/components/responses/FileExport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/export:
+    get:
+      tags: [Requests, Exports]
+      operationId: exportRequests
+      summary: Exporta el histórico de solicitudes (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/ExportFormatParam'
+      responses:
+        '200': { $ref: '#/components/responses/FileExport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Visitors
+  # ---------------------------------------------------------------------------
+  /visitors:
+    get:
+      tags: [Visitors]
+      operationId: listVisitors
+      summary: Lista visitantes (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/QParam'
+      responses:
+        '200':
+          description: Página de visitantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVisitor'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Visitors]
+      operationId: createVisitor
+      summary: Crea una ficha de visitante (ADMIN)
+      description: '`nationalId` único (409 en colisión).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitorCreateRequest'
+      responses:
+        '201':
+          description: Visitante creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visitor'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /visitors/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [Visitors]
+      operationId: getVisitor
+      summary: Detalle de un visitante (ADMIN)
+      responses:
+        '200':
+          description: Visitante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visitor'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    put:
+      tags: [Visitors]
+      operationId: updateVisitor
+      summary: Modifica una ficha de visitante (ADMIN)
+      description: Afecta solo a futuras reservas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitorCreateRequest'
+      responses:
+        '200':
+          description: Visitante actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visitor'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # VisitorReservations
+  # ---------------------------------------------------------------------------
+  /visitor-reservations:
+    get:
+      tags: [VisitorReservations]
+      operationId: listVisitorReservations
+      summary: Lista reservas de visita (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: parkingSpaceId
+          in: query
+          required: false
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Página de reservas de visita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVisitorReservation'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [VisitorReservations]
+      operationId: createVisitorReservation
+      summary: Crea una reserva de plaza para un visitante (ADMIN)
+      description: Ocupa la plaza esa fecha en el cálculo de disponibilidad (409 si ya ocupada).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitorReservationCreateRequest'
+      responses:
+        '201':
+          description: Reserva creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorReservation'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /visitor-reservations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    delete:
+      tags: [VisitorReservations]
+      operationId: cancelVisitorReservation
+      summary: Anula una reserva de visita futura (ADMIN)
+      responses:
+        '204': { description: Reserva anulada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Availability / Calendar
+  # ---------------------------------------------------------------------------
+  /availability:
+    get:
+      tags: [Availability]
+      operationId: getAvailability
+      summary: Recursos disponibles para una fecha
+      description: >
+        Plaza disponible si está activa, sin asignación fija para ese día (o
+        liberada), sin solicitud aprobada y sin reserva de visitante esa fecha.
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Disponibilidad de la fecha
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /calendar/admin:
+    get:
+      tags: [Calendar]
+      operationId: getAdminCalendar
+      summary: Calendario semanal completo (ADMIN)
+      parameters:
+        - name: weekStart
+          in: query
+          required: true
+          description: Lunes de la semana a mostrar.
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Calendario semanal admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminWeeklyCalendarResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /calendar/my-week:
+    get:
+      tags: [Calendar]
+      operationId: getMyWeek
+      summary: Mi Semana — recursos propios y huecos (EMPLOYEE/ADMIN)
+      description: No muestra nombres de otros empleados.
+      parameters:
+        - name: weekStart
+          in: query
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Vista personal de la semana
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyWeekResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Audit
+  # ---------------------------------------------------------------------------
+  /audit:
+    get:
+      tags: [Audit]
+      operationId: listAuditLog
+      summary: Consulta de auditoría funcional (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: actorEmployeeId
+          in: query
+          required: false
+          schema: { type: integer, format: int64 }
+        - name: action
+          in: query
+          required: false
+          schema: { type: string, maxLength: 100 }
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Página de entradas de auditoría
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageAuditLogEntry'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /login-logs:
+    get:
+      tags: [Audit]
+      operationId: listLoginLog
+      summary: Consulta de logs de login (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: result
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/LoginResult'
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Página de entradas de login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageLoginLogEntry'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /audit/export:
+    get:
+      tags: [Audit, Exports]
+      operationId: exportAuditLog
+      summary: Exporta la auditoría a CSV/XLSX (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/ExportFormatParam'
+      responses:
+        '200': { $ref: '#/components/responses/FileExport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+# =============================================================================
+# components
+# =============================================================================
+components:
+
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: parking_SESSION
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    SizeParam:
+      name: size
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    QParam:
+      name: q
+      in: query
+      required: false
+      description: Texto de búsqueda libre.
+      schema: { type: string, maxLength: 100 }
+    ExportFormatParam:
+      name: format
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [csv, xlsx]
+        default: xlsx
+
+  responses:
+    BadRequest:
+      description: Datos inválidos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: No autenticado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Sin permisos para la operación
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Conflicto de estado o unicidad
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ServerError:
+      description: Error interno
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    FileExport:
+      description: Fichero exportado
+      content:
+        text/csv:
+          schema: { type: string, format: binary }
+        application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+          schema: { type: string, format: binary }
+
+  schemas:
+
+    # ---- Enums ----
+    Role:
+      type: string
+      enum: [ADMIN, EMPLOYEE]
+    AuthOrigin:
+      type: string
+      enum: [LOCAL, ENTRA_ID]
+    RequestStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+    ReleaseType:
+      type: string
+      enum: [VOLUNTARY, ADMINISTRATIVE]
+    RejectionReasonCode:
+      type: string
+      description: Catálogo de motivos de rechazo (la UI los muestra traducidos ES/EN). Catálogo inicial; a confirmar con negocio.
+      enum: [NO_AVAILABILITY, OUTSIDE_POLICY, OTHER]
+    ResourceType:
+      type: string
+      enum: [PARKING, DESK]
+    LoginResult:
+      type: string
+      enum: [OK, INVALID_CREDENTIALS, LOCKED, INACTIVE, NO_ACCESS, FALLBACK_OK]
+    LoginPhase:
+      type: string
+      enum: [PHASE_1, PHASE_2, FALLBACK]
+    CalendarCellState:
+      type: string
+      description: Estado de una celda del calendario admin.
+      enum: [ASSIGNED, RELEASED, REQUEST_PENDING, REQUEST_APPROVED, FREE]
+    MyWeekDayState:
+      type: string
+      enum: [ASSIGNED, RELEASED, REQUEST_PENDING, FREE]
+
+    # ---- Error ----
+    ApiError:
+      type: object
+      required: [error, message, timestamp]
+      properties:
+        error:
+          type: string
+          description: Código corto de error.
+        message:
+          type: string
+        fields:
+          type: object
+          additionalProperties: { type: string }
+          description: Errores por campo (validación).
+        timestamp:
+          type: string
+          format: date-time
+
+    # ---- Pagination ----
+    PageMeta:
+      type: object
+      properties:
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+        size: { type: integer }
+        number: { type: integer }
+        first: { type: boolean }
+        last: { type: boolean }
+
+    # ---- Auth ----
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login: { type: string, maxLength: 100 }
+        password: { type: string, minLength: 1 }
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, minLength: 1 }
+        newPassword:
+          type: string
+          minLength: 10
+          description: ≥10 chars, mayúscula + minúscula + dígito + símbolo; distinta de login/email.
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$'
+    CurrentUser:
+      type: object
+      required: [employeeId, login, role]
+      properties:
+        employeeId: { type: integer, format: int64 }
+        login: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        passwordMustChange: { type: boolean }
+    CloseSsoSessionRequest:
+      type: object
+      required: [slo_token, client_sid]
+      properties:
+        slo_token: { type: string }
+        client_sid: { type: string }
+
+    # ---- Employee ----
+    Employee:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        firstName: { type: string }
+        lastName: { type: string }
+        login: { type: string }
+        email: { type: string, format: email }
+        department: { type: string, nullable: true }
+        mobilePhone: { type: string, nullable: true }
+        licensePlate: { type: string, nullable: true }
+        isCorporate: { type: boolean }
+        authOrigin: { $ref: '#/components/schemas/AuthOrigin' }
+        role: { $ref: '#/components/schemas/Role' }
+        enabled: { type: boolean }
+        active: { type: boolean }
+        passwordMustChange: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    EmployeeCreate:
+      type: object
+      required: [firstName, lastName, login, email, role]
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 150 }
+        login: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 255 }
+        department: { type: string, maxLength: 100 }
+        mobilePhone: { type: string, maxLength: 30 }
+        licensePlate: { type: string, maxLength: 15 }
+        isCorporate: { type: boolean, default: false }
+        authOrigin: { $ref: '#/components/schemas/AuthOrigin' }
+        role: { $ref: '#/components/schemas/Role' }
+    EmployeeUpdate:
+      type: object
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 255 }
+        department: { type: string, maxLength: 100 }
+        mobilePhone: { type: string, maxLength: 30 }
+        licensePlate: { type: string, maxLength: 15 }
+        isCorporate: { type: boolean }
+        role: { $ref: '#/components/schemas/Role' }
+    EmployeeResetPasswordResponse:
+      type: object
+      required: [mustChange]
+      properties:
+        temporaryPassword:
+          type: string
+          nullable: true
+          description: Solo presente en Fase 1 (en Fase 2 se envía por email).
+        mustChange: { type: boolean }
+    PageEmployee:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/Employee' }
+
+    # ---- ParkingSpace ----
+    ParkingSpace:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        label: { type: string }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ParkingSpaceCreate:
+      type: object
+      required: [label]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 20 }
+        active: { type: boolean, default: true }
+    ParkingSpaceConfigureRequest:
+      type: object
+      required: [total]
+      properties:
+        total: { type: integer, minimum: 0 }
+    PageParkingSpace:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/ParkingSpace' }
+
+    # ---- FixedAssignment ----
+    FixedAssignment:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        parkingSpaceId: { type: integer, format: int64 }
+        employeeId: { type: integer, format: int64 }
+        dayOfWeek: { type: integer, minimum: 1, maximum: 7 }
+        active: { type: boolean }
+        createdById: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+        revokedById: { type: integer, format: int64, nullable: true }
+        revokedAt: { type: string, format: date-time, nullable: true }
+    FixedAssignmentPutRequest:
+      type: object
+      required: [parkingSpaceId, daysOfWeek]
+      properties:
+        parkingSpaceId: { type: integer, format: int64 }
+        daysOfWeek:
+          type: array
+          minItems: 1
+          items: { type: integer, minimum: 1, maximum: 7 }
+    PageFixedAssignment:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/FixedAssignment' }
+
+    # ---- Release ----
+    Release:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        parkingSpaceId: { type: integer, format: int64 }
+        employeeId: { type: integer, format: int64 }
+        releaseDate: { type: string, format: date }
+        type: { $ref: '#/components/schemas/ReleaseType' }
+        reason: { type: string, nullable: true }
+        releasedById: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+    ReleaseCreateRequest:
+      type: object
+      required: [releaseDate]
+      properties:
+        releaseDate: { type: string, format: date }
+        parkingSpaceId:
+          type: integer
+          format: int64
+          description: Opcional; si se omite, se resuelve la plaza fija del empleado para ese día.
+    AdministrativeReleaseRequest:
+      type: object
+      required: [employeeId, parkingSpaceId, releaseDate, reason]
+      properties:
+        employeeId: { type: integer, format: int64 }
+        parkingSpaceId: { type: integer, format: int64 }
+        releaseDate: { type: string, format: date }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    PageRelease:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/Release' }
+
+    # ---- Request ----
+    Request:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        employeeId: { type: integer, format: int64 }
+        requestedDate: { type: string, format: date }
+        status: { $ref: '#/components/schemas/RequestStatus' }
+        parkingSpaceId: { type: integer, format: int64, nullable: true }
+        approvalNote: { type: string, nullable: true }
+        rejectionReasonCode:
+          oneOf:
+            - $ref: '#/components/schemas/RejectionReasonCode'
+          nullable: true
+        rejectionReason: { type: string, nullable: true }
+        resolvedById: { type: integer, format: int64, nullable: true }
+        resolvedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+    RequestCreateRequest:
+      type: object
+      required: [requestedDate]
+      properties:
+        requestedDate: { type: string, format: date }
+    RequestApproveRequest:
+      type: object
+      required: [parkingSpaceId]
+      properties:
+        parkingSpaceId: { type: integer, format: int64 }
+        approvalNote:
+          type: string
+          maxLength: 500
+          description: Nota opcional del admin; viaja en el email de aprobación.
+    RequestRejectRequest:
+      type: object
+      required: [reasonCode]
+      description: >
+        El rechazo lleva siempre un `reasonCode` del catálogo. Si `reasonCode = OTHER`,
+        `rejectionReason` (texto libre, ≥5 caracteres) es obligatorio; en otro caso es opcional.
+      properties:
+        reasonCode: { $ref: '#/components/schemas/RejectionReasonCode' }
+        rejectionReason: { type: string, minLength: 5, maxLength: 500 }
+    PageRequest:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/Request' }
+
+    # ---- Visitor ----
+    Visitor:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        firstName: { type: string }
+        lastName: { type: string }
+        nationalId: { type: string }
+        licensePlate: { type: string, nullable: true }
+        company: { type: string, nullable: true }
+        usualReason: { type: string, nullable: true }
+        createdById: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+    VisitorCreateRequest:
+      type: object
+      required: [firstName, lastName, nationalId]
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 150 }
+        nationalId: { type: string, minLength: 1, maxLength: 20 }
+        licensePlate: { type: string, maxLength: 15 }
+        company: { type: string, maxLength: 150 }
+        usualReason: { type: string, maxLength: 255 }
+    PageVisitor:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/Visitor' }
+
+    # ---- VisitorReservation ----
+    VisitorReservation:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        visitorId: { type: integer, format: int64 }
+        parkingSpaceId: { type: integer, format: int64 }
+        reservationDate: { type: string, format: date }
+        notes: { type: string, nullable: true }
+        createdById: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+    VisitorReservationCreateRequest:
+      type: object
+      required: [visitorId, parkingSpaceId, reservationDate]
+      properties:
+        visitorId: { type: integer, format: int64 }
+        parkingSpaceId: { type: integer, format: int64 }
+        reservationDate: { type: string, format: date }
+        notes: { type: string, maxLength: 500 }
+    PageVisitorReservation:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/VisitorReservation' }
+
+    # ---- Availability / Calendar ----
+    AvailabilityItem:
+      type: object
+      properties:
+        parkingSpaceId: { type: integer, format: int64 }
+        label: { type: string }
+    AvailabilityResponse:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        availableResources:
+          type: array
+          items: { $ref: '#/components/schemas/AvailabilityItem' }
+    CalendarCell:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        state: { $ref: '#/components/schemas/CalendarCellState' }
+        employeeId: { type: integer, format: int64, nullable: true }
+        employeeName: { type: string, nullable: true }
+        requestId: { type: integer, format: int64, nullable: true }
+    CalendarRow:
+      type: object
+      properties:
+        parkingSpaceId: { type: integer, format: int64 }
+        label: { type: string }
+        cells:
+          type: array
+          items: { $ref: '#/components/schemas/CalendarCell' }
+    AdminWeeklyCalendarResponse:
+      type: object
+      properties:
+        weekStart: { type: string, format: date }
+        days:
+          type: array
+          items: { type: string, format: date }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/CalendarRow' }
+    MyWeekDay:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        state: { $ref: '#/components/schemas/MyWeekDayState' }
+        parkingSpaceLabel: { type: string, nullable: true }
+        requestStatus:
+          oneOf:
+            - $ref: '#/components/schemas/RequestStatus'
+          nullable: true
+    MyWeekResponse:
+      type: object
+      properties:
+        weekStart: { type: string, format: date }
+        days:
+          type: array
+          items: { $ref: '#/components/schemas/MyWeekDay' }
+
+    # ---- Audit ----
+    AuditLogEntry:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        actorEmployeeId: { type: integer, format: int64, nullable: true }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: integer, format: int64, nullable: true }
+        details: { type: string, nullable: true }
+        occurredAt: { type: string, format: date-time }
+    LoginLogEntry:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        loginAttempted: { type: string }
+        employeeId: { type: integer, format: int64, nullable: true }
+        result: { $ref: '#/components/schemas/LoginResult' }
+        phase: { $ref: '#/components/schemas/LoginPhase' }
+        ipAddress: { type: string, nullable: true }
+        userAgent: { type: string, nullable: true }
+        occurredAt: { type: string, format: date-time }
+    PageAuditLogEntry:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/AuditLogEntry' }
+    PageLoginLogEntry:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/LoginLogEntry' }

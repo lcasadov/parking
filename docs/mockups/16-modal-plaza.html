@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Nueva plaza</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+
+<div class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-header green">
+      <div class="title"><i class="ti ti-parking"></i> Nueva plaza</div>
+      <div style="display:flex;gap:12px;color:#fff">
+        <i class="ti ti-maximize"></i>
+        <i class="ti ti-x"></i>
+      </div>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Identificador *</div>
+          <input class="field-input" value="P-09">
+          <div class="hint">Debe ser único (p. ej. P-09).</div>
+        </div>
+        <div>
+          <div class="field-label">Estado</div>
+          <div class="toggle on" style="margin-top:6px"><span class="track"><span class="knob"></span></span> Activa</div>
+          <div class="hint">Solo las plazas activas son reservables.</div>
+        </div>
+      </div>
+
+      <div class="info-banner blue" style="margin-top:16px">
+        <i class="ti ti-info-circle" style="font-size:16px"></i>
+        <span>La asignación de un titular fijo y de días se hace después, desde la ficha del empleado.</span>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-back">CANCELAR</button>
+      <button class="btn btn-green"><i class="ti ti-check"></i> GUARDAR</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'',activeSidebar:'spaces',active:'16-modal-plaza.html',showSidebar:false})</script>
+</body>
+</html>

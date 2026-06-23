@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep '^| __TRACKED_VAR__ ' c:/proyectos/parking/docs/PROJECT.md)",
+      "PowerShell(\\(Get-Content \"c:/proyectos/parking/docs/openapi.yaml\"\\).Count)",
+      "Bash(npx openspec *)",
+      "Bash(openspec *)",
+      "Read(//c/Users/Luis/.claude/**)",
+      "Edit(/.claude/skills/openspec-archive-change/**)"
+    ]
+  }
+}

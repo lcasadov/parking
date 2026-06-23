@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Liberar mi plaza (móvil)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+
+<div class="phones">
+
+  <!-- Phone 1: elegir días a liberar -->
+  <div class="phone">
+    <div class="phone-header">
+      <svg class="curve" viewBox="0 0 180 54" preserveAspectRatio="none">
+        <path d="M0,36 Q60,4 120,24 T180,16 L180,0 L0,0 Z" fill="#c0dd97" opacity="0.85"/>
+        <path d="M60,48 Q110,22 150,38 T180,34 L180,48 L60,54 Z" fill="#ef9f27" opacity="0.9"/>
+      </svg>
+      <i class="ti ti-arrow-left" style="font-size:18px;color:var(--text);z-index:1"></i>
+      <div style="margin-left:10px;font-size:13px;color:var(--text);font-weight:500;z-index:1">Liberar mi plaza</div>
+    </div>
+
+    <div class="phone-body">
+      <div class="info-banner green" style="margin-bottom:14px">
+        <i class="ti ti-parking" style="color:var(--green);font-size:16px"></i>
+        <div style="font-size:11px;line-height:1.5">Tu plaza fija es <strong style="font-weight:500">P-12</strong> (lunes y martes).</div>
+      </div>
+
+      <div style="font-size:11px;color:var(--text-muted);font-weight:500;letter-spacing:0.5px;margin-bottom:8px">ELIGE UN DÍA A LIBERAR · 11–15 MAY</div>
+
+      <div class="week-card assigned">
+        <div class="day-abbr-m">LUN</div>
+        <div class="desc">Plaza P-12 asignada</div>
+        <button style="background:#fff;color:var(--green-dark);border:0.5px solid var(--green-border);border-radius:4px;font-size:10px;padding:3px 8px;cursor:pointer;font-weight:500">Liberar</button>
+      </div>
+      <div class="week-card assigned">
+        <div class="day-abbr-m">MAR</div>
+        <div class="desc">Plaza P-12 asignada</div>
+        <button style="background:#fff;color:var(--green-dark);border:0.5px solid var(--green-border);border-radius:4px;font-size:10px;padding:3px 8px;cursor:pointer;font-weight:500">Liberar</button>
+      </div>
+      <div class="week-card released">
+        <div class="day-abbr-m">MIÉ</div>
+        <div class="desc">Sin plaza fija ese día</div>
+      </div>
+
+      <div class="muted" style="margin-top:12px;line-height:1.5"><i class="ti ti-info-circle"></i> Solo puedes liberar días presentes o futuros en los que tengas plaza fija.</div>
+    </div>
+  </div>
+
+  <!-- Phone 2: confirmar liberación -->
+  <div class="phone">
+    <div class="phone-header">
+      <svg class="curve" viewBox="0 0 180 54" preserveAspectRatio="none">
+        <path d="M0,36 Q60,4 120,24 T180,16 L180,0 L0,0 Z" fill="#c0dd97" opacity="0.85"/>
+        <path d="M60,48 Q110,22 150,38 T180,34 L180,48 L60,54 Z" fill="#ef9f27" opacity="0.9"/>
+      </svg>
+      <i class="ti ti-arrow-left" style="font-size:18px;color:var(--text);z-index:1"></i>
+      <div style="margin-left:10px;font-size:13px;color:var(--text);font-weight:500;z-index:1">Confirmar liberación</div>
+    </div>
+
+    <div class="phone-body">
+      <div style="background:var(--bg-soft);border:0.5px solid var(--border);border-radius:6px;padding:12px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+          <span class="muted">Plaza</span><span style="font-weight:500">P-12</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+          <span class="muted">Día</span><span style="font-weight:500">Lunes 11/05/2026</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;align-items:center">
+          <span class="muted">Tipo</span><span class="pill pill-pink">VOLUNTARIA</span>
+        </div>
+      </div>
+
+      <div class="info-banner blue" style="margin-bottom:16px">
+        <i class="ti ti-users" style="font-size:16px"></i>
+        <div style="font-size:11px;line-height:1.5">Ese día tu plaza quedará <strong style="font-weight:500">disponible</strong> para que otro empleado la solicite.</div>
+      </div>
+
+      <button class="btn btn-green" style="width:100%;justify-content:center;height:auto;padding:11px;margin-bottom:8px"><i class="ti ti-arrow-back-up"></i> Confirmar liberación</button>
+      <button style="width:100%;background:transparent;color:var(--text-muted);border:none;font-size:12px;cursor:pointer;padding:6px">Cancelar</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'',showSidebar:false,active:'14-liberar-plaza-movil.html'})</script>
+</body>
+</html>

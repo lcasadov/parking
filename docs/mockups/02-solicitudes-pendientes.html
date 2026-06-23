@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Solicitudes pendientes</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+<div class="layout">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+    <div class="toolbar">
+      <button class="tab active">Pendientes <span class="count">5</span></button>
+      <button class="tab">Aprobadas</button>
+      <button class="tab">Rechazadas</button>
+      <button class="tab">Todas</button>
+      <div class="search-box" style="margin-left:auto">
+        <i class="ti ti-search" style="font-size:14px;color:var(--text-muted)"></i>
+        <input type="text" placeholder="Buscar empleado...">
+      </div>
+    </div>
+
+    <div class="table">
+      <div class="table-header" style="grid-template-columns:1.6fr 1fr 1fr 1fr 1.6fr">
+        <div>Empleado</div>
+        <div>Fecha solicitada</div>
+        <div>Día</div>
+        <div>Creada</div>
+        <div style="text-align:center">Acciones</div>
+      </div>
+
+      <div class="table-row highlighted" style="grid-template-columns:1.6fr 1fr 1fr 1fr 1.6fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-purple">BK</div>
+          <div>
+            <div style="font-weight:500;color:var(--text)">Berta Kowalski</div>
+            <div style="color:var(--text-muted);font-size:11px">Operaciones</div>
+          </div>
+        </div>
+        <div>20/05/2026</div>
+        <div>Miércoles</div>
+        <div style="color:var(--text-muted)">hace 2 h</div>
+        <div style="display:flex;gap:6px;justify-content:center">
+          <button class="btn-success"><i class="ti ti-check"></i> Aprobar</button>
+          <button class="btn-danger-outline"><i class="ti ti-x"></i> Rechazar</button>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.6fr 1fr 1fr 1fr 1.6fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-teal">OZ</div>
+          <div>
+            <div style="font-weight:500;color:var(--text)">Oliver Zambrano</div>
+            <div style="color:var(--text-muted);font-size:11px">Sistemas</div>
+          </div>
+        </div>
+        <div>14/05/2026</div>
+        <div>Jueves</div>
+        <div style="color:var(--text-muted)">hace 5 h</div>
+        <div style="display:flex;gap:6px;justify-content:center">
+          <button class="btn-success"><i class="ti ti-check"></i> Aprobar</button>
+          <button class="btn-danger-outline"><i class="ti ti-x"></i> Rechazar</button>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.6fr 1fr 1fr 1fr 1.6fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-pink">EQ</div>
+          <div>
+            <div style="font-weight:500;color:var(--text)">Elsa Quintero</div>
+            <div style="color:var(--text-muted);font-size:11px">Marketing</div>
+          </div>
+        </div>
+        <div>15/05/2026</div>
+        <div>Viernes</div>
+        <div style="color:var(--text-muted)">ayer</div>
+        <div style="display:flex;gap:6px;justify-content:center">
+          <button class="btn-success"><i class="ti ti-check"></i> Aprobar</button>
+          <button class="btn-danger-outline"><i class="ti ti-x"></i> Rechazar</button>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.6fr 1fr 1fr 1fr 1.6fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-amber">HM</div>
+          <div>
+            <div style="font-weight:500;color:var(--text)">Héctor Marín</div>
+            <div style="color:var(--text-muted);font-size:11px">RR.HH.</div>
+          </div>
+        </div>
+        <div>18/05/2026</div>
+        <div>Lunes</div>
+        <div style="color:var(--text-muted)">ayer</div>
+        <div style="display:flex;gap:6px;justify-content:center">
+          <button class="btn-success"><i class="ti ti-check"></i> Aprobar</button>
+          <button class="btn-danger-outline"><i class="ti ti-x"></i> Rechazar</button>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.6fr 1fr 1fr 1fr 1.6fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-blue">PD</div>
+          <div>
+            <div style="font-weight:500;color:var(--text)">Pilar Dalmau</div>
+            <div style="color:var(--text-muted);font-size:11px">Legal</div>
+          </div>
+        </div>
+        <div>22/05/2026</div>
+        <div>Viernes</div>
+        <div style="color:var(--text-muted)">2 días</div>
+        <div style="display:flex;gap:6px;justify-content:center">
+          <button class="btn-success"><i class="ti ti-check"></i> Aprobar</button>
+          <button class="btn-danger-outline"><i class="ti ti-x"></i> Rechazar</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'Solicitudes pendientes',activeSidebar:'requests',active:'02-solicitudes-pendientes.html'})</script>
+</body>
+</html>

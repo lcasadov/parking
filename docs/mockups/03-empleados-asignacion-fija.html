@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Empleados y plaza fija</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+<div class="layout">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+    <div class="toolbar">
+      <div class="search-box" style="width:280px">
+        <i class="ti ti-search" style="font-size:14px;color:var(--text-muted)"></i>
+        <input type="text" placeholder="Buscar empleado...">
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-blue"><i class="ti ti-filter"></i> Filtro avanzado</button>
+        <button class="btn btn-green"><i class="ti ti-plus"></i> Nuevo empleado</button>
+      </div>
+    </div>
+
+    <div class="table">
+      <div class="table-header" style="grid-template-columns:1.7fr 1fr 0.7fr 1.7fr 0.5fr">
+        <div>Empleado</div>
+        <div>Departamento</div>
+        <div>Plaza fija</div>
+        <div style="text-align:center">Días asignados (todo el año)</div>
+        <div></div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.7fr 1fr 0.7fr 1.7fr 0.5fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-purple">DC</div>
+          <div>
+            <div style="font-weight:500">Diego Castaño</div>
+            <div style="color:var(--text-muted);font-size:11px">diego.castano@aleatica.com</div>
+          </div>
+        </div>
+        <div>Operaciones</div>
+        <div style="color:var(--green-darker);font-weight:500">P-01</div>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <span class="day-chip on">L</span>
+          <span class="day-chip on">M</span>
+          <span class="day-chip off">X</span>
+          <span class="day-chip on">J</span>
+          <span class="day-chip on">V</span>
+        </div>
+        <div style="text-align:center"><i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i></div>
+      </div>
+
+      <div class="table-row highlighted" style="grid-template-columns:1.7fr 1fr 0.7fr 1.7fr 0.5fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-teal">PP</div>
+          <div>
+            <div style="font-weight:500">Pepe Pérez</div>
+            <div style="color:var(--text-muted);font-size:11px">pepe.perez@aleatica.com</div>
+          </div>
+        </div>
+        <div>Sistemas</div>
+        <div style="color:var(--green-darker);font-weight:500">P-08</div>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <span class="day-chip off">L</span>
+          <span class="day-chip on">M</span>
+          <span class="day-chip off">X</span>
+          <span class="day-chip on">J</span>
+          <span class="day-chip off">V</span>
+        </div>
+        <div style="text-align:center"><i class="ti ti-edit" style="color:var(--green);cursor:pointer;font-size:16px"></i></div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.7fr 1fr 0.7fr 1.7fr 0.5fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-pink">NB</div>
+          <div>
+            <div style="font-weight:500">Núria Bellot</div>
+            <div style="color:var(--text-muted);font-size:11px">nuria.bellot@aleatica.com</div>
+          </div>
+        </div>
+        <div>Finanzas</div>
+        <div style="color:var(--green-darker);font-weight:500">P-02</div>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <span class="day-chip on">L</span>
+          <span class="day-chip on">M</span>
+          <span class="day-chip on">X</span>
+          <span class="day-chip on">J</span>
+          <span class="day-chip on">V</span>
+        </div>
+        <div style="text-align:center"><i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i></div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.7fr 1fr 0.7fr 1.7fr 0.5fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-amber">IR</div>
+          <div>
+            <div style="font-weight:500">Ignacio Roldán</div>
+            <div style="color:var(--text-muted);font-size:11px">ignacio.roldan@aleatica.com</div>
+          </div>
+        </div>
+        <div>Legal</div>
+        <div style="color:var(--green-darker);font-weight:500">P-03</div>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <span class="day-chip on">L</span>
+          <span class="day-chip off">M</span>
+          <span class="day-chip on">X</span>
+          <span class="day-chip off">J</span>
+          <span class="day-chip on">V</span>
+        </div>
+        <div style="text-align:center"><i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i></div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.7fr 1fr 0.7fr 1.7fr 0.5fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-blue">VS</div>
+          <div>
+            <div style="font-weight:500">Vega Salinas</div>
+            <div style="color:var(--text-muted);font-size:11px">vega.salinas@aleatica.com</div>
+          </div>
+        </div>
+        <div>Marketing</div>
+        <div style="color:var(--text-muted)">—</div>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <span class="day-chip off">L</span>
+          <span class="day-chip off">M</span>
+          <span class="day-chip off">X</span>
+          <span class="day-chip off">J</span>
+          <span class="day-chip off">V</span>
+        </div>
+        <div style="text-align:center"><i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i></div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.7fr 1fr 0.7fr 1.7fr 0.5fr">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar-sm av-coral">TH</div>
+          <div>
+            <div style="font-weight:500">Tomás Herranz</div>
+            <div style="color:var(--text-muted);font-size:11px">tomas.herranz@aleatica.com</div>
+          </div>
+        </div>
+        <div>Operaciones</div>
+        <div style="color:var(--green-darker);font-weight:500">P-04</div>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <span class="day-chip off">L</span>
+          <span class="day-chip on">M</span>
+          <span class="day-chip on">X</span>
+          <span class="day-chip off">J</span>
+          <span class="day-chip on">V</span>
+        </div>
+        <div style="text-align:center"><i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>Día con plaza fija asignada (todo el año)</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#f1efe8;border:0.5px solid var(--border)"></span>Sin plaza fija (debe solicitar)</div>
+    </div>
+
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'Empleados y plazas fijas',activeSidebar:'employees',active:'03-empleados-asignacion-fija.html'})</script>
+</body>
+</html>

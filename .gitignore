@@ -1,0 +1,50 @@
+# =========================
+# Secretos / entorno — NUNCA versionar
+# =========================
+.env
+.env.*
+!.env.example
+**/application-local.yml
+**/application-local.yaml
+**/application-secrets*.yml
+.claude/agents/.env
+
+# =========================
+# Backend — Java / Maven
+# =========================
+target/
+*.class
+*.jar
+*.war
+!**/src/**/*.jar
+.mvn/
+mvnw
+mvnw.cmd
+hs_err_pid*
+
+# =========================
+# Frontend — Node / Vite
+# =========================
+node_modules/
+dist/
+coverage/
+*.local
+.vite/
+npm-debug.log*
+yarn-error.log*
+
+# =========================
+# Estado local de Claude Code (no versionar)
+# =========================
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+
+# =========================
+# IDE / SO
+# =========================
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Sesión expirada</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+
+<div class="modal-overlay">
+  <div class="modal narrow" style="width:440px">
+    <div class="modal-header" style="background:var(--amber-border);color:var(--amber-text)">
+      <div class="title"><i class="ti ti-clock-exclamation"></i> Sesión expirada</div>
+    </div>
+
+    <div class="modal-body" style="text-align:center">
+      <i class="ti ti-lock-access" style="font-size:42px;color:var(--amber-text)"></i>
+      <div style="font-size:14px;font-weight:500;margin:12px 0 6px">Tu sesión ha caducado</div>
+      <div class="muted" style="line-height:1.6;margin-bottom:16px">
+        Por seguridad, la sesión se ha cerrado tras un periodo de inactividad
+        (o ha sido invalidada). Vuelve a iniciar sesión para continuar.
+      </div>
+
+      <div class="info-banner blue" style="text-align:left;margin-bottom:4px">
+        <i class="ti ti-info-circle" style="font-size:16px"></i>
+        <span>🔵 En Fase 2 se redirige a la <strong style="font-weight:500">landing de ALEATICA</strong> para volver a autenticarse. 🟢 En Fase 1 vuelve a la pantalla de login.</span>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="justify-content:center">
+      <button class="btn btn-green"><i class="ti ti-login-2"></i> Volver a iniciar sesión</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'',active:'19-modal-sesion-expirada.html',showSidebar:false})</script>
+<style>.app-header{display:none}</style>
+</body>
+</html>

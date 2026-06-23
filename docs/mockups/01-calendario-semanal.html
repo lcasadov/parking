@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Calendario semanal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+<div class="layout">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+    <div class="toolbar">
+      <button class="btn btn-white btn-icon-only"><i class="ti ti-chevron-left"></i></button>
+      <div style="font-size:14px;color:var(--text);font-weight:500">Semana 20 · 11 – 15 mayo 2026</div>
+      <button class="btn btn-white btn-icon-only"><i class="ti ti-chevron-right"></i></button>
+      <button class="btn btn-white" style="margin-left:4px">Hoy</button>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-blue"><i class="ti ti-filter"></i> Filtro avanzado</button>
+        <button class="btn btn-green"><i class="ti ti-file-spreadsheet"></i> Exportar (CSV/XLSX)</button>
+      </div>
+    </div>
+
+    <div class="table">
+      <div class="table-header" style="grid-template-columns:90px repeat(5,1fr)">
+        <div>Plaza</div>
+        <div>Lun 11</div>
+        <div>Mar 12</div>
+        <div>Mié 13</div>
+        <div>Jue 14</div>
+        <div>Vie 15</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:90px repeat(5,1fr)">
+        <div style="font-weight:500">P-01</div>
+        <div class="cell cell-assigned">Diego Castaño</div>
+        <div class="cell cell-assigned">Diego Castaño</div>
+        <div class="cell cell-released">Liberada</div>
+        <div class="cell cell-assigned">Diego Castaño</div>
+        <div class="cell cell-assigned">Diego Castaño</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:90px repeat(5,1fr)">
+        <div style="font-weight:500">P-02</div>
+        <div class="cell cell-assigned">Núria Bellot</div>
+        <div class="cell cell-assigned">Núria Bellot</div>
+        <div class="cell cell-assigned">Núria Bellot</div>
+        <div class="cell cell-assigned">Núria Bellot</div>
+        <div class="cell cell-released">Liberada</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:90px repeat(5,1fr)">
+        <div style="font-weight:500">P-03</div>
+        <div class="cell cell-assigned">Ignacio Roldán</div>
+        <div class="cell cell-pending">Pdte. asignar</div>
+        <div class="cell cell-assigned">Ignacio Roldán</div>
+        <div class="cell cell-assigned">Ignacio Roldán</div>
+        <div class="cell cell-assigned">Ignacio Roldán</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:90px repeat(5,1fr)">
+        <div style="font-weight:500">P-04</div>
+        <div class="cell cell-free">— Libre —</div>
+        <div class="cell cell-assigned">Tomás Herranz</div>
+        <div class="cell cell-assigned">Tomás Herranz</div>
+        <div class="cell cell-free">— Libre —</div>
+        <div class="cell cell-assigned">Tomás Herranz</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:90px repeat(5,1fr)">
+        <div style="font-weight:500">P-05</div>
+        <div class="cell cell-request">Sol. Berta K.</div>
+        <div class="cell cell-assigned">Yolanda Esquivel</div>
+        <div class="cell cell-assigned">Yolanda Esquivel</div>
+        <div class="cell cell-assigned">Yolanda Esquivel</div>
+        <div class="cell cell-released">Liberada</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:90px repeat(5,1fr)">
+        <div style="font-weight:500">P-06</div>
+        <div class="cell cell-assigned">Pepe Pérez</div>
+        <div class="cell cell-free">— Libre —</div>
+        <div class="cell cell-assigned">Pepe Pérez</div>
+        <div class="cell cell-free">— Libre —</div>
+        <div class="cell cell-assigned">Pepe Pérez</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--green-soft);border:0.5px solid var(--green-border)"></span>Asignada</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--pink-soft);border:0.5px solid var(--pink-border)"></span>Liberada</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--amber-soft);border:0.5px solid var(--amber-border)"></span>Pdte. asignar</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--blue-soft);border:0.5px solid var(--blue-border)"></span>Solicitud aprobada</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#f1efe8;border:0.5px solid #d3d1c7"></span>Libre</div>
+    </div>
+
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'Asignación semanal',activeSidebar:'calendar',active:'01-calendario-semanal.html'})</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Preferencias (idioma y tema)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+
+<!-- Menú de usuario / preferencias, anclado bajo el avatar del header -->
+<div class="popover">
+  <div class="pop-row" style="flex-direction:column;align-items:flex-start;gap:2px">
+    <div style="font-weight:500">Rosa Bermúdez</div>
+    <div class="muted">Administradora · rosa.bermudez@aleatica.com</div>
+  </div>
+
+  <div class="pop-row">
+    <span style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-language"></i> Idioma</span>
+    <div class="segmented">
+      <button class="active">ES</button>
+      <button>EN</button>
+    </div>
+  </div>
+
+  <div class="pop-row">
+    <span style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-moon"></i> Tema</span>
+    <div class="toggle" style="cursor:pointer"><span class="track"><span class="knob"></span></span> Claro</div>
+  </div>
+
+  <div class="pop-row" style="cursor:pointer;color:var(--red-text)">
+    <span style="display:flex;align-items:center;gap:8px;font-size:13px"><i class="ti ti-logout"></i> Cerrar sesión</span>
+    <i class="ti ti-chevron-right" style="font-size:14px"></i>
+  </div>
+</div>
+
+<div class="layout">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="card" style="max-width:560px">
+      <div class="card-title">Preferencias de la aplicación</div>
+      <div class="muted" style="margin-bottom:14px">El idioma y el tema se cambian desde el menú del avatar (arriba a la derecha). La preferencia se recuerda en el navegador del usuario.</div>
+      <div class="legend" style="margin-top:0">
+        <div class="legend-item"><i class="ti ti-language" style="color:var(--green)"></i> <strong>Idioma:</strong>&nbsp;Español (defecto) / Inglés, conmutable en caliente (react-i18next).</div>
+      </div>
+      <div class="legend" style="margin-top:8px">
+        <div class="legend-item"><i class="ti ti-moon" style="color:var(--green)"></i> <strong>Tema:</strong>&nbsp;Claro / Oscuro, conmutación manual (no automática). Ver demo en la pantalla 18.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'Preferencias',active:'17-preferencias.html'})</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Auditoría y accesos</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+<div class="layout">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+    <div class="toolbar">
+      <button class="tab active">Auditoría de acciones</button>
+      <button class="tab">Accesos (login)</button>
+      <div class="search-box" style="margin-left:auto;width:240px">
+        <i class="ti ti-search" style="font-size:14px;color:var(--text-muted)"></i>
+        <input type="text" placeholder="Buscar...">
+      </div>
+      <button class="btn btn-white"><i class="ti ti-calendar"></i> Rango de fechas</button>
+      <button class="btn btn-green"><i class="ti ti-file-spreadsheet"></i> Exportar</button>
+    </div>
+
+    <!-- TAB 1: audit_log -->
+    <div class="table">
+      <div class="table-header" style="grid-template-columns:1.2fr 1.2fr 1.3fr 1.2fr 1.4fr">
+        <div>Fecha y hora</div>
+        <div>Actor</div>
+        <div>Acción</div>
+        <div>Entidad</div>
+        <div>Detalle</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.2fr 1.2fr 1.3fr 1.2fr 1.4fr">
+        <div style="color:var(--text-muted)">21/05/2026 09:14</div>
+        <div>Rosa Bermúdez (admin)</div>
+        <div><span class="pill pill-green">APPROVE_REQUEST</span></div>
+        <div>Request #1042</div>
+        <div style="color:var(--text-soft)">Plaza P-07 → Berta Kowalski</div>
+      </div>
+      <div class="table-row" style="grid-template-columns:1.2fr 1.2fr 1.3fr 1.2fr 1.4fr">
+        <div style="color:var(--text-muted)">21/05/2026 09:02</div>
+        <div>Rosa Bermúdez (admin)</div>
+        <div><span class="pill pill-red">REJECT_REQUEST</span></div>
+        <div>Request #1039</div>
+        <div style="color:var(--text-soft)">Motivo: sin plazas ese día</div>
+      </div>
+      <div class="table-row" style="grid-template-columns:1.2fr 1.2fr 1.3fr 1.2fr 1.4fr">
+        <div style="color:var(--text-muted)">20/05/2026 17:40</div>
+        <div>Pepe Pérez (empleado)</div>
+        <div><span class="pill pill-pink">CREATE_RELEASE</span></div>
+        <div>Release #318</div>
+        <div style="color:var(--text-soft)">Plaza P-08 · 22/05/2026 (voluntaria)</div>
+      </div>
+      <div class="table-row" style="grid-template-columns:1.2fr 1.2fr 1.3fr 1.2fr 1.4fr">
+        <div style="color:var(--text-muted)">20/05/2026 16:05</div>
+        <div>Rosa Bermúdez (admin)</div>
+        <div><span class="pill pill-blue">UPDATE_FIXED_ASSIGNMENT</span></div>
+        <div>FixedAssignment #77</div>
+        <div style="color:var(--text-soft)">Pepe Pérez: días M, J</div>
+      </div>
+      <div class="table-row" style="grid-template-columns:1.2fr 1.2fr 1.3fr 1.2fr 1.4fr">
+        <div style="color:var(--text-muted)">20/05/2026 11:22</div>
+        <div>Rosa Bermúdez (admin)</div>
+        <div><span class="pill pill-amber">RESET_PASSWORD</span></div>
+        <div>Employee #34</div>
+        <div style="color:var(--text-soft)">Reset administrativo</div>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:12px"><i class="ti ti-shield-lock"></i> Los intentos de inicio de sesión se registran aparte, en la pestaña <strong>Accesos (login)</strong>, para no contaminar la auditoría funcional. Retención: 2 años.</div>
+
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'Auditoría',activeSidebar:'audit',active:'11-auditoria.html'})</script>
+</body>
+</html>
