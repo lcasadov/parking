@@ -1,0 +1,11 @@
+# Perfil PRE (preproduccion). SPA y API en el mismo origen (sin CORS).
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+logging:
+  level:
+    com.aleatica.parking: INFO

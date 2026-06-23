@@ -1,0 +1,16 @@
+# Perfil DES (desarrollo). SQL Server local via docker-compose.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=parking;encrypt=true;trustServerCertificate=true}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:Parking!Local2024}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+# CORS solo en DES: la SPA corre en un dev server distinto (Vite :5173).
+parking:
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:8080
+
+logging:
+  level:
+    com.aleatica.parking: DEBUG
