@@ -1,0 +1,82 @@
+# =====================================================================
+# Configuracion base (comun a todos los perfiles). Los valores especificos
+# de entorno viven en application-{des,pre,pro}.yml. Perfil activo por defecto: des.
+# =====================================================================
+spring:
+  application:
+    name: parking
+  profiles:
+    default: des
+
+  # La sesion vive en BD; el datasource lo define cada perfil.
+  jpa:
+    hibernate:
+      # Flyway es el dueno del esquema; validate detecta drift entidad/DDL al arrancar.
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  session:
+    jdbc:
+      initialize-schema: never   # las tablas SPRING_SESSION las crea Flyway (V1)
+    store-type: jdbc
+
+  # SMTP: Ethereal en LOCAL/DES/PRE (valores via variables de entorno, ver .env).
+  mail:
+    host: ${SMTP_HOST:smtp.ethereal.email}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS:true}
+
+server:
+  servlet:
+    context-path: /parking-api
+
+# Actuator: solo health e info, sin exponer detalle (OWASP API8).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+# No filtrar stack traces ni mensajes internos en las respuestas de error.
+server.error:
+  include-message: never
+  include-stacktrace: never
+  include-binding-errors: never
+
+# Parametros propios de parking.
+parking:
+  auth:
+    local-fallback:
+      enabled: false          # fallback de emergencia desactivado por defecto
+  retention:
+    years: 2                  # purga de datos historicos a los 2 anos (RGPD)
+  session:
+    cookie:
+      secure: false           # Secure solo en pro (ver application-pro.yml)
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+  show-actuator: false

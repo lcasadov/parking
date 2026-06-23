@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Configuracion de logging de parking.
+  Logging seguro (security-design.md §10): nunca se logan contrasenas, hashes,
+  tokens ni la cookie de sesion. Preferir IDs (employee_id) a datos personales.
+-->
+<configuration>
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- En produccion se reduce el ruido; los detalles sensibles nunca se logan. -->
+    <springProfile name="pro">
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.aleatica.parking" level="INFO"/>
+    </springProfile>
+
+    <springProfile name="des,pre">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.aleatica.parking" level="DEBUG"/>
+    </springProfile>
+
+</configuration>
