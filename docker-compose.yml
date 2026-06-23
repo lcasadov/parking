@@ -12,8 +12,9 @@ services:
     ports:
       - "1433:1433"
     volumes:
+      # SQL Server NO soporta /docker-entrypoint-initdb.d (es convencion de Postgres/MySQL);
+      # la creacion de la BD la realiza el servicio `db-init` cuando el healthcheck pasa.
       - parking-mssql-data:/var/opt/mssql
-      - ./database/seed:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # /opt/mssql-tools18 ships with the 2022 image; -C trusts the self-signed dev cert.
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
@@ -22,6 +23,24 @@ services:
       retries: 10
       start_period: 30s
     restart: unless-stopped
+
+  # Servicio de un solo uso: crea la BD `parking` cuando SQL Server esta sano.
+  # Idempotente (IF DB_ID(...) IS NULL CREATE DATABASE). Termina tras ejecutar el script.
+  db-init:
+    image: mcr.microsoft.com/mssql-tools18
+    container_name: parking-db-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Parking!Local2024}"
+    volumes:
+      - ./database/seed:/seed:ro
+    # -C confia en el certificado autofirmado del servidor de desarrollo.
+    entrypoint: >
+      /bin/bash -c "/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa
+      -P \"$${MSSQL_SA_PASSWORD}\" -C -b -i /seed/00_create_database.sql"
+    restart: "no"
 
   # Opcional: UI de correo local. Habilitar con `docker compose --profile mail up -d`.
   mailhog:
