@@ -1,0 +1,38 @@
+# Docker Compose — infraestructura local de parking (solo BD; la app se ejecuta con mvn spring-boot:run).
+# SMTP usa Ethereal hosted (no se dockeriza). MailHog es opcional para UI de correo local.
+services:
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: parking-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Parking!Local2024}"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - parking-mssql-data:/var/opt/mssql
+      - ./database/seed:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # /opt/mssql-tools18 ships with the 2022 image; -C trusts the self-signed dev cert.
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # Opcional: UI de correo local. Habilitar con `docker compose --profile mail up -d`.
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: parking-mailhog
+    profiles: ["mail"]
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    restart: unless-stopped
+
+volumes:
+  parking-mssql-data:
+    name: parking-mssql-data
