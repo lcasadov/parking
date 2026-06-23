@@ -14,7 +14,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class FlywayMigrationIT extends BaseIntegrationTest {
 
     private static final String COUNT_TABLE_SQL =
-            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?";
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES "
+            + "WHERE TABLE_SCHEMA = 'dbo' AND TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = ?";
     private static final String COUNT_INDEX_SQL =
             "SELECT COUNT(*) FROM sys.indexes WHERE name = ?";
 

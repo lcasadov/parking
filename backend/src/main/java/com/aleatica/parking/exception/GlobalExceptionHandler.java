@@ -34,6 +34,7 @@ public class GlobalExceptionHandler {
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
+    private static final String MSG_NOT_FOUND = "Recurso no encontrado";
     private static final String MSG_INTERNAL = "Se ha producido un error interno";
 
     /**
@@ -68,13 +69,17 @@ public class GlobalExceptionHandler {
     /**
      * Traduce la ausencia de una entidad a {@code 404 Not Found}.
      *
+     * <p>El cliente recibe un mensaje generico para no filtrar detalle interno
+     * (OWASP API8); el mensaje real se registra en el log del servidor.</p>
+     *
      * @param ex excepcion de entidad no encontrada
-     * @return {@link ApiError} con estado 404
+     * @return {@link ApiError} generico con estado 404
      */
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(EntityNotFoundException ex) {
+        LOG.warn("Recurso no encontrado: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiError.of(CODE_NOT_FOUND, ex.getMessage()));
+                .body(ApiError.of(CODE_NOT_FOUND, MSG_NOT_FOUND));
     }
 
     /**

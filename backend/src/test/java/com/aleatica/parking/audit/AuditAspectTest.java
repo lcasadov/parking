@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -39,6 +40,23 @@ class AuditAspectTest {
         Object result = aspect.audit(joinPoint, auditable);
 
         // Then
+        assertThat(result).isEqualTo("ok");
+        then(auditRecorder).should().record(ACTION, ENTITY_TYPE, null);
+    }
+
+    @Test
+    void should_return_business_result_when_audit_recorder_fails() throws Throwable {
+        // Given: la operacion de negocio se aplica, pero la auditoria falla (fail-open)
+        AuditAspect aspect = new AuditAspect(auditRecorder);
+        Auditable auditable = auditable(ACTION, ENTITY_TYPE);
+        given(joinPoint.proceed()).willReturn("ok");
+        willThrow(new IllegalStateException("audit down"))
+                .given(auditRecorder).record(ACTION, ENTITY_TYPE, null);
+
+        // When
+        Object result = aspect.audit(joinPoint, auditable);
+
+        // Then: se devuelve el resultado de negocio y el fallo de auditoria no propaga
         assertThat(result).isEqualTo("ok");
         then(auditRecorder).should().record(ACTION, ENTITY_TYPE, null);
     }

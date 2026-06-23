@@ -71,7 +71,9 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().error()).isEqualTo("NOT_FOUND");
-        assertThat(response.getBody().message()).isEqualTo("no existe");
+        // El mensaje al cliente es generico: nunca filtra el detalle interno (OWASP API8).
+        assertThat(response.getBody().message()).isEqualTo("Recurso no encontrado");
+        assertThat(response.getBody().message()).doesNotContain("no existe");
     }
 
     @Test
