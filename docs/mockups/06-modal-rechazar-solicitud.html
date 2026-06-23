@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Rechazar solicitud</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+
+<div class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-header red">
+      <div class="title"><i class="ti ti-alert-triangle"></i> Rechazar solicitud</div>
+      <i class="ti ti-x" style="cursor:pointer"></i>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="info-banner red" style="margin-bottom:18px">
+        <span>Estás a punto de rechazar la solicitud de plaza de <strong style="font-weight:500">Berta Kowalski</strong> para el <strong style="font-weight:500">miércoles 20/05/2026</strong>.</span>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div class="field-label red">Motivo del rechazo *</div>
+        <div class="field-value danger with-icon">
+          <span>No quedan plazas disponibles para ese día</span>
+          <i class="ti ti-chevron-down" style="color:var(--text-muted)"></i>
+        </div>
+        <div class="hint">Selecciona un motivo o escribe uno personalizado</div>
+      </div>
+
+      <div style="margin-bottom:18px">
+        <div class="field-label red">Comentario adicional</div>
+        <textarea placeholder="Información adicional opcional para el empleado..."></textarea>
+      </div>
+
+      <div class="info-banner blue">
+        <i class="ti ti-mail" style="font-size:16px"></i>
+        El empleado recibirá un email con el motivo del rechazo.
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-back">CANCELAR</button>
+      <button class="btn btn-red"><i class="ti ti-x"></i> CONFIRMAR RECHAZO</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'',activeSidebar:'requests',active:'06-modal-rechazar-solicitud.html',showSidebar:false})</script>
+</body>
+</html>

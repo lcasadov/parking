@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Nueva reserva de visita</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+
+<div class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header green">
+      <div class="title"><i class="ti ti-calendar-plus"></i> Nueva reserva de visita</div>
+      <div style="display:flex;gap:12px;color:#fff">
+        <i class="ti ti-maximize"></i>
+        <i class="ti ti-x"></i>
+      </div>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="field-label">Visitante *</div>
+      <div class="field-value focused with-icon" style="margin-bottom:6px">
+        <span>Laura Méndez · DNI 12345678Z</span>
+        <i class="ti ti-chevron-down" style="color:var(--text-muted)"></i>
+      </div>
+      <div class="hint" style="margin-bottom:14px">Busca por DNI, nombre, apellidos o matrícula. Si no existe, créalo primero como ficha.</div>
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Fecha *</div>
+          <div class="field-value with-icon">
+            <span><i class="ti ti-calendar" style="color:var(--text-muted)"></i> Jueves 21/05/2026</span>
+            <i class="ti ti-chevron-down" style="color:var(--text-muted)"></i>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Plaza *</div>
+          <div class="field-value focused with-icon">
+            <span>P-07</span>
+            <i class="ti ti-chevron-down" style="color:var(--text-muted)"></i>
+          </div>
+          <div class="hint">4 plazas libres ese día</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div class="field-label">Observaciones</div>
+        <textarea placeholder="Información para el control de acceso (opcional)..."></textarea>
+      </div>
+
+      <div class="info-banner blue">
+        <i class="ti ti-info-circle" style="font-size:16px"></i>
+        <span>La plaza quedará ocupada ese día. El visitante <strong style="font-weight:500">no recibe email</strong> (no tiene cuenta).</span>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-back">CANCELAR</button>
+      <button class="btn btn-green"><i class="ti ti-check"></i> CREAR RESERVA</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'',activeSidebar:'visitors',active:'10-modal-reserva-visita.html',showSidebar:false})</script>
+</body>
+</html>

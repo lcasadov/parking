@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Visitantes y reservas</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+<div class="layout">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+    <div class="toolbar">
+      <button class="tab active">Fichas de visitante</button>
+      <button class="tab">Reservas futuras</button>
+      <div class="search-box" style="margin-left:auto;width:280px">
+        <i class="ti ti-search" style="font-size:14px;color:var(--text-muted)"></i>
+        <input type="text" placeholder="Buscar por DNI, nombre o matrícula...">
+      </div>
+      <button class="btn btn-blue"><i class="ti ti-calendar-plus"></i> Nueva reserva</button>
+      <button class="btn btn-green"><i class="ti ti-user-plus"></i> Nuevo visitante</button>
+    </div>
+
+    <div class="muted" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Los visitantes no acceden a la aplicación. Sus reservas las gestiona el administrador y no generan emails.</div>
+
+    <div class="table">
+      <div class="table-header" style="grid-template-columns:1.4fr 1fr 1fr 1.2fr 1fr 0.7fr">
+        <div>Visitante</div>
+        <div>DNI</div>
+        <div>Matrícula</div>
+        <div>Empresa</div>
+        <div>Motivo habitual</div>
+        <div style="text-align:center">Acciones</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.4fr 1fr 1fr 1.2fr 1fr 0.7fr">
+        <div style="font-weight:500">Laura Méndez</div>
+        <div>12345678Z</div>
+        <div>1234 KLM</div>
+        <div>Auditora externa S.L.</div>
+        <div style="color:var(--text-muted)">Auditoría anual</div>
+        <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+          <i class="ti ti-calendar-plus" style="color:var(--blue);cursor:pointer;font-size:16px" title="Reservar plaza"></i>
+          <i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.4fr 1fr 1fr 1.2fr 1fr 0.7fr">
+        <div style="font-weight:500">Carlos Ferrer</div>
+        <div>87654321X</div>
+        <div>5678 BCD</div>
+        <div style="color:var(--text-muted)">—</div>
+        <div style="color:var(--text-muted)">Proveedor</div>
+        <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+          <i class="ti ti-calendar-plus" style="color:var(--blue);cursor:pointer;font-size:16px" title="Reservar plaza"></i>
+          <i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:1.4fr 1fr 1fr 1.2fr 1fr 0.7fr">
+        <div style="font-weight:500">Mireia Costa</div>
+        <div>11223344P</div>
+        <div style="color:var(--text-muted)">—</div>
+        <div>Consultoría QRIA</div>
+        <div style="color:var(--text-muted)">Reunión comercial</div>
+        <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+          <i class="ti ti-calendar-plus" style="color:var(--blue);cursor:pointer;font-size:16px" title="Reservar plaza"></i>
+          <i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'Visitantes',activeSidebar:'visitors',active:'09-visitantes.html'})</script>
+</body>
+</html>

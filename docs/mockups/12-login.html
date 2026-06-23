@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Acceso</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-head">
+      <svg class="curve" viewBox="0 0 380 96" preserveAspectRatio="none">
+        <path d="M0,60 Q130,10 240,40 T380,28 L380,0 L0,0 Z" fill="#c0dd97" opacity="0.85"/>
+        <path d="M130,82 Q210,40 300,60 T380,54 L380,82 L130,96 Z" fill="#ef9f27" opacity="0.9"/>
+      </svg>
+      <div class="logo-dot" style="z-index:1"></div>
+      <div style="z-index:1;text-align:center">
+        <div class="brand-name">parking</div>
+        <div class="brand-sub">ALEATICA</div>
+      </div>
+    </div>
+
+    <div class="auth-body">
+      <div style="font-size:15px;font-weight:500;margin-bottom:2px">Iniciar sesión</div>
+      <div class="muted" style="margin-bottom:18px">Acceso con tu usuario corporativo.</div>
+
+      <!-- Estado de error (ejemplo) -->
+      <div class="info-banner red" style="margin-bottom:16px">
+        <i class="ti ti-alert-circle" style="font-size:16px"></i>
+        <span>Usuario o contraseña incorrectos. Te quedan <strong style="font-weight:500">3 intentos</strong> antes del bloqueo temporal.</span>
+      </div>
+
+      <div class="auth-field">
+        <div class="field-label">Usuario</div>
+        <input class="field-input" value="pepe.perez">
+      </div>
+      <div class="auth-field">
+        <div class="field-label">Contraseña</div>
+        <div class="field-value with-icon" style="padding:0 10px">
+          <input class="field-input" type="password" value="••••••••••" style="border:none;padding:8px 0">
+          <i class="ti ti-eye" style="color:var(--text-muted);cursor:pointer"></i>
+        </div>
+      </div>
+
+      <button class="btn btn-green" style="width:100%;justify-content:center;height:38px;margin-top:6px"><i class="ti ti-login-2"></i> Entrar</button>
+
+      <div class="muted" style="text-align:center;margin-top:16px;line-height:1.6">
+        ¿Has olvidado tu contraseña?<br>
+        Solicita un <strong>restablecimiento al administrador</strong>.
+      </div>
+      <div class="muted" style="text-align:center;margin-top:10px;font-size:10px;color:var(--text-muted)">
+        <i class="ti ti-shield-lock"></i> Tras 5 intentos fallidos la cuenta se bloquea 15 minutos.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'',active:'12-login.html',showSidebar:false})</script>
+<style>.app-header{display:none}</style>
+</body>
+</html>

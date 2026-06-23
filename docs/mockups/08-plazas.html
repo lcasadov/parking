@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Plazas</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+<div class="layout">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+    <!-- Configuración masiva del total -->
+    <div class="card" style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+      <i class="ti ti-adjustments" style="font-size:20px;color:var(--green)"></i>
+      <div style="flex:1">
+        <div class="card-title">Configuración del parking</div>
+        <div class="muted">Total de plazas configuradas actualmente: <strong>24</strong></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="muted">Nuevo total</span>
+        <input class="field-input" style="width:80px" value="24">
+        <button class="btn btn-green"><i class="ti ti-check"></i> Aplicar</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-box" style="width:280px">
+        <i class="ti ti-search" style="font-size:14px;color:var(--text-muted)"></i>
+        <input type="text" placeholder="Buscar plaza...">
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-blue"><i class="ti ti-filter"></i> Filtro avanzado</button>
+        <button class="btn btn-green"><i class="ti ti-plus"></i> Nueva plaza</button>
+      </div>
+    </div>
+
+    <div class="table">
+      <div class="table-header" style="grid-template-columns:0.8fr 1.6fr 0.9fr 0.7fr">
+        <div>Plaza</div>
+        <div>Titular fijo</div>
+        <div>Estado</div>
+        <div style="text-align:center">Acciones</div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:0.8fr 1.6fr 0.9fr 0.7fr">
+        <div style="font-weight:500;color:var(--green-darker)">P-01</div>
+        <div>Diego Castaño</div>
+        <div><span class="pill pill-green">Activa</span></div>
+        <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+          <i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i>
+          <i class="ti ti-circle-off" style="color:var(--red-text);cursor:pointer;font-size:16px" title="Desactivar"></i>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:0.8fr 1.6fr 0.9fr 0.7fr">
+        <div style="font-weight:500;color:var(--green-darker)">P-07</div>
+        <div style="color:var(--text-muted)">— Sin titular —</div>
+        <div><span class="pill pill-green">Activa</span></div>
+        <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+          <i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i>
+          <i class="ti ti-circle-off" style="color:var(--red-text);cursor:pointer;font-size:16px" title="Desactivar"></i>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:0.8fr 1.6fr 0.9fr 0.7fr">
+        <div style="font-weight:500;color:var(--green-darker)">P-08</div>
+        <div>Pepe Pérez</div>
+        <div><span class="pill pill-green">Activa</span></div>
+        <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+          <i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i>
+          <i class="ti ti-circle-off" style="color:var(--red-text);cursor:pointer;font-size:16px" title="Desactivar"></i>
+        </div>
+      </div>
+
+      <div class="table-row" style="grid-template-columns:0.8fr 1.6fr 0.9fr 0.7fr">
+        <div style="font-weight:500;color:var(--text-muted)">P-15</div>
+        <div style="color:var(--text-muted)">—</div>
+        <div><span class="pill pill-gray">Inactiva</span></div>
+        <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+          <i class="ti ti-edit" style="color:var(--text-muted);cursor:pointer;font-size:16px"></i>
+          <i class="ti ti-circle-check" style="color:var(--green);cursor:pointer;font-size:16px" title="Activar"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="pill pill-green">Activa</span> Reservable y visible en el calendario</div>
+      <div class="legend-item"><span class="pill pill-gray">Inactiva</span> No disponible para asignación ni solicitud</div>
+    </div>
+
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'Plazas',activeSidebar:'spaces',active:'08-plazas.html'})</script>
+</body>
+</html>

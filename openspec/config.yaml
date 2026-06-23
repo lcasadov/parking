@@ -1,0 +1,54 @@
+schema: spec-driven
+
+# =========================================================================
+# Contexto de proyecto para los agentes OpenSpec — parking · ALEATICA.
+# Prosa en español; identificadores de código en INGLÉS (ver README
+# "Nomenclatura del código"). NO existe catálogo RN-xx: las reglas de
+# negocio se referencian por descripción desde el README.
+# =========================================================================
+project:
+  name: parking
+  description: Gestión de plazas de parking y puestos de oficina de ALEATICA
+  owner: ALEATICA
+  language: es
+
+stack:
+  backend: Spring Boot 3.3 (Java 21 LTS) · WAR sobre Tomcat 10.1
+  frontend: React 18 + Vite 5 (design system propio, sin Tailwind)
+  database: SQL Server 2022
+  orm: Spring Data JPA + Hibernate 6.5
+
+conventions:
+  api_base_path: /api/v1
+  api_spec: docs/openapi.yaml
+  data_model: docs/data-model.md
+  security_design: docs/security-design.md
+  testing_strategy: docs/TESTING-STRATEGY.md
+  naming: README.md   # sección "Nomenclatura del código" (código en inglés)
+
+roles: [ADMIN, EMPLOYEE]
+
+phases:
+  - { id: fase-1, name: Login local, status: active }
+  - { id: fase-2, name: SSO ALEATICA, status: planned }
+
+capabilities:
+  - auth-local
+  - auth-sso
+  - employees
+  - parking-spaces
+  - fixed-assignments
+  - releases
+  - requests
+  - visitors
+  - availability-calendar
+  - audit-retention
+  - notifications
+  - exports
+  # --- Alcance ampliado: puestos de oficina (ciclo posterior) ---
+  - generic-resource-refactor
+  - desks
+  - floor-plan
+
+business_rules:
+  source: README.md   # sección "Reglas de negocio" (descriptivas; NO hay catálogo RN-xx)

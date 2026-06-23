@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parking · Edición empleado</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="topnav-slot"></div>
+<div id="header-slot"></div>
+
+<div class="modal-overlay" style="align-items:flex-start;padding-top:24px;padding-bottom:24px">
+  <div class="modal">
+    <div class="modal-header green">
+      <div class="title">Empleado · Pepe Pérez</div>
+      <div style="display:flex;gap:12px;color:#fff">
+        <i class="ti ti-maximize"></i>
+        <i class="ti ti-x"></i>
+      </div>
+    </div>
+
+    <div class="modal-tabs">
+      <div class="modal-tab active">DETALLES</div>
+      <div class="modal-tab">PLAZA FIJA</div>
+      <div class="modal-tab">HISTÓRICO</div>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- ===== DETALLES ===== -->
+      <div class="field-row">
+        <div>
+          <div class="field-label">Nombre *</div>
+          <div class="field-value">Pepe</div>
+        </div>
+        <div>
+          <div class="field-label">Apellidos *</div>
+          <div class="field-value">Pérez</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Usuario / login *</div>
+          <div class="field-value">pepe.perez</div>
+          <div class="hint">En Fase 2 debe coincidir con el <code>username</code> de la landing.</div>
+        </div>
+        <div>
+          <div class="field-label">Email *</div>
+          <div class="field-value">pepe.perez@aleatica.com</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Departamento</div>
+          <div class="field-value with-icon">
+            <span>Sistemas</span>
+            <i class="ti ti-chevron-down" style="color:var(--text-muted)"></i>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Teléfono móvil</div>
+          <div class="field-value">+34 612 345 678</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Matrícula</div>
+          <div class="field-value">1234 KLM</div>
+        </div>
+        <div>
+          <div class="field-label">Empleado corporativo</div>
+          <div class="toggle on" style="margin-top:6px"><span class="track"><span class="knob"></span></span> Sí (tiene EntraID)</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Estado</div>
+          <div class="toggle on" style="margin-top:6px"><span class="track"><span class="knob"></span></span> Activo</div>
+        </div>
+        <div>
+          <div class="field-label">Habilitado para acceso</div>
+          <div class="toggle on" style="margin-top:6px"><span class="track"><span class="knob"></span></span> Habilitado</div>
+        </div>
+      </div>
+
+      <!-- Seguridad -->
+      <div style="display:flex;align-items:center;gap:12px;background:var(--bg-soft);border:0.5px solid var(--border);border-radius:8px;padding:12px;margin-top:4px">
+        <i class="ti ti-shield-lock" style="font-size:20px;color:var(--green)"></i>
+        <div style="flex:1">
+          <div class="card-title">Seguridad de la cuenta</div>
+          <div class="muted">🟢 Fase 1: contraseña temporal en pantalla. 🔵 Fase 2: por email.</div>
+        </div>
+        <button class="btn btn-white"><i class="ti ti-key"></i> Resetear contraseña</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- ===== PLAZA FIJA ===== -->
+      <div style="font-size:13px;color:var(--text);font-weight:500;margin-bottom:4px">Plaza fija asignada</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">
+        La asignación es indefinida (válida todo el año) hasta que se modifique. El empleado podrá liberar su plaza cualquier día concreto que no vaya a la oficina.
+      </div>
+
+      <div class="field-row">
+        <div>
+          <div class="field-label">Plaza *</div>
+          <div class="field-value focused with-icon">
+            <span>P-08</span>
+            <i class="ti ti-chevron-down" style="color:var(--text-muted)"></i>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Vigencia</div>
+          <div class="field-value readonly" style="display:flex;align-items:center;gap:6px">
+            <i class="ti ti-infinity" style="color:var(--green)"></i> Indefinida
+          </div>
+        </div>
+      </div>
+
+      <div class="field-label">Días de la semana con plaza *</div>
+      <div class="day-cards" style="margin-top:8px;margin-bottom:14px">
+        <div class="day-card">
+          <div class="day-abbr">LUN</div><div class="day-name">Lunes</div><div class="day-check"></div>
+        </div>
+        <div class="day-card selected">
+          <div class="day-abbr">MAR</div><div class="day-name">Martes</div><div class="day-check"><i class="ti ti-check"></i></div>
+        </div>
+        <div class="day-card">
+          <div class="day-abbr">MIÉ</div><div class="day-name">Miércoles</div><div class="day-check"></div>
+        </div>
+        <div class="day-card selected">
+          <div class="day-abbr">JUE</div><div class="day-name">Jueves</div><div class="day-check"><i class="ti ti-check"></i></div>
+        </div>
+        <div class="day-card">
+          <div class="day-abbr">VIE</div><div class="day-name">Viernes</div><div class="day-check"></div>
+        </div>
+      </div>
+
+      <div class="info-banner green" style="margin-bottom:18px">
+        <i class="ti ti-info-circle" style="font-size:16px;color:var(--green)"></i>
+        <span>Pepe Pérez tendrá la plaza <strong style="font-weight:500">P-08</strong> los <strong style="font-weight:500">martes y jueves</strong> de forma indefinida.</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- ===== HISTÓRICO ===== -->
+      <div style="font-size:13px;color:var(--text);font-weight:500;margin-bottom:10px">Histórico de cambios</div>
+      <div class="table">
+        <div class="table-header" style="grid-template-columns:1fr 1.2fr 1.6fr">
+          <div>Fecha</div><div>Autor</div><div>Cambio</div>
+        </div>
+        <div class="table-row" style="grid-template-columns:1fr 1.2fr 1.6fr">
+          <div style="color:var(--text-muted)">20/05/2026</div><div>Rosa Bermúdez</div><div>Plaza fija P-08 · días M, J</div>
+        </div>
+        <div class="table-row" style="grid-template-columns:1fr 1.2fr 1.6fr">
+          <div style="color:var(--text-muted)">12/03/2026</div><div>Rosa Bermúdez</div><div>Reset de contraseña</div>
+        </div>
+        <div class="table-row" style="grid-template-columns:1fr 1.2fr 1.6fr">
+          <div style="color:var(--text-muted)">02/01/2026</div><div>Rosa Bermúdez</div><div>Alta del empleado</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-back">CERRAR</button>
+      <button class="btn btn-green"><i class="ti ti-device-floppy"></i> GUARDAR</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>renderShell({title:'Empleados y plazas fijas',activeSidebar:'employees',active:'04-modal-edicion-empleado.html'})</script>
+<style>.layout{display:none}.app-header{display:none}</style>
+</body>
+</html>
