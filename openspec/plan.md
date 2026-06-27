@@ -9,7 +9,7 @@
 |--------|--------|--------|
 | 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
 | 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — `bootstrap-mvp` implementado + verificado (PASS) | `▌░░░░░░░░░` **~5%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1 `bootstrap-mvp` ✅ completado y archivado | `▌░░░░░░░░░` **~6%** |
 | **Avance global del proyecto** | 🔄 en preparación → implementación | `██▌░░░░░░░` **~24%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
@@ -38,7 +38,7 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 
 | # | Change | Tipo | Depende de | Estado | % |
 |---|--------|------|------------|--------|---|
-| A1 | `bootstrap-mvp` | Backend infra (Spring Boot 3.3 · Java 21, Flyway base, Security mínima, Session JDBC, `/health`, error handler, AOP audit, Docker SQL Server, CI) | — | 🔄 implementado + **verificado PASS** (22 tests, 96.5% líneas / 100% ramas) · pendiente: 1er CI verde + `archive` | `█████████░` 90% |
+| A1 | `bootstrap-mvp` | Backend infra (Spring Boot 3.3 · Java 21, Flyway base, Security mínima, Session JDBC, `/health`, error handler, AOP audit, Docker SQL Server, CI) | — | ✅ **Archivado** (PR #4 mergeado, CI verde, verificado PASS 96.5%/100%, specs sincronizadas) → `changes/archive/2026-06-27-bootstrap-mvp` | `██████████` 100% |
 | A2 | `frontend-bootstrap` | Frontend infra (Vite + React 18, design system propio, TanStack Query + Context, auth flows, layouts, i18n, tema, interceptor 401, CI) | A1 (`/auth/*`) | ✅ change creado (propuesta) | `█▌░░░░░░░░` 15% |
 
 ---
@@ -126,5 +126,6 @@ Para cada `init-<cap>`: `apply` (implementar guiándose por su `tasks.md`) → Q
 ## Pendientes de preparación (antes de implementar)
 
 - ✅ `docs/design-system.md` (CSS propio + Tabler, tokens de `styles.css`) — lo consumen `frontend-bootstrap` y `frontend-engineer`.
+- ⚠️ **Keyword normativo MUST/SHALL**: el validador de OpenSpec **rechaza** los requisitos que solo usan "DEBE". Todas las specs (`changes/*/specs/**`) lo usan → **`openspec archive --sync` falla** hasta corregirlo. En `bootstrap-mvp` se parcheó puntualmente (`DEBE (MUST)`). **Pendiente barrido** en los requisitos de los 15 `init-*` (añadir MUST/SHALL en la línea normativa) antes de archivarlos con sync.
 - ⬜ Confirmar `GITHUB_PROJECT_NUMBER` y, si se usa Projects v2, `gh auth refresh -s project`.
 - ⬜ Inputs externos de ALEATICA para Fase 2: clave de firma JWT, URLs PRE/PRO, spec `consultaporlogin`, SMTP de PRO, hash BCrypt del admin bootstrap.

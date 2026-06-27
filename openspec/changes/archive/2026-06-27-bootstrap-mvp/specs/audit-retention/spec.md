@@ -7,7 +7,7 @@
 ## ADDED Requirements
 
 ### Requirement: Tablas de auditoría creadas por migración
-**El sistema DEBE crear las tablas `audit_log` y `login_log` mediante migraciones Flyway durante el arranque, aunque ningún servicio las pueble todavía.**
+**El sistema DEBE (MUST) crear las tablas `audit_log` y `login_log` mediante migraciones Flyway durante el arranque, aunque ningún servicio las pueble todavía.**
 
 #### Scenario: Flyway crea las tablas de auditoría vacías
 - **GIVEN** una base de datos SQL Server limpia
