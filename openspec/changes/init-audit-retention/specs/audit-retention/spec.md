@@ -39,7 +39,7 @@ Es una capability transversal: aporta poca UI propia y se nutre del resto.
 
 ## ADDED Requirements
 ### Requirement: Consulta de auditoría funcional con filtros
-**El sistema DEBE permitir a un `ADMIN` consultar `audit_log` de forma paginada, filtrando por `actorEmployeeId`, `action` y ventana temporal `from`/`to`.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` consultar `audit_log` de forma paginada, filtrando por `actorEmployeeId`, `action` y ventana temporal `from`/`to`.**
 
 #### Scenario: Consulta paginada con filtros válidos
 - **GIVEN** un usuario autenticado con rol `ADMIN`
@@ -60,7 +60,7 @@ Es una capability transversal: aporta poca UI propia y se nutre del resto.
 - **THEN** el sistema responde 400 con `error` de validación y `fields` indicando la ventana inválida
 
 ### Requirement: Consulta de logs de login con filtros
-**El sistema DEBE permitir a un `ADMIN` consultar `login_log` de forma paginada, filtrando por `result` y ventana temporal `from`/`to`.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` consultar `login_log` de forma paginada, filtrando por `result` y ventana temporal `from`/`to`.**
 
 #### Scenario: Consulta de intentos fallidos en una ventana
 - **GIVEN** un usuario autenticado con rol `ADMIN`
@@ -81,7 +81,7 @@ Es una capability transversal: aporta poca UI propia y se nutre del resto.
 - **THEN** el sistema responde 403 con `{ error, message, fields, timestamp }`
 
 ### Requirement: Registro automático de acciones funcionales (AOP)
-**El sistema DEBE registrar en `audit_log`, de forma transparente vía `@Aspect` Spring AOP, cada caso de uso anotado como auditable, sin que el fallo del registro revierta la operación de negocio.**
+**El sistema DEBE (MUST) registrar en `audit_log`, de forma transparente vía `@Aspect` Spring AOP, cada caso de uso anotado como auditable, sin que el fallo del registro revierta la operación de negocio.**
 
 #### Scenario: Una acción auditable genera una entrada de auditoría
 - **GIVEN** un caso de uso anotado como auditable (p. ej. `approveRequest`) ejecutado por un `ADMIN`
@@ -96,7 +96,7 @@ Es una capability transversal: aporta poca UI propia y se nutre del resto.
 - **AND** el `action` y `entity_type` identifican la operación del sistema
 
 ### Requirement: Purga automática de datos históricos por lotes
-**El sistema DEBE ejecutar un job `@Scheduled` diario que borre los datos históricos con antigüedad mayor que `parking.retention.years` (default 2) mediante borrado por lotes, sin tocar las entidades vivas.**
+**El sistema DEBE (MUST) ejecutar un job `@Scheduled` diario que borre los datos históricos con antigüedad mayor que `parking.retention.years` (default 2) mediante borrado por lotes, sin tocar las entidades vivas.**
 
 #### Scenario: Purga de entradas de auditoría antiguas por lotes
 - **GIVEN** `parking.retention.years = 2`

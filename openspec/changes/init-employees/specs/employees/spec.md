@@ -39,7 +39,7 @@ en Fase 2 se envía por email y no se devuelve en claro.
 
 ## ADDED Requirements
 ### Requirement: Alta de empleado con unicidad de login y email
-**El sistema DEBE permitir a un `ADMIN` crear un `Employee` validando que `login` y `email` no estén ya en uso.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` crear un `Employee` validando que `login` y `email` no estén ya en uso.**
 
 #### Scenario: Alta válida de empleado
 - **GIVEN** un `ADMIN` autenticado
@@ -69,7 +69,7 @@ en Fase 2 se envía por email y no se devuelve en claro.
 - **AND** no crea ningún empleado
 
 ### Requirement: Edición, baja lógica y reactivación
-**El sistema DEBE permitir a un `ADMIN` modificar los datos de un `Employee`, darlo de baja lógicamente (`active = false`) y reactivarlo, preservando siempre la fila.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` modificar los datos de un `Employee`, darlo de baja lógicamente (`active = false`) y reactivarlo, preservando siempre la fila.**
 
 #### Scenario: Edición válida de empleado
 - **GIVEN** un `ADMIN` autenticado y un `Employee` existente
@@ -96,7 +96,7 @@ en Fase 2 se envía por email y no se devuelve en claro.
 - **AND** responde 204
 
 ### Requirement: Reset administrativo de contraseña
-**El sistema DEBE permitir a un `ADMIN` resetear la contraseña de un `Employee`, fijando `password_must_change = true` y entregando la contraseña temporal según la fase.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` resetear la contraseña de un `Employee`, fijando `password_must_change = true` y entregando la contraseña temporal según la fase.**
 
 #### Scenario: Reset de contraseña en Fase 1
 - **GIVEN** un `ADMIN` autenticado y un `Employee` existente
@@ -113,7 +113,7 @@ en Fase 2 se envía por email y no se devuelve en claro.
 - **AND** responde 200 sin devolver la contraseña en claro
 
 ### Requirement: Autorización por rol
-**El sistema DEBE restringir todos los endpoints de empleados al rol `ADMIN` y rechazar cualquier acceso de un `EMPLOYEE`.**
+**El sistema DEBE (MUST) restringir todos los endpoints de empleados al rol `ADMIN` y rechazar cualquier acceso de un `EMPLOYEE`.**
 
 #### Scenario: EMPLOYEE intenta listar empleados
 - **GIVEN** un `Employee` autenticado con rol `EMPLOYEE`

@@ -37,7 +37,7 @@ nunca la operación funcional ya confirmada.
 
 ## ADDED Requirements
 ### Requirement: Envío de email tras evento confirmado (AFTER_COMMIT)
-**El sistema DEBE enviar el email correspondiente a cada evento de dominio una vez confirmada (`AFTER_COMMIT`) la transacción que lo origina, usando la plantilla Thymeleaf y los destinatarios definidos, y NO debe enviarlo si la transacción se revierte.**
+**El sistema DEBE (MUST) enviar el email correspondiente a cada evento de dominio una vez confirmada (`AFTER_COMMIT`) la transacción que lo origina, usando la plantilla Thymeleaf y los destinatarios definidos, y NO debe enviarlo si la transacción se revierte.**
 
 #### Scenario: Nueva solicitud notifica a todos los admins activos
 - **GIVEN** un `Employee` que crea una `Request` y la transacción de creación se confirma
@@ -58,7 +58,7 @@ nunca la operación funcional ya confirmada.
 - **AND** no registra intento de envío para ese evento
 
 ### Requirement: Resiliencia ante fallo SMTP con reintento programado
-**El sistema DEBE, cuando el envío SMTP falla, registrar el fallo en log y encolar el email para reintento mediante un job programado, sin revertir nunca la operación funcional ya confirmada.**
+**El sistema DEBE (MUST), cuando el envío SMTP falla, registrar el fallo en log y encolar el email para reintento mediante un job programado, sin revertir nunca la operación funcional ya confirmada.**
 
 #### Scenario: Fallo SMTP no revierte la operación funcional
 - **GIVEN** una `Request` ya pasada a `APPROVED` con commit confirmado
@@ -73,7 +73,7 @@ nunca la operación funcional ya confirmada.
 - **AND** marca como enviado el que tiene éxito y conserva pendiente el que vuelve a fallar
 
 ### Requirement: Exclusiones de notificación
-**El sistema DEBE NO enviar email en los eventos excluidos: liberación voluntaria de recurso, cancelación de la propia solicitud por el empleado, y reservas/eventos de visitante.**
+**El sistema DEBE (MUST) NO enviar email en los eventos excluidos: liberación voluntaria de recurso, cancelación de la propia solicitud por el empleado, y reservas/eventos de visitante.**
 
 #### Scenario: Liberación voluntaria no genera email
 - **GIVEN** un `Employee` con asignación fija que libera voluntariamente su recurso para una fecha (`Release` de tipo `VOLUNTARY`)

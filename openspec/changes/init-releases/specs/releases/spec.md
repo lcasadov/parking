@@ -38,7 +38,7 @@ solo `ADMIN`, con `reason` obligatorio). No envía email.
 
 ## ADDED Requirements
 ### Requirement: Liberación voluntaria de recurso propio
-**El sistema DEBE permitir al dueño de una asignación fija activa liberar su recurso para una fecha presente o futura, creando una `Release` de tipo `VOLUNTARY`.**
+**El sistema DEBE (MUST) permitir al dueño de una asignación fija activa liberar su recurso para una fecha presente o futura, creando una `Release` de tipo `VOLUNTARY`.**
 
 #### Scenario: Liberación voluntaria válida
 - **GIVEN** un `Employee` autenticado con una `FixedAssignment` activa para el día de la semana de `releaseDate`, siendo `releaseDate >= hoy`
@@ -60,7 +60,7 @@ solo `ADMIN`, con `reason` obligatorio). No envía email.
 - **AND** no crea ninguna `Release`
 
 ### Requirement: Listado y cancelación de liberaciones propias
-**El sistema DEBE permitir al empleado listar sus propias liberaciones y cancelar una liberación futura propia, sin exponer las de otros empleados.**
+**El sistema DEBE (MUST) permitir al empleado listar sus propias liberaciones y cancelar una liberación futura propia, sin exponer las de otros empleados.**
 
 #### Scenario: Listar mis liberaciones
 - **GIVEN** un `Employee` autenticado con liberaciones registradas a su nombre
@@ -86,7 +86,7 @@ solo `ADMIN`, con `reason` obligatorio). No envía email.
 - **AND** no modifica la liberación
 
 ### Requirement: Liberación administrativa
-**El sistema DEBE permitir solo a un `ADMIN` liberar el recurso fijo de cualquier empleado para una fecha presente o futura, exigiendo `reason`, creando una `Release` de tipo `ADMINISTRATIVE`.**
+**El sistema DEBE (MUST) permitir solo a un `ADMIN` liberar el recurso fijo de cualquier empleado para una fecha presente o futura, exigiendo `reason`, creando una `Release` de tipo `ADMINISTRATIVE`.**
 
 #### Scenario: Liberación administrativa válida
 - **GIVEN** un `ADMIN` autenticado y un `Employee` con asignación fija activa del recurso para el día de la semana de `releaseDate`, siendo `releaseDate >= hoy`
@@ -107,7 +107,7 @@ solo `ADMIN`, con `reason` obligatorio). No envía email.
 - **AND** no crea ninguna `Release`
 
 ### Requirement: Unicidad y concurrencia de liberaciones
-**El sistema DEBE evitar liberaciones duplicadas del mismo recurso y fecha bajo concurrencia, respondiendo 409 ante el conflicto.**
+**El sistema DEBE (MUST) evitar liberaciones duplicadas del mismo recurso y fecha bajo concurrencia, respondiendo 409 ante el conflicto.**
 
 #### Scenario: Liberación duplicada del mismo recurso y fecha
 - **GIVEN** un recurso ya liberado (`Release` existente) para `releaseDate`

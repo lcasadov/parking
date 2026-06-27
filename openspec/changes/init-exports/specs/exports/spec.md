@@ -46,7 +46,7 @@ mecanismo de exportación es estable desde Fase 1).
 
 ## ADDED Requirements
 ### Requirement: Exportación administrativa de histórico
-**El sistema DEBE permitir a un `ADMIN` exportar empleados, histórico de solicitudes y auditoría en CSV/XLSX, y denegar el acceso a `EMPLOYEE`.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` exportar empleados, histórico de solicitudes y auditoría en CSV/XLSX, y denegar el acceso a `EMPLOYEE`.**
 
 #### Scenario: Admin exporta empleados en XLSX
 - **GIVEN** un usuario autenticado con rol `ADMIN`
@@ -66,7 +66,7 @@ mecanismo de exportación es estable desde Fase 1).
 - **AND** no genera ningún fichero
 
 ### Requirement: Exportación de datos propios (derecho de acceso RGPD)
-**El sistema DEBE permitir a cualquier usuario autenticado exportar sus propios datos personales y sus propias solicitudes, limitándose siempre al sujeto de la sesión.**
+**El sistema DEBE (MUST) permitir a cualquier usuario autenticado exportar sus propios datos personales y sus propias solicitudes, limitándose siempre al sujeto de la sesión.**
 
 #### Scenario: Empleado exporta sus propios datos personales
 - **GIVEN** un usuario autenticado con rol `EMPLOYEE` y `employee_id = E1`
@@ -85,7 +85,7 @@ mecanismo de exportación es estable desde Fase 1).
 - **THEN** el sistema responde 401 con `{ error, message, fields, timestamp }`
 
 ### Requirement: Validación del formato de exportación
-**El sistema DEBE aceptar solo los formatos `csv` y `xlsx`, usar `xlsx` por defecto y rechazar cualquier otro valor.**
+**El sistema DEBE (MUST) aceptar solo los formatos `csv` y `xlsx`, usar `xlsx` por defecto y rechazar cualquier otro valor.**
 
 #### Scenario: Formato no soportado
 - **GIVEN** un usuario autenticado con rol `ADMIN`
@@ -99,7 +99,7 @@ mecanismo de exportación es estable desde Fase 1).
 - **THEN** el sistema responde 200 con un fichero XLSX
 
 ### Requirement: Límite de tasa de exportaciones
-**El sistema DEBE limitar las exportaciones a 5 por minuto y usuario para evitar exfiltración masiva.**
+**El sistema DEBE (MUST) limitar las exportaciones a 5 por minuto y usuario para evitar exfiltración masiva.**
 
 #### Scenario: Sexta exportación en un minuto
 - **GIVEN** un usuario autenticado que ya ha realizado 5 exportaciones en el último minuto

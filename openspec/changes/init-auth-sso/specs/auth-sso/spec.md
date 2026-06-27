@@ -40,7 +40,7 @@ y redirige. Incluye Single Logout y un fallback de login local activable por con
 
 ## ADDED Requirements
 ### Requirement: Autorización SSO en `/ssocallback`
-**El sistema DEBE validar el `id_token`, autorizar al empleado por `login = username`, tomar el rol de `Employee.role`, crear la sesión `parking_SESSION` y redirigir a `redirect_uri`.**
+**El sistema DEBE (MUST) validar el `id_token`, autorizar al empleado por `login = username`, tomar el rol de `Employee.role`, crear la sesión `parking_SESSION` y redirigir a `redirect_uri`.**
 
 #### Scenario: Callback con `id_token` válido de empleado activo
 - **GIVEN** un `Employee` activo (`active = true`) cuyo `login` coincide con el claim `username`
@@ -57,7 +57,7 @@ y redirige. Incluye Single Logout y un fallback de login local activable por con
 - **AND** no crea sesión
 
 ### Requirement: Control de acceso por existencia y estado del empleado
-**El sistema DEBE denegar el acceso si el `username` no corresponde a ningún `Employee` o si el `Employee` está inactivo, sin hacer provisioning automático.**
+**El sistema DEBE (MUST) denegar el acceso si el `username` no corresponde a ningún `Employee` o si el `Employee` está inactivo, sin hacer provisioning automático.**
 
 #### Scenario: `username` sin empleado correspondiente
 - **GIVEN** un `id_token` válido cuyo claim `username` no coincide con ningún `Employee.login`
@@ -74,7 +74,7 @@ y redirige. Incluye Single Logout y un fallback de login local activable por con
 - **AND** registra `login_log` con `result = INACTIVE`, `phase = PHASE_2`
 
 ### Requirement: Single Logout por `client_sid`
-**El sistema DEBE invalidar la sesión de parking localizándola por el atributo `client_sid` en `SPRING_SESSION` cuando la landing lo solicita con un `slo_token` válido.**
+**El sistema DEBE (MUST) invalidar la sesión de parking localizándola por el atributo `client_sid` en `SPRING_SESSION` cuando la landing lo solicita con un `slo_token` válido.**
 
 #### Scenario: Single Logout de una sesión existente
 - **GIVEN** una sesión activa con atributo `client_sid` conocido
@@ -88,7 +88,7 @@ y redirige. Incluye Single Logout y un fallback de login local activable por con
 - **THEN** el sistema responde 404 con la forma de error `{ error, message, fields, timestamp }`
 
 ### Requirement: Fallback de login local con rotación obligatoria
-**El sistema DEBE permitir el login local solo cuando el fallback de emergencia está activado por configuración, y obligar a rotar la contraseña cuando han pasado más de 90 días desde el último cambio.**
+**El sistema DEBE (MUST) permitir el login local solo cuando el fallback de emergencia está activado por configuración, y obligar a rotar la contraseña cuando han pasado más de 90 días desde el último cambio.**
 
 #### Scenario: Login local con fallback desactivado
 - **GIVEN** la configuración `parking.auth.local-fallback.enabled = false`

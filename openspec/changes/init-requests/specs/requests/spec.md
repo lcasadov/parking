@@ -45,7 +45,7 @@ administrador. Cubre creación con ventana temporal y unicidad, listados
 
 ## ADDED Requirements
 ### Requirement: Creación de solicitud con ventana y unicidad
-**El sistema DEBE crear una solicitud en estado `PENDING` (con `parking_space_id = NULL`) para un empleado y una fecha dentro de la ventana hoy..hoy+14 días, garantizando una única solicitud `PENDING` por empleado y fecha.**
+**El sistema DEBE (MUST) crear una solicitud en estado `PENDING` (con `parking_space_id = NULL`) para un empleado y una fecha dentro de la ventana hoy..hoy+14 días, garantizando una única solicitud `PENDING` por empleado y fecha.**
 
 #### Scenario: Creación dentro de la ventana
 - **GIVEN** un `Employee` autenticado con rol `EMPLOYEE` y sin solicitud `PENDING` para `requested_date`
@@ -66,7 +66,7 @@ administrador. Cubre creación con ventana temporal y unicidad, listados
 - **AND** no crea una segunda solicitud
 
 ### Requirement: Listados de solicitudes según rol
-**El sistema DEBE permitir al empleado listar únicamente sus propias solicitudes y al administrador listar las pendientes en orden FIFO y ver el detalle de cualquier solicitud.**
+**El sistema DEBE (MUST) permitir al empleado listar únicamente sus propias solicitudes y al administrador listar las pendientes en orden FIFO y ver el detalle de cualquier solicitud.**
 
 #### Scenario: El empleado lista solo sus solicitudes
 - **GIVEN** un `Employee` autenticado con rol `EMPLOYEE` con solicitudes propias y ajenas en el sistema
@@ -84,7 +84,7 @@ administrador. Cubre creación con ventana temporal y unicidad, listados
 - **THEN** el sistema responde 403 sin revelar datos de otras solicitudes
 
 ### Requirement: Cancelación por el dueño en estado PENDING
-**El sistema DEBE permitir al empleado cancelar su propia solicitud únicamente mientras está en estado `PENDING`, transicionándola a `CANCELLED`.**
+**El sistema DEBE (MUST) permitir al empleado cancelar su propia solicitud únicamente mientras está en estado `PENDING`, transicionándola a `CANCELLED`.**
 
 #### Scenario: Cancelación de solicitud propia en PENDING
 - **GIVEN** un `Employee` autenticado dueño de una solicitud en estado `PENDING`
@@ -103,7 +103,7 @@ administrador. Cubre creación con ventana temporal y unicidad, listados
 - **THEN** el sistema responde 403 (la comprobación de objeto `request.employee_id == session.employee_id` falla)
 
 ### Requirement: Aprobación con validación de disponibilidad y concurrencia
-**El sistema DEBE permitir al administrador aprobar una solicitud `PENDING` asignando una plaza disponible, validando la disponibilidad real para la fecha y resolviendo los conflictos de concurrencia entre administradores.**
+**El sistema DEBE (MUST) permitir al administrador aprobar una solicitud `PENDING` asignando una plaza disponible, validando la disponibilidad real para la fecha y resolviendo los conflictos de concurrencia entre administradores.**
 
 #### Scenario: Aprobación con plaza disponible
 - **GIVEN** un `Employee` autenticado con rol `ADMIN` y una solicitud en estado `PENDING`
@@ -124,7 +124,7 @@ administrador. Cubre creación con ventana temporal y unicidad, listados
 - **AND** solo la primera queda `APPROVED`
 
 ### Requirement: Rechazo con catálogo de motivos
-**El sistema DEBE permitir al administrador rechazar una solicitud `PENDING` indicando un `rejection_reason_code` del catálogo, exigiendo `rejection_reason` (≥5 caracteres) cuando el código es `OTHER`.**
+**El sistema DEBE (MUST) permitir al administrador rechazar una solicitud `PENDING` indicando un `rejection_reason_code` del catálogo, exigiendo `rejection_reason` (≥5 caracteres) cuando el código es `OTHER`.**
 
 #### Scenario: Rechazo con motivo del catálogo
 - **GIVEN** un `Employee` con rol `ADMIN` y una solicitud en estado `PENDING`

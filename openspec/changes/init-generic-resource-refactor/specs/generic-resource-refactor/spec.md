@@ -38,7 +38,7 @@ Prerrequisito de la capability `desks`. No añade endpoints.
 
 ## ADDED Requirements
 ### Requirement: Generalización del modelo a recurso reservable
-**El sistema DEBE sustituir la referencia `parking_space_id` por `resource_id` + `resource_type` (`ResourceType`) en `Request`, `FixedAssignment` y `Release`, exponiendo la abstracción `BookableResource` en el dominio.**
+**El sistema DEBE (MUST) sustituir la referencia `parking_space_id` por `resource_id` + `resource_type` (`ResourceType`) en `Request`, `FixedAssignment` y `Release`, exponiendo la abstracción `BookableResource` en el dominio.**
 
 #### Scenario: Una asignación fija de parking se modela como recurso PARKING
 - **GIVEN** una `FixedAssignment` activa de una `ParkingSpace` para un `employee_id` y `day_of_week`
@@ -55,7 +55,7 @@ Prerrequisito de la capability `desks`. No añade endpoints.
 - **AND** el comportamiento observable es idéntico al previo al refactor
 
 ### Requirement: No-regresión del comportamiento observable
-**El sistema DEBE preservar exactamente el comportamiento observable (códigos HTTP, forma de error `{ error, message, fields, timestamp }`, resultados de disponibilidad y reglas de unicidad) de `requests`, `fixed-assignments`, `releases` y `availability-calendar` para recursos `PARKING`.**
+**El sistema DEBE (MUST) preservar exactamente el comportamiento observable (códigos HTTP, forma de error `{ error, message, fields, timestamp }`, resultados de disponibilidad y reglas de unicidad) de `requests`, `fixed-assignments`, `releases` y `availability-calendar` para recursos `PARKING`.**
 
 #### Scenario: La aprobación de una solicitud sin disponibilidad sigue devolviendo 409
 - **GIVEN** una `Request` `PENDING` para una fecha en la que la plaza candidata ya no está disponible
@@ -77,7 +77,7 @@ Prerrequisito de la capability `desks`. No añade endpoints.
 - **AND** la consulta filtra por `resource_type = 'PARKING'` sin alterar el resultado
 
 ### Requirement: Migración de datos sin pérdida y autorización intacta
-**El sistema DEBE migrar mediante Flyway las referencias existentes `parking_space_id` a `resource_id` con `resource_type = 'PARKING'` preservando todos los datos, manteniendo las reglas de autorización por rol y de pertenencia de objeto sin cambios.**
+**El sistema DEBE (MUST) migrar mediante Flyway las referencias existentes `parking_space_id` a `resource_id` con `resource_type = 'PARKING'` preservando todos los datos, manteniendo las reglas de autorización por rol y de pertenencia de objeto sin cambios.**
 
 #### Scenario: La migración Flyway porta las referencias existentes
 - **GIVEN** filas existentes en `requests`, `fixed_assignments` y `releases` con `parking_space_id`

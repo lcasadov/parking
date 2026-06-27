@@ -34,7 +34,7 @@ política de contraseña y cambio obligatorio tras reset administrativo.
 
 ## ADDED Requirements
 ### Requirement: Login local
-**El sistema DEBE autenticar a un empleado activo con `login` + contraseña válida, crear sesión y emitir la cookie `parking_SESSION`.**
+**El sistema DEBE (MUST) autenticar a un empleado activo con `login` + contraseña válida, crear sesión y emitir la cookie `parking_SESSION`.**
 
 #### Scenario: Login con credenciales válidas
 - **GIVEN** un `Employee` activo (`active = true`, `enabled = true`) con `password_hash` y contraseña conocida
@@ -51,7 +51,7 @@ política de contraseña y cambio obligatorio tras reset administrativo.
 - **AND** registra `login_log` con `result = INVALID_CREDENTIALS`
 
 ### Requirement: Bloqueo por intentos fallidos
-**El sistema DEBE bloquear la cuenta durante 15 minutos tras 5 intentos fallidos consecutivos.**
+**El sistema DEBE (MUST) bloquear la cuenta durante 15 minutos tras 5 intentos fallidos consecutivos.**
 
 #### Scenario: Quinto intento fallido bloquea la cuenta
 - **GIVEN** un `Employee` con `failed_login_attempts = 4`
@@ -66,7 +66,7 @@ política de contraseña y cambio obligatorio tras reset administrativo.
 - **AND** registra `login_log` con `result = LOCKED`
 
 ### Requirement: Cambio de contraseña con política
-**El sistema DEBE permitir al empleado cambiar su contraseña cumpliendo la política, y exigir el cambio en el primer acceso tras un reset.**
+**El sistema DEBE (MUST) permitir al empleado cambiar su contraseña cumpliendo la política, y exigir el cambio en el primer acceso tras un reset.**
 
 #### Scenario: Cambio de contraseña válido
 - **GIVEN** un empleado autenticado

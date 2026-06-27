@@ -90,7 +90,8 @@ Genera, para **las 15 capabilities** (12 del núcleo de parking + 3 del alcance 
 
 ## Requirements
 ### Requirement 1: <nombre>
-**El sistema DEBE <comportamiento>.**
+**El sistema DEBE (MUST) <comportamiento>.**
+> ⚠️ Cada línea normativa de un `### Requirement` **DEBE contener el keyword `MUST` o `SHALL`** (el validador de OpenSpec lo exige y `archive --sync` falla sin él). Convención del proyecto: prosa ES + keyword en EN → `DEBE (MUST)` / `NO DEBE (MUST NOT)`.
 #### Scenario: <caso feliz>
 - **GIVEN** ... **WHEN** ... **THEN** ... **AND** ...
 #### Scenario: <caso de error>

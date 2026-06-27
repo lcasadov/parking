@@ -42,7 +42,7 @@ tener simultáneamente plaza fija (`PARKING`) y puesto fijo (`DESK`).
 
 ## ADDED Requirements
 ### Requirement: Alta de puesto numerado
-**El sistema DEBE permitir al `ADMIN` crear un `Desk` con `number` único en el rango 1-65 y una `DeskCategory` válida, e impedir números duplicados o fuera de rango.**
+**El sistema DEBE (MUST) permitir al `ADMIN` crear un `Desk` con `number` único en el rango 1-65 y una `DeskCategory` válida, e impedir números duplicados o fuera de rango.**
 
 #### Scenario: Alta de puesto válido
 - **GIVEN** un `ADMIN` autenticado
@@ -66,7 +66,7 @@ tener simultáneamente plaza fija (`PARKING`) y puesto fijo (`DESK`).
 - **THEN** el sistema responde 403 y no crea ningún puesto
 
 ### Requirement: Edición y activación/desactivación de puesto
-**El sistema DEBE permitir al `ADMIN` editar la categoría y coordenadas de un puesto y activarlo/desactivarlo, sin que un puesto inactivo sea reservable.**
+**El sistema DEBE (MUST) permitir al `ADMIN` editar la categoría y coordenadas de un puesto y activarlo/desactivarlo, sin que un puesto inactivo sea reservable.**
 
 #### Scenario: Cambio de categoría a EXECUTIVE
 - **GIVEN** un `Desk` `STANDARD` existente
@@ -81,7 +81,7 @@ tener simultáneamente plaza fija (`PARKING`) y puesto fijo (`DESK`).
 - **AND** el puesto deja de aparecer como disponible en el cálculo de disponibilidad para F
 
 ### Requirement: Asignación fija de puesto independiente de la de plaza
-**El sistema DEBE permitir asignar fijamente un puesto (`DESK`) a un empleado que ya tenga una plaza fija (`PARKING`), tratándolos como recursos distintos, y mantener la unicidad recurso/día y empleado/día por tipo de recurso.**
+**El sistema DEBE (MUST) permitir asignar fijamente un puesto (`DESK`) a un empleado que ya tenga una plaza fija (`PARKING`), tratándolos como recursos distintos, y mantener la unicidad recurso/día y empleado/día por tipo de recurso.**
 
 #### Scenario: Empleado con plaza fija recibe además puesto fijo
 - **GIVEN** un `Employee` con una `FixedAssignment` activa de tipo `PARKING` para el lunes
@@ -95,7 +95,7 @@ tener simultáneamente plaza fija (`PARKING`) y puesto fijo (`DESK`).
 - **THEN** el sistema responde 409 por unicidad recurso/día
 
 ### Requirement: Solicitud y disponibilidad de puesto, EXECUTIVE liberable
-**El sistema DEBE permitir a un empleado solicitar un puesto para una fecha dentro de la ventana hoy..+14d, calcular su disponibilidad como cualquier recurso y permitir liberar un puesto `EXECUTIVE` igual que uno `STANDARD`.**
+**El sistema DEBE (MUST) permitir a un empleado solicitar un puesto para una fecha dentro de la ventana hoy..+14d, calcular su disponibilidad como cualquier recurso y permitir liberar un puesto `EXECUTIVE` igual que uno `STANDARD`.**
 
 #### Scenario: Solicitud de puesto disponible
 - **GIVEN** un `EMPLOYEE` autenticado y un `Desk` activo sin asignación ni solicitud aprobada para la fecha F dentro de la ventana

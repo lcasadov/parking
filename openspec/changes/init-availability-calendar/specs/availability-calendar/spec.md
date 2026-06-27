@@ -38,7 +38,7 @@ alcance ampliado de puestos vía `BookableResource` sin cambiar su contrato).
 
 ## ADDED Requirements
 ### Requirement: Cálculo de disponibilidad para una fecha
-**El sistema DEBE devolver los recursos disponibles para una fecha F aplicando las cuatro condiciones de disponibilidad (activo, sin asignación fija vigente o liberado, sin solicitud aprobada, y sin reserva de visitante para plazas).**
+**El sistema DEBE (MUST) devolver los recursos disponibles para una fecha F aplicando las cuatro condiciones de disponibilidad (activo, sin asignación fija vigente o liberado, sin solicitud aprobada, y sin reserva de visitante para plazas).**
 
 #### Scenario: Plaza libre aparece como disponible
 - **GIVEN** una `ParkingSpace` con `active = true`, sin `FixedAssignment` activa para `dayOfWeek(F)`, sin `Request` `APPROVED` para esa plaza y fecha F, y sin `VisitorReservation` esa fecha
@@ -62,7 +62,7 @@ alcance ampliado de puestos vía `BookableResource` sin cambiar su contrato).
 - **THEN** el sistema responde 200 y la plaza NO figura en `availableResources`
 
 ### Requirement: Validación del parámetro de fecha
-**El sistema DEBE validar el parámetro `date` (y `weekStart`) y responder 400 con la forma de error estándar cuando falte o tenga formato inválido.**
+**El sistema DEBE (MUST) validar el parámetro `date` (y `weekStart`) y responder 400 con la forma de error estándar cuando falte o tenga formato inválido.**
 
 #### Scenario: Fecha ausente o con formato inválido
 - **GIVEN** un usuario autenticado
@@ -76,7 +76,7 @@ alcance ampliado de puestos vía `BookableResource` sin cambiar su contrato).
 - **THEN** el sistema responde 400 con `{ error, message, fields, timestamp }` señalando `weekStart` en `fields`
 
 ### Requirement: Calendario semanal completo restringido a ADMIN
-**El sistema DEBE devolver al `ADMIN` un calendario semanal de todos los recursos con su estado por día y el titular, y DEBE denegar el acceso a usuarios `EMPLOYEE`.**
+**El sistema DEBE (MUST) devolver al `ADMIN` un calendario semanal de todos los recursos con su estado por día y el titular, y DEBE denegar el acceso a usuarios `EMPLOYEE`.**
 
 #### Scenario: Admin consulta el calendario semanal
 - **GIVEN** un `ADMIN` autenticado y un lunes `weekStart`
@@ -90,7 +90,7 @@ alcance ampliado de puestos vía `BookableResource` sin cambiar su contrato).
 - **AND** no revela información de otros empleados
 
 ### Requirement: "Mi Semana" sin exposición de nombres ajenos
-**El sistema DEBE devolver a `EMPLOYEE` y `ADMIN` su propia semana con el estado diario de sus recursos y los huecos libres, sin mostrar nombres de otros empleados.**
+**El sistema DEBE (MUST) devolver a `EMPLOYEE` y `ADMIN` su propia semana con el estado diario de sus recursos y los huecos libres, sin mostrar nombres de otros empleados.**
 
 #### Scenario: Empleado consulta su semana
 - **GIVEN** un `EMPLOYEE` autenticado con una `FixedAssignment` activa para varios `day_of_week`
