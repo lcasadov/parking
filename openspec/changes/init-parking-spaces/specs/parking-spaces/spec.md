@@ -33,7 +33,7 @@ masiva del número total de plazas.
 
 ## ADDED Requirements
 ### Requirement: Alta de plaza con `label` único
-**El sistema DEBE permitir a un `ADMIN` crear una plaza con un `label` único, rechazando con 409 cualquier colisión de `label`.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` crear una plaza con un `label` único, rechazando con 409 cualquier colisión de `label`.**
 
 #### Scenario: Alta de plaza con label nuevo
 - **GIVEN** un usuario autenticado con rol `ADMIN`
@@ -56,7 +56,7 @@ masiva del número total de plazas.
 - **AND** no crea ninguna plaza
 
 ### Requirement: Edición y estado activa/inactiva
-**El sistema DEBE permitir a un `ADMIN` modificar el `label` y el estado `active` de una plaza, manteniendo la unicidad del `label` y excluyendo las plazas inactivas de la disponibilidad.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` modificar el `label` y el estado `active` de una plaza, manteniendo la unicidad del `label` y excluyendo las plazas inactivas de la disponibilidad.**
 
 #### Scenario: Edición de label válida
 - **GIVEN** un usuario autenticado con rol `ADMIN`
@@ -84,7 +84,7 @@ masiva del número total de plazas.
 - **THEN** el sistema responde 404 sin modificar nada
 
 ### Requirement: Configuración masiva del total y autorización
-**El sistema DEBE permitir a un `ADMIN` ajustar el número total de plazas del parque y DEBE denegar con 403 cualquier operación de gestión solicitada por un `EMPLOYEE`.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` ajustar el número total de plazas del parque y DEBE denegar con 403 cualquier operación de gestión solicitada por un `EMPLOYEE`.**
 
 #### Scenario: Configurar el total de plazas
 - **GIVEN** un usuario autenticado con rol `ADMIN`

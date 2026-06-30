@@ -38,7 +38,7 @@ el admin posiciona los marcadores con un editor de arrastre que persiste
 
 ## ADDED Requirements
 ### Requirement: Vista del plano por fecha
-**El sistema DEBE devolver, para una fecha dada, el estado y la posición (`coord_x`/`coord_y`) de cada puesto, coloreado según su disponibilidad relativa al empleado autenticado.**
+**El sistema DEBE (MUST) devolver, para una fecha dada, el estado y la posición (`coord_x`/`coord_y`) de cada puesto, coloreado según su disponibilidad relativa al empleado autenticado.**
 
 #### Scenario: Consulta del plano para una fecha válida
 - **GIVEN** un empleado autenticado y un conjunto de `Desk` activos con `coord_x`/`coord_y` definidos
@@ -60,7 +60,7 @@ el admin posiciona los marcadores con un editor de arrastre que persiste
 - **AND** los puestos de terceros aparecen como `ASSIGNED` sin identificar al titular
 
 ### Requirement: Solicitud directa desde el plano
-**El sistema DEBE permitir al empleado solicitar un puesto pinchándolo en el plano solo si está libre para la fecha, generando un `Request` equivalente al del flujo normal.**
+**El sistema DEBE (MUST) permitir al empleado solicitar un puesto pinchándolo en el plano solo si está libre para la fecha, generando un `Request` equivalente al del flujo normal.**
 
 #### Scenario: Solicitud de un puesto libre
 - **GIVEN** un empleado autenticado y un `Desk` con `state = FREE` para una fecha dentro de la ventana
@@ -81,7 +81,7 @@ el admin posiciona los marcadores con un editor de arrastre que persiste
 - **AND** no crea un segundo `Request`
 
 ### Requirement: Edición de posiciones de puestos (editor de arrastre)
-**El sistema DEBE permitir al `ADMIN` persistir las coordenadas relativas de un puesto, validando que están en el rango 0-100, y rechazar la operación a un `EMPLOYEE`.**
+**El sistema DEBE (MUST) permitir al `ADMIN` persistir las coordenadas relativas de un puesto, validando que están en el rango 0-100, y rechazar la operación a un `EMPLOYEE`.**
 
 #### Scenario: Admin reposiciona un puesto
 - **GIVEN** un usuario `ADMIN` autenticado y un `Desk` existente

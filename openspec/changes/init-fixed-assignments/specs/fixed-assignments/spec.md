@@ -37,7 +37,7 @@ el `EMPLOYEE` solo consulta las propias. La revocación es lógica (`active=fals
 
 ## ADDED Requirements
 ### Requirement: Establecer la asignación fija de un empleado
-**El sistema DEBE permitir a un `ADMIN` fijar, mediante `PUT setEmployeeFixedAssignments`, la plaza y el conjunto de días de la semana asignados a un empleado, validando los días (1-7) y devolviendo el estado resultante.**
+**El sistema DEBE (MUST) permitir a un `ADMIN` fijar, mediante `PUT setEmployeeFixedAssignments`, la plaza y el conjunto de días de la semana asignados a un empleado, validando los días (1-7) y devolviendo el estado resultante.**
 
 #### Scenario: Alta de asignación fija válida
 - **GIVEN** un `ADMIN` autenticado, un `Employee` activo y una `ParkingSpace` activa sin asignación previa esos días
@@ -52,7 +52,7 @@ el `EMPLOYEE` solo consulta las propias. La revocación es lógica (`active=fals
 - **AND** no crea ni modifica ninguna asignación
 
 ### Requirement: Garantizar la unicidad de plaza/día y empleado/día
-**El sistema DEBE rechazar con 409 cualquier asignación que viole la unicidad —entre filas activas— de una plaza por día de la semana o de un empleado por día de la semana.**
+**El sistema DEBE (MUST) rechazar con 409 cualquier asignación que viole la unicidad —entre filas activas— de una plaza por día de la semana o de un empleado por día de la semana.**
 
 #### Scenario: Plaza ya asignada a otro empleado ese día
 - **GIVEN** una `ParkingSpace` con una asignación fija activa al empleado A el día 1 (Lunes)
@@ -73,7 +73,7 @@ el `EMPLOYEE` solo consulta las propias. La revocación es lógica (`active=fals
 - **AND** no quedan dos filas activas para la misma plaza/día
 
 ### Requirement: Revocar lógicamente la asignación fija
-**El sistema DEBE revocar la asignación fija de un empleado marcando `active=false`, `revoked_at` y `revoked_by_id`, sin borrar la fila ni afectar a días pasados ni a solicitudes ya aprobadas.**
+**El sistema DEBE (MUST) revocar la asignación fija de un empleado marcando `active=false`, `revoked_at` y `revoked_by_id`, sin borrar la fila ni afectar a días pasados ni a solicitudes ya aprobadas.**
 
 #### Scenario: Revocación válida por ADMIN
 - **GIVEN** un `Employee` con una asignación fija activa y un `ADMIN` autenticado
@@ -89,7 +89,7 @@ el `EMPLOYEE` solo consulta las propias. La revocación es lógica (`active=fals
 - **AND** no altera filas históricas ya revocadas
 
 ### Requirement: Restringir la consulta por rol y pertenencia
-**El sistema DEBE permitir a cualquier `ADMIN` listar y consultar asignaciones fijas, y al `EMPLOYEE` consultar únicamente las propias, rechazando con 403 el acceso a las de otro empleado.**
+**El sistema DEBE (MUST) permitir a cualquier `ADMIN` listar y consultar asignaciones fijas, y al `EMPLOYEE` consultar únicamente las propias, rechazando con 403 el acceso a las de otro empleado.**
 
 #### Scenario: Empleado consulta sus propias asignaciones
 - **GIVEN** un `EMPLOYEE` autenticado con asignaciones fijas activas

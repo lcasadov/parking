@@ -43,7 +43,7 @@ en una fecha y la hace **no disponible** ese día. Sin email y sin flujo de apro
 
 ## ADDED Requirements
 ### Requirement: Gestión de fichas de visitante
-**El sistema DEBE permitir al `ADMIN` crear, consultar, listar y modificar fichas de visitante, garantizando la unicidad de `nationalId`.**
+**El sistema DEBE (MUST) permitir al `ADMIN` crear, consultar, listar y modificar fichas de visitante, garantizando la unicidad de `nationalId`.**
 
 #### Scenario: Crear una ficha de visitante nueva
 - **GIVEN** un `ADMIN` autenticado
@@ -70,7 +70,7 @@ en una fecha y la hace **no disponible** ese día. Sin email y sin flujo de apro
 - **AND** las reservas pasadas conservan los datos con los que se crearon (el cambio solo aplica a reservas futuras)
 
 ### Requirement: Creación de reservas de visitante con control de disponibilidad
-**El sistema DEBE permitir al `ADMIN` crear una reserva de plaza para un visitante en una fecha, ocupando la plaza ese día, y rechazar la reserva si la plaza ya no está disponible para esa fecha.**
+**El sistema DEBE (MUST) permitir al `ADMIN` crear una reserva de plaza para un visitante en una fecha, ocupando la plaza ese día, y rechazar la reserva si la plaza ya no está disponible para esa fecha.**
 
 #### Scenario: Crear una reserva sobre una plaza disponible
 - **GIVEN** un `ADMIN` autenticado, un `Visitor` y una `ParkingSpace` activa sin ocupación para la fecha F
@@ -92,7 +92,7 @@ en una fecha y la hace **no disponible** ese día. Sin email y sin flujo de apro
 - **AND** no crea la reserva
 
 ### Requirement: Anulación de reservas futuras
-**El sistema DEBE permitir al `ADMIN` anular únicamente reservas de visitante cuya fecha sea futura, liberando la plaza ese día.**
+**El sistema DEBE (MUST) permitir al `ADMIN` anular únicamente reservas de visitante cuya fecha sea futura, liberando la plaza ese día.**
 
 #### Scenario: Anular una reserva futura
 - **GIVEN** una `VisitorReservation` con `reservationDate` posterior a hoy
@@ -108,7 +108,7 @@ en una fecha y la hace **no disponible** ese día. Sin email y sin flujo de apro
 - **AND** no modifica la reserva
 
 ### Requirement: Autorización exclusiva de ADMIN
-**El sistema DEBE restringir toda operación sobre visitantes y reservas de visita al rol `ADMIN`.**
+**El sistema DEBE (MUST) restringir toda operación sobre visitantes y reservas de visita al rol `ADMIN`.**
 
 #### Scenario: Empleado sin rol ADMIN intenta listar visitantes
 - **GIVEN** un `Employee` autenticado con rol `EMPLOYEE`
