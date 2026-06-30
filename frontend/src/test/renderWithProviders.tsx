@@ -29,7 +29,10 @@ export function renderWithProviders(
       <QueryClientProvider client={queryClient}>
         <I18nextProvider i18n={i18n}>
           <ThemeProvider>
-            <MemoryRouter initialEntries={[route]}>
+            <MemoryRouter
+              initialEntries={[route]}
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            >
               <AuthProvider>{children}</AuthProvider>
             </MemoryRouter>
           </ThemeProvider>

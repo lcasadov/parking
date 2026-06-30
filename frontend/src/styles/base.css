@@ -1,0 +1,41 @@
+/* Reset minimo + body + tipografia base. */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--frame-bg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+body.theme-dark {
+  background: var(--frame-bg);
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Focus visible accesible (design-system §9). */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}

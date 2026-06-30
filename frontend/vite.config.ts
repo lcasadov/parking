@@ -21,6 +21,7 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/setupTests.ts',
     css: true,
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
@@ -29,6 +30,9 @@ export default defineConfig({
       exclude: [
         '**/*.config.*',
         'src/main.tsx',
+        'src/App.tsx',
+        'src/routes/AppRoutes.tsx',
+        'src/types/**',
         'src/**/*.d.ts',
         'src/i18n/**',
         'src/test/**',

@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { THEME_STORAGE_KEY } from './ThemeProvider';
+import { THEME_STORAGE_KEY } from './themeContext';
 import { renderWithProviders } from '../test/renderWithProviders';
 
 describe('ThemeToggle', () => {

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { SessionExpiredModal } from './SessionExpiredModal';
 import { emitSessionExpired } from '../api/events';
@@ -11,7 +11,7 @@ describe('SessionExpiredModal', () => {
     // No visible hasta que el interceptor emite el evento.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    emitSessionExpired();
+    act(() => emitSessionExpired());
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
