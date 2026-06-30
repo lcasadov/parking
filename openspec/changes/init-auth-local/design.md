@@ -24,5 +24,22 @@ dominio (`AuthorizeUseCase`, `PasswordPolicy`) no depende de Spring.
 - Bloqueo abusivo de cuentas ajenas → mitigado con ventana temporal (no permanente).
 
 ## Migration Plan
-- Flyway: tablas `employees`, `login_log` y `SPRING_SESSION`/`SPRING_SESSION_ATTRIBUTES` (ver `docs/data-model.md`).
+- **`employees` es la única tabla nueva** que aporta este change: se crea en
+  `V4__employees.sql` con el esquema completo de `docs/data-model.md` §3.1
+  (credenciales, bloqueo, rotación), más las FKs pendientes desde `audit_log`
+  y `login_log` hacia `employees`.
+- **Ya existen** (creadas por `bootstrap-mvp`): `login_log` y `audit_log`
+  (`V2__audit_and_login_log.sql`), `SPRING_SESSION`/`SPRING_SESSION_ATTRIBUTES`
+  (`V1__spring_session_schema.sql`) y los índices de infraestructura (`V3`).
+  Este change **no las recrea**.
+- **Seed admin de desarrollo** idempotente en `V5__seed_dev_admin.sql`: un único
+  `ADMIN` local con BCrypt(coste 12) para poder probar login real en LOCAL/DES y
+  en los tests e2e. Credenciales documentadas en `proposal.md` §"Seed admin de
+  desarrollo". No es el admin de PRO.
 - Sin migración de datos (capability nueva).
+
+## Decisión de contrato (capturada en este change)
+- En `docs/openapi.yaml`, el schema `CurrentUser` lleva `passwordMustChange`
+  en `required` (junto a `employeeId`, `login`, `role`). `/auth/login` y
+  `/auth/me` devuelven siempre los cuatro campos: el frontend depende de que
+  `passwordMustChange` venga presente para decidir si fuerza el cambio.

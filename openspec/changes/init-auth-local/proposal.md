@@ -24,6 +24,26 @@ el resto de capabilities.
 - **Sin frontend** en este change inicial (la pantalla de login llega en
   `frontend-bootstrap`).
 
+## Seed admin de desarrollo
+
+Para poder probar el login real en LOCAL/DES y en los tests e2e (Puerta 3), la
+migración `V5__seed_dev_admin.sql` inserta de forma **idempotente** un único
+administrador local:
+
+| Campo | Valor |
+|---|---|
+| `login` | `admin` |
+| Contraseña | `Admin#Parking2026` |
+| `email` | `admin.dev@aleatica.local` |
+| `role` | `ADMIN` |
+| `auth_origin` | `LOCAL` |
+| `password_must_change` | `false` (es admin de desarrollo, no de reset) |
+
+> ⚠️ **Solo desarrollo.** No es el administrador de PRODUCCIÓN. La contraseña
+> cumple la política (≥10, mayúscula+minúscula+dígito+símbolo, distinta de
+> `login`/`email`). El `password_hash` se genera con BCrypt(coste 12) y se
+> embebe en la migración.
+
 ## Out of scope
 - SSO de Fase 2 (`auth-sso`).
 - Provisioning automático de empleados.
