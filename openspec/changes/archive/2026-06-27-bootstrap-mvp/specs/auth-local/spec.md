@@ -6,7 +6,7 @@
 ## ADDED Requirements
 
 ### Requirement: Endpoints de autenticación expuestos como placeholder
-**El sistema DEBE exponer los endpoints de autenticación de Fase 1 (`POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password`) devolviendo `501 Not Implemented` hasta que el change funcional de `auth-local` los implemente.**
+**El sistema DEBE (MUST) exponer los endpoints de autenticación de Fase 1 (`POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password`) devolviendo `501 Not Implemented` hasta que el change funcional de `auth-local` los implemente.**
 
 #### Scenario: Login placeholder devuelve 501
 - **GIVEN** el backend arrancado con la configuración base (sin lógica de login)

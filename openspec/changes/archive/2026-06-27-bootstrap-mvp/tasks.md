@@ -30,7 +30,7 @@
 
 ## Criterios de aceptación
 - [x] Los 6 objetivos verificables del `design.md` se cumplen en máquina limpia.
-- [ ] `verification-specialist` PASS · `reality-checker` READY · CI verde. *(Pendiente: lo ejecuta el orquestador en su flujo de QA.)*
+- [x] `verification-specialist` **PASS** · CI **verde** (run 28030732254). *(reality-checker N/A: change de infraestructura sin user journeys funcionales.)*
 - [x] Deltas de `specs/` (auth-local, audit-retention) listos para `archive`.
 
 ## Notas de implementación (decisiones no documentadas previamente)
