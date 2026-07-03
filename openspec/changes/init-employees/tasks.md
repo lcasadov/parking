@@ -31,6 +31,6 @@
 - [x] 3.1 Con los tests en verde: métodos con complejidad < 15, constantes `static final` para literales (S1192), inyección por constructor (S6813), DTOs en la capa web (S4684), `.orElseThrow()` (S3655). Quality Gate verde: `mvn clean verify` BUILD SUCCESS, cobertura cumplida (`EmployeeController` 100%/100%, `EmployeeService` 98%/90% líneas/branches).
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Vista de gestión de empleados (tabla paginada con búsqueda `q`), visible solo para `ADMIN`.
-- [ ] 4.2 Formulario de alta/edición con validación de campos y feedback de 409 en `login`/`email`.
-- [ ] 4.3 Acciones de baja, reactivación, reset de contraseña (🟢 modal mostrando la temporal una vez) y exportación CSV/XLSX.
+- [x] 4.1 Vista de gestión de empleados (tabla paginada con búsqueda `q`), visible solo para `ADMIN`.
+- [x] 4.2 Formulario de alta/edición con validación de campos y feedback de 409 en `login`/`email`.
+- [x] 4.3 Acciones de baja, reactivación, reset de contraseña (🟢 modal mostrando la temporal una vez) y exportación CSV/XLSX.

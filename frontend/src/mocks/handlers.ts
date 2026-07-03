@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import type { ApiError, LoginRequest } from '../types/auth';
 import { adminUser, employeeUser } from './fixtures';
+import { defaultEmployeePage, employeeAlice } from './employeeFixtures';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -28,6 +29,36 @@ export const handlers = [
   http.post(`${BASE}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
 
   http.post(`${BASE}/auth/change-password`, () => new HttpResponse(null, { status: 204 })),
+
+  // ---- Employees (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/employees`, () => HttpResponse.json(defaultEmployeePage)),
+
+  http.post(`${BASE}/employees`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...employeeAlice, ...body, id: 99 }, { status: 201 });
+  }),
+
+  http.put(`${BASE}/employees/:id`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...employeeAlice, ...body, id: Number(params.id) });
+  }),
+
+  http.delete(`${BASE}/employees/:id`, () => new HttpResponse(null, { status: 204 })),
+
+  http.post(
+    `${BASE}/employees/:id/reactivate`,
+    () => new HttpResponse(null, { status: 204 }),
+  ),
+
+  http.post(`${BASE}/employees/:id/reset-password`, () =>
+    HttpResponse.json({ temporaryPassword: 'Temp0ral!23', mustChange: true }),
+  ),
+
+  http.get(`${BASE}/employees/export`, () =>
+    HttpResponse.text('id,login\n10,aandersson', {
+      headers: { 'Content-Type': 'text/csv' },
+    }),
+  ),
 ];
 
 export { BASE as MSW_BASE };
