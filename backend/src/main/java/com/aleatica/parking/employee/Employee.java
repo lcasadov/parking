@@ -100,6 +100,37 @@ public class Employee {
     }
 
     /**
+     * Da de alta un nuevo empleado activo y habilitado (caso de uso de creacion).
+     *
+     * <p>Fija la identidad inmutable ({@code login}) y los atributos autoritativos;
+     * los campos opcionales (departamento, telefono, matricula, corporativo) se
+     * asignan despues via setters. Nace con {@code active = true},
+     * {@code enabled = true} y sin credencial local (Fase 2 la obtiene via reset).</p>
+     *
+     * @param firstName  nombre
+     * @param lastName   apellidos
+     * @param login      login unico (inmutable)
+     * @param email      email unico
+     * @param role       rol funcional
+     * @param authOrigin origen de autenticacion
+     * @return el empleado nuevo, aun no persistido
+     */
+    public static Employee register(
+            String firstName, String lastName, String login,
+            String email, Role role, AuthOrigin authOrigin) {
+        Employee employee = new Employee();
+        employee.firstName = firstName;
+        employee.lastName = lastName;
+        employee.login = login;
+        employee.email = email;
+        employee.role = role;
+        employee.authOrigin = authOrigin;
+        employee.enabled = true;
+        employee.active = true;
+        return employee;
+    }
+
+    /**
      * Indica si la cuenta esta bloqueada en un instante dado.
      *
      * @param now instante de referencia (UTC)
@@ -192,6 +223,70 @@ public class Employee {
 
     public void setLastPasswordChangeAt(Instant lastPasswordChangeAt) {
         this.lastPasswordChangeAt = lastPasswordChangeAt;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public String getMobilePhone() {
+        return mobilePhone;
+    }
+
+    public String getLicensePlate() {
+        return licensePlate;
+    }
+
+    public boolean isCorporate() {
+        return corporate;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    public void setMobilePhone(String mobilePhone) {
+        this.mobilePhone = mobilePhone;
+    }
+
+    public void setLicensePlate(String licensePlate) {
+        this.licensePlate = licensePlate;
+    }
+
+    public void setCorporate(boolean corporate) {
+        this.corporate = corporate;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     @Override

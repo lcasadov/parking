@@ -77,11 +77,16 @@ en Fase 2 se envía por email y no se devuelve en claro.
 - **THEN** el sistema actualiza los campos modificables y `updated_at`
 - **AND** responde 200 con el empleado actualizado
 
-#### Scenario: Edición que colisiona con login de otro empleado
+#### Scenario: Edición que colisiona con email de otro empleado
 - **GIVEN** un `ADMIN` autenticado y dos empleados distintos
-- **WHEN** envía `PUT /employees/{id}` cambiando el `login` al de otro empleado
-- **THEN** el sistema responde 409 con `fields` señalando `login`
+- **WHEN** envía `PUT /employees/{id}` cambiando el `email` al de otro empleado
+- **THEN** el sistema responde 409 con `fields` señalando `email`
 - **AND** no modifica ningún empleado
+- **NOTA:** el `login` es **inmutable** por contrato — el schema `EmployeeUpdate`
+  de `docs/openapi.yaml` (autoridad del contrato) no incluye `login`; la
+  identidad de acceso no cambia tras el alta. La colisión de unicidad editable
+  aplica por tanto al `email`. La unicidad de `login` sigue garantizada en el alta
+  y por el índice `UX_employees_login`.
 
 #### Scenario: Baja lógica de empleado
 - **GIVEN** un `ADMIN` autenticado y un `Employee` con `active = true`

@@ -4,6 +4,7 @@ export const ROUTES = {
   login: '/login',
   changePassword: '/change-password',
   admin: '/admin',
+  adminEmployees: '/admin/employees',
   employee: '/employee',
 } as const;
 

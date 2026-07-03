@@ -66,6 +66,9 @@ server.error:
 
 # Parametros propios de parking.
 parking:
+  # Fase de despliegue: PHASE_1 (reset devuelve la temporal en pantalla) o
+  # PHASE_2 (la temporal se envia por email y no se expone en la API).
+  phase: PHASE_1
   auth:
     local-fallback:
       enabled: false          # fallback de emergencia desactivado por defecto
