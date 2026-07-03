@@ -5,6 +5,7 @@ export const ROUTES = {
   changePassword: '/change-password',
   admin: '/admin',
   adminEmployees: '/admin/employees',
+  adminParkingSpaces: '/admin/parking-spaces',
   employee: '/employee',
 } as const;
 

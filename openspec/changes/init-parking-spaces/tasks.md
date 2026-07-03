@@ -31,7 +31,7 @@
 - [x] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento. Manejador de conflicto unificado (`FieldConflictException`) para evitar duplicación de handlers (S4144).
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Vista de administración de plazas (listado paginado con filtro activa/inactiva), solo `ADMIN`.
-- [ ] 4.2 Formulario de alta/edición de plaza (`label`, toggle `active`) con manejo de 400 (validación) y 409 (label duplicado).
-- [ ] 4.3 Acción de configuración masiva del total (`total`) con manejo de 400.
-- [ ] 4.4 Ocultar la sección de plazas a `EMPLOYEE` (RBAC en UI).
+- [x] 4.1 Vista de administración de plazas (listado paginado con filtro activa/inactiva), solo `ADMIN`.
+- [x] 4.2 Formulario de alta/edición de plaza (`label`, toggle `active`) con manejo de 400 (validación) y 409 (label duplicado).
+- [x] 4.3 Acción de configuración masiva del total (`total`) con manejo de 400.
+- [x] 4.4 Ocultar la sección de plazas a `EMPLOYEE` (RBAC en UI).

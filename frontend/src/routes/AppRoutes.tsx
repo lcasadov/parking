@@ -4,6 +4,7 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { EmployeeLayout } from '../layouts/EmployeeLayout';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
 import { EmployeesPage } from '../pages/EmployeesPage';
+import { ParkingSpacesPage } from '../pages/ParkingSpacesPage';
 import { LoginPage } from '../pages/LoginPage';
 import { ROUTES } from './paths';
 
@@ -29,6 +30,7 @@ export function AppRoutes() {
       >
         <Route index element={<Navigate to={ROUTES.adminEmployees} replace />} />
         <Route path="employees" element={<EmployeesPage />} />
+        <Route path="parking-spaces" element={<ParkingSpacesPage />} />
       </Route>
       <Route
         path={ROUTES.employee}

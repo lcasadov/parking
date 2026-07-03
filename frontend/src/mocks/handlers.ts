@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import type { ApiError, LoginRequest } from '../types/auth';
 import { adminUser, employeeUser } from './fixtures';
 import { defaultEmployeePage, employeeAlice } from './employeeFixtures';
+import { defaultParkingSpacePage, spaceP01 } from './parkingSpaceFixtures';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -59,6 +60,29 @@ export const handlers = [
       headers: { 'Content-Type': 'text/csv' },
     }),
   ),
+
+  // ---- ParkingSpaces (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/parking-spaces`, () => HttpResponse.json(defaultParkingSpacePage)),
+
+  http.post(`${BASE}/parking-spaces/configure`, async ({ request }) => {
+    const body = (await request.json()) as { total: number };
+    const spaces = Array.from({ length: body.total }, (_, index) => ({
+      ...spaceP01,
+      id: index + 1,
+      label: `P-${String(index + 1).padStart(2, '0')}`,
+    }));
+    return HttpResponse.json(spaces);
+  }),
+
+  http.post(`${BASE}/parking-spaces`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...spaceP01, ...body, id: 99 }, { status: 201 });
+  }),
+
+  http.put(`${BASE}/parking-spaces/:id`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...spaceP01, ...body, id: Number(params.id) });
+  }),
 ];
 
 export { BASE as MSW_BASE };
