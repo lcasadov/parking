@@ -1,0 +1,90 @@
+/* Tokens del design system (autoridad: docs/design-system.md / docs/mockups/styles.css).
+   Light en :root; modo oscuro reasigna en body.theme-dark. Ningun hex suelto
+   en componentes: todo color sale de aqui. */
+:root {
+  /* Base (light) */
+  --bg-page: #f5f4ef;
+  --bg-card: #ffffff;
+  --bg-soft: #fafaf7;
+  --border: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.2);
+  --text: #444441;
+  --text-muted: #888780;
+  --text-soft: #5f5e5a;
+  --highlight: #fcf6e6;
+
+  /* Corporativa */
+  --green: #639922;
+  --green-dark: #3b6d11;
+  --green-soft: #eaf3de;
+  --green-border: #c0dd97;
+  --green-darker: #173404;
+  --green-focus: #97c459;
+  --teal: #1d9e75;
+  --blue: #378add;
+  --blue-soft: #e6f1fb;
+  --blue-border: #b5d4f4;
+  --blue-darker: #042c53;
+  --red: #e24b4a;
+  --red-text: #a32d2d;
+  --red-soft: #fcebeb;
+  --red-border: #f09595;
+
+  /* Estado */
+  --amber-soft: #faeeda;
+  --amber-border: #fac775;
+  --amber-text: #633806;
+  --pink-soft: #fbeaf0;
+  --pink-border: #f4c0d1;
+  --pink-text: #4b1528;
+
+  /* Marco exterior (auth/phones) */
+  --frame-bg: #e8e6df;
+
+  /* Radios */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Espaciado */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Tipografia */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+}
+
+body.theme-dark {
+  --bg-page: #1c1c19;
+  --bg-card: #26261f;
+  --bg-soft: #222220;
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.24);
+  --text: #e9e7df;
+  --text-muted: #9c9a90;
+  --text-soft: #c7c5bb;
+  --highlight: rgba(252, 246, 230, 0.06);
+  --green-soft: rgba(99, 153, 34, 0.22);
+  --green-darker: #cfe6a8;
+  --blue-soft: rgba(55, 138, 221, 0.22);
+  --blue-darker: #bcdcff;
+  --amber-soft: rgba(250, 199, 117, 0.2);
+  --amber-text: #f0cf94;
+  --pink-soft: rgba(212, 83, 126, 0.24);
+  --pink-text: #f3b9cd;
+  --red-soft: rgba(226, 75, 74, 0.2);
+  --red-text: #f3a3a3;
+  --frame-bg: #141413;
+}

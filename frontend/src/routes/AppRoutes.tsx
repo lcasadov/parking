@@ -1,0 +1,40 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { ProtectedRoute } from '../auth/ProtectedRoute';
+import { AdminLayout } from '../layouts/AdminLayout';
+import { EmployeeLayout } from '../layouts/EmployeeLayout';
+import { ChangePasswordPage } from '../pages/ChangePasswordPage';
+import { LoginPage } from '../pages/LoginPage';
+import { ROUTES } from './paths';
+
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path={ROUTES.login} element={<LoginPage />} />
+      <Route
+        path={ROUTES.changePassword}
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.admin}
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.employee}
+        element={
+          <ProtectedRoute requiredRole="EMPLOYEE">
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
+    </Routes>
+  );
+}
