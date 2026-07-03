@@ -3,11 +3,14 @@ package com.aleatica.parking.exception;
 import com.aleatica.parking.auth.application.AuthenticationFailedException;
 import com.aleatica.parking.auth.application.InvalidCurrentPasswordException;
 import com.aleatica.parking.auth.application.PasswordPolicyException;
+import com.aleatica.parking.employee.application.EmployeeConflictException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -36,14 +39,23 @@ public class GlobalExceptionHandler {
     private static final String CODE_INTERNAL = "INTERNAL_ERROR";
     private static final String CODE_UNAUTHORIZED = "UNAUTHORIZED";
     private static final String CODE_PASSWORD_POLICY = "PASSWORD_POLICY_VIOLATION";
+    private static final String CODE_CONFLICT = "CONFLICT";
 
     private static final String FIELD_NEW_PASSWORD = "newPassword";
     private static final String FIELD_CURRENT_PASSWORD = "currentPassword";
+    private static final String FIELD_LOGIN = "login";
+    private static final String FIELD_EMAIL = "email";
+
+    private static final String INDEX_LOGIN = "ux_employees_login";
+    private static final String INDEX_EMAIL = "ux_employees_email";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
     private static final String MSG_NOT_FOUND = "Recurso no encontrado";
     private static final String MSG_INTERNAL = "Se ha producido un error interno";
+    private static final String MSG_CONFLICT = "El recurso ya existe o viola una restriccion de unicidad";
+    private static final String MSG_LOGIN_TAKEN = "El login ya esta en uso";
+    private static final String MSG_EMAIL_TAKEN = "El email ya esta en uso";
 
     /**
      * Traduce errores de validacion de DTO de entrada a {@code 400 Bad Request}.
@@ -144,6 +156,46 @@ public class GlobalExceptionHandler {
         Map<String, String> fields = Map.of(FIELD_CURRENT_PASSWORD, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce una colision de unicidad detectada en el caso de uso a {@code 409}
+     * con el campo en conflicto (comprobacion previa, mensaje claro).
+     *
+     * @param ex excepcion de conflicto de empleado
+     * @return {@link ApiError} con estado 409 y detalle por campo
+     */
+    @ExceptionHandler(EmployeeConflictException.class)
+    public ResponseEntity<ApiError> handleEmployeeConflict(EmployeeConflictException ex) {
+        Map<String, String> fields = Map.of(ex.getField(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_CONFLICT, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce una violacion de indice unico en BD a {@code 409} (red dura frente a
+     * concurrencia). Deriva el campo en conflicto del nombre del indice
+     * ({@code UX_employees_login} / {@code UX_employees_email}).
+     *
+     * @param ex excepcion de violacion de integridad de datos
+     * @return {@link ApiError} con estado 409 y, si se identifica, el campo en conflicto
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        LOG.warn("Violacion de integridad: {}", ex.getMostSpecificCause().getMessage());
+        String detail = ex.getMostSpecificCause().getMessage();
+        String lowerDetail = detail == null ? "" : detail.toLowerCase(Locale.ROOT);
+        Map<String, String> fields = null;
+        String message = MSG_CONFLICT;
+        if (lowerDetail.contains(INDEX_LOGIN)) {
+            fields = Map.of(FIELD_LOGIN, MSG_LOGIN_TAKEN);
+            message = MSG_LOGIN_TAKEN;
+        } else if (lowerDetail.contains(INDEX_EMAIL)) {
+            fields = Map.of(FIELD_EMAIL, MSG_EMAIL_TAKEN);
+            message = MSG_EMAIL_TAKEN;
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_CONFLICT, message, fields));
     }
 
     /**

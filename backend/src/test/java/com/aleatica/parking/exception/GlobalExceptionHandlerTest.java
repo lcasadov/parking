@@ -3,12 +3,14 @@ package com.aleatica.parking.exception;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
+import com.aleatica.parking.employee.application.EmployeeConflictException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -87,6 +89,58 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().error()).isEqualTo("NOT_IMPLEMENTED");
         assertThat(response.getBody().message()).isEqualTo("pendiente");
+    }
+
+    @Test
+    void should_return_409_with_field_when_employee_conflict() {
+        // When
+        ResponseEntity<ApiError> response = handler.handleEmployeeConflict(
+                new EmployeeConflictException("login", "El login ya esta en uso"));
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().error()).isEqualTo("CONFLICT");
+        assertThat(response.getBody().fields()).containsEntry("login", "El login ya esta en uso");
+    }
+
+    @Test
+    void should_return_409_with_login_field_when_login_index_violated() {
+        // When: la causa mas especifica menciona el indice UX_employees_login
+        ResponseEntity<ApiError> response = handler.handleDataIntegrity(
+                new DataIntegrityViolationException(
+                        "duplicate", new IllegalStateException("Violation of UX_employees_login")));
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().fields()).containsKey("login");
+    }
+
+    @Test
+    void should_return_409_with_email_field_when_email_index_violated() {
+        // When
+        ResponseEntity<ApiError> response = handler.handleDataIntegrity(
+                new DataIntegrityViolationException(
+                        "duplicate", new IllegalStateException("Violation of UX_employees_email")));
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().fields()).containsKey("email");
+    }
+
+    @Test
+    void should_return_generic_409_when_integrity_violation_unrecognized() {
+        // When: sin nombre de indice conocido
+        ResponseEntity<ApiError> response = handler.handleDataIntegrity(
+                new DataIntegrityViolationException(
+                        "fk", new IllegalStateException("FK violation")));
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().fields()).isNull();
     }
 
     @Test
