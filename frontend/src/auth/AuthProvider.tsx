@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { AxiosError } from 'axios';
 import { getCurrentUser } from '../api/authApi';
+import { setSessionActive } from '../api/sessionState';
 import type { CurrentUser } from '../types/auth';
 import { AuthContext, type AuthContextValue } from './authContext';
 
@@ -38,6 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const user = data ?? null;
+
+  // Sincroniza el flag de sesion que consulta el interceptor 401 (bug #9):
+  // solo con un usuario autenticado un 401 posterior significa "sesion expirada".
+  useEffect(() => {
+    setSessionActive(user !== null);
+    return () => setSessionActive(false);
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

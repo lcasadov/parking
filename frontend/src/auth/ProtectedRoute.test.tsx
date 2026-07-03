@@ -5,16 +5,17 @@ import { Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import { server } from '../mocks/server';
 import { MSW_BASE } from '../mocks/handlers';
-import { adminUser, employeeMustChange } from '../mocks/fixtures';
+import { adminUser, employeeMustChange, employeeUser } from '../mocks/fixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
+import type { Role } from '../routes/paths';
 
-function renderGuarded(route: string) {
+function renderGuarded(route: string, requiredRole?: Role) {
   return renderWithProviders(
     <Routes>
       <Route
         path="/admin"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredRole={requiredRole}>
             <span>admin-content</span>
           </ProtectedRoute>
         }
@@ -55,6 +56,39 @@ describe('ProtectedRoute', () => {
     server.use(http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(adminUser)));
 
     renderGuarded('/admin');
+
+    await waitFor(() => {
+      expect(screen.getByText('admin-content')).toBeInTheDocument();
+    });
+  });
+
+  // Guard RBAC (bug #10): TESTING-STRATEGY exige cobertura 100% en autorizacion.
+  it('should_redirect_to_login_when_employee_accesses_admin_route', async () => {
+    server.use(http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(employeeUser)));
+
+    renderGuarded('/admin', 'ADMIN');
+
+    await waitFor(() => {
+      expect(screen.getByText('login-page')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('admin-content')).not.toBeInTheDocument();
+  });
+
+  it('should_redirect_to_login_when_admin_accesses_employee_route', async () => {
+    server.use(http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(adminUser)));
+
+    renderGuarded('/admin', 'EMPLOYEE');
+
+    await waitFor(() => {
+      expect(screen.getByText('login-page')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('admin-content')).not.toBeInTheDocument();
+  });
+
+  it('should_render_children_when_role_matches_required_role', async () => {
+    server.use(http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(adminUser)));
+
+    renderGuarded('/admin', 'ADMIN');
 
     await waitFor(() => {
       expect(screen.getByText('admin-content')).toBeInTheDocument();

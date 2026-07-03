@@ -27,11 +27,12 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
       thresholds: { lines: 80, branches: 75, functions: 80, statements: 80 },
       include: ['src/**/*.{ts,tsx}'],
+      // App.tsx y AppRoutes.tsx SI se cubren (App.test.tsx ejercita la
+      // composicion real de rutas + SessionExpiredModal — bug #9/#10).
+      // main.tsx queda excluido: solo llama a createRoot (entry point sin logica).
       exclude: [
         '**/*.config.*',
         'src/main.tsx',
-        'src/App.tsx',
-        'src/routes/AppRoutes.tsx',
         'src/types/**',
         'src/**/*.d.ts',
         'src/i18n/**',
