@@ -6,7 +6,9 @@ export const ROUTES = {
   admin: '/admin',
   adminEmployees: '/admin/employees',
   adminParkingSpaces: '/admin/parking-spaces',
+  adminFixedAssignments: '/admin/fixed-assignments',
   employee: '/employee',
+  employeeFixedAssignments: '/employee/fixed-assignments',
 } as const;
 
 export type Role = 'ADMIN' | 'EMPLOYEE';

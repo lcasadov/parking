@@ -3,6 +3,11 @@ import type { ApiError, LoginRequest } from '../types/auth';
 import { adminUser, employeeUser } from './fixtures';
 import { defaultEmployeePage, employeeAlice } from './employeeFixtures';
 import { defaultParkingSpacePage, spaceP01 } from './parkingSpaceFixtures';
+import {
+  aliceAssignments,
+  defaultFixedAssignmentPage,
+} from './fixedAssignmentFixtures';
+import type { FixedAssignment, FixedAssignmentPutRequest } from '../types/fixedAssignment';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -83,6 +88,38 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...spaceP01, ...body, id: Number(params.id) });
   }),
+
+  // ---- FixedAssignments (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/fixed-assignments`, () => HttpResponse.json(defaultFixedAssignmentPage)),
+
+  http.get(`${BASE}/fixed-assignments/employee/:employeeId`, ({ params }) => {
+    if (Number(params.employeeId) === 10) {
+      return HttpResponse.json(aliceAssignments);
+    }
+    return HttpResponse.json([] as FixedAssignment[]);
+  }),
+
+  http.put(`${BASE}/fixed-assignments/employee/:employeeId`, async ({ request, params }) => {
+    const body = (await request.json()) as FixedAssignmentPutRequest;
+    const employeeId = Number(params.employeeId);
+    const created = body.daysOfWeek.map((day, index) => ({
+      id: 900 + index,
+      parkingSpaceId: body.parkingSpaceId,
+      employeeId,
+      dayOfWeek: day,
+      active: true,
+      createdById: 1,
+      createdAt: '2026-03-01T09:00:00Z',
+      revokedById: null,
+      revokedAt: null,
+    }));
+    return HttpResponse.json(created);
+  }),
+
+  http.delete(
+    `${BASE}/fixed-assignments/employee/:employeeId`,
+    () => new HttpResponse(null, { status: 204 }),
+  ),
 ];
 
 export { BASE as MSW_BASE };

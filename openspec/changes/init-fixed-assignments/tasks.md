@@ -31,8 +31,8 @@
 - [x] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Vista ADMIN: gestión de asignaciones fijas por empleado (selector de plaza + días de la semana, guardar vía `setEmployeeFixedAssignments`).
-- [ ] 4.2 Acción ADMIN de revocación (`revokeEmployeeFixedAssignment`) con confirmación.
-- [ ] 4.3 Lista ADMIN de todas las asignaciones activas (`listFixedAssignments`, paginada).
-- [ ] 4.4 Vista EMPLOYEE de solo lectura "mis asignaciones fijas" (`getEmployeeFixedAssignments` con su propio id).
-- [ ] 4.5 Manejo de errores 400 (días inválidos) y 409 (conflicto de unicidad) con toasts.
+- [x] 4.1 Vista ADMIN: gestión de asignaciones fijas por empleado (selector de plaza + días de la semana, guardar vía `setEmployeeFixedAssignments`).
+- [x] 4.2 Acción ADMIN de revocación (`revokeEmployeeFixedAssignment`) con confirmación.
+- [x] 4.3 Lista ADMIN de todas las asignaciones activas (`listFixedAssignments`, paginada).
+- [x] 4.4 Vista EMPLOYEE de solo lectura "mis asignaciones fijas" (`getEmployeeFixedAssignments` con su propio id).
+- [x] 4.5 Manejo de errores 400 (días inválidos) y 409 (conflicto de unicidad) con toasts.
