@@ -125,6 +125,32 @@ class EmployeeManagementIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldRoundTripCorporateFlag_underContractKeyIsCorporate() throws Exception {
+        // Arrange: alta con isCorporate=true (clave contractual, bug #21)
+        mockMvc.perform(post(BASE_URL).cookie(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBodyCorporate(TEST_LOGIN, TEST_EMAIL, true)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.isCorporate").value(true));
+
+        // Assert: se persistio (columna is_corporate) y la lectura lo devuelve bajo isCorporate
+        assertThat(corporateFlag(TEST_LOGIN)).isTrue();
+        mockMvc.perform(get(BASE_URL).param("q", "ittest").cookie(adminSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].isCorporate").value(true));
+
+        // Act / Assert: la edicion que lo desactiva tambien viaja bajo isCorporate
+        long id = jdbcTemplate.queryForObject(
+                "SELECT id FROM dbo.employees WHERE login = ?", Long.class, TEST_LOGIN);
+        mockMvc.perform(put(BASE_URL + "/" + id).cookie(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateBodyCorporate(TEST_EMAIL, false)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isCorporate").value(false));
+        assertThat(corporateFlag(TEST_LOGIN)).isFalse();
+    }
+
+    @Test
     void shouldReturn403_whenEmployeeRoleListsEmployees() throws Exception {
         // Arrange: empleado con rol EMPLOYEE y su sesion
         insertEmployee(EMP_LOGIN, EMP_EMAIL, passwordEncoder.encode(EMP_PASSWORD));
@@ -174,6 +200,12 @@ class EmployeeManagementIT extends BaseIntegrationTest {
         return Boolean.TRUE.equals(value);
     }
 
+    private boolean corporateFlag(String login) {
+        Boolean value = jdbcTemplate.queryForObject(
+                "SELECT is_corporate FROM dbo.employees WHERE login = ?", Boolean.class, login);
+        return Boolean.TRUE.equals(value);
+    }
+
     private boolean mustChangeFlag(long id) {
         Boolean value = jdbcTemplate.queryForObject(
                 "SELECT password_must_change FROM dbo.employees WHERE id = ?", Boolean.class, id);
@@ -188,5 +220,16 @@ class EmployeeManagementIT extends BaseIntegrationTest {
     private static String updateBody(String firstName, String email) {
         return "{\"firstName\":\"" + firstName + "\",\"lastName\":\"Perez\",\"email\":\""
                 + email + "\",\"role\":\"EMPLOYEE\"}";
+    }
+
+    private static String createBodyCorporate(String login, String email, boolean corporate) {
+        return "{\"firstName\":\"Juan\",\"lastName\":\"Perez\",\"login\":\"" + login
+                + "\",\"email\":\"" + email + "\",\"isCorporate\":" + corporate
+                + ",\"role\":\"EMPLOYEE\"}";
+    }
+
+    private static String updateBodyCorporate(String email, boolean corporate) {
+        return "{\"firstName\":\"Juan\",\"lastName\":\"Perez\",\"email\":\"" + email
+                + "\",\"isCorporate\":" + corporate + ",\"role\":\"EMPLOYEE\"}";
     }
 }

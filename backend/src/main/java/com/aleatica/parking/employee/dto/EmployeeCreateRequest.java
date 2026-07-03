@@ -2,6 +2,7 @@ package com.aleatica.parking.employee.dto;
 
 import com.aleatica.parking.employee.AuthOrigin;
 import com.aleatica.parking.employee.Role;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -50,7 +51,7 @@ public record EmployeeCreateRequest(
         @Size(max = 15) String licensePlate,
 
         @Schema(description = "Empleado corporativo (con EntraID)")
-        boolean corporate,
+        @JsonProperty("isCorporate") boolean corporate,
 
         @Schema(description = "Origen de autenticacion")
         AuthOrigin authOrigin,

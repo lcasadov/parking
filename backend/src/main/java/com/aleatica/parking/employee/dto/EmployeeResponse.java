@@ -3,6 +3,7 @@ package com.aleatica.parking.employee.dto;
 import com.aleatica.parking.employee.AuthOrigin;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.Role;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
@@ -40,7 +41,8 @@ public record EmployeeResponse(
         @Schema(description = "Departamento") String department,
         @Schema(description = "Telefono movil") String mobilePhone,
         @Schema(description = "Matricula del vehiculo") String licensePlate,
-        @Schema(description = "Empleado corporativo (con EntraID)") boolean corporate,
+        @Schema(description = "Empleado corporativo (con EntraID)")
+        @JsonProperty("isCorporate") boolean corporate,
         @Schema(description = "Origen de autenticacion") AuthOrigin authOrigin,
         @Schema(description = "Rol funcional") Role role,
         @Schema(description = "Cuenta habilitada para login") boolean enabled,
