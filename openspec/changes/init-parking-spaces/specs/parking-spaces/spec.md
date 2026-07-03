@@ -103,7 +103,7 @@ masiva del número total de plazas.
 - **THEN** el sistema responde 403 sin crear, modificar ni configurar plazas
 
 ## Casos límite (edge cases)
-- Reducir `total` por debajo del número de plazas existentes: la política de qué plazas se desactivan/eliminan se decide en `configureParkingSpaces` _[verificar con docs/data-model.md — el modelo solo describe alta/ajuste del total]_; las plazas con histórico vinculado (asignaciones, solicitudes, reservas) no deben perder ese histórico.
+- Reducir `total` por debajo del número de plazas activas existentes: `configureParkingSpaces` **desactiva** (`active = false`) las plazas activas sobrantes (las de mayor `id`) **sin borrar la fila**, preservando su histórico vinculado (asignaciones, solicitudes, reservas). Subir el `total` crea plazas activas nuevas con etiquetas libres autogeneradas (`P-NNN`). Coherente con `docs/data-model.md` §3.2 (baja lógica vía `active`, nunca borrado físico).
 - Desactivar una plaza que tiene asignaciones fijas o solicitudes futuras: la plaza deja de estar disponible, pero los efectos sobre `fixed-assignments`/`requests` se tratan en esas capabilities.
 - El `label` distingue por igualdad exacta; el tratamiento de espacios/mayúsculas en la comparación de unicidad se delega a la normalización del campo _[verificar con docs/data-model.md]_.
 - `listParkingSpaces` admite el filtro `active`; sin filtro devuelve todas (activas e inactivas) paginadas.

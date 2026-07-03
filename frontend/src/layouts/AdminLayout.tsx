@@ -19,6 +19,13 @@ export function AdminLayout() {
             <i className="ti ti-users" aria-hidden="true" />
             {t('employees.navLabel')}
           </NavLink>
+          <NavLink
+            to={ROUTES.adminParkingSpaces}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-parking" aria-hidden="true" />
+            {t('parkingSpaces.navLabel')}
+          </NavLink>
         </Sidebar>
         <main className="main">
           <Outlet />
