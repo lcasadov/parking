@@ -1,5 +1,6 @@
 package com.aleatica.parking.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -23,6 +24,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -123,6 +125,17 @@ class AuthControllerTest {
         // Act / Assert
         mockMvc.perform(post(LOGOUT_URL).with(user(LOGIN).roles("ADMIN")))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldInvalidateSession_whenLogoutWithExistingSession() throws Exception {
+        // Arrange: an authenticated request carrying an active HTTP session
+        MockHttpSession session = new MockHttpSession();
+
+        // Act / Assert
+        mockMvc.perform(post(LOGOUT_URL).with(user(LOGIN).roles("ADMIN")).session(session))
+                .andExpect(status().isNoContent());
+        assertThat(session.isInvalid()).isTrue();
     }
 
     @Test

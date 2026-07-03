@@ -242,6 +242,52 @@ class AuthServiceTest {
     }
 
     @Test
+    void shouldThrowInvalidCredentials_whenPasswordHashIsNull() {
+        // Arrange: employee without local password (e.g. never provisioned locally)
+        Employee employee = EmployeeTestFactory.active(EMP_ID, LOGIN, EMAIL, null, Role.ADMIN);
+        given(employeeRepository.findByLogin(LOGIN)).willReturn(Optional.of(employee));
+        given(clock.now()).willReturn(NOW);
+
+        // Act / Assert
+        assertThatThrownBy(() -> authService.authenticate(LOGIN, RAW_PASSWORD))
+                .isInstanceOf(AuthenticationFailedException.class);
+        assertThat(employee.getFailedLoginAttempts()).isEqualTo(1);
+        verify(loginLogRecorder)
+                .record(LOGIN, EMP_ID, LoginResult.INVALID_CREDENTIALS, LoginPhase.PHASE_1);
+    }
+
+    @Test
+    void shouldThrowInvalidCurrentPassword_whenPasswordHashIsNullOnChange() {
+        // Arrange: employee without local password cannot change it
+        Employee employee = EmployeeTestFactory.active(EMP_ID, LOGIN, EMAIL, null, Role.ADMIN);
+        given(employeeRepository.findByLogin(LOGIN)).willReturn(Optional.of(employee));
+
+        // Act / Assert
+        assertThatThrownBy(() -> authService.changePassword(LOGIN, "whatever", "Another#Pass2word"))
+                .isInstanceOf(InvalidCurrentPasswordException.class);
+        verify(employeeRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldClearStaleLock_whenAttemptsZeroButLockPresentAndPasswordValid() {
+        // Arrange: expired lock left behind while the failure counter is already 0
+        Employee employee = activeEmployee();
+        employee.setFailedLoginAttempts(0);
+        employee.setLockedUntil(NOW.minusSeconds(1));
+        given(employeeRepository.findByLogin(LOGIN)).willReturn(Optional.of(employee));
+        given(clock.now()).willReturn(NOW);
+        given(passwordEncoder.matches(RAW_PASSWORD, HASH)).willReturn(true);
+
+        // Act
+        authService.authenticate(LOGIN, RAW_PASSWORD);
+
+        // Assert
+        assertThat(employee.getLockedUntil()).isNull();
+        verify(employeeRepository, times(1)).save(employee);
+        verify(loginLogRecorder).record(LOGIN, EMP_ID, LoginResult.OK, LoginPhase.PHASE_1);
+    }
+
+    @Test
     void shouldReturnIdentity_whenLoadByLoginExists() {
         // Arrange
         Employee employee = activeEmployee();
