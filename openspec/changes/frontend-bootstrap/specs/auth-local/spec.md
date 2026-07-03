@@ -6,7 +6,7 @@
 ## ADDED Requirements
 
 ### Requirement: Frontend de autenticación local
-**El sistema DEBE ofrecer una interfaz de inicio de sesión de Fase 1 que autentique contra `POST /auth/login`, redirija según el rol y gestione el cambio obligatorio de contraseña y la expiración de sesión.**
+**El sistema DEBE (MUST) ofrecer una interfaz de inicio de sesión de Fase 1 que autentique contra `POST /auth/login`, redirija según el rol y gestione el cambio obligatorio de contraseña y la expiración de sesión.**
 
 #### Scenario: Login correcto redirige según rol
 - **GIVEN** un usuario en `/login`
