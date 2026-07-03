@@ -6,6 +6,12 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
+  # Solo migraciones de esquema — NUNCA el seed de dev (classpath:db/seed/dev).
+  # Fijado explicitamente para que un cambio futuro del default no filtre en PRO
+  # la credencial del admin de desarrollo (bug #11, CWE-798).
+  flyway:
+    locations: classpath:db/migration
+
 # Cookie de sesion marcada Secure: solo viaja por HTTPS en produccion.
 parking:
   session:

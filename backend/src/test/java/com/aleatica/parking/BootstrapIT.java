@@ -11,8 +11,9 @@ import org.springframework.http.MediaType;
 
 /**
  * Tests de integracion del arranque: smoke del contexto, endpoint de health,
- * seguridad minima (401), endpoints placeholder de auth (501) y forma uniforme
- * del error (ApiError) ante validacion.
+ * seguridad minima (401), endpoints de auth reales (login 401 sin credenciales
+ * validas; me/logout/change-password 401 sin sesion) y forma uniforme del error
+ * (ApiError) ante validacion.
  */
 class BootstrapIT extends BaseIntegrationTest {
 
@@ -50,33 +51,34 @@ class BootstrapIT extends BaseIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    // 1.5 — los cuatro endpoints placeholder devuelven 501.
+    // 1.5 — los endpoints de auth ya son reales (auth-local sustituye el placeholder 501).
     @Test
-    void should_return_501_when_call_auth_login_placeholder() throws Exception {
+    void should_return_401_when_login_with_unknown_credentials() throws Exception {
+        // El login jperez no existe -> 401 generico (no revela la inexistencia).
         mockMvc.perform(post(LOGIN_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_LOGIN_BODY))
-                .andExpect(status().isNotImplemented());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void should_return_501_when_call_auth_logout_placeholder() throws Exception {
+    void should_return_401_when_logout_without_session() throws Exception {
         mockMvc.perform(post(LOGOUT_PATH))
-                .andExpect(status().isNotImplemented());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void should_return_501_when_call_auth_me_placeholder() throws Exception {
+    void should_return_401_when_me_without_session() throws Exception {
         mockMvc.perform(get(ME_PATH))
-                .andExpect(status().isNotImplemented());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void should_return_501_when_call_auth_change_password_placeholder() throws Exception {
+    void should_return_401_when_change_password_without_session() throws Exception {
         mockMvc.perform(post(CHANGE_PASSWORD_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"currentPassword\":\"old-secret\",\"newPassword\":\"new-secret\"}"))
-                .andExpect(status().isNotImplemented());
+                .andExpect(status().isUnauthorized());
     }
 
     // 1.6 — forma uniforme del error { error, message, fields, timestamp }.

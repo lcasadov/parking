@@ -20,6 +20,9 @@ spring:
 
   flyway:
     enabled: true
+    # Solo migraciones de ESQUEMA. El seed del admin de desarrollo vive en
+    # classpath:db/seed/dev y lo anade UNICAMENTE application-des.yml (bug #11:
+    # el seed contiene una credencial documentada y jamas debe llegar a PRE/PRO).
     locations: classpath:db/migration
     baseline-on-migrate: false
 

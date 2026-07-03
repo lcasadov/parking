@@ -1,9 +1,14 @@
 /**
  * Modulo de autenticacion (Fase 1, login local).
  *
- * <p>En este change de bootstrap solo expone los endpoints placeholder
- * {@code /api/v1/auth/*} que devuelven {@code 501}. La logica real (verificacion
- * BCrypt, bloqueo de cuenta, sesion) la aporta el change funcional de
- * {@code auth-local}.</p>
+ * <p>Expone los endpoints {@code /api/v1/auth/login|logout|me|change-password}
+ * ({@link com.aleatica.parking.auth.AuthController}). El caso de uso
+ * {@link com.aleatica.parking.auth.application.AuthService} verifica las
+ * credenciales (BCrypt coste 12), gestiona el bloqueo por intentos fallidos y el
+ * cambio de contrasena; la sesion server-side la respalda Spring Session JDBC y
+ * cada intento se registra en {@code login_log}
+ * ({@link com.aleatica.parking.auth.JdbcLoginLogRecorder}). El nucleo de dominio
+ * ({@link com.aleatica.parking.auth.domain.PasswordPolicy},
+ * {@link com.aleatica.parking.auth.domain.ClockPort}) no depende de Spring.</p>
  */
 package com.aleatica.parking.auth;

@@ -1,5 +1,8 @@
 package com.aleatica.parking.exception;
 
+import com.aleatica.parking.auth.application.AuthenticationFailedException;
+import com.aleatica.parking.auth.application.InvalidCurrentPasswordException;
+import com.aleatica.parking.auth.application.PasswordPolicyException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +34,11 @@ public class GlobalExceptionHandler {
     private static final String CODE_NOT_FOUND = "NOT_FOUND";
     private static final String CODE_NOT_IMPLEMENTED = "NOT_IMPLEMENTED";
     private static final String CODE_INTERNAL = "INTERNAL_ERROR";
+    private static final String CODE_UNAUTHORIZED = "UNAUTHORIZED";
+    private static final String CODE_PASSWORD_POLICY = "PASSWORD_POLICY_VIOLATION";
+
+    private static final String FIELD_NEW_PASSWORD = "newPassword";
+    private static final String FIELD_CURRENT_PASSWORD = "currentPassword";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
@@ -92,6 +100,50 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleNotImplemented(NotImplementedException ex) {
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
                 .body(ApiError.of(CODE_NOT_IMPLEMENTED, ex.getMessage()));
+    }
+
+    /**
+     * Traduce un fallo de autenticacion local a {@code 401}.
+     *
+     * <p>El mensaje es generico (no revela si el login existe): el detalle fino
+     * solo viaja a {@code login_log} (security-design §2, OWASP API2).</p>
+     *
+     * @param ex excepcion de autenticacion fallida
+     * @return {@link ApiError} generico con estado 401
+     */
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ResponseEntity<ApiError> handleAuthenticationFailed(AuthenticationFailedException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiError.of(CODE_UNAUTHORIZED, ex.getMessage()));
+    }
+
+    /**
+     * Traduce el incumplimiento de la politica de contrasena a {@code 400} con
+     * el detalle de las violaciones en el campo {@code newPassword}.
+     *
+     * @param ex excepcion con la lista de violaciones de politica
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(PasswordPolicyException.class)
+    public ResponseEntity<ApiError> handlePasswordPolicy(PasswordPolicyException ex) {
+        Map<String, String> fields =
+                Map.of(FIELD_NEW_PASSWORD, String.join("; ", ex.getViolations()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_PASSWORD_POLICY, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce una {@code currentPassword} incorrecta en el cambio de contrasena a
+     * {@code 400} con el detalle en el campo {@code currentPassword}.
+     *
+     * @param ex excepcion de contrasena actual invalida
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(InvalidCurrentPasswordException.class)
+    public ResponseEntity<ApiError> handleInvalidCurrentPassword(InvalidCurrentPasswordException ex) {
+        Map<String, String> fields = Map.of(FIELD_CURRENT_PASSWORD, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
     }
 
     /**

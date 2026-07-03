@@ -1314,7 +1314,7 @@ components:
           pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$'
     CurrentUser:
       type: object
-      required: [employeeId, login, role]
+      required: [employeeId, login, role, passwordMustChange]
       properties:
         employeeId: { type: integer, format: int64 }
         login: { type: string }
