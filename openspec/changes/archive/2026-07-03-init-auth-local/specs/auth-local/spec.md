@@ -81,7 +81,7 @@ política de contraseña y cambio obligatorio tras reset administrativo.
 - **AND** no modifica la contraseña
 
 ## REMOVED Requirements
-### Requirement: Endpoints de autenticacion expuestos como placeholder
+### Requirement: Endpoints de autenticación expuestos como placeholder
 **Este requisito DEBE (MUST) eliminarse.** Lo introdujo `bootstrap-mvp`: las rutas
 `/auth/login`, `/auth/logout`, `/auth/me` y `/auth/change-password` existian en el
 contrato pero respondian `501 Not Implemented`. Con este change pasan a tener
