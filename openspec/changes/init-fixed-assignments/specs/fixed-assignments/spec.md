@@ -110,9 +110,15 @@ el `EMPLOYEE` solo consulta las propias. La revocación es lógica (`active=fals
 ## Casos límite (edge cases)
 - Reasignar el mismo empleado a la misma plaza y los mismos días que ya tiene activos: operación idempotente, sin crear filas duplicadas ni violar el índice filtrado.
 - Quitar un día del conjunto en un `PUT` posterior: el día retirado se revoca lógicamente (`active=false` + `revoked_*`), no se borra.
-- Un empleado o una plaza inactivos (`active=false`): el `PUT` responde 400/409 según el doc de validación _[verificar con docs/openapi.yaml — el contrato declara 400 y 409 pero no precisa cuál aplica a recurso inactivo]_.
+- Un empleado o una plaza inactivos (`active=false`): la implementación valida la **existencia** de ambos (404 si el empleado o la plaza no existen) pero NO bloquea recursos inactivos en esta capability (el filtrado por estado activo es responsabilidad de `availability-calendar`). Decisión documentada ante la ambigüedad del contrato (`docs/openapi.yaml` declara 400/404/409 pero no precisa el caso de recurso inactivo).
 - La revocación nunca afecta a una `Request APPROVED` ya emitida para una fecha futura; esa fecha sigue siendo del empleado hasta su propia cancelación/liberación (gestionada por `requests`/`releases`).
 - Las filas revocadas conviven en la tabla con futuras filas activas del mismo par plaza/día gracias a los índices únicos filtrados (`WHERE active = 1`).
+
+## API Contract
+Ver `docs/openapi.yaml` — tag `FixedAssignments` para el contrato completo de los cuatro
+endpoints. Claves JSON exactas del schema `FixedAssignment` fijadas con `@JsonProperty`
+(blindaje del bug #21 `isCorporate`); unicidad plaza/día y empleado/día garantizada por
+índices únicos filtrados de SQL Server (`WHERE active = 1`) → 409 `{ error, message, fields, timestamp }`.
 
 ## Dependencias con otras capabilities
 - Depende de `auth-local`/`auth-sso` para la identidad de sesión y la verificación de pertenencia (BOLA).

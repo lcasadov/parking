@@ -3,6 +3,7 @@ package com.aleatica.parking.exception;
 import com.aleatica.parking.auth.application.AuthenticationFailedException;
 import com.aleatica.parking.auth.application.InvalidCurrentPasswordException;
 import com.aleatica.parking.auth.application.PasswordPolicyException;
+import com.aleatica.parking.fixedassignment.application.InvalidDayOfWeekException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
 import java.util.Locale;
@@ -45,10 +46,15 @@ public class GlobalExceptionHandler {
     private static final String FIELD_LOGIN = "login";
     private static final String FIELD_EMAIL = "email";
     private static final String FIELD_LABEL = "label";
+    private static final String FIELD_DAYS_OF_WEEK = "daysOfWeek";
+    private static final String FIELD_PARKING_SPACE_ID = "parkingSpaceId";
+    private static final String FIELD_EMPLOYEE_ID = "employeeId";
 
     private static final String INDEX_LOGIN = "ux_employees_login";
     private static final String INDEX_EMAIL = "ux_employees_email";
     private static final String INDEX_LABEL = "ux_parking_spaces_label";
+    private static final String INDEX_FIXED_SPACE_DAY = "ux_fixed_assignments_space_day_active";
+    private static final String INDEX_FIXED_EMPLOYEE_DAY = "ux_fixed_assignments_employee_day_active";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
@@ -58,6 +64,10 @@ public class GlobalExceptionHandler {
     private static final String MSG_LOGIN_TAKEN = "El login ya esta en uso";
     private static final String MSG_EMAIL_TAKEN = "El email ya esta en uso";
     private static final String MSG_LABEL_TAKEN = "La etiqueta ya esta en uso";
+    private static final String MSG_SPACE_DAY_TAKEN =
+            "La plaza ya esta asignada a otro empleado ese dia de la semana";
+    private static final String MSG_EMPLOYEE_DAY_TAKEN =
+            "El empleado ya tiene un recurso asignado ese dia de la semana";
 
     /**
      * Traduce errores de validacion de DTO de entrada a {@code 400 Bad Request}.
@@ -161,6 +171,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Traduce un dia de la semana fuera del rango 1-7 (verificacion del caso de uso)
+     * a {@code 400} con el detalle en el campo {@code daysOfWeek}.
+     *
+     * @param ex excepcion de dia de la semana invalido
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(InvalidDayOfWeekException.class)
+    public ResponseEntity<ApiError> handleInvalidDayOfWeek(InvalidDayOfWeekException ex) {
+        Map<String, String> fields = Map.of(FIELD_DAYS_OF_WEEK, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
+    }
+
+    /**
      * Traduce una colision de unicidad detectada en el caso de uso a {@code 409}
      * con el campo en conflicto (comprobacion previa, mensaje claro). Es unico para
      * todos los modulos: cada uno aporta su subtipo de {@link FieldConflictException}.
@@ -199,6 +223,12 @@ public class GlobalExceptionHandler {
         } else if (lowerDetail.contains(INDEX_LABEL)) {
             fields = Map.of(FIELD_LABEL, MSG_LABEL_TAKEN);
             message = MSG_LABEL_TAKEN;
+        } else if (lowerDetail.contains(INDEX_FIXED_SPACE_DAY)) {
+            fields = Map.of(FIELD_PARKING_SPACE_ID, MSG_SPACE_DAY_TAKEN);
+            message = MSG_SPACE_DAY_TAKEN;
+        } else if (lowerDetail.contains(INDEX_FIXED_EMPLOYEE_DAY)) {
+            fields = Map.of(FIELD_EMPLOYEE_ID, MSG_EMPLOYEE_DAY_TAKEN);
+            message = MSG_EMPLOYEE_DAY_TAKEN;
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_CONFLICT, message, fields));
