@@ -44,8 +44,8 @@ class AuthLocalIT extends BaseIntegrationTest {
 
     @BeforeEach
     void cleanAndSeed() {
-        jdbcTemplate.update("DELETE FROM dbo.login_log");
-        jdbcTemplate.update("DELETE FROM dbo.employees WHERE login = ?", EMP_LOGIN);
+        // La limpieza FK-safe de la BD compartida (incluido login_log) la realiza
+        // BaseIntegrationTest#resetDomainState; aqui solo se siembra el usuario del test.
         insertEmployee(EMP_LOGIN, EMP_EMAIL, passwordEncoder.encode(EMP_PASSWORD), "EMPLOYEE", true);
     }
 

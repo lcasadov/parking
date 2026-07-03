@@ -58,10 +58,8 @@ class FixedAssignmentManagementIT extends BaseIntegrationTest {
 
     @BeforeEach
     void cleanAndSeed() throws Exception {
-        jdbcTemplate.update("DELETE FROM dbo.fixed_assignments");
-        jdbcTemplate.update("DELETE FROM dbo.login_log");
-        jdbcTemplate.update("DELETE FROM dbo.employees WHERE login LIKE 'ittest.fa.%'");
-        jdbcTemplate.update("DELETE FROM dbo.parking_spaces");
+        // La limpieza FK-safe de la BD compartida la realiza BaseIntegrationTest#resetDomainState;
+        // aqui solo se siembran los datos propios del test.
         adminSession = login(ADMIN_LOGIN, ADMIN_PASSWORD);
         empAId = insertEmployee(EMP_A_LOGIN);
         empBId = insertEmployee(EMP_B_LOGIN);

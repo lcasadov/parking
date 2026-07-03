@@ -1,6 +1,7 @@
 package com.aleatica.parking.parkingspace;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -55,13 +56,8 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
     private Cookie adminSession;
 
     @BeforeEach
-    void cleanAndLogin() throws Exception {
-        // fixed_assignments referencia parking_spaces y employees (FK): se limpia
-        // primero por si otro IT del contenedor compartido dejo filas hijas.
-        jdbcTemplate.update("DELETE FROM dbo.fixed_assignments");
-        jdbcTemplate.update("DELETE FROM dbo.parking_spaces");
-        jdbcTemplate.update("DELETE FROM dbo.login_log");
-        jdbcTemplate.update("DELETE FROM dbo.employees WHERE login = ?", EMP_LOGIN);
+    void login() throws Exception {
+        // La limpieza FK-safe de la BD compartida la realiza BaseIntegrationTest#resetDomainState.
         adminSession = login(ADMIN_LOGIN, ADMIN_PASSWORD);
     }
 
@@ -72,10 +68,10 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.label").value(LABEL))
                 .andExpect(jsonPath("$.active").value(true));
 
-        // Assert: aparece en el listado
+        // Assert: aparece en el listado, sin asumir su posicion (order-independent)
         mockMvc.perform(get(BASE_URL).cookie(adminSession))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].label").value(LABEL));
+                .andExpect(jsonPath("$.content[*].label", hasItem(LABEL)));
     }
 
     @Test
