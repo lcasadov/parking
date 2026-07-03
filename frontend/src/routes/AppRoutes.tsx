@@ -3,6 +3,7 @@ import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { EmployeeLayout } from '../layouts/EmployeeLayout';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
+import { EmployeesPage } from '../pages/EmployeesPage';
 import { LoginPage } from '../pages/LoginPage';
 import { ROUTES } from './paths';
 
@@ -25,7 +26,10 @@ export function AppRoutes() {
             <AdminLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<Navigate to={ROUTES.adminEmployees} replace />} />
+        <Route path="employees" element={<EmployeesPage />} />
+      </Route>
       <Route
         path={ROUTES.employee}
         element={

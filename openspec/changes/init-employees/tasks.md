@@ -31,6 +31,6 @@
 - [ ] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Vista de gestión de empleados (tabla paginada con búsqueda `q`), visible solo para `ADMIN`.
-- [ ] 4.2 Formulario de alta/edición con validación de campos y feedback de 409 en `login`/`email`.
-- [ ] 4.3 Acciones de baja, reactivación, reset de contraseña (🟢 modal mostrando la temporal una vez) y exportación CSV/XLSX.
+- [x] 4.1 Vista de gestión de empleados (tabla paginada con búsqueda `q`), visible solo para `ADMIN`.
+- [x] 4.2 Formulario de alta/edición con validación de campos y feedback de 409 en `login`/`email`.
+- [x] 4.3 Acciones de baja, reactivación, reset de contraseña (🟢 modal mostrando la temporal una vez) y exportación CSV/XLSX.
