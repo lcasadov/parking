@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // Dev-proxy + baseURL relativo: el navegador habla siempre con el mismo origen
@@ -17,6 +18,9 @@ export default defineConfig({
     },
   },
   test: {
+    // Los e2e de Playwright (frontend/e2e) NO son tests de Vitest: excluirlos
+    // para que `npm test` no intente ejecutar los .spec de Playwright.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.ts',
