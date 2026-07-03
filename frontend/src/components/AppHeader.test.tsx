@@ -27,7 +27,16 @@ describe('AppHeader', () => {
     const user = userEvent.setup();
     renderWithProviders(<AppHeader />);
 
-    const logoutBtn = await screen.findByRole('button', { name: /cerrar sesión|log out/i });
+    // Bug #12: el boton de logout solo se renderiza cuando la query /auth/me
+    // resuelve; en una ejecucion fria de la suite completa con cobertura ese
+    // primer render puede superar el timeout por defecto de findBy* (1000 ms).
+    // Timeout generoso por-query (dentro del testTimeout de 15 s): findBy*
+    // hace polling, asi que resuelve en cuanto aparece el boton — determinista.
+    const logoutBtn = await screen.findByRole(
+      'button',
+      { name: /cerrar sesión|log out/i },
+      { timeout: 10000 },
+    );
     await user.click(logoutBtn);
 
     await waitFor(() => {
