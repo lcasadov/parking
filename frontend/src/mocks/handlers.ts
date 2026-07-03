@@ -8,6 +8,14 @@ import {
   defaultFixedAssignmentPage,
 } from './fixedAssignmentFixtures';
 import type { FixedAssignment, FixedAssignmentPutRequest } from '../types/fixedAssignment';
+import {
+  defaultMyRequestsPage,
+  defaultPendingRequestsPage,
+  requestApproved,
+  requestPending1,
+  requestRejected,
+} from './requestFixtures';
+import type { RequestApproveRequest, RequestRejectRequest } from '../types/request';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -120,6 +128,50 @@ export const handlers = [
     `${BASE}/fixed-assignments/employee/:employeeId`,
     () => new HttpResponse(null, { status: 204 }),
   ),
+
+  // ---- Requests (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/requests/mine`, () => HttpResponse.json(defaultMyRequestsPage)),
+
+  http.post(`${BASE}/requests`, async ({ request }) => {
+    const body = (await request.json()) as { requestedDate: string };
+    return HttpResponse.json(
+      { ...requestPending1, id: 999, requestedDate: body.requestedDate },
+      { status: 201 },
+    );
+  }),
+
+  http.get(`${BASE}/requests/pending`, () => HttpResponse.json(defaultPendingRequestsPage)),
+
+  http.get(`${BASE}/requests/:id`, ({ params }) => {
+    if (Number(params.id) === requestPending1.id) {
+      return HttpResponse.json(requestPending1);
+    }
+    return HttpResponse.json(apiError('not_found', 'Request not found'), { status: 404 });
+  }),
+
+  http.post(`${BASE}/requests/:id/cancel`, ({ params }) =>
+    HttpResponse.json({ ...requestPending1, id: Number(params.id), status: 'CANCELLED' }),
+  ),
+
+  http.post(`${BASE}/requests/:id/approve`, async ({ request, params }) => {
+    const body = (await request.json()) as RequestApproveRequest;
+    return HttpResponse.json({
+      ...requestApproved,
+      id: Number(params.id),
+      parkingSpaceId: body.parkingSpaceId,
+      approvalNote: body.approvalNote ?? null,
+    });
+  }),
+
+  http.post(`${BASE}/requests/:id/reject`, async ({ request, params }) => {
+    const body = (await request.json()) as RequestRejectRequest;
+    return HttpResponse.json({
+      ...requestRejected,
+      id: Number(params.id),
+      rejectionReasonCode: body.reasonCode,
+      rejectionReason: body.rejectionReason ?? null,
+    });
+  }),
 ];
 
 export { BASE as MSW_BASE };

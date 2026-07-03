@@ -36,7 +36,7 @@
 - [ ] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Pantalla "Mis solicitudes" (EMPLOYEE): listado paginado propio + crear solicitud (selector de fecha con ventana hoy..hoy+14) + cancelar en `PENDING`.
-- [ ] 4.2 Bandeja de solicitudes pendientes (ADMIN) en orden FIFO.
-- [ ] 4.3 Modal aprobar (selector de plaza + `approvalNote`) y modal rechazar (catálogo de motivos + texto libre obligatorio si `OTHER`).
-- [ ] 4.4 Manejo de errores de la UI: 400 ventana/validación, 409 unicidad/disponibilidad/concurrencia, 403 autorización; toasts de resultado.
+- [x] 4.1 Pantalla "Mis solicitudes" (EMPLOYEE): listado paginado propio + crear solicitud (selector de fecha con ventana hoy..hoy+14) + cancelar en `PENDING`.
+- [x] 4.2 Bandeja de solicitudes pendientes (ADMIN) en orden FIFO.
+- [x] 4.3 Modal aprobar (selector de plaza + `approvalNote`) y modal rechazar (catálogo de motivos + texto libre obligatorio si `OTHER`).
+- [x] 4.4 Manejo de errores de la UI: 400 ventana/validación, 409 unicidad/disponibilidad/concurrencia, 403 autorización; toasts de resultado.

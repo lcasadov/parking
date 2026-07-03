@@ -33,6 +33,13 @@ export function AdminLayout() {
             <i className="ti ti-calendar-check" aria-hidden="true" />
             {t('fixedAssignments.navLabel')}
           </NavLink>
+          <NavLink
+            to={ROUTES.adminRequests}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-inbox" aria-hidden="true" />
+            {t('requests.inbox.navLabel')}
+          </NavLink>
         </Sidebar>
         <main className="main">
           <Outlet />
