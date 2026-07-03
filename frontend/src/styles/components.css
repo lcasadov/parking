@@ -441,6 +441,43 @@ body.theme-dark .segmented button.active {
   max-width: 320px;
 }
 
+.config-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.config-card .card-title {
+  font-size: var(--text-lg);
+  color: var(--text);
+  margin: 0 0 var(--space-2);
+}
+
+.config-card .card-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-4);
+}
+
+.configure-form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.configure-form .auth-field {
+  max-width: 240px;
+}
+
+.form-success {
+  color: var(--success, #16a34a);
+  font-size: var(--text-sm);
+  margin-top: var(--space-3);
+}
+
 .table-scroll {
   overflow-x: auto;
 }
