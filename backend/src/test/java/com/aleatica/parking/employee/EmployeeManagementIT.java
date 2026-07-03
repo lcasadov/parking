@@ -1,6 +1,7 @@
 package com.aleatica.parking.employee;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -47,10 +48,8 @@ class EmployeeManagementIT extends BaseIntegrationTest {
     private Cookie adminSession;
 
     @BeforeEach
-    void cleanAndLogin() throws Exception {
-        jdbcTemplate.update("DELETE FROM dbo.login_log");
-        jdbcTemplate.update(
-                "DELETE FROM dbo.employees WHERE login IN (?, ?)", TEST_LOGIN, EMP_LOGIN);
+    void login() throws Exception {
+        // La limpieza FK-safe de la BD compartida la realiza BaseIntegrationTest#resetDomainState.
         adminSession = login(ADMIN_LOGIN, ADMIN_PASSWORD);
     }
 
@@ -59,11 +58,13 @@ class EmployeeManagementIT extends BaseIntegrationTest {
         // Act
         createEmployee(TEST_LOGIN, TEST_EMAIL).andExpect(status().isCreated());
 
-        // Assert: aparece en el listado con busqueda por texto
+        // Assert: aparece en el listado con busqueda por texto, sin asumir su posicion
+        // (order-independent: la fila propia debe estar presente sea cual sea el resto del contenido)
         mockMvc.perform(get(BASE_URL).param("q", "ittest").cookie(adminSession))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].login").value(TEST_LOGIN))
-                .andExpect(jsonPath("$.content[0].active").value(true));
+                .andExpect(jsonPath("$.content[*].login", hasItem(TEST_LOGIN)))
+                .andExpect(jsonPath(
+                        "$.content[?(@.login=='" + TEST_LOGIN + "')].active", hasItem(true)));
     }
 
     @Test
@@ -137,7 +138,8 @@ class EmployeeManagementIT extends BaseIntegrationTest {
         assertThat(corporateFlag(TEST_LOGIN)).isTrue();
         mockMvc.perform(get(BASE_URL).param("q", "ittest").cookie(adminSession))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].isCorporate").value(true));
+                .andExpect(jsonPath(
+                        "$.content[?(@.login=='" + TEST_LOGIN + "')].isCorporate", hasItem(true)));
 
         // Act / Assert: la edicion que lo desactiva tambien viaja bajo isCorporate
         long id = jdbcTemplate.queryForObject(

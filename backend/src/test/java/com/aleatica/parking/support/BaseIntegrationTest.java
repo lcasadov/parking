@@ -1,8 +1,10 @@
 package com.aleatica.parking.support;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,8 +37,42 @@ public abstract class BaseIntegrationTest {
         SQL_SERVER.start();
     }
 
+    /**
+     * Login del seed admin de desarrollo (Flyway V5). Se preserva en cada limpieza:
+     * es la unica fila que sobrevive al reset de estado entre tests.
+     */
+    protected static final String SEED_ADMIN_LOGIN = "admin";
+
     @Autowired
     protected MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate baseJdbcTemplate;
+
+    /**
+     * Aisla cada test del estado dejado por los demas en el contenedor SQL Server
+     * compartido (singleton). Se ejecuta ANTES del {@code @BeforeEach} de la subclase
+     * (garantia de orden de JUnit 5: superclase primero), de modo que cada IT arranca
+     * desde una BD limpia y ningun IT contamina a otro (issue #29).
+     *
+     * <p>El borrado respeta el orden FK-safe (hijos primero): {@code fixed_assignments}
+     * referencia {@code parking_spaces} y {@code employees}; {@code audit_log} y
+     * {@code login_log} referencian {@code employees}. Se conserva el historico de Flyway
+     * y el seed admin (V5); a este ultimo se le resetea el estado de bloqueo por si un
+     * test previo acumulo intentos fallidos.</p>
+     */
+    @BeforeEach
+    void resetDomainState() {
+        baseJdbcTemplate.update("DELETE FROM dbo.fixed_assignments");
+        baseJdbcTemplate.update("DELETE FROM dbo.audit_log");
+        baseJdbcTemplate.update("DELETE FROM dbo.login_log");
+        baseJdbcTemplate.update("DELETE FROM dbo.parking_spaces");
+        baseJdbcTemplate.update("DELETE FROM dbo.employees WHERE login <> ?", SEED_ADMIN_LOGIN);
+        baseJdbcTemplate.update(
+                "UPDATE dbo.employees SET failed_login_attempts = 0, locked_until = NULL, "
+                        + "active = 1 WHERE login = ?",
+                SEED_ADMIN_LOGIN);
+    }
 
     /**
      * Inyecta la URL y credenciales del contenedor en el contexto de Spring.
