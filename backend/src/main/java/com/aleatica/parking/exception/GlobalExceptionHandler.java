@@ -3,7 +3,6 @@ package com.aleatica.parking.exception;
 import com.aleatica.parking.auth.application.AuthenticationFailedException;
 import com.aleatica.parking.auth.application.InvalidCurrentPasswordException;
 import com.aleatica.parking.auth.application.PasswordPolicyException;
-import com.aleatica.parking.employee.application.EmployeeConflictException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
 import java.util.Locale;
@@ -45,9 +44,11 @@ public class GlobalExceptionHandler {
     private static final String FIELD_CURRENT_PASSWORD = "currentPassword";
     private static final String FIELD_LOGIN = "login";
     private static final String FIELD_EMAIL = "email";
+    private static final String FIELD_LABEL = "label";
 
     private static final String INDEX_LOGIN = "ux_employees_login";
     private static final String INDEX_EMAIL = "ux_employees_email";
+    private static final String INDEX_LABEL = "ux_parking_spaces_label";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
@@ -56,6 +57,7 @@ public class GlobalExceptionHandler {
     private static final String MSG_CONFLICT = "El recurso ya existe o viola una restriccion de unicidad";
     private static final String MSG_LOGIN_TAKEN = "El login ya esta en uso";
     private static final String MSG_EMAIL_TAKEN = "El email ya esta en uso";
+    private static final String MSG_LABEL_TAKEN = "La etiqueta ya esta en uso";
 
     /**
      * Traduce errores de validacion de DTO de entrada a {@code 400 Bad Request}.
@@ -160,13 +162,14 @@ public class GlobalExceptionHandler {
 
     /**
      * Traduce una colision de unicidad detectada en el caso de uso a {@code 409}
-     * con el campo en conflicto (comprobacion previa, mensaje claro).
+     * con el campo en conflicto (comprobacion previa, mensaje claro). Es unico para
+     * todos los modulos: cada uno aporta su subtipo de {@link FieldConflictException}.
      *
-     * @param ex excepcion de conflicto de empleado
+     * @param ex excepcion de conflicto de campo unico
      * @return {@link ApiError} con estado 409 y detalle por campo
      */
-    @ExceptionHandler(EmployeeConflictException.class)
-    public ResponseEntity<ApiError> handleEmployeeConflict(EmployeeConflictException ex) {
+    @ExceptionHandler(FieldConflictException.class)
+    public ResponseEntity<ApiError> handleFieldConflict(FieldConflictException ex) {
         Map<String, String> fields = Map.of(ex.getField(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_CONFLICT, ex.getMessage(), fields));
@@ -193,6 +196,9 @@ public class GlobalExceptionHandler {
         } else if (lowerDetail.contains(INDEX_EMAIL)) {
             fields = Map.of(FIELD_EMAIL, MSG_EMAIL_TAKEN);
             message = MSG_EMAIL_TAKEN;
+        } else if (lowerDetail.contains(INDEX_LABEL)) {
+            fields = Map.of(FIELD_LABEL, MSG_LABEL_TAKEN);
+            message = MSG_LABEL_TAKEN;
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_CONFLICT, message, fields));

@@ -94,7 +94,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void should_return_409_with_field_when_employee_conflict() {
         // When
-        ResponseEntity<ApiError> response = handler.handleEmployeeConflict(
+        ResponseEntity<ApiError> response = handler.handleFieldConflict(
                 new EmployeeConflictException("login", "El login ya esta en uso"));
 
         // Then
@@ -128,6 +128,19 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().fields()).containsKey("email");
+    }
+
+    @Test
+    void should_return_409_with_label_field_when_label_index_violated() {
+        // When: la causa mas especifica menciona el indice UX_parking_spaces_label
+        ResponseEntity<ApiError> response = handler.handleDataIntegrity(
+                new DataIntegrityViolationException(
+                        "duplicate", new IllegalStateException("Violation of UX_parking_spaces_label")));
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().fields()).containsKey("label");
     }
 
     @Test
