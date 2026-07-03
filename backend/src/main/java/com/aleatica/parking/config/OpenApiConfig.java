@@ -17,7 +17,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    private static final String COOKIE_SCHEME = "cookieAuth";
+    private static final String COOKIE_SCHEME = "sessionCookie";
     private static final String SESSION_COOKIE = "parking_SESSION";
 
     /**

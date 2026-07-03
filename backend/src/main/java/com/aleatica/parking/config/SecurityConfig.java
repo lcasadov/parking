@@ -16,11 +16,11 @@ import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointR
 /**
  * Configuracion de seguridad minima del arranque.
  *
- * <p>Endpoints publicos: {@code /api/v1/health}, {@code /api/v1/auth/**} (devuelven
- * 501), la documentacion OpenAPI/Swagger y los endpoints de Actuator {@code health}/
- * {@code info}. El resto requiere autenticacion (fail closed). Todavia no hay
- * {@code UserDetailsService} real; el login lo aporta el change funcional de
- * {@code auth-local}.</p>
+ * <p>Endpoints publicos: {@code /api/v1/health}, {@code POST /api/v1/auth/login},
+ * la documentacion OpenAPI/Swagger y los endpoints de Actuator {@code health}/
+ * {@code info}. El resto requiere autenticacion (fail closed), incluidos
+ * {@code /api/v1/auth/me}, {@code /logout} y {@code /change-password}. La sesion
+ * la establece {@code AuthController} tras verificar las credenciales.</p>
  *
  * <p>La sesion se gestiona con Spring Session JDBC (cookie {@code parking_SESSION});
  * Spring Security la usa cuando exista, pero no la fuerza ({@code IF_REQUIRED}).</p>
@@ -32,7 +32,7 @@ public class SecurityConfig {
     private static final int BCRYPT_STRENGTH = 12;
 
     private static final String PATH_HEALTH = "/api/v1/health";
-    private static final String PATH_AUTH = "/api/v1/auth/**";
+    private static final String PATH_AUTH_LOGIN = "/api/v1/auth/login";
     private static final String[] PATH_OPENAPI = {
             "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
     };
@@ -40,10 +40,10 @@ public class SecurityConfig {
     /**
      * Cadena de filtros de seguridad de la API.
      *
-     * <p>CSRF se desactiva porque el arranque no expone aun endpoints autenticados
-     * que muten estado; el change de {@code auth-local} lo reevaluara junto con la
-     * politica de cookie {@code SameSite=Lax}. Un acceso no autenticado a una ruta
-     * protegida responde {@code 401} en vez de redirigir a un formulario de login.</p>
+     * <p>CSRF se desactiva: la API es JSON sin formularios y la cookie de sesion usa
+     * {@code SameSite=Lax} (anti-CSRF para peticiones cross-site de terceros). Un
+     * acceso no autenticado a una ruta protegida responde {@code 401} en vez de
+     * redirigir a un formulario de login.</p>
      *
      * @param http builder de seguridad HTTP
      * @return la cadena de filtros configurada
@@ -57,7 +57,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PATH_HEALTH).permitAll()
-                        .requestMatchers(PATH_AUTH).permitAll()
+                        .requestMatchers(PATH_AUTH_LOGIN).permitAll()
                         .requestMatchers(PATH_OPENAPI).permitAll()
                         .requestMatchers(EndpointRequest.to("health", "info")).permitAll()
                         .anyRequest().authenticated())

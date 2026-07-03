@@ -1,16 +1,33 @@
 package com.aleatica.parking.auth;
 
+import com.aleatica.parking.auth.application.AuthService;
+import com.aleatica.parking.auth.application.AuthenticatedUser;
 import com.aleatica.parking.auth.dto.ChangePasswordRequest;
+import com.aleatica.parking.auth.dto.CurrentUser;
 import com.aleatica.parking.auth.dto.LoginRequest;
 import com.aleatica.parking.exception.ApiError;
-import com.aleatica.parking.exception.NotImplementedException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,83 +35,141 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Endpoints placeholder de autenticacion de Fase 1.
+ * Endpoints de autenticacion local de Fase 1.
  *
- * <p>Las rutas existen en el contrato y son publicas, pero todavia no tienen
- * logica: devuelven {@code 501 Not Implemented} con el cuerpo de error uniforme
- * {@link ApiError}. La autenticacion real (verificacion BCrypt, bloqueo de
- * cuenta, sesion) la implementa el change funcional de {@code auth-local}.</p>
+ * <p>Tras un login correcto se crea la sesion server-side (Spring Session JDBC) y
+ * se persiste el {@link SecurityContext} en ella, de modo que la cookie
+ * {@code parking_SESSION} autentica las siguientes peticiones. El logout invalida
+ * la sesion (invalidacion inmediata server-side, no solo borrado en cliente).</p>
  */
-@Tag(name = "Auth", description = "Autenticacion de Fase 1 (placeholder)")
+@Tag(name = "Auth", description = "Autenticacion local de Fase 1")
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    private static final String NOT_IMPLEMENTED_MESSAGE =
-            "Endpoint de autenticacion aun no implementado (Fase 1 pendiente)";
+    private static final String ROLE_PREFIX = "ROLE_";
 
-    private static final String RESPONSE_501_DESC = "Funcionalidad aun no implementada";
+    private final AuthService authService;
+    private final SecurityContextRepository securityContextRepository =
+            new HttpSessionSecurityContextRepository();
+    private final SecurityContextHolderStrategy securityContextHolderStrategy =
+            SecurityContextHolder.getContextHolderStrategy();
 
     /**
-     * Placeholder de inicio de sesion.
-     *
-     * @param request credenciales (validadas sintacticamente)
-     * @throws NotImplementedException siempre, hasta que {@code auth-local} lo implemente
+     * @param authService caso de uso de autenticacion local
      */
-    @Operation(summary = "Iniciar sesion (placeholder)",
-            description = "Validara las credenciales y creara la sesion. Aun no implementado.")
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    /**
+     * Inicia sesion con login y contrasena (Fase 1).
+     *
+     * @param loginRequest credenciales validadas sintacticamente
+     * @param request      peticion HTTP (para persistir el contexto en la sesion)
+     * @param response     respuesta HTTP (para emitir la cookie de sesion)
+     * @return {@code 200} con la identidad ({@link CurrentUser})
+     */
+    @Operation(summary = "Iniciar sesion",
+            description = "Autentica con login y contrasena (BCrypt). Bloqueo tras 5 intentos "
+                    + "fallidos durante 15 min. Emite la cookie parking_SESSION.")
     @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Autenticado; cookie de sesion emitida",
+                    content = @Content(schema = @Schema(implementation = CurrentUser.class))),
             @ApiResponse(responseCode = "400", description = "Datos invalidos",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "501", description = RESPONSE_501_DESC,
+            @ApiResponse(responseCode = "401", description = "Credenciales invalidas o cuenta no disponible",
                     content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
     @PostMapping("/login")
-    public void login(@Valid @RequestBody LoginRequest request) {
-        throw new NotImplementedException(NOT_IMPLEMENTED_MESSAGE);
+    public ResponseEntity<CurrentUser> login(
+            @Valid @RequestBody LoginRequest loginRequest,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        AuthenticatedUser user = authService.authenticate(loginRequest.login(), loginRequest.password());
+        establishSession(user, request, response);
+        return ResponseEntity.ok(CurrentUser.from(user));
     }
 
     /**
-     * Placeholder de cierre de sesion.
+     * Cierra la sesion actual invalidandola en el servidor.
      *
-     * @throws NotImplementedException siempre, hasta que {@code auth-local} lo implemente
+     * @param request peticion HTTP autenticada
+     * @return {@code 204} sin contenido
      */
-    @Operation(summary = "Cerrar sesion (placeholder)")
-    @ApiResponses(@ApiResponse(responseCode = "501", description = RESPONSE_501_DESC,
-            content = @Content(schema = @Schema(implementation = ApiError.class))))
-    @PostMapping("/logout")
-    public void logout() {
-        throw new NotImplementedException(NOT_IMPLEMENTED_MESSAGE);
-    }
-
-    /**
-     * Placeholder de consulta del usuario autenticado.
-     *
-     * @throws NotImplementedException siempre, hasta que {@code auth-local} lo implemente
-     */
-    @Operation(summary = "Usuario actual (placeholder)")
-    @ApiResponses(@ApiResponse(responseCode = "501", description = RESPONSE_501_DESC,
-            content = @Content(schema = @Schema(implementation = ApiError.class))))
-    @GetMapping("/me")
-    public void me() {
-        throw new NotImplementedException(NOT_IMPLEMENTED_MESSAGE);
-    }
-
-    /**
-     * Placeholder de cambio de contrasena.
-     *
-     * @param request datos del cambio (validados sintacticamente)
-     * @throws NotImplementedException siempre, hasta que {@code auth-local} lo implemente
-     */
-    @Operation(summary = "Cambiar contrasena (placeholder)")
+    @Operation(summary = "Cerrar sesion", security = @SecurityRequirement(name = "sessionCookie"))
     @ApiResponses({
-            @ApiResponse(responseCode = "400", description = "Datos invalidos",
+            @ApiResponse(responseCode = "204", description = "Sesion invalidada"),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        securityContextHolderStrategy.clearContext();
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Devuelve la identidad del usuario autenticado.
+     *
+     * @param authentication autenticacion resuelta de la sesion
+     * @return {@code 200} con la identidad ({@link CurrentUser})
+     */
+    @Operation(summary = "Usuario actual", security = @SecurityRequirement(name = "sessionCookie"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuario autenticado",
+                    content = @Content(schema = @Schema(implementation = CurrentUser.class))),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @GetMapping("/me")
+    public ResponseEntity<CurrentUser> me(Authentication authentication) {
+        AuthenticatedUser user = authService.loadByLogin(authentication.getName());
+        return ResponseEntity.ok(CurrentUser.from(user));
+    }
+
+    /**
+     * Cambia la propia contrasena cumpliendo la politica.
+     *
+     * @param changeRequest  contrasena actual y nueva, validadas sintacticamente
+     * @param authentication autenticacion resuelta de la sesion
+     * @return {@code 204} si la contrasena se actualizo
+     */
+    @Operation(summary = "Cambiar la propia contrasena",
+            description = "Politica: >=10 caracteres, mayuscula + minuscula + digito + simbolo, "
+                    + "distinta de login y email.",
+            security = @SecurityRequirement(name = "sessionCookie"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Contrasena actualizada"),
+            @ApiResponse(responseCode = "400", description = "Datos invalidos o politica incumplida",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "501", description = RESPONSE_501_DESC,
+            @ApiResponse(responseCode = "401", description = "No autenticado",
                     content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
     @PostMapping("/change-password")
-    public void changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-        throw new NotImplementedException(NOT_IMPLEMENTED_MESSAGE);
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest changeRequest,
+            Authentication authentication) {
+        authService.changePassword(
+                authentication.getName(),
+                changeRequest.currentPassword(),
+                changeRequest.newPassword());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    private void establishSession(
+            AuthenticatedUser user, HttpServletRequest request, HttpServletResponse response) {
+        var authorities = List.of(new SimpleGrantedAuthority(ROLE_PREFIX + user.role().name()));
+        Authentication authentication =
+                UsernamePasswordAuthenticationToken.authenticated(user.login(), null, authorities);
+        SecurityContext context = securityContextHolderStrategy.createEmptyContext();
+        context.setAuthentication(authentication);
+        securityContextHolderStrategy.setContext(context);
+        request.getSession(true);
+        securityContextRepository.saveContext(context, request, response);
     }
 }

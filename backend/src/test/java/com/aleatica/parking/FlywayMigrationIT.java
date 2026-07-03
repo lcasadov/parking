@@ -31,7 +31,13 @@ class FlywayMigrationIT extends BaseIntegrationTest {
     }
 
     @Test
-    void should_create_empty_audit_tables_when_starting() {
+    void should_have_queryable_audit_tables_when_starting() {
+        // Las tablas de auditoria existen y son consultables. No se asume que esten
+        // vacias globalmente: el contenedor SQL Server es un singleton compartido y
+        // los tests de auth-local escriben en login_log de forma legitima. Se limpian
+        // aqui para verificar de forma aislada que ambas admiten lecturas tras la purga.
+        jdbcTemplate.update("DELETE FROM dbo.login_log");
+        jdbcTemplate.update("DELETE FROM dbo.audit_log");
         assertThat(rowCount("dbo.audit_log")).isZero();
         assertThat(rowCount("dbo.login_log")).isZero();
     }

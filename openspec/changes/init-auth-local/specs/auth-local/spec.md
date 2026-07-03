@@ -80,6 +80,19 @@ política de contraseña y cambio obligatorio tras reset administrativo.
 - **THEN** el sistema responde 400 con `error` de validación y `fields` indicando el incumplimiento
 - **AND** no modifica la contraseña
 
+## REMOVED Requirements
+### Requirement: Endpoints de autenticacion expuestos como placeholder
+**Este requisito DEBE (MUST) eliminarse.** Lo introdujo `bootstrap-mvp`: las rutas
+`/auth/login`, `/auth/logout`, `/auth/me` y `/auth/change-password` existian en el
+contrato pero respondian `501 Not Implemented`. Con este change pasan a tener
+implementacion real (login local, sesion, bloqueo, cambio de contrasena), por lo
+que el placeholder queda obsoleto y se retira.
+
+## API Contract
+See `docs/openapi.yaml` — tag `Auth` for the full endpoint contract
+(`/auth/login`, `/auth/logout`, `/auth/me`, `/auth/change-password`).
+El schema `CurrentUser` lleva `passwordMustChange` en `required`.
+
 ## Casos límite (edge cases)
 - Empleado con `active = false` o `enabled = false`: el login responde 401 genérico (resultado `INACTIVE`), sin distinguirlo de credenciales inválidas.
 - En Fase 2, `POST /auth/login` solo responde si el fallback de emergencia está activado; si no, devuelve 404.

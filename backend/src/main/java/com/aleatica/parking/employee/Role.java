@@ -1,0 +1,17 @@
+package com.aleatica.parking.employee;
+
+/**
+ * Rol funcional del empleado dentro de parking.
+ *
+ * <p>Valores identicos a la lista del CHECK {@code CK_employees_role}
+ * (ver {@code docs/data-model.md} §3.1). La autoridad del rol es siempre la
+ * columna {@code employees.role}, nunca un claim externo.</p>
+ */
+public enum Role {
+
+    /** Administrador del parking: configura recursos y resuelve solicitudes. */
+    ADMIN,
+
+    /** Empleado: solicita y libera recursos propios. */
+    EMPLOYEE
+}
