@@ -56,6 +56,9 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
 
     @BeforeEach
     void cleanAndLogin() throws Exception {
+        // fixed_assignments referencia parking_spaces y employees (FK): se limpia
+        // primero por si otro IT del contenedor compartido dejo filas hijas.
+        jdbcTemplate.update("DELETE FROM dbo.fixed_assignments");
         jdbcTemplate.update("DELETE FROM dbo.parking_spaces");
         jdbcTemplate.update("DELETE FROM dbo.login_log");
         jdbcTemplate.update("DELETE FROM dbo.employees WHERE login = ?", EMP_LOGIN);

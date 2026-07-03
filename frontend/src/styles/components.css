@@ -602,6 +602,27 @@ body.theme-dark .segmented button.active {
   margin-top: var(--space-4);
 }
 
+/* Multiselect de dias de la semana (asignaciones fijas) */
+.weekday-group {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-top: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.weekday-group .checkbox-field {
+  margin-top: 0;
+}
+
+.day-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
 /* Responsive (design-system §7) */
 @media (max-width: 768px) {
   .layout {
