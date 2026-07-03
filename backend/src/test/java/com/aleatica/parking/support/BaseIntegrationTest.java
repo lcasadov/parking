@@ -55,14 +55,17 @@ public abstract class BaseIntegrationTest {
      * (garantia de orden de JUnit 5: superclase primero), de modo que cada IT arranca
      * desde una BD limpia y ningun IT contamina a otro (issue #29).
      *
-     * <p>El borrado respeta el orden FK-safe (hijos primero): {@code fixed_assignments}
-     * referencia {@code parking_spaces} y {@code employees}; {@code audit_log} y
-     * {@code login_log} referencian {@code employees}. Se conserva el historico de Flyway
+     * <p>El borrado respeta el orden FK-safe (hijos primero): {@code requests} y
+     * {@code fixed_assignments} referencian {@code parking_spaces} y {@code employees};
+     * {@code audit_log} y {@code login_log} referencian {@code employees}. Por eso
+     * {@code requests} se borra ANTES que {@code parking_spaces}/{@code employees}, para
+     * que ningun IT filtre filas a otro (issue #29). Se conserva el historico de Flyway
      * y el seed admin (V5); a este ultimo se le resetea el estado de bloqueo por si un
      * test previo acumulo intentos fallidos.</p>
      */
     @BeforeEach
     void resetDomainState() {
+        baseJdbcTemplate.update("DELETE FROM dbo.requests");
         baseJdbcTemplate.update("DELETE FROM dbo.fixed_assignments");
         baseJdbcTemplate.update("DELETE FROM dbo.audit_log");
         baseJdbcTemplate.update("DELETE FROM dbo.login_log");
