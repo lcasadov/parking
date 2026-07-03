@@ -6,6 +6,11 @@ spring:
     password: ${DB_PASSWORD:Parking!Local2024}
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
+  # Esquema comun + seed del admin de desarrollo (V5). El seed SOLO se aplica en
+  # DES/tests; PRE y PRO fijan explicitamente la localizacion de esquema (bug #11).
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed/dev
+
 # CORS solo en DES: la SPA corre en un dev server distinto (Vite :5173).
 parking:
   cors:

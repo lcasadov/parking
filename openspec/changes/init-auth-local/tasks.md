@@ -23,3 +23,6 @@
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
 - [x] 4.1 (No aplica en este change — la pantalla de login llega en `frontend-bootstrap`.)
+
+## 5. Bug loop (verificación)
+- [x] 5.1 Bug #11 (CWE-798): aislar el seed `V5__seed_dev_admin.sql` en `classpath:db/seed/dev`; `spring.flyway.locations` por perfil (des lo incluye; pre/pro lo excluyen explícitamente). TDD: `FlywayLocationsByProfileTest` (rojo → verde). Detalle en `design.md` §Migration Plan.

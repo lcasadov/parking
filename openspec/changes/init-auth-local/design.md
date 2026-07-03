@@ -36,6 +36,18 @@ dominio (`AuthorizeUseCase`, `PasswordPolicy`) no depende de Spring.
   `ADMIN` local con BCrypt(coste 12) para poder probar login real en LOCAL/DES y
   en los tests e2e. Credenciales documentadas en `proposal.md` §"Seed admin de
   desarrollo". No es el admin de PRO.
+- **Aislamiento del seed por perfil** (bug #11, CWE-798): el seed vive en
+  `classpath:db/seed/dev` — fuera de `db/migration`, porque Flyway escanea las
+  localizaciones de forma **recursiva** y un subdirectorio de `db/migration`
+  seguiría ejecutándose en todos los entornos. `spring.flyway.locations`:
+  - base (`application.yml`): `classpath:db/migration` (solo esquema, default seguro);
+  - `des` (y tests, que corren con el perfil default `des`): añade `classpath:db/seed/dev`;
+  - `pre`/`pro`: fijan **explícitamente** `classpath:db/migration` para que un
+    cambio futuro del default no re-filtre el seed.
+  Se conserva el número `V5` con contenido byte-idéntico (mismo checksum: las BD
+  de DES ya migradas validan sin reparación; PRE/PRO simplemente nunca resuelven
+  V5, lo cual Flyway acepta al no existir versiones posteriores). Guard de
+  regresión: `FlywayLocationsByProfileTest`.
 - Sin migración de datos (capability nueva).
 
 ## Decisión de contrato (capturada en este change)
