@@ -9,8 +9,8 @@
 |--------|--------|--------|
 | 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
 | 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1 `bootstrap-mvp`, A2 `frontend-bootstrap` y B1 `init-auth-local` ✅ completados y archivados · Puerta 3 e2e (Playwright login real) ✅ 4/4 | `█▊░░░░░░░░` **~18%** |
-| **Avance global del proyecto** | 🔄 implementación | `███▍░░░░░░` **~34%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1 `bootstrap-mvp`, A2 `frontend-bootstrap`, B1 `init-auth-local`, B2 `init-employees` ✅ archivados · Puerta 3 e2e ✅ 4/4 | `██▌░░░░░░░` **~24%** |
+| **Avance global del proyecto** | 🔄 implementación | `███▊░░░░░░` **~39%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
 
@@ -48,7 +48,7 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 | # | Change | Fase | Depende de | Etapa | % |
 |---|--------|------|------------|-------|---|
 | B1 | `init-auth-local` | 🟢 | A1 | ✅ **Archivado** (PR #13 mergeada, CI verde, verification-specialist PASS round 2 — 74 tests, 95.4%/84.3%, auth 100%, bug #11 seed-dev resuelto; Puerta 3 e2e ✅) → `changes/archive/2026-07-03-init-auth-local` | `██████████` 100% |
-| B2 | `init-employees` | 🟢🔵 | B1 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
+| B2 | `init-employees` | 🟢🔵 | B1 | ✅ **Archivado** (PR #22 mergeada, CI verde, verification-specialist PASS — BE 107 tests + FE 54, EmployeeController 100/100, ~96.8%/85.4%; bug de contrato #21 `isCorporate` resuelto) → `changes/archive/2026-07-03-init-employees` | `██████████` 100% |
 | B3 | `init-parking-spaces` | 🟢🔵 | A1 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 | B4 | `init-fixed-assignments` | 🟢🔵 | B2, B3 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 | B5 | `init-requests` | 🟢🔵 | B3, B2 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
