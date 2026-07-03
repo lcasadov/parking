@@ -1,7 +1,7 @@
 # Plan de ejecución — parking (ALEATICA)
 
 > Tracker vivo del desarrollo. Actualiza el **estado** y el **%** de cada change al avanzar.
-> Última actualización: **2026-06-23**.
+> Última actualización: **2026-07-03**.
 
 ## Dashboard
 
@@ -9,8 +9,8 @@
 |--------|--------|--------|
 | 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
 | 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1 `bootstrap-mvp` ✅ completado y archivado | `▌░░░░░░░░░` **~6%** |
-| **Avance global del proyecto** | 🔄 en preparación → implementación | `██▌░░░░░░░` **~24%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1 `bootstrap-mvp`, A2 `frontend-bootstrap` y B1 `init-auth-local` ✅ completados y archivados · Puerta 3 e2e (Playwright login real) ✅ 4/4 | `█▊░░░░░░░░` **~18%** |
+| **Avance global del proyecto** | 🔄 implementación | `███▍░░░░░░` **~34%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
 
@@ -39,7 +39,7 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 | # | Change | Tipo | Depende de | Estado | % |
 |---|--------|------|------------|--------|---|
 | A1 | `bootstrap-mvp` | Backend infra (Spring Boot 3.3 · Java 21, Flyway base, Security mínima, Session JDBC, `/health`, error handler, AOP audit, Docker SQL Server, CI) | — | ✅ **Archivado** (PR #4 mergeado, CI verde, verificado PASS 96.5%/100%, specs sincronizadas) → `changes/archive/2026-06-27-bootstrap-mvp` | `██████████` 100% |
-| A2 | `frontend-bootstrap` | Frontend infra (Vite + React 18, design system propio, TanStack Query + Context, auth flows, layouts, i18n, tema, interceptor 401, CI) | A1 (`/auth/*`) | ✅ change creado (propuesta) | `█▌░░░░░░░░` 15% |
+| A2 | `frontend-bootstrap` | Frontend infra (Vite + React 18, design system propio, TanStack Query + Context, auth flows, layouts, i18n, tema, interceptor 401, CI) | A1 (`/auth/*`) | ✅ **Archivado** (PR #14 mergeada, CI verde, verification-specialist PASS round 2 — 36 tests, 97.7%/91.1%, bugs #9 #10 #12 resueltos; Puerta 3 e2e ✅) → `changes/archive/2026-07-03-frontend-bootstrap` | `██████████` 100% |
 
 ---
 
@@ -47,7 +47,7 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 
 | # | Change | Fase | Depende de | Etapa | % |
 |---|--------|------|------------|-------|---|
-| B1 | `init-auth-local` | 🟢 | A1 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
+| B1 | `init-auth-local` | 🟢 | A1 | ✅ **Archivado** (PR #13 mergeada, CI verde, verification-specialist PASS round 2 — 74 tests, 95.4%/84.3%, auth 100%, bug #11 seed-dev resuelto; Puerta 3 e2e ✅) → `changes/archive/2026-07-03-init-auth-local` | `██████████` 100% |
 | B2 | `init-employees` | 🟢🔵 | B1 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 | B3 | `init-parking-spaces` | 🟢🔵 | A1 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 | B4 | `init-fixed-assignments` | 🟢🔵 | B2, B3 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
@@ -126,6 +126,6 @@ Para cada `init-<cap>`: `apply` (implementar guiándose por su `tasks.md`) → Q
 ## Pendientes de preparación (antes de implementar)
 
 - ✅ `docs/design-system.md` (CSS propio + Tabler, tokens de `styles.css`) — lo consumen `frontend-bootstrap` y `frontend-engineer`.
-- ⚠️ **Keyword normativo MUST/SHALL**: el validador de OpenSpec **rechaza** los requisitos que solo usan "DEBE". Todas las specs (`changes/*/specs/**`) lo usan → **`openspec archive --sync` falla** hasta corregirlo. En `bootstrap-mvp` se parcheó puntualmente (`DEBE (MUST)`). **Pendiente barrido** en los requisitos de los 15 `init-*` (añadir MUST/SHALL en la línea normativa) antes de archivarlos con sync.
+- ✅ **Keyword normativo MUST/SHALL**: barrido completado (commit `40ed924`, 56 reqs en 15 changes) + parche final en el delta de `frontend-bootstrap`. `openspec validate --all` → **16/16 passed**. Los archives con sync de `init-auth-local` y `frontend-bootstrap` pasaron sin incidencias.
 - ⬜ Confirmar `GITHUB_PROJECT_NUMBER` y, si se usa Projects v2, `gh auth refresh -s project`.
 - ⬜ Inputs externos de ALEATICA para Fase 2: clave de firma JWT, URLs PRE/PRO, spec `consultaporlogin`, SMTP de PRO, hash BCrypt del admin bootstrap.
