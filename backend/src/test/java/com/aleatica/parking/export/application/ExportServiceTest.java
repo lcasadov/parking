@@ -85,17 +85,20 @@ class ExportServiceTest {
     }
 
     @Test
-    void shouldReturnOnlyOwnRowWithoutAdminOnlyFields_whenExportingMyData() {
+    void shouldReturnOnlyOwnRowWithOwnPersonalData_whenExportingMyData() {
         // Arrange
         given(employeeRepository.findByLogin(LOGIN)).willReturn(Optional.of(employee()));
 
         // Act
         ExportTable table = service.exportMyData(LOGIN);
 
-        // Assert (spec Req 2 + §13): una sola fila y sin campos "Solo admins"
-        assertThat(table.headers()).doesNotContain("mobilePhone", "licensePlate");
+        // Assert (derecho de acceso RGPD): una sola fila, con los datos PROPIOS del sujeto
+        // (mobilePhone/licensePlate incluidos), nunca campos de credenciales.
+        assertThat(table.headers())
+                .contains("mobilePhone", "licensePlate")
+                .doesNotContain("passwordHash", "failedLoginAttempts", "lockedUntil");
         assertThat(table.rows()).hasSize(1);
-        assertThat(table.rows().get(0)).contains(LOGIN);
+        assertThat(table.rows().get(0)).contains(LOGIN, "600100200", "1234ABC");
     }
 
     @Test

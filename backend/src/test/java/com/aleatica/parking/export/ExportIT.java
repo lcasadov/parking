@@ -60,9 +60,12 @@ class ExportIT extends BaseIntegrationTest {
     private long empId;
     private long otherId;
 
+    private static final String EMP_PLATE = "1234ABC";
+    private static final String EMP_PHONE = "600100200";
+
     @BeforeEach
     void seed() {
-        empId = insertEmployee(EMP_LOGIN, "EMPLOYEE", "Juan", null);
+        empId = insertEmployee(EMP_LOGIN, "EMPLOYEE", "Juan", EMP_PLATE);
         otherId = insertEmployee(OTHER_LOGIN, "EMPLOYEE", "Ana", null);
     }
 
@@ -106,10 +109,14 @@ class ExportIT extends BaseIntegrationTest {
         byte[] body = perform(get(MY_DATA_EXPORT).param("format", "csv").cookie(emp),
                 "text/csv", ".csv");
 
-        // Assert (1.4): contiene el propio login y NO el de otro empleado; sin campos "Solo admins"
+        // Assert (1.4): contiene el propio login y NO el de otro empleado. Derecho de acceso
+        // RGPD: incluye los datos personales PROPIOS del sujeto (telefono/matricula), pero nunca
+        // campos de credenciales.
         String csv = new String(body, StandardCharsets.UTF_8);
         assertThat(csv).contains(EMP_LOGIN).doesNotContain(OTHER_LOGIN);
-        assertThat(csv).doesNotContain("mobilePhone").doesNotContain("licensePlate");
+        assertThat(csv)
+                .contains("mobilePhone", "licensePlate", EMP_PHONE, EMP_PLATE)
+                .doesNotContain("passwordHash", "failedLoginAttempts", "lockedUntil");
     }
 
     @Test

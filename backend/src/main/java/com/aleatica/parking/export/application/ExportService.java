@@ -29,8 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>Nunca emite campos de credenciales ({@code passwordHash}, {@code failedLoginAttempts},
  *       {@code lockedUntil}): se apoya en proyecciones que ya los excluyen.</li>
- *   <li>{@code myData}/{@code myRequests} se restringen al sujeto de la sesion (BOLA); ademas
- *       {@code myData} omite los campos "Solo admins" ({@code mobilePhone}, {@code licensePlate}).</li>
+ *   <li>{@code myData}/{@code myRequests} se restringen al sujeto de la sesion (BOLA).
+ *       {@code myData} materializa el derecho de acceso RGPD: incluye los datos personales
+ *       PROPIOS del interesado ({@code mobilePhone}, {@code licensePlate} inclusive) porque la
+ *       clasificacion "Solo admins" (§13) impide que OTROS los vean, no que el sujeto reciba
+ *       los suyos; nunca emite campos de credenciales.</li>
  *   <li>Cada exportacion se registra en {@code audit_log} (evento sensible / OWASP A09), con el
  *       actor resuelto del contexto y el numero de filas en {@code details}.</li>
  * </ul>
@@ -63,7 +66,7 @@ public class ExportService {
             "mobilePhone", "licensePlate", "isCorporate", "authOrigin", "role", "enabled", "active");
     private static final List<String> MY_DATA_HEADERS = List.of(
             COL_ID, "firstName", "lastName", "login", "email", "department",
-            "isCorporate", "authOrigin", "role", "enabled", "active");
+            "mobilePhone", "licensePlate", "isCorporate", "authOrigin", "role", "enabled", "active");
     private static final List<String> REQUEST_HEADERS = List.of(
             COL_ID, COL_EMPLOYEE_ID, "requestedDate", "status", "parkingSpaceId", "approvalNote",
             "rejectionReasonCode", "rejectionReason", "resolvedById", "resolvedAt", "createdAt");
@@ -218,6 +221,11 @@ public class ExportService {
         row.add(e.getLogin());
         row.add(e.getEmail());
         row.add(e.getDepartment());
+        // Derecho de acceso RGPD: el sujeto recibe sus PROPIOS mobilePhone/licensePlate. La
+        // clasificacion "Solo admins" (§13) impide que OTROS los vean, no que el interesado
+        // reciba sus datos personales (esta exportacion ya esta acotada al sujeto de la sesion).
+        row.add(e.getMobilePhone());
+        row.add(e.getLicensePlate());
         row.add(str(e.isCorporate()));
         row.add(str(e.getAuthOrigin()));
         row.add(str(e.getRole()));
