@@ -32,6 +32,6 @@
 - [x] 3.1 Con los tests en verde: métodos extraídos (complejidad < 15), constantes para literales repetidos y arquitectura hexagonal preservada, según `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Pantalla admin de gestión de puestos (listado + alta/edición + activación, selector de categoría).
-- [ ] 4.2 Integrar puestos en la solicitud unificada (plaza y/o puesto para la misma fecha).
-- [ ] 4.3 Distinción visual de `EXECUTIVE` en listados (el plano completo llega en `floor-plan`).
+- [x] 4.1 Pantalla admin de gestión de puestos (listado + alta/edición + activación, selector de categoría).
+- [x] 4.2 Integrar puestos en la solicitud unificada (plaza y/o puesto para la misma fecha).
+- [x] 4.3 Distinción visual de `EXECUTIVE` en listados (el plano completo llega en `floor-plan`).
