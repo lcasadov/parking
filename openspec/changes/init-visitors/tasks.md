@@ -35,9 +35,9 @@
 - [ ] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Listado de visitantes con buscador (`nationalId`/nombre/matrícula) — solo ADMIN.
-- [ ] 4.2 Formulario de alta/edición de ficha de visitante (validación de campos + 409 de `nationalId`).
-- [ ] 4.3 Detalle de visitante.
-- [ ] 4.4 Creación de reserva: selección de visitante, plaza y fecha; manejo de 409 (plaza ocupada).
-- [ ] 4.5 Listado de reservas con acción de anular (solo futuras) y manejo de 400.
-- [ ] 4.6 Ocultar/denegar la sección a `EMPLOYEE` (RBAC en UI).
+- [x] 4.1 Listado de visitantes con buscador (`nationalId`/nombre/matrícula) — solo ADMIN.
+- [x] 4.2 Formulario de alta/edición de ficha de visitante (validación de campos + 409 de `nationalId`).
+- [x] 4.3 Detalle de visitante.
+- [x] 4.4 Creación de reserva: selección de visitante, plaza y fecha; manejo de 409 (plaza ocupada).
+- [x] 4.5 Listado de reservas con acción de anular (solo futuras) y manejo de 400.
+- [x] 4.6 Ocultar/denegar la sección a `EMPLOYEE` (RBAC en UI).
