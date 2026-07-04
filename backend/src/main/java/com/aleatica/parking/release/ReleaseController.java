@@ -1,5 +1,6 @@
 package com.aleatica.parking.release;
 
+import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.exception.ApiError;
 import com.aleatica.parking.release.application.ReleaseService;
@@ -50,12 +51,15 @@ public class ReleaseController {
     private static final String SESSION_COOKIE = "sessionCookie";
 
     private final ReleaseService releaseService;
+    private final ConcurrencyRetry concurrencyRetry;
 
     /**
-     * @param releaseService casos de uso de liberaciones
+     * @param releaseService   casos de uso de liberaciones
+     * @param concurrencyRetry reintento acotado ante victima de deadlock (issue #57)
      */
-    public ReleaseController(ReleaseService releaseService) {
+    public ReleaseController(ReleaseService releaseService, ConcurrencyRetry concurrencyRetry) {
         this.releaseService = releaseService;
+        this.concurrencyRetry = concurrencyRetry;
     }
 
     /**
@@ -107,7 +111,8 @@ public class ReleaseController {
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<ReleaseResponse> createRelease(
             @Valid @RequestBody ReleaseCreateRequest request, Authentication authentication) {
-        ReleaseResponse created = releaseService.createRelease(authentication.getName(), request);
+        ReleaseResponse created = concurrencyRetry.execute(
+                () -> releaseService.createRelease(authentication.getName(), request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -168,8 +173,8 @@ public class ReleaseController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ReleaseResponse> createAdministrativeRelease(
             @Valid @RequestBody AdministrativeReleaseRequest request, Authentication authentication) {
-        ReleaseResponse created =
-                releaseService.createAdministrativeRelease(authentication.getName(), request);
+        ReleaseResponse created = concurrencyRetry.execute(
+                () -> releaseService.createAdministrativeRelease(authentication.getName(), request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 }
