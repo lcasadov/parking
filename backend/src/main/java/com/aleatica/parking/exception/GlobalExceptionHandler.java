@@ -1,5 +1,6 @@
 package com.aleatica.parking.exception;
 
+import com.aleatica.parking.audit.application.InvalidDateRangeException;
 import com.aleatica.parking.auth.application.AuthenticationFailedException;
 import com.aleatica.parking.auth.application.InvalidCurrentPasswordException;
 import com.aleatica.parking.auth.application.PasswordPolicyException;
@@ -75,6 +76,7 @@ public class GlobalExceptionHandler {
     private static final String FIELD_REJECTION_REASON = "rejectionReason";
     private static final String FIELD_RELEASE_DATE = "releaseDate";
     private static final String FIELD_NATIONAL_ID = "nationalId";
+    private static final String FIELD_DATE_WINDOW = "from";
 
     private static final String INDEX_LOGIN = "ux_employees_login";
     private static final String INDEX_EMAIL = "ux_employees_email";
@@ -185,6 +187,21 @@ public class GlobalExceptionHandler {
         Map<String, String> fields = Map.of(ex.getName(), MSG_PARAM_MALFORMED);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_VALIDATION, MSG_VALIDATION, fields));
+    }
+
+    /**
+     * Traduce una ventana temporal invalida ({@code from} posterior a {@code to}) en una
+     * consulta de auditoria o de logins a {@code 400} con el detalle en {@code from}
+     * (spec audit-retention, Req 1/2).
+     *
+     * @param ex excepcion de ventana temporal invalida
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<ApiError> handleInvalidDateRange(InvalidDateRangeException ex) {
+        Map<String, String> fields = Map.of(FIELD_DATE_WINDOW, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
     }
 
     /**

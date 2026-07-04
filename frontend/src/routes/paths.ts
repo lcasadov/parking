@@ -12,6 +12,8 @@ export const ROUTES = {
   adminVisitors: '/admin/visitors',
   adminCalendar: '/admin/calendar',
   adminAvailability: '/admin/availability',
+  adminAudit: '/admin/audit',
+  adminLoginLogs: '/admin/login-logs',
   employee: '/employee',
   employeeFixedAssignments: '/employee/fixed-assignments',
   employeeRequests: '/employee/requests',

@@ -74,6 +74,7 @@ parking:
       enabled: false          # fallback de emergencia desactivado por defecto
   retention:
     years: 2                  # purga de datos historicos a los 2 anos (RGPD)
+    cron: "0 0 3 * * *"       # job diario de purga a las 03:00 (usar "-" para desactivar)
   session:
     cookie:
       secure: false           # Secure solo en pro (ver application-pro.yml)
