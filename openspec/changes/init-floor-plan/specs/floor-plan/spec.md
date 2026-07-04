@@ -108,6 +108,12 @@ el admin posiciona los marcadores con un editor de arrastre que persiste
 - Concurrencia: dos empleados pinchan el mismo puesto libre a la vez → solo uno obtiene `Request`; el otro recibe 409 de disponibilidad.
 - El parking no expone `/floor-plan`: cualquier intento de obtener un plano de plazas de parking carece de endpoint.
 
+## API Contract
+Ver `docs/openapi.yaml` — tag `Floor Plan` para el contrato completo de los tres endpoints
+(`getFloorPlan`, `requestDeskFromFloorPlan`, `updateDeskPosition`) y sus schemas
+(`FloorPlanResponse`, `FloorPlanDesk`, `FloorPlanDeskState`, `FloorPlanRequestBody`,
+`DeskRequestResponse`, `DeskPositionRequest`).
+
 ## Dependencias con otras capabilities
 - Depende de `desks` (entidad `Desk`, sus coordenadas y categorías).
 - Depende de `generic-resource-refactor` (`BookableResource`/`ResourceType=DESK`) para derivar disponibilidad.

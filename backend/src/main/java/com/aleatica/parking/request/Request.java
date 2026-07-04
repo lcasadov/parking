@@ -120,6 +120,34 @@ public class Request {
     }
 
     /**
+     * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} ya vinculada a
+     * un recurso concreto (solicitud puesto-especifica del plano interactivo, capability
+     * {@code floor-plan}).
+     *
+     * <p>A diferencia de {@link #create(Long, ResourceType, LocalDate, Instant)}, que nace
+     * con {@code resource_id = NULL} (el recurso se asigna al aprobar), aqui el puesto pinchado
+     * en el plano se fija desde la creacion: la solicitud ocupa ese puesto para la fecha, de
+     * modo que otro empleado que pinche el mismo puesto libre reciba un conflicto y el plano lo
+     * pinte como {@code REQUESTED}. La unicidad puesto/fecha entre pendientes la garantiza el
+     * indice unico filtrado {@code UX_requests_desk_date_pending} (red dura frente a
+     * concurrencia); la comprobacion previa del caso de uso es la primera capa.</p>
+     *
+     * @param employeeId    empleado solicitante
+     * @param resourceType  tipo del recurso solicitado ({@code DESK} en el plano)
+     * @param resourceId    recurso concreto solicitado (puesto pinchado)
+     * @param requestedDate fecha solicitada
+     * @param now           instante de creacion (UTC)
+     * @return la solicitud nueva, aun no persistida
+     */
+    public static Request createForResource(
+            Long employeeId, ResourceType resourceType, Long resourceId,
+            LocalDate requestedDate, Instant now) {
+        Request request = create(employeeId, resourceType, requestedDate, now);
+        request.resourceId = resourceId;
+        return request;
+    }
+
+    /**
      * @return {@code true} si la solicitud esta en estado {@link RequestStatus#PENDING}.
      */
     public boolean isPending() {

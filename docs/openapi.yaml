@@ -38,6 +38,8 @@ tags:
     description: Gestión de plazas (Plazas)
   - name: Desks
     description: Gestión de puestos de oficina (Puestos)
+  - name: Floor Plan
+    description: Plano interactivo de puestos (estado por fecha, solicitud directa y posiciones)
   - name: FixedAssignments
     description: Asignaciones fijas por día de la semana
   - name: Requests
@@ -578,6 +580,99 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Desk'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Floor Plan
+  # ---------------------------------------------------------------------------
+  /floor-plan:
+    get:
+      tags: [Floor Plan]
+      operationId: getFloorPlan
+      summary: Plano de puestos por fecha (ADMIN o EMPLOYEE)
+      description: >
+        Proyección única (sin N+1) de los puestos activos para una fecha, con su
+        posición (coordX/coordY) y su estado relativo al empleado autenticado. El
+        propio puesto aparece como MINE; los de terceros como ASSIGNED/REQUESTED
+        sin revelar titulares. La fecha debe estar en la ventana hoy..hoy+14
+        (400 OUTSIDE_REQUEST_WINDOW fuera de ella).
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Plano de la fecha
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FloorPlanResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /floor-plan/desks/{deskId}/request:
+    parameters:
+      - name: deskId
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    post:
+      tags: [Floor Plan]
+      operationId: requestDeskFromFloorPlan
+      summary: Solicita un puesto desde el plano (EMPLOYEE)
+      description: >
+        Crea una solicitud PENDING del puesto pinchado para la fecha, solo si el
+        puesto está libre. Reutiliza el ciclo de solicitudes: 409
+        REQUEST_ALREADY_PENDING si el empleado ya tiene un puesto pendiente esa
+        fecha; 409 SPACE_NOT_AVAILABLE si el puesto no está libre (asignado,
+        solicitado por otro o inactivo).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FloorPlanRequestBody'
+      responses:
+        '201':
+          description: Solicitud de puesto creada (PENDING)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeskRequestResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /floor-plan/desks/{deskId}/position:
+    parameters:
+      - name: deskId
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    put:
+      tags: [Floor Plan]
+      operationId: updateDeskPosition
+      summary: Reposiciona un puesto en el plano (ADMIN)
+      description: 'Persiste coordX/coordY (porcentaje 0-100) del marcador. 400 fuera de rango.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeskPositionRequest'
+      responses:
+        '204':
+          description: Posición persistida
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1620,6 +1715,63 @@ components:
             content:
               type: array
               items: { $ref: '#/components/schemas/Desk' }
+    FloorPlanDeskState:
+      type: string
+      enum: [FREE, ASSIGNED, REQUESTED, MINE, RELEASED]
+      description: >
+        Estado del puesto para la fecha, relativo al empleado que consulta. FREE
+        libre; ASSIGNED ocupado por un tercero; REQUESTED solicitado por un tercero;
+        MINE del propio solicitante; RELEASED puesto fijo liberado (solicitable).
+    FloorPlanDesk:
+      type: object
+      description: Proyección de un puesto en el plano para una fecha.
+      properties:
+        deskId: { type: integer, format: int64 }
+        deskNumber: { type: integer, minimum: 1, maximum: 65 }
+        category: { $ref: '#/components/schemas/DeskCategory' }
+        coordX:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Coordenada X (porcentaje 0-100); null si aún sin posicionar.
+        coordY:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Coordenada Y (porcentaje 0-100); null si aún sin posicionar.
+        state: { $ref: '#/components/schemas/FloorPlanDeskState' }
+    FloorPlanResponse:
+      type: object
+      description: Plano de puestos con posición y estado para una fecha.
+      properties:
+        date: { type: string, format: date }
+        desks:
+          type: array
+          items: { $ref: '#/components/schemas/FloorPlanDesk' }
+    FloorPlanRequestBody:
+      type: object
+      required: [date]
+      description: Fecha para la que se solicita el puesto pinchado en el plano.
+      properties:
+        date: { type: string, format: date }
+    DeskRequestResponse:
+      type: object
+      description: Resultado de solicitar un puesto desde el plano.
+      properties:
+        requestId: { type: integer, format: int64 }
+        deskId: { type: integer, format: int64 }
+        state: { $ref: '#/components/schemas/FloorPlanDeskState' }
+    DeskPositionRequest:
+      type: object
+      required: [coordX, coordY]
+      description: Nueva posición relativa (porcentaje 0-100) de un puesto en el plano.
+      properties:
+        coordX: { type: number, format: double, minimum: 0, maximum: 100 }
+        coordY: { type: number, format: double, minimum: 0, maximum: 100 }
 
     # ---- FixedAssignment ----
     FixedAssignment:
