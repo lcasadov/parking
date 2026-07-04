@@ -5,6 +5,9 @@ import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
+import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestCreatedEvent;
+import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.request.RejectionReasonCode;
 import com.aleatica.parking.request.Request;
@@ -35,8 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
  * indices unicos filtrados de la BD; el servicio hace una comprobacion previa (mensaje
  * claro) pero deja que la violacion de indice se traduzca a 409 bajo concurrencia
  * (design §Decisions). La verificacion de pertenencia (BOLA) vive aqui, no solo en el
- * RBAC del controlador. Las notificaciones se disparan {@code AFTER_COMMIT} via eventos
- * ({@link RequestNotificationEvent}).</p>
+ * RBAC del controlador. Las notificaciones se disparan {@code AFTER_COMMIT} via eventos de
+ * dominio ({@link RequestCreatedEvent}, {@link RequestApprovedEvent},
+ * {@link RequestRejectedEvent}) consumidos por la capability {@code notifications}.</p>
  */
 @Service
 public class RequestService {
@@ -115,7 +119,7 @@ public class RequestService {
         Request saved = requestRepository.saveAndFlush(
                 Request.create(employeeId, requestedDate, now));
         RequestResponse response = RequestResponse.from(saved);
-        publish(RequestNotificationEvent.Kind.CREATED, response);
+        eventPublisher.publishEvent(new RequestCreatedEvent(response));
         return response;
     }
 
@@ -211,7 +215,7 @@ public class RequestService {
         request.approve(parkingSpaceId, resolverId, body.approvalNote(), clock.now());
         Request saved = requestRepository.saveAndFlush(request);
         RequestResponse response = RequestResponse.from(saved);
-        publish(RequestNotificationEvent.Kind.APPROVED, response);
+        eventPublisher.publishEvent(new RequestApprovedEvent(response));
         return response;
     }
 
@@ -237,7 +241,7 @@ public class RequestService {
         Long resolverId = resolveEmployeeId(adminLogin);
         request.reject(reasonCode, reason, resolverId, clock.now());
         RequestResponse response = RequestResponse.from(requestRepository.save(request));
-        publish(RequestNotificationEvent.Kind.REJECTED, response);
+        eventPublisher.publishEvent(new RequestRejectedEvent(response));
         return response;
     }
 
@@ -286,9 +290,5 @@ public class RequestService {
         return employeeRepository.findByLogin(login)
                 .map(Employee::getId)
                 .orElseThrow(() -> new EntityNotFoundException(MSG_ACTOR_NOT_FOUND + login));
-    }
-
-    private void publish(RequestNotificationEvent.Kind kind, RequestResponse response) {
-        eventPublisher.publishEvent(new RequestNotificationEvent(kind, response));
     }
 }

@@ -1,5 +1,6 @@
 package com.aleatica.parking.employee;
 
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -48,6 +49,17 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
      * @return {@code true} si el email lo usa otro empleado
      */
     boolean existsByEmailAndIdNot(String email, Long id);
+
+    /**
+     * Devuelve los empleados con un rol dado que estan activos (baja logica {@code active
+     * = true}). Lo usa la capability {@code notifications} para resolver los destinatarios
+     * del email de "nueva solicitud" (todos los {@code ADMIN} activos), excluyendo por
+     * construccion a los administradores inactivos.
+     *
+     * @param role rol a filtrar
+     * @return empleados activos con ese rol (posiblemente vacia)
+     */
+    List<Employee> findByRoleAndActiveTrue(Role role);
 
     /**
      * Busqueda paginada de empleados por texto libre y estado.

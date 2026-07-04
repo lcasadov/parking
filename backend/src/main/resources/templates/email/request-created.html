@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Nueva solicitud de plaza</title>
+</head>
+<body>
+<p>Hola <span th:text="${recipientName}">Administrador</span>,</p>
+<p>
+    Hay una nueva solicitud de plaza pendiente de resolver
+    (referencia <strong th:text="${requestId}">0</strong>)
+    para la fecha <strong th:text="${requestedDate}">2026-01-01</strong>.
+</p>
+<p>Accede a parking para aprobarla o rechazarla.</p>
+<p>— parking ALEATICA</p>
+</body>
+</html>

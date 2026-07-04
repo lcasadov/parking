@@ -8,6 +8,7 @@ import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
+import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -50,22 +52,26 @@ public class FixedAssignmentService {
     private final FixedAssignmentRepository fixedAssignmentRepository;
     private final EmployeeRepository employeeRepository;
     private final ParkingSpaceRepository parkingSpaceRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
 
     /**
      * @param fixedAssignmentRepository repositorio de asignaciones fijas
      * @param employeeRepository        repositorio de empleados (titular/actor)
      * @param parkingSpaceRepository    repositorio de plazas (integridad referencial)
+     * @param eventPublisher            publicador de eventos de notificacion (revocacion)
      * @param clock                     reloj inyectable para {@code created_at}/{@code revoked_at}
      */
     public FixedAssignmentService(
             FixedAssignmentRepository fixedAssignmentRepository,
             EmployeeRepository employeeRepository,
             ParkingSpaceRepository parkingSpaceRepository,
+            ApplicationEventPublisher eventPublisher,
             ClockPort clock) {
         this.fixedAssignmentRepository = fixedAssignmentRepository;
         this.employeeRepository = employeeRepository;
         this.parkingSpaceRepository = parkingSpaceRepository;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -147,6 +153,10 @@ public class FixedAssignmentService {
         Instant now = clock.now();
         active.forEach(assignment -> assignment.revoke(actorId, now));
         fixedAssignmentRepository.saveAll(active);
+        // Notifica AFTER_COMMIT al empleado afectado (capability notifications): un unico
+        // email por revocacion, no uno por dia/fila. Un fallo del envio no revierte la
+        // revocacion (el listener se engancha tras el commit).
+        eventPublisher.publishEvent(new FixedAssignmentRevokedEvent(employeeId));
     }
 
     private void applyDaySet(

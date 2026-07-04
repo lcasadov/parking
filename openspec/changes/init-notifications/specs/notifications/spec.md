@@ -24,7 +24,7 @@ nunca la operación funcional ya confirmada.
 - Employee (destinatario: `email`, `active`, `role`)
 - Request (eventos de creación/aprobación/rechazo; `approval_note`, `rejection_reason_code`, `rejection_reason`)
 - FixedAssignment (evento de revocación)
-- (Plantillas Thymeleaf — sin entidad propia; la cola de reintento se modela como almacén de emails fallidos, ver `docs/data-model.md`) _[verificar con docs/data-model.md: no existe tabla explícita de cola de email/email_log; se asume almacén de reintento]_
+- (Plantillas Thymeleaf — sin entidad propia.) La cola de reintento se implementa como la tabla **`email_outbox`** (migración `V11__email_outbox.sql`; entidad `EmailOutbox`): `recipient`, `subject`, `body_html`, `status` (`PENDING`/`SENT`/`FAILED`), `attempts`, `last_error`, `created_at`, `last_attempt_at`, `sent_at`. ⚠️ `docs/data-model.md` NO la define aún; queda pendiente de reconciliar en el modelo de datos.
 
 ## Endpoints
 - (Ninguno — capability transversal sin API propia; reacciona a eventos de dominio de `requests`, `fixed-assignments` y `employees`.)

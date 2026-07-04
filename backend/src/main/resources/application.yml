@@ -77,6 +77,12 @@ parking:
   session:
     cookie:
       secure: false           # Secure solo en pro (ver application-pro.yml)
+  # Notificaciones por email (capability notifications). El envio es best-effort: un fallo
+  # SMTP encola el email en dbo.email_outbox y lo reintenta el job programado.
+  notifications:
+    from: ${MAIL_FROM:no-reply@parking.aleatica.com}   # remitente de los correos
+    max-attempts: 5                                     # intentos antes de descartar (FAILED)
+    retry-interval-ms: 60000                            # periodo del job de reintento (1 min)
 
 springdoc:
   api-docs:
