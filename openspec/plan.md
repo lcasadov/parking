@@ -9,8 +9,8 @@
 |--------|--------|--------|
 | 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
 | 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1, A2, B1, B2, B3, B4 ✅ archivados · Puerta 3 e2e ✅ 4/4 | `███▌░░░░░░` **~35%** |
-| **Avance global del proyecto** | 🔄 implementación | `████▊░░░░░` **~48%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1, A2, B1, B2, B3, B4, B5 ✅ archivados · Puerta 3 e2e ✅ 4/4 | `████░░░░░░` **~40%** |
+| **Avance global del proyecto** | 🔄 implementación | `█████▏░░░░` **~52%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
 
@@ -51,7 +51,7 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 | B2 | `init-employees` | 🟢🔵 | B1 | ✅ **Archivado** (PR #22 mergeada, CI verde, verification-specialist PASS — BE 107 tests + FE 54, EmployeeController 100/100, ~96.8%/85.4%; bug de contrato #21 `isCorporate` resuelto) → `changes/archive/2026-07-03-init-employees` | `██████████` 100% |
 | B3 | `init-parking-spaces` | 🟢🔵 | A1 | ✅ **Archivado** (PR #25 mergeada, CI verde, verification-specialist PASS — BE 116 unit + 33 IT + FE 69, ParkingSpaceController 100/100, bundle 97.7%/87.1%; refactor FieldConflictException sin regresión de empleados) → `changes/archive/2026-07-03-init-parking-spaces` | `██████████` 100% |
 | B4 | `init-fixed-assignments` | 🟢🔵 | B2, B3 | ✅ **Archivado** (PR #28 mergeada, CI verde tras hotfix #30, verification-specialist PASS — BE 151 unit + 48 IT + FE 95, BOLA sin agujeros, índices filtrados; hotfix #29 de aislamiento de ITs) → `changes/archive/2026-07-03-init-fixed-assignments` | `██████████` 100% |
-| B5 | `init-requests` | 🟢🔵 | B3, B2 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
+| B5 | `init-requests` | 🟢🔵 | B3, B2 | ✅ **Archivado** (PR #34 mergeada, CI verde, verification-specialist PASS 8/8 — state machine, BOLA, concurrencia, IT order-independent en 3 órdenes; disponibilidad inline + notifications stub) → `changes/archive/2026-07-04-init-requests` | `██████████` 100% |
 | B6 | `init-releases` | 🟢🔵 | B4 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 | B7 | `init-availability-calendar` | 🟢🔵 | B5, B6 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 | B8 | `init-visitors` | 🟢🔵 | B3 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
