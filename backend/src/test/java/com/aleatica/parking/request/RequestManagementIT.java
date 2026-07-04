@@ -238,6 +238,38 @@ class RequestManagementIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldReturn409_whenApprovingRequestForSpaceReservedByVisitor() throws Exception {
+        // Arrange: la plaza ya tiene una reserva de visitante para esa fecha; una solicitud
+        // pendiente pide la MISMA plaza/fecha. Aprobarla crearia una doble reserva (integridad).
+        long visitorId = insertVisitor("11111111H");
+        insertVisitorReservation(visitorId, spaceX, WITHIN);
+        long id = insertRequest(empAId, WITHIN, "PENDING", Instant.now());
+
+        // Act / Assert: 409 SPACE_NOT_AVAILABLE, sin doble reserva
+        approve(adminSession, id, spaceX, null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("SPACE_NOT_AVAILABLE"));
+        assertThat(statusOf(empAId, WITHIN)).isEqualTo("PENDING");
+        assertThat(approvedRowsForSpaceDate(spaceX, WITHIN)).isZero();
+        assertThat(visitorReservationRows(spaceX, WITHIN)).isEqualTo(1);
+    }
+
+    @Test
+    void shouldApproveRequest_whenFixedAssignmentIsReleasedForThatDate() throws Exception {
+        // Arrange: la plaza tiene asignacion fija ese dia PERO liberada para WITHIN -> disponible
+        insertFixedAssignment(spaceX, empBId, WITHIN.getDayOfWeek().getValue());
+        insertRelease(spaceX, empBId, WITHIN);
+        long id = insertRequest(empAId, WITHIN, "PENDING", Instant.now());
+
+        // Act / Assert: la liberacion la vuelve aprobable
+        approve(adminSession, id, spaceX, "Bienvenido")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.parkingSpaceId").value((int) spaceX));
+        assertThat(statusOf(empAId, WITHIN)).isEqualTo("APPROVED");
+    }
+
+    @Test
     void shouldReturn409_whenTwoAdminsApproveSameSpaceSameDate() throws Exception {
         // Arrange: dos solicitudes PENDING (A y B) para la MISMA fecha; ambas se aprueban
         // con la MISMA plaza de forma concurrente.
@@ -362,6 +394,31 @@ class RequestManagementIT extends BaseIntegrationTest {
         return id == null ? 0L : id;
     }
 
+    private long insertVisitor(String nationalId) {
+        jdbcTemplate.update(
+                "INSERT INTO dbo.visitors (first_name, last_name, national_id, created_by_id, created_at) "
+                        + "VALUES ('Visita', 'Test', ?, ?, ?)",
+                nationalId, idOfEmployee(ADMIN_LOGIN), Timestamp.from(Instant.now()));
+        Long id = jdbcTemplate.queryForObject(
+                "SELECT id FROM dbo.visitors WHERE national_id = ?", Long.class, nationalId);
+        return id == null ? 0L : id;
+    }
+
+    private void insertVisitorReservation(long visitorId, long spaceId, LocalDate date) {
+        jdbcTemplate.update(
+                "INSERT INTO dbo.visitor_reservations (visitor_id, parking_space_id, reservation_date, "
+                        + "created_by_id, created_at) VALUES (?, ?, ?, ?, ?)",
+                visitorId, spaceId, Date.valueOf(date), idOfEmployee(ADMIN_LOGIN),
+                Timestamp.from(Instant.now()));
+    }
+
+    private void insertRelease(long spaceId, long employeeId, LocalDate date) {
+        jdbcTemplate.update(
+                "INSERT INTO dbo.releases (parking_space_id, employee_id, release_date, type, "
+                        + "released_by_id, created_at) VALUES (?, ?, ?, 'VOLUNTARY', ?, ?)",
+                spaceId, employeeId, Date.valueOf(date), employeeId, Timestamp.from(Instant.now()));
+    }
+
     private void insertFixedAssignment(long spaceId, long employeeId, int dayOfWeek) {
         jdbcTemplate.update(
                 "INSERT INTO dbo.fixed_assignments (parking_space_id, employee_id, day_of_week, "
@@ -411,6 +468,11 @@ class RequestManagementIT extends BaseIntegrationTest {
     private int approvedRowsForSpaceDate(long spaceId, LocalDate date) {
         return count("SELECT COUNT(*) FROM dbo.requests WHERE parking_space_id = ? AND requested_date = ? "
                 + "AND status = 'APPROVED'", spaceId, Date.valueOf(date));
+    }
+
+    private int visitorReservationRows(long spaceId, LocalDate date) {
+        return count("SELECT COUNT(*) FROM dbo.visitor_reservations WHERE parking_space_id = ? "
+                + "AND reservation_date = ?", spaceId, Date.valueOf(date));
     }
 
     private int count(String sql, Object... args) {

@@ -203,6 +203,74 @@ class AvailabilityServiceTest {
         assertThat(response.availableResources()).isEmpty();
     }
 
+    // ---- Regla consolidada de ocupacion (issue #43): isSpaceTakenForDate ----
+
+    @Test
+    void shouldReportTaken_whenVisitorReservationForDate() {
+        // Arrange (integridad #43): una reserva de visitante ocupa la plaza esa fecha
+        given(fixedAssignmentRepository
+                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(false);
+        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
+                SPACE_ID, DATE, RequestStatus.APPROVED)).willReturn(false);
+        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+                .willReturn(true);
+
+        // Act / Assert
+        assertThat(service().isSpaceTakenForDate(SPACE_ID, DATE)).isTrue();
+    }
+
+    @Test
+    void shouldReportNotTaken_whenFixedAssignmentReleasedForDate() {
+        // Arrange (#43): asignacion fija ese dia PERO liberada para DATE -> no ocupada
+        given(fixedAssignmentRepository
+                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(true);
+        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, DATE)).willReturn(true);
+        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
+                SPACE_ID, DATE, RequestStatus.APPROVED)).willReturn(false);
+        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+                .willReturn(false);
+
+        // Act / Assert
+        assertThat(service().isSpaceTakenForDate(SPACE_ID, DATE)).isFalse();
+    }
+
+    @Test
+    void shouldReportTaken_whenFixedAssignmentActiveWithoutRelease() {
+        // Arrange: asignacion fija vigente ese dia y NO liberada -> ocupada
+        given(fixedAssignmentRepository
+                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(true);
+        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, DATE)).willReturn(false);
+
+        // Act / Assert (corto-circuito: fixedTaken ya es true)
+        assertThat(service().isSpaceTakenForDate(SPACE_ID, DATE)).isTrue();
+    }
+
+    @Test
+    void shouldReportTaken_whenApprovedRequestForDate() {
+        // Arrange: solicitud APPROVED sobre la plaza esa fecha -> ocupada
+        given(fixedAssignmentRepository
+                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(false);
+        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
+                SPACE_ID, DATE, RequestStatus.APPROVED)).willReturn(true);
+
+        // Act / Assert
+        assertThat(service().isSpaceTakenForDate(SPACE_ID, DATE)).isTrue();
+    }
+
+    @Test
+    void shouldReportNotTaken_whenFreeForDate() {
+        // Arrange: sin asignacion, sin solicitud aprobada, sin reserva -> libre
+        given(fixedAssignmentRepository
+                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(false);
+        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
+                SPACE_ID, DATE, RequestStatus.APPROVED)).willReturn(false);
+        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+                .willReturn(false);
+
+        // Act / Assert
+        assertThat(service().isSpaceTakenForDate(SPACE_ID, DATE)).isFalse();
+    }
+
     // ---- Calendario admin: estados de celda ----
 
     @Test

@@ -1,10 +1,10 @@
 package com.aleatica.parking.request.application;
 
 import com.aleatica.parking.auth.domain.ClockPort;
+import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.request.RejectionReasonCode;
 import com.aleatica.parking.request.Request;
@@ -64,29 +64,29 @@ public class RequestService {
     private final RequestRepository requestRepository;
     private final EmployeeRepository employeeRepository;
     private final ParkingSpaceRepository parkingSpaceRepository;
-    private final FixedAssignmentRepository fixedAssignmentRepository;
+    private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
 
     /**
-     * @param requestRepository        repositorio de solicitudes
-     * @param employeeRepository       repositorio de empleados (solicitante/resolutor)
-     * @param parkingSpaceRepository   repositorio de plazas (integridad al aprobar)
-     * @param fixedAssignmentRepository repositorio de asignaciones fijas (disponibilidad)
-     * @param eventPublisher           publicador de eventos de notificacion
-     * @param clock                    reloj inyectable para ventana y marcas de tiempo
+     * @param requestRepository      repositorio de solicitudes
+     * @param employeeRepository     repositorio de empleados (solicitante/resolutor)
+     * @param parkingSpaceRepository repositorio de plazas (integridad al aprobar)
+     * @param availabilityService    servicio de disponibilidad consolidado (regla unica al aprobar)
+     * @param eventPublisher         publicador de eventos de notificacion
+     * @param clock                  reloj inyectable para ventana y marcas de tiempo
      */
     public RequestService(
             RequestRepository requestRepository,
             EmployeeRepository employeeRepository,
             ParkingSpaceRepository parkingSpaceRepository,
-            FixedAssignmentRepository fixedAssignmentRepository,
+            AvailabilityService availabilityService,
             ApplicationEventPublisher eventPublisher,
             ClockPort clock) {
         this.requestRepository = requestRepository;
         this.employeeRepository = employeeRepository;
         this.parkingSpaceRepository = parkingSpaceRepository;
-        this.fixedAssignmentRepository = fixedAssignmentRepository;
+        this.availabilityService = availabilityService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -250,13 +250,10 @@ public class RequestService {
     }
 
     private void requireSpaceAvailable(Long parkingSpaceId, LocalDate requestedDate) {
-        int dayOfWeek = requestedDate.getDayOfWeek().getValue();
-        boolean fixedTaken = fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(parkingSpaceId, dayOfWeek);
-        boolean approvedTaken = requestRepository
-                .existsByParkingSpaceIdAndRequestedDateAndStatus(
-                        parkingSpaceId, requestedDate, RequestStatus.APPROVED);
-        if (fixedTaken || approvedTaken) {
+        // Regla unica de disponibilidad (issue #43): delega en AvailabilityService para no
+        // divergir de la disponibilidad consolidada (liberaciones + reservas de visitante) y
+        // evitar la doble reserva de una plaza ya ocupada por un visitante.
+        if (availabilityService.isSpaceTakenForDate(parkingSpaceId, requestedDate)) {
             throw new SpaceUnavailableException(MSG_SPACE_UNAVAILABLE);
         }
     }

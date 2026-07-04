@@ -50,7 +50,8 @@ import org.springframework.transaction.annotation.Transactional;
  * no existe una {@code Request} {@code APPROVED} para esa plaza y F; y (solo plazas) no
  * existe una {@code VisitorReservation} para esa plaza y F. Es exactamente la misma regla,
  * con el mismo mapeo de dia de la semana ({@code getDayOfWeek().getValue()}, 1=Lunes..7=Domingo),
- * que aplican en linea {@code RequestService#approve} y {@code VisitorReservationService#create};
+ * que aplica {@code VisitorReservationService#create} y que reutiliza
+ * {@code RequestService#approve} delegando en {@link #isSpaceTakenForDate(Long, java.time.LocalDate)};
  * este servicio la centraliza para que no diverjan.</p>
  *
  * <p><strong>Sin N+1.</strong> Todas las vistas cargan por rango: una consulta por entidad
@@ -157,6 +158,36 @@ public class AvailabilityService {
             Set<Long> reserved) {
         boolean fixedTaken = fixedAssigned.contains(spaceId) && !released.contains(spaceId);
         return !fixedTaken && !approved.contains(spaceId) && !reserved.contains(spaceId);
+    }
+
+    /**
+     * Indica si la plaza esta ocupada para una fecha concreta segun la regla consolidada
+     * de ocupacion (plaza, fecha): tiene una asignacion fija activa para el dia de la
+     * semana de la fecha y esa fecha NO esta liberada, o tiene una solicitud {@code APPROVED}
+     * para esa fecha, o tiene una reserva de visitante para esa fecha.
+     *
+     * <p>Es la unica definicion de ocupacion (plaza, fecha) del dominio: la reutiliza
+     * {@code RequestService#approve} (via esta llamada) y la aplica identica
+     * {@code VisitorReservationService#create}, evitando que la regla diverja entre modulos
+     * (issue #43). El estado activo de la plaza es ortogonal y lo valida cada llamante por
+     * separado. Comprueba por clave ({@code exists}), sin cargar por rango, porque opera
+     * sobre una unica (plaza, fecha).</p>
+     *
+     * @param spaceId identificador de la plaza (se asume existente; el llamante lo verifica)
+     * @param date    fecha a evaluar
+     * @return {@code true} si la plaza esta ocupada esa fecha
+     */
+    @Transactional(readOnly = true)
+    public boolean isSpaceTakenForDate(Long spaceId, LocalDate date) {
+        int dayOfWeek = date.getDayOfWeek().getValue();
+        boolean fixedTaken = fixedAssignmentRepository
+                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(spaceId, dayOfWeek)
+                && !releaseRepository.existsByParkingSpaceIdAndReleaseDate(spaceId, date);
+        boolean approvedTaken = requestRepository
+                .existsByParkingSpaceIdAndRequestedDateAndStatus(spaceId, date, RequestStatus.APPROVED);
+        boolean reservedTaken = visitorReservationRepository
+                .existsByParkingSpaceIdAndReservationDate(spaceId, date);
+        return fixedTaken || approvedTaken || reservedTaken;
     }
 
     // -------------------------------------------------------------------------
