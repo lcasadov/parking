@@ -6,6 +6,7 @@ import { useAuth } from '../auth/useAuth';
 import { ROUTES } from '../routes/paths';
 import { BrandCurve, BrandLogo } from './BrandCurve';
 import { Button } from './Button';
+import { ExportMyDataButton } from './ExportMyDataButton';
 import { LanguageToggle } from './LanguageToggle';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -29,6 +30,7 @@ export function AppHeader({ pageTitle }: { pageTitle?: string }) {
       <BrandLogo />
       {pageTitle ? <span className="page-title">{pageTitle}</span> : null}
       <div className="header-controls">
+        <ExportMyDataButton />
         <LanguageToggle />
         <ThemeToggle />
         {user ? (

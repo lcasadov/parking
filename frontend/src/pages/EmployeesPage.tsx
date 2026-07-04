@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
+import { ExportMenu } from '../components/ExportMenu';
 import { ResetPasswordModal } from '../components/ResetPasswordModal';
 import { Spinner } from '../components/Spinner';
+import { EXPORT_PATHS } from '../api/exportApi';
 import {
   useDeactivateEmployee,
   useEmployeesQuery,
-  useExportEmployees,
   useReactivateEmployee,
 } from '../hooks/useEmployees';
 import type { Employee } from '../types/employee';
@@ -26,7 +27,6 @@ export function EmployeesPage() {
   const query = useEmployeesQuery({ page, size: PAGE_SIZE, q });
   const deactivateMutation = useDeactivateEmployee();
   const reactivateMutation = useReactivateEmployee();
-  const exportMutation = useExportEmployees();
 
   function handleSearch(value: string): void {
     setQ(value);
@@ -68,12 +68,7 @@ export function EmployeesPage() {
           {t('employees.title')}
         </h1>
         <div className="page-actions">
-          <Button variant="white" icon="download" onClick={() => exportMutation.mutate('csv')}>
-            {t('employees.exportCsv')}
-          </Button>
-          <Button variant="white" icon="download" onClick={() => exportMutation.mutate('xlsx')}>
-            {t('employees.exportXlsx')}
-          </Button>
+          <ExportMenu path={EXPORT_PATHS.employees} fallbackBase="employees" requiredRole="ADMIN" />
           <Button variant="green" icon="plus" onClick={openCreate}>
             {t('employees.new')}
           </Button>
