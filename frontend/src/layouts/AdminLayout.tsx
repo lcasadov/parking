@@ -41,6 +41,13 @@ export function AdminLayout() {
             {t('parkingSpaces.navLabel')}
           </NavLink>
           <NavLink
+            to={ROUTES.adminDesks}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-armchair" aria-hidden="true" />
+            {t('desks.navLabel')}
+          </NavLink>
+          <NavLink
             to={ROUTES.adminFixedAssignments}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >

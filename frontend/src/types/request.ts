@@ -3,6 +3,10 @@
 // RequestStatus: schema #/components/schemas/RequestStatus.
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
+// ResourceType: schema #/components/schemas/ResourceType. Discrimina el recurso
+// reservable de la solicitud (plaza de parking o puesto de oficina).
+export type ResourceType = 'PARKING' | 'DESK';
+
 // RejectionReasonCode: schema #/components/schemas/RejectionReasonCode.
 export type RejectionReasonCode = 'NO_AVAILABILITY' | 'OUTSIDE_POLICY' | 'OTHER';
 
@@ -12,7 +16,9 @@ export interface Request {
   employeeId: number;
   requestedDate: string;
   status: RequestStatus;
+  resourceType?: ResourceType;
   parkingSpaceId?: number | null;
+  deskId?: number | null;
   approvalNote?: string | null;
   rejectionReasonCode?: RejectionReasonCode | null;
   rejectionReason?: string | null;
@@ -22,8 +28,12 @@ export interface Request {
 }
 
 // RequestCreateRequest: schema #/components/schemas/RequestCreateRequest.
+// La solicitud unificada genera un Request independiente por cada recurso elegido
+// (PARKING y/o DESK). `resourceType` opcional: si se omite el backend asume PARKING
+// (retrocompatibilidad con el flujo de solo plaza).
 export interface RequestCreateRequest {
   requestedDate: string;
+  resourceType?: ResourceType;
 }
 
 // RequestApproveRequest: schema #/components/schemas/RequestApproveRequest.
