@@ -60,7 +60,7 @@ public record ReleaseResponse(
     public static ReleaseResponse from(Release release) {
         return new ReleaseResponse(
                 release.getId(),
-                release.getParkingSpaceId(),
+                release.getResourceId(),
                 release.getEmployeeId(),
                 release.getReleaseDate(),
                 release.getType(),

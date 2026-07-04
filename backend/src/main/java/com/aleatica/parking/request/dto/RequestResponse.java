@@ -77,7 +77,7 @@ public record RequestResponse(
                 request.getEmployeeId(),
                 request.getRequestedDate(),
                 request.getStatus(),
-                request.getParkingSpaceId(),
+                request.getResourceId(),
                 request.getApprovalNote(),
                 request.getRejectionReasonCode(),
                 request.getRejectionReason(),

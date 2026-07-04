@@ -27,6 +27,7 @@ import com.aleatica.parking.release.ReleaseRepository;
 import com.aleatica.parking.request.Request;
 import com.aleatica.parking.request.RequestRepository;
 import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.support.EmployeeTestFactory;
 import com.aleatica.parking.visitor.VisitorReservation;
 import com.aleatica.parking.visitor.VisitorReservationRepository;
@@ -209,9 +210,9 @@ class AvailabilityServiceTest {
     void shouldReportTaken_whenVisitorReservationForDate() {
         // Arrange (integridad #43): una reserva de visitante ocupa la plaza esa fecha
         given(fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(false);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, DATE, RequestStatus.APPROVED)).willReturn(false);
+                .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(false);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
         given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
                 .willReturn(true);
 
@@ -223,10 +224,10 @@ class AvailabilityServiceTest {
     void shouldReportNotTaken_whenFixedAssignmentReleasedForDate() {
         // Arrange (#43): asignacion fija ese dia PERO liberada para DATE -> no ocupada
         given(fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(true);
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, DATE)).willReturn(true);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, DATE, RequestStatus.APPROVED)).willReturn(false);
+                .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(true);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, DATE)).willReturn(true);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
         given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
                 .willReturn(false);
 
@@ -238,8 +239,8 @@ class AvailabilityServiceTest {
     void shouldReportTaken_whenFixedAssignmentActiveWithoutRelease() {
         // Arrange: asignacion fija vigente ese dia y NO liberada -> ocupada
         given(fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(true);
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, DATE)).willReturn(false);
+                .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(true);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, DATE)).willReturn(false);
 
         // Act / Assert (corto-circuito: fixedTaken ya es true)
         assertThat(service().isSpaceTakenForDate(SPACE_ID, DATE)).isTrue();
@@ -249,9 +250,9 @@ class AvailabilityServiceTest {
     void shouldReportTaken_whenApprovedRequestForDate() {
         // Arrange: solicitud APPROVED sobre la plaza esa fecha -> ocupada
         given(fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(false);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, DATE, RequestStatus.APPROVED)).willReturn(true);
+                .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(false);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(true);
 
         // Act / Assert
         assertThat(service().isSpaceTakenForDate(SPACE_ID, DATE)).isTrue();
@@ -261,9 +262,9 @@ class AvailabilityServiceTest {
     void shouldReportNotTaken_whenFreeForDate() {
         // Arrange: sin asignacion, sin solicitud aprobada, sin reserva -> libre
         given(fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, DATE_DOW)).willReturn(false);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, DATE, RequestStatus.APPROVED)).willReturn(false);
+                .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(false);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
         given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
                 .willReturn(false);
 
@@ -279,7 +280,8 @@ class AvailabilityServiceTest {
         LocalDate tuesday = MONDAY.plusDays(1);
         LocalDate wednesday = MONDAY.plusDays(2);
         givenActiveSpaces(space(SPACE_ID, SPACE_LABEL));
-        given(fixedAssignmentRepository.findByParkingSpaceIdInAndActiveTrue(anyCollection()))
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING)))
                 .willReturn(List.of(assignment(SPACE_ID, EMP_ID, 1), assignment(SPACE_ID, EMP_ID, 2)));
         given(releaseRepository.findByReleaseDateBetween(MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(release(SPACE_ID, tuesday)));
@@ -310,7 +312,8 @@ class AvailabilityServiceTest {
         // Arrange: weekStart en miercoles -> normaliza al lunes de esa semana
         LocalDate wednesday = MONDAY.plusDays(2);
         givenActiveSpaces(space(SPACE_ID, SPACE_LABEL));
-        given(fixedAssignmentRepository.findByParkingSpaceIdInAndActiveTrue(anyCollection()))
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING)))
                 .willReturn(List.of());
         given(releaseRepository.findByReleaseDateBetween(MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
         given(requestRepository.findByStatusAndRequestedDateBetween(
@@ -400,12 +403,14 @@ class AvailabilityServiceTest {
     }
 
     private void givenNoFixedAssignments() {
-        given(fixedAssignmentRepository.findByParkingSpaceIdInAndActiveTrue(anyCollection()))
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING)))
                 .willReturn(List.of());
     }
 
     private void givenFixedAssignments(FixedAssignment... assignments) {
-        given(fixedAssignmentRepository.findByParkingSpaceIdInAndActiveTrue(anyCollection()))
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING)))
                 .willReturn(List.of(assignments));
     }
 

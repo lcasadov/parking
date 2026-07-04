@@ -240,7 +240,7 @@ public class ExportService {
         row.add(str(r.getEmployeeId()));
         row.add(str(r.getRequestedDate()));
         row.add(str(r.getStatus()));
-        row.add(str(r.getParkingSpaceId()));
+        row.add(str(r.getResourceId()));
         row.add(r.getApprovalNote());
         row.add(str(r.getRejectionReasonCode()));
         row.add(r.getRejectionReason());

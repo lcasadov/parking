@@ -323,7 +323,7 @@ class NotificationOutboxIT extends BaseIntegrationTest {
 
     private void insertFixedAssignment(long space, long employeeId, int dayOfWeek) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.fixed_assignments (parking_space_id, employee_id, day_of_week, "
+                "INSERT INTO dbo.fixed_assignments (resource_id, employee_id, day_of_week, "
                         + "active, created_by_id, created_at) VALUES (?, ?, ?, 1, ?, ?)",
                 space, employeeId, dayOfWeek, adminId(), Timestamp.from(Instant.now()));
     }

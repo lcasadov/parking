@@ -1,5 +1,6 @@
 package com.aleatica.parking.request;
 
+import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -75,13 +76,14 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
      * Indica si la plaza ya tiene una solicitud en el estado dado para la fecha
      * (soporte de la disponibilidad al aprobar: plaza ya {@code APPROVED} esa fecha).
      *
-     * @param parkingSpaceId plaza a comprobar
-     * @param requestedDate  fecha solicitada
-     * @param status         estado a comprobar
-     * @return {@code true} si ya existe una solicitud en ese estado para esa plaza/fecha
+     * @param resourceId    recurso a comprobar
+     * @param resourceType  tipo de recurso (PARKING en el nucleo de parking)
+     * @param requestedDate fecha solicitada
+     * @param status        estado a comprobar
+     * @return {@code true} si ya existe una solicitud en ese estado para ese recurso/fecha
      */
-    boolean existsByParkingSpaceIdAndRequestedDateAndStatus(
-            Long parkingSpaceId, LocalDate requestedDate, RequestStatus status);
+    boolean existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+            Long resourceId, ResourceType resourceType, LocalDate requestedDate, RequestStatus status);
 
     /**
      * Solicitudes en un estado cuyo {@code requested_date} cae dentro del intervalo

@@ -2,6 +2,7 @@ package com.aleatica.parking.release;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.aleatica.parking.resource.ResourceType;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -24,7 +25,8 @@ class ReleaseTest {
 
         // Assert: titular = ejecutor, reason nulo
         assertThat(release.getType()).isEqualTo(ReleaseType.VOLUNTARY);
-        assertThat(release.getParkingSpaceId()).isEqualTo(8L);
+        assertThat(release.getResourceId()).isEqualTo(8L);
+        assertThat(release.getResourceType()).isEqualTo(ResourceType.PARKING);
         assertThat(release.getEmployeeId()).isEqualTo(15L);
         assertThat(release.getReleasedById()).isEqualTo(15L);
         assertThat(release.getReleaseDate()).isEqualTo(DATE);

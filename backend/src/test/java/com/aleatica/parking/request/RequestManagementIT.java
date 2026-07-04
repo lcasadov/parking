@@ -383,7 +383,7 @@ class RequestManagementIT extends BaseIntegrationTest {
 
     private long insertApproved(long employeeId, LocalDate date, long spaceId) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.requests (employee_id, requested_date, status, parking_space_id, "
+                "INSERT INTO dbo.requests (employee_id, requested_date, status, resource_id, "
                         + "resolved_by_id, resolved_at, created_at) VALUES (?, ?, 'APPROVED', ?, ?, ?, ?)",
                 employeeId, Date.valueOf(date), spaceId, idOfEmployee(ADMIN_LOGIN),
                 Timestamp.from(Instant.now()), Timestamp.from(Instant.now()));
@@ -414,14 +414,14 @@ class RequestManagementIT extends BaseIntegrationTest {
 
     private void insertRelease(long spaceId, long employeeId, LocalDate date) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.releases (parking_space_id, employee_id, release_date, type, "
+                "INSERT INTO dbo.releases (resource_id, employee_id, release_date, type, "
                         + "released_by_id, created_at) VALUES (?, ?, ?, 'VOLUNTARY', ?, ?)",
                 spaceId, employeeId, Date.valueOf(date), employeeId, Timestamp.from(Instant.now()));
     }
 
     private void insertFixedAssignment(long spaceId, long employeeId, int dayOfWeek) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.fixed_assignments (parking_space_id, employee_id, day_of_week, "
+                "INSERT INTO dbo.fixed_assignments (resource_id, employee_id, day_of_week, "
                         + "active, created_by_id, created_at) VALUES (?, ?, ?, 1, ?, ?)",
                 spaceId, employeeId, dayOfWeek, idOfEmployee(ADMIN_LOGIN), Timestamp.from(Instant.now()));
     }
@@ -466,7 +466,7 @@ class RequestManagementIT extends BaseIntegrationTest {
     }
 
     private int approvedRowsForSpaceDate(long spaceId, LocalDate date) {
-        return count("SELECT COUNT(*) FROM dbo.requests WHERE parking_space_id = ? AND requested_date = ? "
+        return count("SELECT COUNT(*) FROM dbo.requests WHERE resource_id = ? AND requested_date = ? "
                 + "AND status = 'APPROVED'", spaceId, Date.valueOf(date));
     }
 

@@ -14,6 +14,7 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
@@ -76,7 +77,7 @@ class FixedAssignmentServiceTest {
         givenEmployeeAndSpaceExist();
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(fixedAssignmentRepository
-                .findByEmployeeIdAndParkingSpaceIdAndActiveTrue(EMP_ID, SPACE_ID))
+                .findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(EMP_ID, SPACE_ID, ResourceType.PARKING))
                 .willReturn(List.of());
         given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
                 .willReturn(List.of(
@@ -95,7 +96,7 @@ class FixedAssignmentServiceTest {
                 .allSatisfy(a -> {
                     assertThat(a.getCreatedById()).isEqualTo(ADMIN_ID);
                     assertThat(a.getCreatedAt()).isEqualTo(NOW);
-                    assertThat(a.getParkingSpaceId()).isEqualTo(SPACE_ID);
+                    assertThat(a.getResourceId()).isEqualTo(SPACE_ID);
                     assertThat(a.isActive()).isTrue();
                 });
     }
@@ -123,7 +124,7 @@ class FixedAssignmentServiceTest {
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         FixedAssignment day3 = active(3);
         given(fixedAssignmentRepository
-                .findByEmployeeIdAndParkingSpaceIdAndActiveTrue(EMP_ID, SPACE_ID))
+                .findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(EMP_ID, SPACE_ID, ResourceType.PARKING))
                 .willReturn(List.of(active(1), active(2), day3));
         given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
                 .willReturn(List.of(active(1), active(2)));
@@ -143,7 +144,7 @@ class FixedAssignmentServiceTest {
         givenEmployeeAndSpaceExist();
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(fixedAssignmentRepository
-                .findByEmployeeIdAndParkingSpaceIdAndActiveTrue(EMP_ID, SPACE_ID))
+                .findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(EMP_ID, SPACE_ID, ResourceType.PARKING))
                 .willReturn(List.of(active(1), active(2)));
         given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
                 .willReturn(List.of(active(1), active(2)));

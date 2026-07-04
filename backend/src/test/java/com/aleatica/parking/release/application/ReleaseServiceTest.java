@@ -16,6 +16,7 @@ import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.Release;
 import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.release.ReleaseType;
 import com.aleatica.parking.release.dto.AdministrativeReleaseRequest;
 import com.aleatica.parking.release.dto.ReleaseCreateRequest;
@@ -96,7 +97,7 @@ class ReleaseServiceTest {
         // Arrange: una sola asignacion fija activa ese dia -> plaza resuelta implicitamente
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, FUTURE)).willReturn(false);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(false);
         given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
@@ -119,7 +120,7 @@ class ReleaseServiceTest {
         // Arrange (frontera inferior inclusive: hoy cuenta como futuro inmediato)
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, TODAY.getDayOfWeek().getValue(), assignment(SPACE_ID));
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, TODAY)).willReturn(false);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, TODAY)).willReturn(false);
         given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act / Assert
@@ -132,7 +133,8 @@ class ReleaseServiceTest {
         // Arrange: dos asignaciones ese dia; se libera la explicita
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID), assignment(OTHER_SPACE_ID));
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(OTHER_SPACE_ID, FUTURE))
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
+                OTHER_SPACE_ID, ResourceType.PARKING, FUTURE))
                 .willReturn(false);
         given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
@@ -200,7 +202,7 @@ class ReleaseServiceTest {
         // Arrange: el recurso ya tiene una liberacion para esa fecha (comprobacion previa)
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, FUTURE)).willReturn(true);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(true);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null)))
@@ -227,7 +229,7 @@ class ReleaseServiceTest {
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
         given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, FUTURE)).willReturn(false);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(false);
         given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
@@ -289,7 +291,7 @@ class ReleaseServiceTest {
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
         given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, FUTURE)).willReturn(true);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(true);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
@@ -395,9 +397,9 @@ class ReleaseServiceTest {
 
     // ---- Helpers ----
 
-    private FixedAssignment assignment(Long parkingSpaceId) {
+    private FixedAssignment assignment(Long resourceId) {
         FixedAssignment assignment = mock(FixedAssignment.class);
-        given(assignment.getParkingSpaceId()).willReturn(parkingSpaceId);
+        given(assignment.getResourceId()).willReturn(resourceId);
         return assignment;
     }
 

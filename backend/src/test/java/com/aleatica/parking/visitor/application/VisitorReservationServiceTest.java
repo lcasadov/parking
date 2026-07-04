@@ -18,6 +18,7 @@ import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.ReleaseRepository;
 import com.aleatica.parking.request.RequestRepository;
 import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.VisitorRepository;
 import com.aleatica.parking.visitor.VisitorReservation;
 import com.aleatica.parking.visitor.VisitorReservationRepository;
@@ -86,10 +87,11 @@ class VisitorReservationServiceTest {
         given(visitorRepository.existsById(VISITOR_ID)).willReturn(true);
         ParkingSpace space = activeSpace();
         given(parkingSpaceRepository.findById(SPACE_ID)).willReturn(Optional.of(space));
-        given(fixedAssignmentRepository.existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, FUTURE_DOW))
+        given(fixedAssignmentRepository.existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                SPACE_ID, ResourceType.PARKING, FUTURE_DOW))
                 .willReturn(false);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, FUTURE, RequestStatus.APPROVED)).willReturn(false);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                SPACE_ID, ResourceType.PARKING, FUTURE, RequestStatus.APPROVED)).willReturn(false);
         given(reservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, FUTURE))
                 .willReturn(false);
         given(clock.now()).willReturn(NOW);
@@ -126,9 +128,11 @@ class VisitorReservationServiceTest {
         given(visitorRepository.existsById(VISITOR_ID)).willReturn(true);
         ParkingSpace space = activeSpace();
         given(parkingSpaceRepository.findById(SPACE_ID)).willReturn(Optional.of(space));
-        given(fixedAssignmentRepository.existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, FUTURE_DOW))
+        given(fixedAssignmentRepository.existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                SPACE_ID, ResourceType.PARKING, FUTURE_DOW))
                 .willReturn(true);
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, FUTURE)).willReturn(false);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
+                SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(false);
 
         // Act / Assert
         assertThatThrownBy(() -> service().create(ADMIN_LOGIN, request()))
@@ -143,10 +147,11 @@ class VisitorReservationServiceTest {
         given(visitorRepository.existsById(VISITOR_ID)).willReturn(true);
         ParkingSpace space = activeSpace();
         given(parkingSpaceRepository.findById(SPACE_ID)).willReturn(Optional.of(space));
-        given(fixedAssignmentRepository.existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, FUTURE_DOW))
+        given(fixedAssignmentRepository.existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                SPACE_ID, ResourceType.PARKING, FUTURE_DOW))
                 .willReturn(false);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, FUTURE, RequestStatus.APPROVED)).willReturn(true);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                SPACE_ID, ResourceType.PARKING, FUTURE, RequestStatus.APPROVED)).willReturn(true);
 
         // Act / Assert
         assertThatThrownBy(() -> service().create(ADMIN_LOGIN, request()))
@@ -161,10 +166,11 @@ class VisitorReservationServiceTest {
         given(visitorRepository.existsById(VISITOR_ID)).willReturn(true);
         ParkingSpace space = activeSpace();
         given(parkingSpaceRepository.findById(SPACE_ID)).willReturn(Optional.of(space));
-        given(fixedAssignmentRepository.existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, FUTURE_DOW))
+        given(fixedAssignmentRepository.existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                SPACE_ID, ResourceType.PARKING, FUTURE_DOW))
                 .willReturn(false);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, FUTURE, RequestStatus.APPROVED)).willReturn(false);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                SPACE_ID, ResourceType.PARKING, FUTURE, RequestStatus.APPROVED)).willReturn(false);
         given(reservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, FUTURE))
                 .willReturn(true);
 
@@ -181,11 +187,13 @@ class VisitorReservationServiceTest {
         given(visitorRepository.existsById(VISITOR_ID)).willReturn(true);
         ParkingSpace space = activeSpace();
         given(parkingSpaceRepository.findById(SPACE_ID)).willReturn(Optional.of(space));
-        given(fixedAssignmentRepository.existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, FUTURE_DOW))
+        given(fixedAssignmentRepository.existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                SPACE_ID, ResourceType.PARKING, FUTURE_DOW))
                 .willReturn(true);
-        given(releaseRepository.existsByParkingSpaceIdAndReleaseDate(SPACE_ID, FUTURE)).willReturn(true);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, FUTURE, RequestStatus.APPROVED)).willReturn(false);
+        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
+                SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(true);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                SPACE_ID, ResourceType.PARKING, FUTURE, RequestStatus.APPROVED)).willReturn(false);
         given(reservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, FUTURE))
                 .willReturn(false);
         given(clock.now()).willReturn(NOW);

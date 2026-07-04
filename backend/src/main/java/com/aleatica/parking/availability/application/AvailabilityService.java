@@ -21,6 +21,7 @@ import com.aleatica.parking.release.ReleaseRepository;
 import com.aleatica.parking.request.Request;
 import com.aleatica.parking.request.RequestRepository;
 import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.VisitorReservation;
 import com.aleatica.parking.visitor.VisitorReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -139,10 +140,10 @@ public class AvailabilityService {
 
         Set<Long> fixedAssigned = activeFixedSpaceIdsForDay(spaceIds, dow);
         Set<Long> released = spaceIds(releaseRepository.findByReleaseDateBetween(date, date),
-                Release::getParkingSpaceId);
+                Release::getResourceId);
         Set<Long> approved = spaceIds(
                 requestRepository.findByStatusAndRequestedDateBetween(RequestStatus.APPROVED, date, date),
-                Request::getParkingSpaceId);
+                Request::getResourceId);
         Set<Long> reserved = spaceIds(visitorReservationRepository.findByReservationDateBetween(date, date),
                 VisitorReservation::getParkingSpaceId);
 
@@ -181,10 +182,13 @@ public class AvailabilityService {
     public boolean isSpaceTakenForDate(Long spaceId, LocalDate date) {
         int dayOfWeek = date.getDayOfWeek().getValue();
         boolean fixedTaken = fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(spaceId, dayOfWeek)
-                && !releaseRepository.existsByParkingSpaceIdAndReleaseDate(spaceId, date);
+                .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                        spaceId, ResourceType.PARKING, dayOfWeek)
+                && !releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
+                        spaceId, ResourceType.PARKING, date);
         boolean approvedTaken = requestRepository
-                .existsByParkingSpaceIdAndRequestedDateAndStatus(spaceId, date, RequestStatus.APPROVED);
+                .existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                        spaceId, ResourceType.PARKING, date, RequestStatus.APPROVED);
         boolean reservedTaken = visitorReservationRepository
                 .existsByParkingSpaceIdAndReservationDate(spaceId, date);
         return fixedTaken || approvedTaken || reservedTaken;
@@ -213,15 +217,15 @@ public class AvailabilityService {
         List<FixedAssignment> fixed = activeFixed(spaceIds);
         Map<SpaceDow, FixedAssignment> fixedBySpaceDow = fixed.stream()
                 .collect(Collectors.toMap(
-                        fa -> new SpaceDow(fa.getParkingSpaceId(), fa.getDayOfWeek()),
+                        fa -> new SpaceDow(fa.getResourceId(), fa.getDayOfWeek()),
                         Function.identity(), (a, b) -> a));
         Set<SpaceDate> releasedKeys = releaseRepository.findByReleaseDateBetween(weekStart, weekEnd).stream()
-                .map(r -> new SpaceDate(r.getParkingSpaceId(), r.getReleaseDate()))
+                .map(r -> new SpaceDate(r.getResourceId(), r.getReleaseDate()))
                 .collect(Collectors.toSet());
         Map<SpaceDate, Request> approvedBySpaceDate = requestRepository
                 .findByStatusAndRequestedDateBetween(RequestStatus.APPROVED, weekStart, weekEnd).stream()
                 .collect(Collectors.toMap(
-                        r -> new SpaceDate(r.getParkingSpaceId(), r.getRequestedDate()),
+                        r -> new SpaceDate(r.getResourceId(), r.getRequestedDate()),
                         Function.identity(), (a, b) -> a));
         Map<Long, String> names = employeeNames(fixed, approvedBySpaceDate.values());
 
@@ -293,7 +297,7 @@ public class AvailabilityService {
         Map<LocalDate, Request> approvedByDate = requestsByDate(myRequests, RequestStatus.APPROVED);
         Map<LocalDate, Request> pendingByDate = requestsByDate(myRequests, RequestStatus.PENDING);
         Set<SpaceDate> releasedKeys = myReleases.stream()
-                .map(r -> new SpaceDate(r.getParkingSpaceId(), r.getReleaseDate()))
+                .map(r -> new SpaceDate(r.getResourceId(), r.getReleaseDate()))
                 .collect(Collectors.toSet());
         Map<Long, String> labels = spaceLabels(fixedByDow, approvedByDate);
 
@@ -309,13 +313,13 @@ public class AvailabilityService {
         Request approved = approvedByDate.get(day);
         if (approved != null) {
             return new MyWeekDayResponse(day, MyWeekDayState.ASSIGNED,
-                    labels.get(approved.getParkingSpaceId()), RequestStatus.APPROVED);
+                    labels.get(approved.getResourceId()), RequestStatus.APPROVED);
         }
         FixedAssignment assignment = fixedByDow.get(day.getDayOfWeek().getValue());
         if (assignment != null) {
-            boolean released = releasedKeys.contains(new SpaceDate(assignment.getParkingSpaceId(), day));
+            boolean released = releasedKeys.contains(new SpaceDate(assignment.getResourceId(), day));
             MyWeekDayState state = released ? MyWeekDayState.RELEASED : MyWeekDayState.ASSIGNED;
-            return new MyWeekDayResponse(day, state, labels.get(assignment.getParkingSpaceId()), null);
+            return new MyWeekDayResponse(day, state, labels.get(assignment.getResourceId()), null);
         }
         if (pendingByDate.containsKey(day)) {
             return new MyWeekDayResponse(day, MyWeekDayState.REQUEST_PENDING, null, RequestStatus.PENDING);
@@ -330,7 +334,7 @@ public class AvailabilityService {
     private Set<Long> activeFixedSpaceIdsForDay(List<Long> spaceIds, int dow) {
         return activeFixed(spaceIds).stream()
                 .filter(fa -> fa.getDayOfWeek() == dow)
-                .map(FixedAssignment::getParkingSpaceId)
+                .map(FixedAssignment::getResourceId)
                 .collect(Collectors.toSet());
     }
 
@@ -338,7 +342,8 @@ public class AvailabilityService {
         if (spaceIds.isEmpty()) {
             return List.of();
         }
-        return fixedAssignmentRepository.findByParkingSpaceIdInAndActiveTrue(spaceIds);
+        return fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                spaceIds, ResourceType.PARKING);
     }
 
     private Map<Long, String> employeeNames(
@@ -355,9 +360,9 @@ public class AvailabilityService {
 
     private Map<Long, String> spaceLabels(
             Map<Integer, FixedAssignment> fixedByDow, Map<LocalDate, Request> approvedByDate) {
-        Set<Long> ids = fixedByDow.values().stream().map(FixedAssignment::getParkingSpaceId)
+        Set<Long> ids = fixedByDow.values().stream().map(FixedAssignment::getResourceId)
                 .collect(Collectors.toCollection(HashSet::new));
-        approvedByDate.values().forEach(r -> ids.add(r.getParkingSpaceId()));
+        approvedByDate.values().forEach(r -> ids.add(r.getResourceId()));
         if (ids.isEmpty()) {
             return Map.of();
         }

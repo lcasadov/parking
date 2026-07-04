@@ -323,12 +323,12 @@ class FixedAssignmentManagementIT extends BaseIntegrationTest {
 
     private int activeRowsForSpaceDay(long spaceId, int day) {
         return count("SELECT COUNT(*) FROM dbo.fixed_assignments "
-                + "WHERE parking_space_id = ? AND day_of_week = ? AND active = 1", spaceId, day);
+                + "WHERE resource_id = ? AND day_of_week = ? AND active = 1", spaceId, day);
     }
 
     private int totalRowsForSpaceDay(long spaceId, int day) {
         return count("SELECT COUNT(*) FROM dbo.fixed_assignments "
-                + "WHERE parking_space_id = ? AND day_of_week = ?", spaceId, day);
+                + "WHERE resource_id = ? AND day_of_week = ?", spaceId, day);
     }
 
     private long createdByOf(long employeeId) {
