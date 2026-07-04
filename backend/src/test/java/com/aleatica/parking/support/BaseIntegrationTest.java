@@ -1,9 +1,11 @@
 package com.aleatica.parking.support;
 
+import com.aleatica.parking.notification.application.EmailSenderPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -46,6 +48,16 @@ public abstract class BaseIntegrationTest {
     @Autowired
     protected MockMvc mockMvc;
 
+    /**
+     * Doble del puerto de envio SMTP compartido por todos los ITs: evita cualquier conexion
+     * SMTP real (no hay servidor en CI) cuando un flujo de negocio dispara una notificacion
+     * (crear/aprobar/rechazar solicitud, revocar asignacion). Por defecto no hace nada (envio
+     * con exito). Los ITs de notificaciones lo configuran/verifican; el reset de Mockito entre
+     * tests (MockReset.AFTER, por defecto de {@code @MockBean}) evita fugas entre tests.
+     */
+    @MockBean
+    protected EmailSenderPort emailSenderPort;
+
     @Autowired
     private JdbcTemplate baseJdbcTemplate;
 
@@ -69,6 +81,9 @@ public abstract class BaseIntegrationTest {
      */
     @BeforeEach
     void resetDomainState() {
+        // email_outbox no tiene FK; se limpia primero para que ningun IT herede correos
+        // encolados por otro (issue #29).
+        baseJdbcTemplate.update("DELETE FROM dbo.email_outbox");
         baseJdbcTemplate.update("DELETE FROM dbo.visitor_reservations");
         baseJdbcTemplate.update("DELETE FROM dbo.releases");
         baseJdbcTemplate.update("DELETE FROM dbo.requests");
@@ -100,6 +115,9 @@ public abstract class BaseIntegrationTest {
         registry.add("spring.datasource.password", SQL_SERVER::getPassword);
         registry.add("spring.datasource.driver-class-name",
                 () -> "com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        // Amplia el periodo del job de reintento de emails para que el scheduler no dispare
+        // durante los ITs: el reintento se ejerce invocandolo directamente (sin temporizadores).
+        registry.add("parking.notifications.retry-interval-ms", () -> "3600000");
     }
 
     private static String jdbcUrl() {

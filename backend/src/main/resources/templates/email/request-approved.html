@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Solicitud aprobada</title>
+</head>
+<body>
+<p>Hola <span th:text="${recipientName}">Empleado</span>,</p>
+<p>
+    Tu solicitud de plaza (referencia <strong th:text="${requestId}">0</strong>)
+    para la fecha <strong th:text="${requestedDate}">2026-01-01</strong>
+    ha sido <strong>aprobada</strong>.
+</p>
+<p th:if="${approvalNote != null and !approvalNote.isBlank()}">
+    Nota del administrador: <span th:text="${approvalNote}">nota</span>
+</p>
+<p>— parking ALEATICA</p>
+</body>
+</html>

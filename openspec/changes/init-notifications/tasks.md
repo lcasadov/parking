@@ -2,33 +2,38 @@
 
 > **Orden TDD estricto (Red → Green → Refactor).** Primero se escriben los tests (deben fallar), luego la implementación mínima para que pasen, luego el refactor. Ninguna tarea de implementación se aborda sin un test rojo previo. (Coherente con las oleadas 2-3 del flujo `apply` y `docs/TESTING-STRATEGY.md`.)
 
+> **Nombres de test:** el proyecto usa la convención camelCase `shouldX_whenY` (Google Java
+> Style + `docs/TESTING-STRATEGY.md`), no snake_case. A la derecha de cada caso se indica el
+> test concreto (clase::método) que lo cubre. IT = `NotificationOutboxIT` (SQL Server real,
+> `EmailSenderPort` mockeado); el resto son unit tests con Mockito.
+
 ## 1. Tests primero — RED (deben fallar antes de implementar)
-- [ ] 1.1 `should_send_request_created_email_to_active_admins_when_request_created` (excluye admins `active = false`).
-- [ ] 1.2 `should_send_request_approved_email_with_approval_note_when_request_approved`.
-- [ ] 1.3 `should_not_send_any_email_when_originating_transaction_rolls_back`.
-- [ ] 1.4 `should_log_failure_and_keep_request_approved_when_smtp_fails`.
-- [ ] 1.5 `should_retry_pending_emails_when_scheduled_job_runs` (éxito marca enviado, fallo conserva pendiente).
-- [ ] 1.6 `should_not_send_email_when_voluntary_release_created`.
-- [ ] 1.7 `should_not_send_email_when_employee_cancels_own_request`.
-- [ ] 1.8 `should_send_assignment_revoked_email_to_affected_employee_when_fixed_assignment_revoked`.
-- [ ] 1.9 `should_not_send_email_when_no_active_admins_exist_on_request_created`.
-- [ ] 1.10 `should_not_resend_already_sent_email_when_retry_job_runs_again` (idempotencia).
-- [ ] 1.11 Cada scenario BDD del spec cubierto por ≥1 test (nombres `should..._when...`).
+- [x] 1.1 admins activos, excluye `active=false` → `NotificationOutboxIT::shouldSendRequestCreatedEmailToActiveAdminsOnly_whenRequestCreated` + `NotificationDispatcherTest::shouldQueueOneEmailPerActiveAdmin_whenRequestCreated`.
+- [x] 1.2 aprobada con `approvalNote` → `EmailContentRendererTest::shouldCarryApprovalNoteInBody_whenRenderingRequestApproved` + `NotificationDispatcherTest::shouldQueueEmailToRequester_whenRequestApproved`.
+- [x] 1.3 rollback no envía → `NotificationOutboxIT::shouldNotSendAnyEmail_whenOriginatingTransactionRollsBack`.
+- [x] 1.4 fallo SMTP mantiene APPROVED + encola → `NotificationOutboxIT::shouldLogFailureAndKeepRequestApproved_whenSmtpFails` + `NotificationDeliveryServiceTest::shouldQueuePendingEmail_whenSmtpFailsOnImmediateSend`.
+- [x] 1.5 reintento del job (éxito→SENT, fallo→PENDING) → `NotificationOutboxIT::shouldRetryPendingEmailsAndMarkSent_whenScheduledJobRuns` + `NotificationDeliveryServiceTest::{shouldMarkSent_whenRetrySucceeds, shouldKeepPending_whenRetryFailsBelowMaxAttempts, shouldMarkFailed_whenRetryExhaustsMaxAttempts}`.
+- [x] 1.6 liberación voluntaria no envía → `NotificationOutboxIT::shouldNotSendEmail_whenVoluntaryReleaseCreated`.
+- [x] 1.7 cancelación propia no envía → `NotificationOutboxIT::shouldNotSendEmail_whenEmployeeCancelsOwnRequest`.
+- [x] 1.8 revocación → empleado afectado → `NotificationOutboxIT::shouldSendAssignmentRevokedEmailToAffectedEmployee_whenFixedAssignmentRevoked` + `NotificationDispatcherTest::shouldQueueEmailToAffectedEmployee_whenAssignmentRevoked` + `FixedAssignmentServiceTest::shouldPublishRevokedEvent_whenAdminRevokesAssignments`.
+- [x] 1.9 sin admins activos no envía → `NotificationOutboxIT::shouldNotSendAnyEmail_whenNoActiveAdminsExistOnRequestCreated` + `NotificationDispatcherTest::shouldQueueNothing_whenNoActiveAdminsExistOnRequestCreated`.
+- [x] 1.10 idempotencia (no reenvía SENT) → `NotificationOutboxIT::shouldNotResendAlreadySentEmail_whenRetryJobRunsAgain` + `NotificationDeliveryServiceTest::shouldNotResendAlreadySent_whenRetryJobRunsAgain`.
+- [x] 1.11 cada scenario BDD del spec cubierto por ≥1 test (ver mapeo 1.1–1.10).
 
 ## 2. Implementación — GREEN (lo mínimo para que los tests pasen)
-- [ ] 2.1 Definir eventos de dominio: `RequestCreatedEvent`, `RequestApprovedEvent`, `RequestRejectedEvent`, `FixedAssignmentRevokedEvent`, 🔵 `PasswordResetEvent`.
-- [ ] 2.2 Puerto de salida `EmailSenderPort` + adaptador SMTP (JavaMailSender) con render Thymeleaf.
-- [ ] 2.3 Listener `@TransactionalEventListener(phase = AFTER_COMMIT)` que mapea cada evento a plantilla + destinatarios.
-- [ ] 2.4 Resolución de destinatarios: query de `Employee` con `role = ADMIN` y `active = true` para "nueva solicitud"; empleado afectado para el resto.
-- [ ] 2.5 Plantillas Thymeleaf: `request-created.html`, `request-approved.html` (con `approval_note`), `request-rejected.html` (con `rejection_reason`), `assignment-revoked.html`, 🔵 `password-reset.html`.
-- [ ] 2.6 Resiliencia SMTP: try/catch que registra log y persiste email pendiente de reintento, sin relanzar excepción al flujo origen.
-- [ ] 2.7 Almacén de emails pendientes (entidad + repositorio puerto/adaptador) _[verificar con docs/data-model.md]_ + migración Flyway.
-- [ ] 2.8 Job `@Scheduled` de reintento: relee pendientes, reintenta, marca enviados, idempotente; política de máximo de reintentos.
-- [ ] 2.9 `ClockPort` inyectable para timestamps y ventanas de reintento.
-- [ ] 2.10 Asegurar que NO se publican eventos en liberación voluntaria (`Release VOLUNTARY`), cancelación de la propia solicitud (`Request CANCELLED` por el empleado) ni reservas de visitante.
+- [x] 2.1 Eventos de dominio: `RequestCreatedEvent`, `RequestApprovedEvent`, `RequestRejectedEvent`, `FixedAssignmentRevokedEvent`, 🔵 `PasswordResetEvent` (en `com.aleatica.parking.notification.event`). Se **consolidó** el stub previo `RequestNotificationEvent(Kind)` (borrado) en estos eventos distintos; `RequestService` publica los nuevos, comportamiento idéntico.
+- [x] 2.2 Puerto `EmailSenderPort` + adaptador SMTP `SmtpEmailSender` (JavaMailSender) + render Thymeleaf (`EmailContentRenderer`). Añadido `spring-boot-starter-thymeleaf` al pom.
+- [x] 2.3 Listener `EmailNotificationListener` `@TransactionalEventListener(AFTER_COMMIT)`: un método por evento → `NotificationDispatcher`.
+- [x] 2.4 Resolución de destinatarios (`NotificationDispatcher`): `EmployeeRepository.findByRoleAndActiveTrue(ADMIN)` para "nueva solicitud"; empleado afectado (`findById`) para el resto.
+- [x] 2.5 Plantillas Thymeleaf en `templates/email/`: `request-created`, `request-approved` (con `approvalNote`), `request-rejected` (con `rejectionReason`), `assignment-revoked`, 🔵 `password-reset`.
+- [x] 2.6 Resiliencia SMTP (`NotificationDeliveryService.sendOrQueue`): try/catch que loguea (sin PII) y encola vía `PendingEmailStore` (`REQUIRES_NEW`), sin relanzar al flujo origen.
+- [x] 2.7 Almacén `email_outbox` (entidad `EmailOutbox` + `EmailOutboxRepository`) + migración **`V11__email_outbox.sql`**. ⚠️ **`docs/data-model.md` NO define esta tabla**; se diseñó aquí (recipient, subject, body_html, status PENDING/SENT/FAILED, attempts, timestamps) y queda **pendiente de reflejar en `docs/data-model.md`** por el orquestador.
+- [x] 2.8 Job `EmailRetryJob` `@Scheduled(fixedDelayString=parking.notifications.retry-interval-ms)` → `retryPending()`: relee PENDING, reintenta, marca SENT, idempotente; política `parking.notifications.max-attempts` (5). `@EnableScheduling` en `NotificationSchedulingConfig`.
+- [x] 2.9 `ClockPort` inyectado en `NotificationDeliveryService`/`EmailOutbox` para timestamps y ventanas de reintento (reutiliza el puerto existente).
+- [x] 2.10 Exclusiones verificadas: `ReleaseService`/`VisitorService(Reservation)` publican solo eventos de AUDIT (no notificación) y `RequestService.cancel` no publica nada → sin email en liberación voluntaria, cancelación propia ni visitantes (ITs 1.6/1.7 + estructura).
 
 ## 3. Refactor
-- [ ] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
+- [x] 3.1 Complejidad < 15 por método (listener 1 llamada/método, dispatcher/delivery con helpers `findRecipient`/`retryOne`), literales repetidos → constantes `static final` (S1192), sin `Thread.sleep` en tests (S2925: `retryPending()` invocado directamente + AFTER_COMMIT síncrono). Quality Gate JaCoCo verde (≥80/75).
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 (Sin UI propia.) Verificar que las pantallas que disparan eventos muestran toast de confirmación de la operación (no del envío del email).
+- [x] 4.1 **Sin UI propia** (capability transversal). No se añade frontend en este change; las pantallas que disparan los eventos ya muestran su toast de confirmación de la operación (no del envío del email).

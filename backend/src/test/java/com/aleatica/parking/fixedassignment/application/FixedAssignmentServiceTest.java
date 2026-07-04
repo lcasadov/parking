@@ -16,6 +16,7 @@ import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
+import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -27,6 +28,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
@@ -54,6 +56,9 @@ class FixedAssignmentServiceTest {
     @Mock
     private ParkingSpaceRepository parkingSpaceRepository;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @Captor
     private ArgumentCaptor<List<FixedAssignment>> savedCaptor;
 
@@ -61,7 +66,8 @@ class FixedAssignmentServiceTest {
 
     private FixedAssignmentService newService() {
         return new FixedAssignmentService(
-                fixedAssignmentRepository, employeeRepository, parkingSpaceRepository, clock);
+                fixedAssignmentRepository, employeeRepository, parkingSpaceRepository,
+                eventPublisher, clock);
     }
 
     @Test
@@ -169,6 +175,20 @@ class FixedAssignmentServiceTest {
     }
 
     @Test
+    void shouldPublishRevokedEvent_whenAdminRevokesAssignments() {
+        // Arrange
+        givenActor(ADMIN_LOGIN, ADMIN_ID);
+        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
+                .willReturn(List.of(active(1)));
+
+        // Act
+        newService().revoke(EMP_ID, ADMIN_LOGIN);
+
+        // Assert: se notifica al empleado afectado (un unico evento con su id)
+        verify(eventPublisher).publishEvent(new FixedAssignmentRevokedEvent(EMP_ID));
+    }
+
+    @Test
     void shouldThrowNotFound_whenRevokingEmployeeWithoutActiveAssignment() {
         // Arrange
         given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
@@ -177,6 +197,9 @@ class FixedAssignmentServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().revoke(EMP_ID, ADMIN_LOGIN))
                 .isInstanceOf(EntityNotFoundException.class);
+
+        // Assert: sin asignacion activa no se notifica nada
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

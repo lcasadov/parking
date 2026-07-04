@@ -5,9 +5,9 @@
  *
  * <p>Define las excepciones de negocio (ventana, unicidad, estado, disponibilidad,
  * motivo de rechazo) que el manejador global traduce al cuerpo uniforme
- * {@code ApiError}, el puerto de notificacion
- * ({@link com.aleatica.parking.request.application.RequestNotificationPort}) con su
- * adaptador de log de Fase 1, y el disparo de eventos {@code AFTER_COMMIT}
- * ({@link com.aleatica.parking.request.application.RequestEventListener}).</p>
+ * {@code ApiError}. Las notificaciones por email las gestiona la capability
+ * {@code notifications}, que consume {@code AFTER_COMMIT} los eventos de dominio
+ * ({@code RequestCreatedEvent}, {@code RequestApprovedEvent}, {@code RequestRejectedEvent})
+ * publicados por {@link com.aleatica.parking.request.application.RequestService}.</p>
  */
 package com.aleatica.parking.request.application;

@@ -12,6 +12,9 @@ import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
+import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestCreatedEvent;
+import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.request.RejectionReasonCode;
 import com.aleatica.parking.request.Request;
@@ -79,7 +82,7 @@ class RequestServiceTest {
     private ArgumentCaptor<Request> savedCaptor;
 
     @Captor
-    private ArgumentCaptor<RequestNotificationEvent> eventCaptor;
+    private ArgumentCaptor<Object> eventCaptor;
 
     private final ClockPort clock = () -> NOW;
 
@@ -109,7 +112,7 @@ class RequestServiceTest {
         assertThat(result.requestedDate()).isEqualTo(WITHIN);
         verify(requestRepository).saveAndFlush(savedCaptor.capture());
         assertThat(savedCaptor.getValue().getCreatedAt()).isEqualTo(NOW);
-        verifyEventKind(RequestNotificationEvent.Kind.CREATED);
+        verifyEventPublished(RequestCreatedEvent.class);
     }
 
     @Test
@@ -260,7 +263,7 @@ class RequestServiceTest {
         assertThat(result.parkingSpaceId()).isEqualTo(SPACE_ID);
         assertThat(result.resolvedById()).isEqualTo(ADMIN_ID);
         assertThat(result.approvalNote()).isEqualTo("Bienvenido");
-        verifyEventKind(RequestNotificationEvent.Kind.APPROVED);
+        verifyEventPublished(RequestApprovedEvent.class);
     }
 
     @Test
@@ -355,7 +358,7 @@ class RequestServiceTest {
         assertThat(result.status()).isEqualTo(RequestStatus.REJECTED);
         assertThat(result.rejectionReasonCode()).isEqualTo(RejectionReasonCode.NO_AVAILABILITY);
         assertThat(result.resolvedById()).isEqualTo(ADMIN_ID);
-        verifyEventKind(RequestNotificationEvent.Kind.REJECTED);
+        verifyEventPublished(RequestRejectedEvent.class);
     }
 
     @Test
@@ -442,8 +445,8 @@ class RequestServiceTest {
         given(employeeRepository.findByLogin(login)).willReturn(Optional.of(actor));
     }
 
-    private void verifyEventKind(RequestNotificationEvent.Kind kind) {
+    private void verifyEventPublished(Class<?> eventType) {
         verify(eventPublisher).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getValue().kind()).isEqualTo(kind);
+        assertThat(eventCaptor.getValue()).isInstanceOf(eventType);
     }
 }
