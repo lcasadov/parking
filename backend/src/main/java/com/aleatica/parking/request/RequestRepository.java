@@ -1,6 +1,7 @@
 package com.aleatica.parking.request;
 
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -69,4 +70,36 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
      */
     boolean existsByParkingSpaceIdAndRequestedDateAndStatus(
             Long parkingSpaceId, LocalDate requestedDate, RequestStatus status);
+
+    /**
+     * Solicitudes en un estado cuyo {@code requested_date} cae dentro del intervalo
+     * (extremos inclusive).
+     *
+     * <p>Carga por rango para el calendario semanal admin ({@code availability-calendar}):
+     * una sola consulta para todas las solicitudes {@code APPROVED} de la semana, evitando
+     * N+1 al pintar los siete dias.</p>
+     *
+     * @param status estado por el que filtrar (p. ej. {@code APPROVED})
+     * @param start  fecha inicial del intervalo (inclusive)
+     * @param end    fecha final del intervalo (inclusive)
+     * @return solicitudes del intervalo en ese estado (posiblemente vacia)
+     */
+    List<Request> findByStatusAndRequestedDateBetween(
+            RequestStatus status, LocalDate start, LocalDate end);
+
+    /**
+     * Solicitudes de un empleado cuyo {@code requested_date} cae dentro del intervalo
+     * (extremos inclusive).
+     *
+     * <p>Carga por rango para la vista "Mi Semana" ({@code availability-calendar}):
+     * restringe a las solicitudes propias del solicitante en una sola consulta; el estado
+     * ({@code PENDING}/{@code APPROVED}) se cruza en memoria.</p>
+     *
+     * @param employeeId empleado solicitante
+     * @param start      fecha inicial del intervalo (inclusive)
+     * @param end        fecha final del intervalo (inclusive)
+     * @return solicitudes propias del intervalo (posiblemente vacia)
+     */
+    List<Request> findByEmployeeIdAndRequestedDateBetween(
+            Long employeeId, LocalDate start, LocalDate end);
 }

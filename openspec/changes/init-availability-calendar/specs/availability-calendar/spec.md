@@ -104,13 +104,18 @@ alcance ampliado de puestos vía `BookableResource` sin cambiar su contrato).
 - **THEN** el sistema responde 401 sin filtrar datos de disponibilidad
 
 ## Casos límite (edge cases)
-- Recurso con `active = false`: nunca aparece como disponible aunque no tenga asignación, solicitud ni reserva.
+- Recurso con `active = false`: nunca aparece como disponible aunque no tenga asignación, solicitud ni reserva. En el calendario admin las filas se limitan a las plazas activas (el contrato de `CalendarCellState` no define un estado "inactivo").
 - Asignación fija activa para `dayOfWeek(F)` SIN `Release`: el recurso no está disponible para F aunque no haya solicitud ni reserva.
 - `Release` existente pero ya cubierto por una `Request` `APPROVED` distinta: el recurso sigue NO disponible (la solicitud aprobada prevalece).
-- `VisitorReservation` solo afecta a plazas de parking; los puestos (`DESK`, alcance ampliado) no admiten reservas de visitante, por lo que esa condición no aplica a ellos.
-- Solicitudes en estado `PENDING`, `REJECTED` o `CANCELLED` NO ocupan el recurso: solo `APPROVED` cuenta como no disponible.
-- `weekStart` que no sea lunes: el sistema usa el lunes de esa semana como inicio (normalización) _[verificar con docs/openapi.yaml]_; `getMyWeek` sin `weekStart` usa la semana actual.
+- `VisitorReservation` solo afecta a plazas de parking; los puestos (`DESK`, alcance ampliado) no admiten reservas de visitante, por lo que esa condición no aplica a ellos. En el calendario admin la reserva de visitante ocupa la plaza a efectos de **disponibilidad** (`getAvailability` la excluye), pero el enum `CalendarCellState` no la representa como estado propio; su gestión vive en el listado de `visitor-reservations`.
+- Solicitudes en estado `PENDING`, `REJECTED` o `CANCELLED` NO ocupan el recurso: solo `APPROVED` cuenta como no disponible. En el calendario admin (centrado en la plaza) el estado `REQUEST_PENDING` no es atribuible a una celda de plaza: una solicitud `PENDING` nace sin `parking_space_id` (data-model §3.5). El estado `REQUEST_PENDING` sí se usa en "Mi Semana" (centrada en el empleado y el día).
+- "Mi Semana": una `Request` `APPROVED` propia se proyecta como `ASSIGNED` (el empleado dispone de recurso ese día) con `requestStatus = APPROVED` y `parkingSpaceLabel` del recurso; el enum `MyWeekDayState` no incluye `REQUEST_APPROVED` por diseño.
+- `weekStart` que no sea lunes: el sistema normaliza al lunes de esa semana (`TemporalAdjusters.previousOrSame(MONDAY)`) y devuelve ese lunes en la respuesta; `getMyWeek` sin `weekStart` usa la semana actual (lunes de hoy vía `ClockPort`).
 - Consultas de fechas pasadas: permitidas (vista histórica); no se recalcula ni muta nada.
+
+## Notas de implementación
+- La regla de disponibilidad se centraliza en `AvailabilityService` (dominio) para no divergir de las comprobaciones en línea de `requests`/`visitors`, con el mismo mapeo de día de la semana (`getDayOfWeek().getValue()`, 1=Lunes..7=Domingo). Esta capability es consulta-only y **no** reescribe `RequestService`/`VisitorReservationService` (evita regresión; la unificación efectiva de llamadas queda para `generic-resource-refactor`).
+- Sin N+1: las tres vistas cargan por rango (una consulta por entidad y ensamblado en memoria); verificado en integración con el contador de sentencias de Hibernate (nº de consultas constante frente al nº de plazas).
 
 ## Dependencias con otras capabilities
 - Depende de `auth-local`/`auth-sso` para autenticar y resolver el rol del solicitante.

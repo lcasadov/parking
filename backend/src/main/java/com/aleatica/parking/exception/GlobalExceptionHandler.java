@@ -28,8 +28,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Manejador global de errores de la API.
@@ -87,6 +89,8 @@ public class GlobalExceptionHandler {
             "ux_visitor_reservations_space_date";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
+    private static final String MSG_PARAM_MISSING = "El parametro es obligatorio";
+    private static final String MSG_PARAM_MALFORMED = "El parametro tiene un formato invalido";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
     private static final String MSG_NOT_FOUND = "Recurso no encontrado";
     private static final String MSG_INTERNAL = "Se ha producido un error interno";
@@ -150,6 +154,35 @@ public class GlobalExceptionHandler {
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
             fields.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
         }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, MSG_VALIDATION, fields));
+    }
+
+    /**
+     * Traduce la ausencia de un parametro de consulta obligatorio (p. ej. {@code date} o
+     * {@code weekStart}) a {@code 400} con el nombre del parametro en {@code fields}.
+     *
+     * @param ex excepcion de parametro de consulta ausente
+     * @return {@link ApiError} con estado 400 y el parametro en conflicto
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParam(MissingServletRequestParameterException ex) {
+        Map<String, String> fields = Map.of(ex.getParameterName(), MSG_PARAM_MISSING);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, MSG_VALIDATION, fields));
+    }
+
+    /**
+     * Traduce un parametro con tipo/formato invalido (p. ej. {@code date} o {@code weekStart}
+     * no parseables como {@code YYYY-MM-DD}, o un path variable no numerico) a {@code 400}
+     * con el nombre del parametro en {@code fields}.
+     *
+     * @param ex excepcion de tipo de argumento no coincidente
+     * @return {@link ApiError} con estado 400 y el parametro en conflicto
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        Map<String, String> fields = Map.of(ex.getName(), MSG_PARAM_MALFORMED);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_VALIDATION, MSG_VALIDATION, fields));
     }
