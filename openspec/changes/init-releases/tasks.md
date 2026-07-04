@@ -32,7 +32,7 @@
 - [ ] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Botón "Liberar" sobre el recurso fijo propio + selector de fecha (≥ hoy) → `POST /releases`.
-- [ ] 4.2 Listado "Mis liberaciones" con paginación (`GET /releases/mine`) y acción de cancelar futura (`DELETE /releases/{id}`).
-- [ ] 4.3 Panel admin: liberación administrativa con empleado, recurso, fecha y `reason` obligatorio (`POST /releases/administrative`).
-- [ ] 4.4 Toasts de éxito/error; deshabilitar cancelar en liberaciones pasadas.
+- [x] 4.1 Botón "Liberar" sobre el recurso fijo propio + selector de fecha (≥ hoy) → `POST /releases`.
+- [x] 4.2 Listado "Mis liberaciones" con paginación (`GET /releases/mine`) y acción de cancelar futura (`DELETE /releases/{id}`).
+- [x] 4.3 Panel admin: liberación administrativa con empleado, recurso, fecha y `reason` obligatorio (`POST /releases/administrative`).
+- [x] 4.4 Toasts de éxito/error; deshabilitar cancelar en liberaciones pasadas.

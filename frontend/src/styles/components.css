@@ -433,6 +433,13 @@ body.theme-dark .segmented button.active {
   flex-wrap: wrap;
 }
 
+.page-intro {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-4);
+  max-width: 640px;
+}
+
 .toolbar {
   margin-bottom: var(--space-4);
 }
@@ -545,6 +552,18 @@ body.theme-dark .segmented button.active {
   background: var(--bg-soft);
   color: var(--text-muted);
   border-color: var(--border);
+}
+
+.pill-pink {
+  background: var(--pink-soft);
+  color: var(--pink-text);
+  border-color: var(--pink-border);
+}
+
+.pill-blue {
+  background: var(--blue-soft);
+  color: var(--blue-darker);
+  border-color: var(--blue-border);
 }
 
 .pagination {

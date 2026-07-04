@@ -16,6 +16,8 @@ import {
   requestRejected,
 } from './requestFixtures';
 import type { RequestApproveRequest, RequestRejectRequest } from '../types/request';
+import { defaultMyReleasesPage, releaseFuture } from './releaseFixtures';
+import type { AdministrativeReleaseRequest, ReleaseCreateRequest } from '../types/release';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -171,6 +173,42 @@ export const handlers = [
       rejectionReasonCode: body.reasonCode,
       rejectionReason: body.rejectionReason ?? null,
     });
+  }),
+
+  // ---- Releases (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/releases/mine`, () => HttpResponse.json(defaultMyReleasesPage)),
+
+  http.post(`${BASE}/releases`, async ({ request }) => {
+    const body = (await request.json()) as ReleaseCreateRequest;
+    return HttpResponse.json(
+      {
+        ...releaseFuture,
+        id: 999,
+        releaseDate: body.releaseDate,
+        parkingSpaceId: body.parkingSpaceId ?? releaseFuture.parkingSpaceId,
+        type: 'VOLUNTARY',
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.delete(`${BASE}/releases/:id`, () => new HttpResponse(null, { status: 204 })),
+
+  http.post(`${BASE}/releases/administrative`, async ({ request }) => {
+    const body = (await request.json()) as AdministrativeReleaseRequest;
+    return HttpResponse.json(
+      {
+        ...releaseFuture,
+        id: 998,
+        employeeId: body.employeeId,
+        parkingSpaceId: body.parkingSpaceId,
+        releaseDate: body.releaseDate,
+        reason: body.reason,
+        type: 'ADMINISTRATIVE',
+        releasedById: 1,
+      },
+      { status: 201 },
+    );
   }),
 ];
 
