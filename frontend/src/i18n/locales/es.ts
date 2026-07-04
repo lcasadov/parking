@@ -40,14 +40,22 @@ export const es = {
     adminArea: 'Administración',
     employeeArea: 'Mi espacio',
   },
+  exports: {
+    groupLabel: 'Opciones de exportación',
+    csv: 'Exportar CSV',
+    xlsx: 'Exportar XLSX',
+    myData: 'Exportar mis datos',
+    errors: {
+      rateLimit: 'Has alcanzado el límite de exportaciones. Inténtalo de nuevo en un minuto.',
+      generic: 'No se pudo generar la exportación. Inténtalo de nuevo.',
+    },
+  },
   employees: {
     title: 'Empleados',
     navLabel: 'Empleados',
     searchPlaceholder: 'Buscar empleado…',
     searchLabel: 'Buscar empleado',
     new: 'Nuevo empleado',
-    exportCsv: 'Exportar CSV',
-    exportXlsx: 'Exportar XLSX',
     columns: {
       name: 'Empleado',
       email: 'Email',

@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CancelRequestModal } from '../components/CancelRequestModal';
 import { CreateRequestModal } from '../components/CreateRequestModal';
+import { ExportMenu } from '../components/ExportMenu';
 import { Spinner } from '../components/Spinner';
 import { emitApiErrorToast } from '../api/events';
+import { EXPORT_PATHS } from '../api/exportApi';
 import { useMyRequestsQuery } from '../hooks/useRequests';
 import type { Request } from '../types/request';
 
@@ -45,6 +47,7 @@ export function MyRequestsPage() {
           {t('requests.mine.title')}
         </h1>
         <div className="page-actions">
+          <ExportMenu path={EXPORT_PATHS.myRequests} fallbackBase="my-requests" />
           <Button variant="green" icon="plus" onClick={() => setIsCreateOpen(true)}>
             {t('requests.mine.new')}
           </Button>

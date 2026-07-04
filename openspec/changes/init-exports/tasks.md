@@ -34,9 +34,9 @@
 - [x] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Componente reutilizable "Exportar" con selector de formato (`csv`/`xlsx`) y descarga del fichero binario.
-- [ ] 4.2 Botón de exportación en la pantalla de empleados (solo `ADMIN`).
-- [ ] 4.3 Botón de exportación en histórico de solicitudes (solo `ADMIN`) y en "Mis solicitudes" (`EMPLOYEE`).
-- [ ] 4.4 Botón de exportación en auditoría (solo `ADMIN`).
-- [ ] 4.5 Acción "Exportar mis datos" (RGPD) accesible al usuario autenticado.
-- [ ] 4.6 Ocultar/deshabilitar botones administrativos para `EMPLOYEE` (defensa en profundidad; el backend es la autoridad).
+- [x] 4.1 Componente reutilizable "Exportar" con selector de formato (`csv`/`xlsx`) y descarga del fichero binario.
+- [x] 4.2 Botón de exportación en la pantalla de empleados (solo `ADMIN`).
+- [x] 4.3 Botón de exportación en histórico de solicitudes (solo `ADMIN`) y en "Mis solicitudes" (`EMPLOYEE`).
+- [x] 4.4 Botón de exportación en auditoría (solo `ADMIN`).
+- [x] 4.5 Acción "Exportar mis datos" (RGPD) accesible al usuario autenticado.
+- [x] 4.6 Ocultar/deshabilitar botones administrativos para `EMPLOYEE` (defensa en profundidad; el backend es la autoridad).

@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApproveRequestModal } from '../components/ApproveRequestModal';
 import { Button } from '../components/Button';
+import { ExportMenu } from '../components/ExportMenu';
 import { RejectRequestModal } from '../components/RejectRequestModal';
 import { Spinner } from '../components/Spinner';
+import { EXPORT_PATHS } from '../api/exportApi';
 import { useEmployeesQuery } from '../hooks/useEmployees';
 import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
 import { usePendingRequestsQuery } from '../hooks/useRequests';
@@ -52,6 +54,9 @@ export function PendingRequestsPage() {
         <h1 id="pending-requests-title" className="section-title">
           {t('requests.inbox.title')}
         </h1>
+        <div className="page-actions">
+          <ExportMenu path={EXPORT_PATHS.requests} fallbackBase="requests" requiredRole="ADMIN" />
+        </div>
       </header>
 
       {query.isLoading ? <Spinner /> : null}
