@@ -6,6 +6,7 @@ import { ChangePasswordPage } from '../pages/ChangePasswordPage';
 import { EmployeesPage } from '../pages/EmployeesPage';
 import { ParkingSpacesPage } from '../pages/ParkingSpacesPage';
 import { DesksPage } from '../pages/DesksPage';
+import { FloorPlanPage } from '../pages/FloorPlanPage';
 import { FixedAssignmentsPage } from '../pages/FixedAssignmentsPage';
 import { MyFixedAssignmentsPage } from '../pages/MyFixedAssignmentsPage';
 import { PendingRequestsPage } from '../pages/PendingRequestsPage';
@@ -45,6 +46,7 @@ export function AppRoutes() {
         <Route path="employees" element={<EmployeesPage />} />
         <Route path="parking-spaces" element={<ParkingSpacesPage />} />
         <Route path="desks" element={<DesksPage />} />
+        <Route path="floor-plan" element={<FloorPlanPage />} />
         <Route path="fixed-assignments" element={<FixedAssignmentsPage />} />
         <Route path="requests" element={<PendingRequestsPage />} />
         <Route path="releases" element={<AdministrativeReleasesPage />} />
@@ -67,6 +69,7 @@ export function AppRoutes() {
         <Route path="fixed-assignments" element={<MyFixedAssignmentsPage />} />
         <Route path="releases" element={<MyReleasesPage />} />
         <Route path="my-week" element={<MyWeekPage />} />
+        <Route path="floor-plan" element={<FloorPlanPage />} />
       </Route>
       <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
     </Routes>

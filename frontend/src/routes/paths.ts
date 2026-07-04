@@ -7,6 +7,7 @@ export const ROUTES = {
   adminEmployees: '/admin/employees',
   adminParkingSpaces: '/admin/parking-spaces',
   adminDesks: '/admin/desks',
+  adminFloorPlan: '/admin/floor-plan',
   adminFixedAssignments: '/admin/fixed-assignments',
   adminRequests: '/admin/requests',
   adminReleases: '/admin/releases',
@@ -20,6 +21,7 @@ export const ROUTES = {
   employeeRequests: '/employee/requests',
   employeeReleases: '/employee/releases',
   employeeMyWeek: '/employee/my-week',
+  employeeFloorPlan: '/employee/floor-plan',
 } as const;
 
 export type Role = 'ADMIN' | 'EMPLOYEE';
