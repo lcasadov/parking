@@ -9,8 +9,8 @@
 |--------|--------|--------|
 | 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
 | 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — **Fase A + Fase B completas** (A1, A2, B1–B11 ✅ archivadas + fix #43) · Puerta 3 e2e ✅ 4/4 · pendiente Fase C (puestos) | `███████░░░` **~70%** |
-| **Avance global del proyecto** | 🔄 implementación | `███████▌░░` **~76%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — Fase A + Fase B completas + **C1 refactor genérico** ✅ (+ fix #43) · Puerta 3 e2e ✅ 4/4 · pendiente C2 desks, C3 floor-plan | `███████▌░░` **~75%** |
+| **Avance global del proyecto** | 🔄 implementación | `████████░░` **~80%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
 
@@ -67,7 +67,7 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 
 | # | Change | Fase | Depende de | Etapa | % |
 |---|--------|------|------------|-------|---|
-| C1 | `init-generic-resource-refactor` | 🟢🔵 | Fase B completa | Propuesta ✅ | `█▌░░░░░░░░` 15% |
+| C1 | `init-generic-resource-refactor` | 🟢 | Fase B completa | ✅ **Archivado** (PR #58 mergeada, CI verde, verification-specialist PASS — refactor a resource_id+resource_type sin cambio de contrato, migración V12 con rollback, índices+nombres preservados, disponibilidad idéntica, ddl-auto=validate limpio, no-regresión 3 órdenes) → `changes/archive/2026-07-04-init-generic-resource-refactor` | `██████████` 100% |
 | C2 | `init-desks` | 🟢🔵 | C1 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 | C3 | `init-floor-plan` | 🟢🔵 | C2 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 
