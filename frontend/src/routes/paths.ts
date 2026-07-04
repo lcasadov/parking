@@ -9,6 +9,7 @@ export const ROUTES = {
   adminFixedAssignments: '/admin/fixed-assignments',
   adminRequests: '/admin/requests',
   adminReleases: '/admin/releases',
+  adminVisitors: '/admin/visitors',
   employee: '/employee',
   employeeFixedAssignments: '/employee/fixed-assignments',
   employeeRequests: '/employee/requests',

@@ -13,6 +13,8 @@ import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.RejectionReasonRequiredException;
 import com.aleatica.parking.request.application.RequestStateException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
+import com.aleatica.parking.visitor.application.PastVisitorReservationCancellationException;
+import com.aleatica.parking.visitor.application.SpaceNotAvailableForReservationException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +59,7 @@ public class GlobalExceptionHandler {
     private static final String CODE_NO_FIXED_ASSIGNMENT = "NO_FIXED_ASSIGNMENT";
     private static final String CODE_RESOURCE_RELEASED = "RESOURCE_ALREADY_RELEASED";
     private static final String CODE_RELEASE_NOT_CANCELLABLE = "RELEASE_NOT_CANCELLABLE";
+    private static final String CODE_RESERVATION_NOT_CANCELLABLE = "VISITOR_RESERVATION_NOT_CANCELLABLE";
 
     private static final String FIELD_NEW_PASSWORD = "newPassword";
     private static final String FIELD_CURRENT_PASSWORD = "currentPassword";
@@ -69,6 +72,7 @@ public class GlobalExceptionHandler {
     private static final String FIELD_REQUESTED_DATE = "requestedDate";
     private static final String FIELD_REJECTION_REASON = "rejectionReason";
     private static final String FIELD_RELEASE_DATE = "releaseDate";
+    private static final String FIELD_NATIONAL_ID = "nationalId";
 
     private static final String INDEX_LOGIN = "ux_employees_login";
     private static final String INDEX_EMAIL = "ux_employees_email";
@@ -78,6 +82,9 @@ public class GlobalExceptionHandler {
     private static final String INDEX_REQUEST_PENDING = "ux_requests_employee_date_pending";
     private static final String INDEX_REQUEST_APPROVED = "ux_requests_space_date_approved";
     private static final String INDEX_RELEASE_SPACE_DATE = "ux_releases_space_date";
+    private static final String INDEX_VISITOR_NATIONAL_ID = "ux_visitors_national_id";
+    private static final String INDEX_VISITOR_RESERVATION_SPACE_DATE =
+            "ux_visitor_reservations_space_date";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
@@ -97,6 +104,10 @@ public class GlobalExceptionHandler {
             "La plaza ya esta asignada a otra solicitud aprobada esa fecha";
     private static final String MSG_RESOURCE_RELEASED_TAKEN =
             "El recurso ya esta liberado para esa fecha";
+    private static final String MSG_NATIONAL_ID_TAKEN =
+            "Ya existe un visitante con ese documento de identidad";
+    private static final String MSG_RESERVATION_SPACE_TAKEN =
+            "La plaza no esta disponible para la fecha de la reserva";
 
     /**
      * Regla de traduccion de una violacion de indice unico de BD (por el fragmento del
@@ -121,7 +132,11 @@ public class GlobalExceptionHandler {
             new IndexRule(INDEX_REQUEST_APPROVED, FIELD_PARKING_SPACE_ID, MSG_SPACE_APPROVED_TAKEN,
                     CODE_SPACE_UNAVAILABLE),
             new IndexRule(INDEX_RELEASE_SPACE_DATE, FIELD_PARKING_SPACE_ID, MSG_RESOURCE_RELEASED_TAKEN,
-                    CODE_RESOURCE_RELEASED));
+                    CODE_RESOURCE_RELEASED),
+            new IndexRule(INDEX_VISITOR_NATIONAL_ID, FIELD_NATIONAL_ID, MSG_NATIONAL_ID_TAKEN,
+                    CODE_CONFLICT),
+            new IndexRule(INDEX_VISITOR_RESERVATION_SPACE_DATE, FIELD_PARKING_SPACE_ID,
+                    MSG_RESERVATION_SPACE_TAKEN, CODE_SPACE_UNAVAILABLE));
 
     /**
      * Traduce errores de validacion de DTO de entrada a {@code 400 Bad Request}.
@@ -399,6 +414,39 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handlePastReleaseCancellation(PastReleaseCancellationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_RELEASE_NOT_CANCELLABLE, ex.getMessage()));
+    }
+
+    /**
+     * Traduce la indisponibilidad de la plaza al crear una reserva de visitante (plaza
+     * inactiva, asignacion fija no liberada, solicitud aprobada u otra reserva esa fecha)
+     * a {@code 409} con {@code error = SPACE_NOT_AVAILABLE} y el detalle en
+     * {@code parkingSpaceId} (spec Req 2). El mismo codigo cubre la violacion del indice
+     * unico {@code UX_visitor_reservations_space_date} bajo concurrencia.
+     *
+     * @param ex excepcion de plaza no disponible para la reserva
+     * @return {@link ApiError} con estado 409 y detalle por campo
+     */
+    @ExceptionHandler(SpaceNotAvailableForReservationException.class)
+    public ResponseEntity<ApiError> handleReservationSpaceUnavailable(
+            SpaceNotAvailableForReservationException ex) {
+        Map<String, String> fields = Map.of(FIELD_PARKING_SPACE_ID, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_SPACE_UNAVAILABLE, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce el intento de anular una reserva de visitante de fecha pasada a {@code 400}
+     * con {@code error = VISITOR_RESERVATION_NOT_CANCELLABLE}: solo se anulan reservas
+     * futuras (spec Req 3).
+     *
+     * @param ex excepcion de anulacion de reserva pasada
+     * @return {@link ApiError} con estado 400
+     */
+    @ExceptionHandler(PastVisitorReservationCancellationException.class)
+    public ResponseEntity<ApiError> handlePastReservationCancellation(
+            PastVisitorReservationCancellationException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_RESERVATION_NOT_CANCELLABLE, ex.getMessage()));
     }
 
     /**

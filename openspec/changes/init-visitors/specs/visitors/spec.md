@@ -122,10 +122,10 @@ en una fecha y la hace **no disponible** ese día. Sin email y sin flujo de apro
 - **THEN** el sistema responde 401
 
 ## Casos límite (edge cases)
-- Reserva para **hoy**: cuenta como ocupación del día actual; su anulación (al ser "no futura") sigue las reglas de fecha definidas en `cancelVisitorReservation` _[verificar con README §"Reservas para visitantes" si "hoy" se considera anulable]_.
-- Concurrencia: dos reservas simultáneas sobre la misma plaza y fecha → solo una persiste; la segunda recibe 409 (la unicidad de disponibilidad se valida transaccionalmente, no solo en lectura previa).
+- Reserva para **hoy**: cuenta como ocupación del día actual; su anulación es válida (la regla de `cancelVisitorReservation` rechaza solo fechas **anteriores** a hoy, `reservationDate < today` → 400 `VISITOR_RESERVATION_NOT_CANCELLABLE`; una reserva de hoy sigue siendo anulable).
+- Concurrencia: dos reservas simultáneas sobre la misma plaza y fecha → solo una persiste; la segunda recibe 409 (la unicidad de disponibilidad se valida transaccionalmente vía el índice único `UX_visitor_reservations_space_date`, no solo en lectura previa).
 - Anular una reserva ya anulada o inexistente → 404.
-- Reserva sobre una `ParkingSpace` inactiva → 409/400 (la plaza inactiva no es reservable) _[verificar con docs/openapi.yaml: no hay código específico declarado]_.
+- Reserva sobre una `ParkingSpace` inactiva → 409 `SPACE_NOT_AVAILABLE` con `fields.parkingSpaceId` (la plaza inactiva no es reservable; misma respuesta que cualquier otra causa de indisponibilidad).
 - El visitante no recibe ningún email en ninguna operación (no tiene cuenta).
 - Buscar/reusar visitante existente por `nationalId`, `firstName`, `lastName` o `licensePlate` se resuelve vía filtros de `listVisitors`.
 
