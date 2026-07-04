@@ -25,6 +25,11 @@ import {
   visitorCarla,
 } from './visitorFixtures';
 import type { VisitorReservationCreateRequest } from '../types/visitor';
+import {
+  adminCalendarFor,
+  defaultAvailability,
+  defaultMyWeek,
+} from './calendarFixtures';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -262,6 +267,30 @@ export const handlers = [
     `${BASE}/visitor-reservations/:id`,
     () => new HttpResponse(null, { status: 204 }),
   ),
+
+  // ---- Availability / Calendar (defaults; cada test los sobrescribe) ----
+  http.get(`${BASE}/availability`, ({ request }) => {
+    const date = new URL(request.url).searchParams.get('date');
+    if (!date) {
+      return HttpResponse.json(apiError('validation', 'date is required'), { status: 400 });
+    }
+    return HttpResponse.json({ ...defaultAvailability, date });
+  }),
+
+  http.get(`${BASE}/calendar/admin`, ({ request }) => {
+    const weekStart = new URL(request.url).searchParams.get('weekStart');
+    if (!weekStart) {
+      return HttpResponse.json(apiError('validation', 'weekStart is required'), { status: 400 });
+    }
+    return HttpResponse.json(adminCalendarFor(weekStart));
+  }),
+
+  http.get(`${BASE}/calendar/my-week`, ({ request }) => {
+    const weekStart = new URL(request.url).searchParams.get('weekStart');
+    return HttpResponse.json(
+      weekStart ? { ...defaultMyWeek, weekStart } : defaultMyWeek,
+    );
+  }),
 ];
 
 export { BASE as MSW_BASE };

@@ -31,6 +31,6 @@
 - [x] 3.1 Con los tests en verde: métodos pequeños (`cell`, `myWeekDay`, helpers de carga; complejidad < 15), literales en constantes (S1192), inyección por constructor (S6813), sin cambiar comportamiento. Cobertura del servicio 100 % líneas / 97 % ramas.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Vista de disponibilidad por fecha (consume `getAvailability`).
-- [ ] 4.2 Rejilla de calendario semanal admin (consume `getAdminCalendar`, gated por rol `ADMIN`).
-- [ ] 4.3 Componente "Mi Semana" (consume `getMyWeek`; no renderiza nombres ajenos).
+- [x] 4.1 Vista de disponibilidad por fecha (consume `getAvailability`).
+- [x] 4.2 Rejilla de calendario semanal admin (consume `getAdminCalendar`, gated por rol `ADMIN`).
+- [x] 4.3 Componente "Mi Semana" (consume `getMyWeek`; no renderiza nombres ajenos).
