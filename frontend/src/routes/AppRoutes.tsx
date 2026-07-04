@@ -9,6 +9,8 @@ import { FixedAssignmentsPage } from '../pages/FixedAssignmentsPage';
 import { MyFixedAssignmentsPage } from '../pages/MyFixedAssignmentsPage';
 import { PendingRequestsPage } from '../pages/PendingRequestsPage';
 import { MyRequestsPage } from '../pages/MyRequestsPage';
+import { AdministrativeReleasesPage } from '../pages/AdministrativeReleasesPage';
+import { MyReleasesPage } from '../pages/MyReleasesPage';
 import { LoginPage } from '../pages/LoginPage';
 import { ROUTES } from './paths';
 
@@ -37,6 +39,7 @@ export function AppRoutes() {
         <Route path="parking-spaces" element={<ParkingSpacesPage />} />
         <Route path="fixed-assignments" element={<FixedAssignmentsPage />} />
         <Route path="requests" element={<PendingRequestsPage />} />
+        <Route path="releases" element={<AdministrativeReleasesPage />} />
       </Route>
       <Route
         path={ROUTES.employee}
@@ -49,6 +52,7 @@ export function AppRoutes() {
         <Route index element={<Navigate to={ROUTES.employeeRequests} replace />} />
         <Route path="requests" element={<MyRequestsPage />} />
         <Route path="fixed-assignments" element={<MyFixedAssignmentsPage />} />
+        <Route path="releases" element={<MyReleasesPage />} />
       </Route>
       <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
     </Routes>
