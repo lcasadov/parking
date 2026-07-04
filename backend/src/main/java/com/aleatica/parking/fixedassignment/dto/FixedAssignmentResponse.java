@@ -62,7 +62,7 @@ public record FixedAssignmentResponse(
     public static FixedAssignmentResponse from(FixedAssignment assignment) {
         return new FixedAssignmentResponse(
                 assignment.getId(),
-                assignment.getParkingSpaceId(),
+                assignment.getResourceId(),
                 assignment.getEmployeeId(),
                 assignment.getDayOfWeek(),
                 assignment.isActive(),

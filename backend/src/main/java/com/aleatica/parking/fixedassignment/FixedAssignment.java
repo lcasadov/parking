@@ -1,7 +1,10 @@
 package com.aleatica.parking.fixedassignment;
 
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -23,6 +26,12 @@ import org.hibernate.type.SqlTypes;
  * controlador trabaja con DTOs. Las referencias a otras tablas se guardan como
  * identificadores ({@code Long}) en lugar de {@code @ManyToOne}, evitando por diseno
  * cualquier consulta N+1 y manteniendo el agregado desacoplado.</p>
+ *
+ * <p>Tras el refactor a recurso generico la referencia reservable es
+ * {@code resource_id} + {@code resource_type} ({@link ResourceType}); en el nucleo de
+ * parking el tipo es siempre {@link ResourceType#PARKING} y {@code resource_id} apunta
+ * a la {@code ParkingSpace}. El DTO de salida sigue exponiendo {@code parkingSpaceId}
+ * (contrato invariable).</p>
  */
 @Entity
 @Table(name = "fixed_assignments")
@@ -32,8 +41,12 @@ public class FixedAssignment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "parking_space_id", nullable = false)
-    private Long parkingSpaceId;
+    @Column(name = "resource_id", nullable = false)
+    private Long resourceId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "resource_type", nullable = false, length = 10)
+    private ResourceType resourceType;
 
     @Column(name = "employee_id", nullable = false)
     private Long employeeId;
@@ -70,17 +83,18 @@ public class FixedAssignment {
      * <p>Nace con {@code active = true}; {@code created_at} lo fija el reloj
      * inyectable ({@code ClockPort}) para tests deterministas.</p>
      *
-     * @param parkingSpaceId plaza asignada
-     * @param employeeId     empleado titular
-     * @param dayOfWeek      dia de la semana (1-7)
-     * @param createdById    empleado (ADMIN) que crea la asignacion
-     * @param now            instante de creacion (UTC)
+     * @param resourceId  recurso asignado (plaza en el nucleo de parking)
+     * @param employeeId  empleado titular
+     * @param dayOfWeek   dia de la semana (1-7)
+     * @param createdById empleado (ADMIN) que crea la asignacion
+     * @param now         instante de creacion (UTC)
      * @return la asignacion nueva, aun no persistida
      */
     public static FixedAssignment create(
-            Long parkingSpaceId, Long employeeId, Integer dayOfWeek, Long createdById, Instant now) {
+            Long resourceId, Long employeeId, Integer dayOfWeek, Long createdById, Instant now) {
         FixedAssignment assignment = new FixedAssignment();
-        assignment.parkingSpaceId = parkingSpaceId;
+        assignment.resourceId = resourceId;
+        assignment.resourceType = ResourceType.PARKING;
         assignment.employeeId = employeeId;
         assignment.dayOfWeek = dayOfWeek;
         assignment.active = true;
@@ -106,8 +120,12 @@ public class FixedAssignment {
         return id;
     }
 
-    public Long getParkingSpaceId() {
-        return parkingSpaceId;
+    public Long getResourceId() {
+        return resourceId;
+    }
+
+    public ResourceType getResourceType() {
+        return resourceType;
     }
 
     public Long getEmployeeId() {

@@ -10,6 +10,7 @@ import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.ReleaseRepository;
 import com.aleatica.parking.request.RequestRepository;
 import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.VisitorRepository;
 import com.aleatica.parking.visitor.VisitorReservation;
 import com.aleatica.parking.visitor.VisitorReservationRepository;
@@ -173,14 +174,16 @@ public class VisitorReservationService {
 
     private boolean fixedAssignmentTaken(Long spaceId, LocalDate date) {
         int dayOfWeek = date.getDayOfWeek().getValue();
-        boolean assigned =
-                fixedAssignmentRepository.existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(spaceId, dayOfWeek);
-        return assigned && !releaseRepository.existsByParkingSpaceIdAndReleaseDate(spaceId, date);
+        boolean assigned = fixedAssignmentRepository
+                .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                        spaceId, ResourceType.PARKING, dayOfWeek);
+        return assigned && !releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
+                spaceId, ResourceType.PARKING, date);
     }
 
     private boolean approvedRequestTaken(Long spaceId, LocalDate date) {
-        return requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                spaceId, date, RequestStatus.APPROVED);
+        return requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                spaceId, ResourceType.PARKING, date, RequestStatus.APPROVED);
     }
 
     private boolean visitorReservationTaken(Long spaceId, LocalDate date) {

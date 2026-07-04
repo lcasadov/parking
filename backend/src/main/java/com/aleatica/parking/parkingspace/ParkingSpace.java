@@ -1,5 +1,7 @@
 package com.aleatica.parking.parkingspace;
 
+import com.aleatica.parking.resource.BookableResource;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -18,12 +20,17 @@ import org.hibernate.type.SqlTypes;
  * humano (p. ej. {@code P-08}) y un indicador {@code active}. Es un adaptador de
  * salida: nunca se expone en la capa web (S4684); el controlador trabaja con DTOs.</p>
  *
+ * <p>Materializa la abstraccion de dominio {@link BookableResource} con tipo
+ * {@link ResourceType#PARKING}: su {@code id} es el {@code resource_id} al que apuntan
+ * {@code fixed_assignments}, {@code requests} y {@code releases} tras el refactor a
+ * recurso generico.</p>
+ *
  * <p>{@code equals}/{@code hashCode} se apoyan en la <em>business key</em> estable
  * {@code label} (unica en BD), no en el {@code id} autogenerado.</p>
  */
 @Entity
 @Table(name = "parking_spaces")
-public class ParkingSpace {
+public class ParkingSpace implements BookableResource {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,6 +71,27 @@ public class ParkingSpace {
         return id;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Para una plaza, el {@code resource_id} coincide con su {@code id}.</p>
+     */
+    @Override
+    public Long getResourceId() {
+        return id;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Una plaza es siempre de tipo {@link ResourceType#PARKING}.</p>
+     */
+    @Override
+    public ResourceType getResourceType() {
+        return ResourceType.PARKING;
+    }
+
+    @Override
     public String getLabel() {
         return label;
     }
@@ -72,6 +100,7 @@ public class ParkingSpace {
         this.label = label;
     }
 
+    @Override
     public boolean isActive() {
         return active;
     }

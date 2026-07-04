@@ -85,6 +85,7 @@ Prerrequisito de la capability `desks`. No añade endpoints.
 - **THEN** cada fila conserva `resource_id` igual al `parking_space_id` original
 - **AND** `resource_type = 'PARKING'` en todas las filas portadas
 - **AND** las claves e índices de unicidad equivalentes quedan vigentes sobre las nuevas columnas
+- **AND** los índices únicos filtrados CONSERVAN su nombre (`UX_fixed_assignments_space_day_active`, `UX_fixed_assignments_employee_day_active`, `UX_requests_employee_date_pending`, `UX_requests_space_date_approved`, `UX_releases_space_date`), de modo que la traducción de su violación al mismo `409`/forma de error se mantiene sin cambios (implementado en `V12__generic_resource_refactor.sql`)
 
 #### Scenario: Un EMPLOYEE sigue sin poder resolver solicitudes ajenas
 - **GIVEN** un `EMPLOYEE` autenticado y una `Request` `PENDING` de otro empleado

@@ -155,7 +155,7 @@ class RetentionPurgeIT extends BaseIntegrationTest {
 
     private void insertActiveFixedAssignment(long spaceId, long empId) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.fixed_assignments (parking_space_id, employee_id, day_of_week, "
+                "INSERT INTO dbo.fixed_assignments (resource_id, employee_id, day_of_week, "
                         + "active, created_by_id, created_at) VALUES (?, ?, 1, 1, ?, ?)",
                 spaceId, empId, seedAdminId(), Timestamp.from(oldInstant));
     }
@@ -180,7 +180,7 @@ class RetentionPurgeIT extends BaseIntegrationTest {
 
     private void insertRelease(long spaceId, long empId, LocalDate date) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.releases (parking_space_id, employee_id, release_date, type, "
+                "INSERT INTO dbo.releases (resource_id, employee_id, release_date, type, "
                         + "released_by_id, created_at) VALUES (?, ?, ?, 'VOLUNTARY', ?, ?)",
                 spaceId, empId, Date.valueOf(date), empId, Timestamp.from(oldInstant));
     }

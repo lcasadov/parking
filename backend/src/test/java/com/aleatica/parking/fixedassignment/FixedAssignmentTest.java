@@ -2,6 +2,7 @@ package com.aleatica.parking.fixedassignment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.aleatica.parking.resource.ResourceType;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,8 @@ class FixedAssignmentTest {
 
         // Assert
         assertThat(assignment.isActive()).isTrue();
-        assertThat(assignment.getParkingSpaceId()).isEqualTo(8L);
+        assertThat(assignment.getResourceId()).isEqualTo(8L);
+        assertThat(assignment.getResourceType()).isEqualTo(ResourceType.PARKING);
         assertThat(assignment.getEmployeeId()).isEqualTo(15L);
         assertThat(assignment.getDayOfWeek()).isEqualTo(3);
         assertThat(assignment.getCreatedById()).isEqualTo(1L);

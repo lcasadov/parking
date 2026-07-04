@@ -294,7 +294,7 @@ class AvailabilityCalendarIT extends BaseIntegrationTest {
 
     private void insertFixedAssignment(long space, String employeeLogin, int dayOfWeek) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.fixed_assignments (parking_space_id, employee_id, day_of_week, "
+                "INSERT INTO dbo.fixed_assignments (resource_id, employee_id, day_of_week, "
                         + "active, created_by_id, created_at) VALUES (?, ?, ?, 1, ?, ?)",
                 space, idOfEmployee(employeeLogin), dayOfWeek, idOfEmployee(ADMIN_LOGIN),
                 Timestamp.from(Instant.now()));
@@ -302,7 +302,7 @@ class AvailabilityCalendarIT extends BaseIntegrationTest {
 
     private void insertRelease(long space, String employeeLogin, LocalDate date) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.releases (parking_space_id, employee_id, release_date, type, "
+                "INSERT INTO dbo.releases (resource_id, employee_id, release_date, type, "
                         + "released_by_id, created_at) VALUES (?, ?, ?, 'VOLUNTARY', ?, ?)",
                 space, idOfEmployee(employeeLogin), Date.valueOf(date), idOfEmployee(employeeLogin),
                 Timestamp.from(Instant.now()));
@@ -310,7 +310,7 @@ class AvailabilityCalendarIT extends BaseIntegrationTest {
 
     private void insertApprovedRequest(long space, String employeeLogin, LocalDate date) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.requests (employee_id, requested_date, status, parking_space_id, "
+                "INSERT INTO dbo.requests (employee_id, requested_date, status, resource_id, "
                         + "resolved_by_id, resolved_at, created_at) VALUES (?, ?, 'APPROVED', ?, ?, ?, ?)",
                 idOfEmployee(employeeLogin), Date.valueOf(date), space, idOfEmployee(ADMIN_LOGIN),
                 Timestamp.from(Instant.now()), Timestamp.from(Instant.now()));

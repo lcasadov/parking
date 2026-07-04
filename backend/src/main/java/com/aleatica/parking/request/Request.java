@@ -1,5 +1,6 @@
 package com.aleatica.parking.request;
 
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,8 +20,9 @@ import org.hibernate.type.SqlTypes;
  *
  * <p>Solicitud de un empleado para una plaza de parking en una fecha concreta, con
  * ciclo de vida de aprobacion/rechazo gestionado por el {@code ADMIN}. Nace en
- * {@link RequestStatus#PENDING} con {@code parking_space_id = NULL}; la plaza se
- * asigna solo al aprobar.</p>
+ * {@link RequestStatus#PENDING} con {@code resource_id = NULL} y
+ * {@code resource_type = PARKING}; el recurso se asigna solo al aprobar. El DTO de
+ * salida sigue exponiendo {@code parkingSpaceId} (contrato invariable).</p>
  *
  * <p>Es un adaptador de salida: nunca se expone en la capa web (S4684); el
  * controlador trabaja con DTOs. Las referencias a otras tablas se guardan como
@@ -46,8 +48,12 @@ public class Request {
     @Column(name = "status", nullable = false, length = 10)
     private RequestStatus status;
 
-    @Column(name = "parking_space_id")
-    private Long parkingSpaceId;
+    @Column(name = "resource_id")
+    private Long resourceId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "resource_type", nullable = false, length = 10)
+    private ResourceType resourceType;
 
     @Column(name = "approval_note", length = 500)
     private String approvalNote;
@@ -88,7 +94,8 @@ public class Request {
         request.employeeId = employeeId;
         request.requestedDate = requestedDate;
         request.status = RequestStatus.PENDING;
-        request.parkingSpaceId = null;
+        request.resourceId = null;
+        request.resourceType = ResourceType.PARKING;
         request.createdAt = now;
         return request;
     }
@@ -103,14 +110,14 @@ public class Request {
     /**
      * Aprueba la solicitud asignando plaza, resolutor y nota opcional.
      *
-     * @param parkingSpaceId plaza asignada
-     * @param resolvedById   empleado (ADMIN) que resuelve
-     * @param approvalNote   nota libre del administrador (puede ser {@code null})
-     * @param now            instante de resolucion (UTC)
+     * @param resourceId   recurso asignado (plaza en el nucleo de parking)
+     * @param resolvedById empleado (ADMIN) que resuelve
+     * @param approvalNote nota libre del administrador (puede ser {@code null})
+     * @param now          instante de resolucion (UTC)
      */
-    public void approve(Long parkingSpaceId, Long resolvedById, String approvalNote, Instant now) {
+    public void approve(Long resourceId, Long resolvedById, String approvalNote, Instant now) {
         this.status = RequestStatus.APPROVED;
-        this.parkingSpaceId = parkingSpaceId;
+        this.resourceId = resourceId;
         this.approvalNote = approvalNote;
         this.resolvedById = resolvedById;
         this.resolvedAt = now;
@@ -156,8 +163,12 @@ public class Request {
         return status;
     }
 
-    public Long getParkingSpaceId() {
-        return parkingSpaceId;
+    public Long getResourceId() {
+        return resourceId;
+    }
+
+    public ResourceType getResourceType() {
+        return resourceType;
     }
 
     public String getApprovalNote() {

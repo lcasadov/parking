@@ -9,6 +9,7 @@ import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.Release;
 import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.release.dto.AdministrativeReleaseRequest;
 import com.aleatica.parking.release.dto.ReleaseCreateRequest;
 import com.aleatica.parking.release.dto.ReleaseResponse;
@@ -191,7 +192,7 @@ public class ReleaseService {
                 fixedAssignmentRepository.findByEmployeeIdAndDayOfWeekAndActiveTrue(employeeId, dayOfWeek);
         if (requestedSpaceId != null) {
             boolean owns = assignments.stream()
-                    .anyMatch(assignment -> assignment.getParkingSpaceId().equals(requestedSpaceId));
+                    .anyMatch(assignment -> assignment.getResourceId().equals(requestedSpaceId));
             if (!owns) {
                 throw new NoFixedAssignmentException(MSG_NO_FIXED_ASSIGNMENT);
             }
@@ -203,14 +204,14 @@ public class ReleaseService {
         if (assignments.size() > 1) {
             throw new NoFixedAssignmentException(MSG_AMBIGUOUS_ASSIGNMENT);
         }
-        return assignments.get(0).getParkingSpaceId();
+        return assignments.get(0).getResourceId();
     }
 
     private void requireActiveAssignment(Long employeeId, Long spaceId, LocalDate releaseDate) {
         int dayOfWeek = releaseDate.getDayOfWeek().getValue();
         boolean present = fixedAssignmentRepository
                 .findByEmployeeIdAndDayOfWeekAndActiveTrue(employeeId, dayOfWeek).stream()
-                .anyMatch(assignment -> assignment.getParkingSpaceId().equals(spaceId));
+                .anyMatch(assignment -> assignment.getResourceId().equals(spaceId));
         if (!present) {
             throw new NoFixedAssignmentException(MSG_NO_FIXED_ASSIGNMENT);
         }
@@ -223,7 +224,8 @@ public class ReleaseService {
     }
 
     private void requireResourceNotReleased(Long spaceId, LocalDate releaseDate) {
-        if (releaseRepository.existsByParkingSpaceIdAndReleaseDate(spaceId, releaseDate)) {
+        if (releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
+                spaceId, ResourceType.PARKING, releaseDate)) {
             throw new ResourceAlreadyReleasedException(MSG_ALREADY_RELEASED);
         }
     }

@@ -10,6 +10,7 @@ import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -162,7 +163,8 @@ public class FixedAssignmentService {
     private void applyDaySet(
             Long employeeId, Long spaceId, List<Integer> targetDays, Long actorId, Instant now) {
         List<FixedAssignment> current =
-                fixedAssignmentRepository.findByEmployeeIdAndParkingSpaceIdAndActiveTrue(employeeId, spaceId);
+                fixedAssignmentRepository.findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(
+                        employeeId, spaceId, ResourceType.PARKING);
         Set<Integer> currentDays = new HashSet<>();
         for (FixedAssignment assignment : current) {
             currentDays.add(assignment.getDayOfWeek());

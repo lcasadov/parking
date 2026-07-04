@@ -321,12 +321,12 @@ class ReleaseManagementIT extends BaseIntegrationTest {
     private long insertRelease(
             long spaceId, long employeeId, LocalDate date, String type, String reason, long releasedById) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.releases (parking_space_id, employee_id, release_date, type, reason, "
+                "INSERT INTO dbo.releases (resource_id, employee_id, release_date, type, reason, "
                         + "released_by_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 spaceId, employeeId, Date.valueOf(date), type, reason, releasedById,
                 Timestamp.from(Instant.now()));
         Long id = jdbcTemplate.queryForObject(
-                "SELECT TOP 1 id FROM dbo.releases WHERE parking_space_id = ? AND release_date = ? "
+                "SELECT TOP 1 id FROM dbo.releases WHERE resource_id = ? AND release_date = ? "
                         + "ORDER BY id DESC",
                 Long.class, spaceId, Date.valueOf(date));
         return id == null ? 0L : id;
@@ -334,7 +334,7 @@ class ReleaseManagementIT extends BaseIntegrationTest {
 
     private void insertFixedAssignment(long spaceId, long employeeId, int dayOfWeek) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.fixed_assignments (parking_space_id, employee_id, day_of_week, "
+                "INSERT INTO dbo.fixed_assignments (resource_id, employee_id, day_of_week, "
                         + "active, created_by_id, created_at) VALUES (?, ?, ?, 1, ?, ?)",
                 spaceId, employeeId, dayOfWeek, idOfEmployee(ADMIN_LOGIN), Timestamp.from(Instant.now()));
     }
@@ -371,7 +371,7 @@ class ReleaseManagementIT extends BaseIntegrationTest {
     }
 
     private int releasesForSpaceDate(long spaceId, LocalDate date) {
-        return count("SELECT COUNT(*) FROM dbo.releases WHERE parking_space_id = ? AND release_date = ?",
+        return count("SELECT COUNT(*) FROM dbo.releases WHERE resource_id = ? AND release_date = ?",
                 spaceId, Date.valueOf(date));
     }
 

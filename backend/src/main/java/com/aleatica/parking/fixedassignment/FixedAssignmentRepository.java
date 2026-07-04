@@ -1,5 +1,6 @@
 package com.aleatica.parking.fixedassignment;
 
+import com.aleatica.parking.resource.ResourceType;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -28,12 +29,13 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * Asignaciones fijas activas de un empleado para una plaza concreta (subconjunto
      * que gestiona el {@code PUT setEmployeeFixedAssignments}).
      *
-     * @param employeeId     empleado titular
-     * @param parkingSpaceId plaza asignada
-     * @return lista de asignaciones activas de ese empleado y plaza
+     * @param employeeId   empleado titular
+     * @param resourceId   recurso asignado
+     * @param resourceType tipo de recurso (PARKING en el nucleo de parking)
+     * @return lista de asignaciones activas de ese empleado y recurso
      */
-    List<FixedAssignment> findByEmployeeIdAndParkingSpaceIdAndActiveTrue(
-            Long employeeId, Long parkingSpaceId);
+    List<FixedAssignment> findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(
+            Long employeeId, Long resourceId, ResourceType resourceType);
 
     /**
      * Indica si el empleado tiene al menos una asignacion fija activa (soporte de la
@@ -75,11 +77,13 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * esta disponible para una solicitud puntual esa fecha. Logica temporal que
      * consolidara la capability {@code availability-calendar} (B7).</p>
      *
-     * @param parkingSpaceId plaza a comprobar
-     * @param dayOfWeek      dia de la semana (1=Lunes … 7=Domingo)
-     * @return {@code true} si existe una asignacion fija activa para esa plaza y dia
+     * @param resourceId   recurso a comprobar
+     * @param resourceType tipo de recurso (PARKING en el nucleo de parking)
+     * @param dayOfWeek    dia de la semana (1=Lunes … 7=Domingo)
+     * @return {@code true} si existe una asignacion fija activa para ese recurso y dia
      */
-    boolean existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(Long parkingSpaceId, Integer dayOfWeek);
+    boolean existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+            Long resourceId, ResourceType resourceType, Integer dayOfWeek);
 
     /**
      * Asignaciones fijas activas de un conjunto de plazas (carga por bloque para el
@@ -89,8 +93,10 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * calendario cruza en memoria estas asignaciones con las liberaciones, solicitudes
      * aprobadas y reservas del rango, sin una consulta por celda.</p>
      *
-     * @param parkingSpaceIds plazas a cargar; si esta vacio la consulta no devuelve filas
-     * @return lista de asignaciones activas de esas plazas (posiblemente vacia)
+     * @param resourceIds  recursos a cargar; si esta vacio la consulta no devuelve filas
+     * @param resourceType tipo de recurso (PARKING en el nucleo de parking)
+     * @return lista de asignaciones activas de esos recursos (posiblemente vacia)
      */
-    List<FixedAssignment> findByParkingSpaceIdInAndActiveTrue(Collection<Long> parkingSpaceIds);
+    List<FixedAssignment> findByResourceIdInAndResourceTypeAndActiveTrue(
+            Collection<Long> resourceIds, ResourceType resourceType);
 }
