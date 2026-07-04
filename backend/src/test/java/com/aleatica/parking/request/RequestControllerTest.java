@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.config.SecurityConfig;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.request.application.DuplicatePendingRequestException;
@@ -41,7 +42,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * aqui solo se verifica el contrato HTTP.
  */
 @WebMvcTest(RequestController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, ConcurrencyRetry.class})
 class RequestControllerTest {
 
     private static final String BASE_URL = "/api/v1/requests";

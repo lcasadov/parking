@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.config.SecurityConfig;
 import com.aleatica.parking.fixedassignment.application.FixedAssignmentService;
 import com.aleatica.parking.fixedassignment.application.InvalidDayOfWeekException;
@@ -38,7 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * para 400/404/409. La logica se mockea; aqui solo se verifica el contrato HTTP.
  */
 @WebMvcTest(FixedAssignmentController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, ConcurrencyRetry.class})
 class FixedAssignmentControllerTest {
 
     private static final String BASE_URL = "/api/v1/fixed-assignments";

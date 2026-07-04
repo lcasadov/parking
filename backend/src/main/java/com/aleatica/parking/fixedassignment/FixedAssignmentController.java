@@ -1,5 +1,6 @@
 package com.aleatica.parking.fixedassignment;
 
+import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.exception.ApiError;
 import com.aleatica.parking.fixedassignment.application.FixedAssignmentService;
@@ -49,12 +50,16 @@ public class FixedAssignmentController {
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     private final FixedAssignmentService fixedAssignmentService;
+    private final ConcurrencyRetry concurrencyRetry;
 
     /**
      * @param fixedAssignmentService casos de uso de asignaciones fijas
+     * @param concurrencyRetry       reintento acotado ante victima de deadlock (issue #57)
      */
-    public FixedAssignmentController(FixedAssignmentService fixedAssignmentService) {
+    public FixedAssignmentController(
+            FixedAssignmentService fixedAssignmentService, ConcurrencyRetry concurrencyRetry) {
         this.fixedAssignmentService = fixedAssignmentService;
+        this.concurrencyRetry = concurrencyRetry;
     }
 
     /**
@@ -136,8 +141,9 @@ public class FixedAssignmentController {
             @PathVariable Long employeeId,
             @Valid @RequestBody FixedAssignmentPutRequest request,
             Authentication authentication) {
-        List<FixedAssignmentResponse> assignments =
-                fixedAssignmentService.setAssignments(employeeId, request, authentication.getName());
+        List<FixedAssignmentResponse> assignments = concurrencyRetry.execute(
+                () -> fixedAssignmentService.setAssignments(
+                        employeeId, request, authentication.getName()));
         return ResponseEntity.ok(assignments);
     }
 

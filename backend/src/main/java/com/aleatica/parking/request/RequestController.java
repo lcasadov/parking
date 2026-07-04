@@ -1,5 +1,6 @@
 package com.aleatica.parking.request;
 
+import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.exception.ApiError;
 import com.aleatica.parking.request.application.RequestService;
@@ -50,12 +51,15 @@ public class RequestController {
     private static final String SESSION_COOKIE = "sessionCookie";
 
     private final RequestService requestService;
+    private final ConcurrencyRetry concurrencyRetry;
 
     /**
-     * @param requestService casos de uso de solicitudes
+     * @param requestService   casos de uso de solicitudes
+     * @param concurrencyRetry reintento acotado ante victima de deadlock (issue #57)
      */
-    public RequestController(RequestService requestService) {
+    public RequestController(RequestService requestService, ConcurrencyRetry concurrencyRetry) {
         this.requestService = requestService;
+        this.concurrencyRetry = concurrencyRetry;
     }
 
     /**
@@ -223,7 +227,8 @@ public class RequestController {
             @Parameter(description = "Id de la solicitud") @PathVariable Long id,
             @Valid @RequestBody RequestApproveRequest body,
             Authentication authentication) {
-        return ResponseEntity.ok(requestService.approve(id, body, authentication.getName()));
+        return ResponseEntity.ok(concurrencyRetry.execute(
+                () -> requestService.approve(id, body, authentication.getName())));
     }
 
     /**

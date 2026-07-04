@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -103,6 +104,8 @@ public class GlobalExceptionHandler {
     private static final String MSG_NOT_FOUND = "Recurso no encontrado";
     private static final String MSG_INTERNAL = "Se ha producido un error interno";
     private static final String MSG_CONFLICT = "El recurso ya existe o viola una restriccion de unicidad";
+    private static final String MSG_CONCURRENCY_CONFLICT =
+            "La operacion no se pudo completar por un conflicto de concurrencia; reintente";
     private static final String MSG_LOGIN_TAKEN = "El login ya esta en uso";
     private static final String MSG_EMAIL_TAKEN = "El email ya esta en uso";
     private static final String MSG_LABEL_TAKEN = "La etiqueta ya esta en uso";
@@ -347,6 +350,29 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_CONFLICT, MSG_CONFLICT, null));
+    }
+
+    /**
+     * Red de seguridad para un conflicto de concurrencia no resuelto por el reintento
+     * acotado ({@link com.aleatica.parking.concurrency.ConcurrencyRetry}): traduce una
+     * victima de deadlock o un fallo de adquisicion de bloqueo (SQL Server error 1205,
+     * {@code SQLState 40001}) a {@code 409} en lugar de {@code 500} (issue #57).
+     *
+     * <p>Solo surge en carreras de insercion concurrente: en la via normal el reintento
+     * ya produce el 409 especifico via {@link #handleDataIntegrity} o la comprobacion
+     * previa del caso de uso; este manejador cubre el caso patologico de reintentos
+     * agotados. Al colocarse por debajo de {@link DataIntegrityViolationException} (tipos
+     * hermanos), no altera el mapeo de la violacion de indice unico.</p>
+     *
+     * @param ex excepcion de fallo de concurrencia (deadlock/bloqueo)
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(ConcurrencyFailureException.class)
+    public ResponseEntity<ApiError> handleConcurrencyFailure(ConcurrencyFailureException ex) {
+        LOG.warn("Conflicto de concurrencia no resuelto por reintento: {}",
+                ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_CONFLICT, MSG_CONCURRENCY_CONFLICT, null));
     }
 
     /**
