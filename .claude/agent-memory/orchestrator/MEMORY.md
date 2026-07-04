@@ -18,3 +18,7 @@
 ## Conventions
 
 - [project_language_convention](project_language_convention.md) — parking: negocio en español, identificadores de código en inglés; nomenclatura autoritativa en README.md.
+
+## Feedback
+
+- [feedback_autonomous_execution](feedback_autonomous_execution.md) — tras aprobar el plan multi-change, encadenar changes sin pausas salvo bloqueo real; PR + CI-gate por change; agentes en worktree aislado.

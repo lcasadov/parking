@@ -9,8 +9,8 @@
 |--------|--------|--------|
 | 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
 | 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — Fase A + Fase B completas + **C1 refactor genérico** ✅ + **C2 desks** ✅ (+ fix #43, #57) · Puerta 3 e2e ✅ 4/4 · pendiente C3 floor-plan | `████████░░` **~82%** |
-| **Avance global del proyecto** | 🔄 implementación | `████████▌░` **~85%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — **Fase A + Fase B + Fase C completas** (C1 refactor genérico + C2 desks + C3 floor-plan) ✅ (+ fix #43, #57) · Puerta 3 e2e ✅ 4/4 · solo pendiente D1 SSO (bloqueado por inputs de ALEATICA) | `█████████▌` **~95%** |
+| **Avance global del proyecto** | 🔄 implementación (Fase 1 funcional completa) | `█████████▌` **~96%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
 
@@ -69,11 +69,11 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 |---|--------|------|------------|-------|---|
 | C1 | `init-generic-resource-refactor` | 🟢 | Fase B completa | ✅ **Archivado** (PR #58 mergeada, CI verde, verification-specialist PASS — refactor a resource_id+resource_type sin cambio de contrato, migración V12 con rollback, índices+nombres preservados, disponibilidad idéntica, ddl-auto=validate limpio, no-regresión 3 órdenes) → `changes/archive/2026-07-04-init-generic-resource-refactor` | `██████████` 100% |
 | C2 | `init-desks` | 🟢🔵 | C1 | ✅ **Archivado** (PR #62 mergeada, CI verde — Backend+Frontend+CodeRabbit pass, verification-specialist PASS — BE 97.45%/89.51% global · paquete desk 95.7%/90%, ITs order-independent natural+reversealphabetical REV_EXIT=0, FE 275/275, probes RBAC/boundary/coexistencia DESK+PARKING/concurrencia; `/desks` añadido a openapi.yaml, tabla `desks` en data-model.md) → `changes/archive/2026-07-04-init-desks` | `██████████` 100% |
-| C3 | `init-floor-plan` | 🟢🔵 | C2 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
+| C3 | `init-floor-plan` | 🟢🔵 | C2 | ✅ **Archivado** (PR #65 mergeada, CI verde — Backend+Frontend+CodeRabbit pass, verification-specialist PASS — BE 508 unit + 172 IT, paquete floorplan 97.6%/91%, ITs order-independent REV_EXIT=0, no-regresión Request/Availability/Release/DeskReservation, FE 27 tests 98.9%/91%, probes RBAC/ventana/coords/privacidad MINE-vs-ASSIGNED/concurrencia; solicitud desde plano = desk-specific pending índice filtrado V15 no-breaking; `/floor-plan` añadido a openapi.yaml) → `changes/archive/2026-07-04-init-floor-plan` | `██████████` 100% |
 
-> ⚠️ `floor-plan` requiere **ampliar `docs/openapi.yaml`** con `/floor-plan` (sus endpoints están marcados `_[no en openapi.yaml todavía]_`). ✅ `desks` ya añadió `/desks`.
+> ✅ `desks` y `floor-plan` ya añadieron `/desks` y `/floor-plan` a `docs/openapi.yaml`.
 
-**Subtotal puestos (3 capabilities):** C1 ✅ + C2 ✅ + C3 15% → `███████░░░` ~72%
+**Subtotal puestos (3 capabilities):** ✅ **100% — Fase C completa** (C1–C3 archivadas) · `██████████`
 
 ---
 
