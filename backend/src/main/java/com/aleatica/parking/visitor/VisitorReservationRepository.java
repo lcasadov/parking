@@ -1,6 +1,7 @@
 package com.aleatica.parking.visitor;
 
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -28,6 +29,20 @@ public interface VisitorReservationRepository extends JpaRepository<VisitorReser
      * @return {@code true} si ya existe una reserva para esa plaza y fecha
      */
     boolean existsByParkingSpaceIdAndReservationDate(Long parkingSpaceId, LocalDate reservationDate);
+
+    /**
+     * Reservas de visitante cuyo {@code reservation_date} cae dentro del intervalo
+     * (extremos inclusive).
+     *
+     * <p>Carga por rango para el calculo de disponibilidad puntual y el ensamblado del
+     * calendario ({@code availability-calendar}): una sola consulta para todo el intervalo,
+     * evitando N+1.</p>
+     *
+     * @param start fecha inicial del intervalo (inclusive)
+     * @param end   fecha final del intervalo (inclusive)
+     * @return reservas del intervalo (posiblemente vacia)
+     */
+    List<VisitorReservation> findByReservationDateBetween(LocalDate start, LocalDate end);
 
     /**
      * Busqueda paginada de reservas con filtros opcionales por fecha y plaza. Cuando un

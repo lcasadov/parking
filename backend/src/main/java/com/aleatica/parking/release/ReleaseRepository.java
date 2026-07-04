@@ -1,6 +1,7 @@
 package com.aleatica.parking.release;
 
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -34,4 +35,30 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
      * @return {@code true} si ya existe una liberacion para ese recurso y fecha
      */
     boolean existsByParkingSpaceIdAndReleaseDate(Long parkingSpaceId, LocalDate releaseDate);
+
+    /**
+     * Liberaciones cuyo {@code release_date} cae dentro del intervalo (extremos inclusive).
+     *
+     * <p>Carga por rango para el calendario semanal admin ({@code availability-calendar}):
+     * una sola consulta para toda la semana, evitando N+1 al pintar los siete dias.</p>
+     *
+     * @param start fecha inicial del intervalo (inclusive)
+     * @param end   fecha final del intervalo (inclusive)
+     * @return liberaciones del intervalo (posiblemente vacia)
+     */
+    List<Release> findByReleaseDateBetween(LocalDate start, LocalDate end);
+
+    /**
+     * Liberaciones de un empleado cuyo {@code release_date} cae dentro del intervalo
+     * (extremos inclusive).
+     *
+     * <p>Carga por rango para la vista "Mi Semana" ({@code availability-calendar}):
+     * restringe a las liberaciones propias del solicitante en una sola consulta.</p>
+     *
+     * @param employeeId empleado propietario
+     * @param start      fecha inicial del intervalo (inclusive)
+     * @param end        fecha final del intervalo (inclusive)
+     * @return liberaciones propias del intervalo (posiblemente vacia)
+     */
+    List<Release> findByEmployeeIdAndReleaseDateBetween(Long employeeId, LocalDate start, LocalDate end);
 }

@@ -1,5 +1,6 @@
 package com.aleatica.parking.fixedassignment;
 
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -79,4 +80,17 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * @return {@code true} si existe una asignacion fija activa para esa plaza y dia
      */
     boolean existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(Long parkingSpaceId, Integer dayOfWeek);
+
+    /**
+     * Asignaciones fijas activas de un conjunto de plazas (carga por bloque para el
+     * calendario semanal: una sola consulta para todas las plazas, evitando N+1).
+     *
+     * <p>Soporte de la capability {@code availability-calendar}: el ensamblado del
+     * calendario cruza en memoria estas asignaciones con las liberaciones, solicitudes
+     * aprobadas y reservas del rango, sin una consulta por celda.</p>
+     *
+     * @param parkingSpaceIds plazas a cargar; si esta vacio la consulta no devuelve filas
+     * @return lista de asignaciones activas de esas plazas (posiblemente vacia)
+     */
+    List<FixedAssignment> findByParkingSpaceIdInAndActiveTrue(Collection<Long> parkingSpaceIds);
 }
