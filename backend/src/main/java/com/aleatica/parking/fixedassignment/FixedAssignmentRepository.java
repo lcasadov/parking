@@ -26,6 +26,18 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
     List<FixedAssignment> findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(Long employeeId);
 
     /**
+     * Asignaciones fijas activas de un empleado para un tipo de recurso, ordenadas por dia
+     * de la semana (base de la vista "Mi Semana" por tipo, evitando que un recurso de otro
+     * tipo con el mismo {@code resource_id} contamine la vista).
+     *
+     * @param employeeId   empleado titular
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @return lista de asignaciones activas de ese empleado y tipo (posiblemente vacia)
+     */
+    List<FixedAssignment> findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+            Long employeeId, ResourceType resourceType);
+
+    /**
      * Asignaciones fijas activas de un empleado para una plaza concreta (subconjunto
      * que gestiona el {@code PUT setEmployeeFixedAssignments}).
      *
@@ -68,6 +80,19 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * @return lista de asignaciones activas de ese empleado y dia (posiblemente vacia)
      */
     List<FixedAssignment> findByEmployeeIdAndDayOfWeekAndActiveTrue(Long employeeId, Integer dayOfWeek);
+
+    /**
+     * Asignaciones fijas activas de un empleado para un tipo de recurso y un dia de la
+     * semana (resolucion del recurso a liberar acotada al tipo: un puesto no resuelve una
+     * liberacion de plaza ni viceversa).
+     *
+     * @param employeeId   empleado titular
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param dayOfWeek    dia de la semana (1=Lunes … 7=Domingo)
+     * @return lista de asignaciones activas de ese empleado, tipo y dia (posiblemente vacia)
+     */
+    List<FixedAssignment> findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+            Long employeeId, ResourceType resourceType, Integer dayOfWeek);
 
     /**
      * Indica si una plaza tiene una asignacion fija activa para un dia de la semana.

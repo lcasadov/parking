@@ -9,7 +9,7 @@ import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
-import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
+import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -45,33 +45,34 @@ public class FixedAssignmentService {
     private static final String MSG_FORBIDDEN_OTHER =
             "No puede consultar las asignaciones fijas de otro empleado";
     private static final String MSG_EMPLOYEE_NOT_FOUND = "Empleado no encontrado: ";
-    private static final String MSG_SPACE_NOT_FOUND = "Plaza no encontrada: ";
+    private static final String MSG_RESOURCE_NOT_FOUND = "Recurso no encontrado: ";
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
     private static final String MSG_NO_ACTIVE =
             "El empleado no tiene ninguna asignacion fija activa que revocar: ";
 
     private final FixedAssignmentRepository fixedAssignmentRepository;
     private final EmployeeRepository employeeRepository;
-    private final ParkingSpaceRepository parkingSpaceRepository;
+    private final ResourceResolvers resourceResolvers;
     private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
 
     /**
      * @param fixedAssignmentRepository repositorio de asignaciones fijas
      * @param employeeRepository        repositorio de empleados (titular/actor)
-     * @param parkingSpaceRepository    repositorio de plazas (integridad referencial)
+     * @param resourceResolvers         resolutor polimorfico de recursos (integridad referencial
+     *                                  de plaza o puesto segun {@code resourceType})
      * @param eventPublisher            publicador de eventos de notificacion (revocacion)
      * @param clock                     reloj inyectable para {@code created_at}/{@code revoked_at}
      */
     public FixedAssignmentService(
             FixedAssignmentRepository fixedAssignmentRepository,
             EmployeeRepository employeeRepository,
-            ParkingSpaceRepository parkingSpaceRepository,
+            ResourceResolvers resourceResolvers,
             ApplicationEventPublisher eventPublisher,
             ClockPort clock) {
         this.fixedAssignmentRepository = fixedAssignmentRepository;
         this.employeeRepository = employeeRepository;
-        this.parkingSpaceRepository = parkingSpaceRepository;
+        this.resourceResolvers = resourceResolvers;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -127,10 +128,11 @@ public class FixedAssignmentService {
     public List<FixedAssignmentResponse> setAssignments(
             Long employeeId, FixedAssignmentPutRequest request, String actorLogin) {
         List<Integer> days = validateDays(request.daysOfWeek());
+        ResourceType resourceType = request.resourceTypeOrDefault();
         requireEmployeeExists(employeeId);
-        requireSpaceExists(request.parkingSpaceId());
+        requireResourceExists(request.parkingSpaceId(), resourceType);
         Long actorId = resolveEmployeeId(actorLogin);
-        applyDaySet(employeeId, request.parkingSpaceId(), days, actorId, clock.now());
+        applyDaySet(employeeId, request.parkingSpaceId(), resourceType, days, actorId, clock.now());
         return activeAssignments(employeeId);
     }
 
@@ -161,10 +163,11 @@ public class FixedAssignmentService {
     }
 
     private void applyDaySet(
-            Long employeeId, Long spaceId, List<Integer> targetDays, Long actorId, Instant now) {
+            Long employeeId, Long spaceId, ResourceType resourceType, List<Integer> targetDays,
+            Long actorId, Instant now) {
         List<FixedAssignment> current =
                 fixedAssignmentRepository.findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(
-                        employeeId, spaceId, ResourceType.PARKING);
+                        employeeId, spaceId, resourceType);
         Set<Integer> currentDays = new HashSet<>();
         for (FixedAssignment assignment : current) {
             currentDays.add(assignment.getDayOfWeek());
@@ -174,13 +177,14 @@ public class FixedAssignmentService {
         }
         fixedAssignmentRepository.saveAll(current);
         // Aplica las revocaciones antes de insertar para no chocar con el indice
-        // filtrado empleado/dia al reasignar un dia dentro de la misma plaza.
+        // filtrado empleado/dia al reasignar un dia dentro del mismo recurso.
         fixedAssignmentRepository.flush();
 
         List<FixedAssignment> toCreate = new ArrayList<>();
         for (Integer day : targetDays) {
             if (!currentDays.contains(day)) {
-                toCreate.add(FixedAssignment.create(spaceId, employeeId, day, actorId, now));
+                toCreate.add(FixedAssignment.create(
+                        spaceId, resourceType, employeeId, day, actorId, now));
             }
         }
         fixedAssignmentRepository.saveAll(toCreate);
@@ -217,9 +221,9 @@ public class FixedAssignmentService {
         }
     }
 
-    private void requireSpaceExists(Long parkingSpaceId) {
-        if (!parkingSpaceRepository.existsById(parkingSpaceId)) {
-            throw new EntityNotFoundException(MSG_SPACE_NOT_FOUND + parkingSpaceId);
+    private void requireResourceExists(Long resourceId, ResourceType resourceType) {
+        if (!resourceResolvers.exists(resourceId, resourceType)) {
+            throw new EntityNotFoundException(MSG_RESOURCE_NOT_FOUND + resourceId);
         }
     }
 }

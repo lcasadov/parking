@@ -71,6 +71,8 @@ class AvailabilityServiceTest {
     @Mock
     private ParkingSpaceRepository parkingSpaceRepository;
     @Mock
+    private com.aleatica.parking.desk.DeskRepository deskRepository;
+    @Mock
     private FixedAssignmentRepository fixedAssignmentRepository;
     @Mock
     private ReleaseRepository releaseRepository;
@@ -84,7 +86,7 @@ class AvailabilityServiceTest {
     private ClockPort clock;
 
     private AvailabilityService service() {
-        return new AvailabilityService(parkingSpaceRepository, fixedAssignmentRepository,
+        return new AvailabilityService(parkingSpaceRepository, deskRepository, fixedAssignmentRepository,
                 releaseRepository, requestRepository, visitorReservationRepository, employeeRepository,
                 clock);
     }
@@ -283,10 +285,11 @@ class AvailabilityServiceTest {
         given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
                 anyCollection(), eq(ResourceType.PARKING)))
                 .willReturn(List.of(assignment(SPACE_ID, EMP_ID, 1), assignment(SPACE_ID, EMP_ID, 2)));
-        given(releaseRepository.findByReleaseDateBetween(MONDAY, MONDAY.plusDays(6)))
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(
+                ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(release(SPACE_ID, tuesday)));
-        given(requestRepository.findByStatusAndRequestedDateBetween(
-                RequestStatus.APPROVED, MONDAY, MONDAY.plusDays(6)))
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(approvedRequestWithId(7L, SPACE_ID, OTHER_ID, wednesday)));
         given(employeeRepository.findAllById(any()))
                 .willReturn(List.of(employee(EMP_ID, "Ada", "Lovelace"), employee(OTHER_ID, "Grace", "Hopper")));
@@ -315,9 +318,10 @@ class AvailabilityServiceTest {
         given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
                 anyCollection(), eq(ResourceType.PARKING)))
                 .willReturn(List.of());
-        given(releaseRepository.findByReleaseDateBetween(MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
-        given(requestRepository.findByStatusAndRequestedDateBetween(
-                RequestStatus.APPROVED, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(
+                ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
 
         // Act
         AdminWeeklyCalendarResponse response = service().adminCalendar(wednesday);
@@ -336,13 +340,16 @@ class AvailabilityServiceTest {
         LocalDate thursday = MONDAY.plusDays(3);
         LocalDate friday = MONDAY.plusDays(4);
         givenActor();
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+                EMP_ID, ResourceType.PARKING))
                 .willReturn(List.of(assignment(SPACE_ID, EMP_ID, 1), assignment(SPACE_ID, EMP_ID, 2)));
-        given(requestRepository.findByEmployeeIdAndRequestedDateBetween(EMP_ID, MONDAY, MONDAY.plusDays(6)))
+        given(requestRepository.findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
+                EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(
                         approvedRequestWithId(3L, SPACE_ID, EMP_ID, thursday),
                         pendingRequest(EMP_ID, friday)));
-        given(releaseRepository.findByEmployeeIdAndReleaseDateBetween(EMP_ID, MONDAY, MONDAY.plusDays(6)))
+        given(releaseRepository.findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+                EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(release(SPACE_ID, tuesday)));
         given(parkingSpaceRepository.findAllById(any()))
                 .willReturn(List.of(space(SPACE_ID, SPACE_LABEL)));
@@ -370,11 +377,14 @@ class AvailabilityServiceTest {
         // Arrange: sin weekStart -> semana actual via ClockPort (NOW = lunes 2026-07-06)
         givenActor();
         given(clock.now()).willReturn(NOW);
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+                EMP_ID, ResourceType.PARKING))
                 .willReturn(List.of());
-        given(requestRepository.findByEmployeeIdAndRequestedDateBetween(EMP_ID, MONDAY, MONDAY.plusDays(6)))
+        given(requestRepository.findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
+                EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of());
-        given(releaseRepository.findByEmployeeIdAndReleaseDateBetween(EMP_ID, MONDAY, MONDAY.plusDays(6)))
+        given(releaseRepository.findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+                EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of());
 
         // Act
@@ -415,11 +425,13 @@ class AvailabilityServiceTest {
     }
 
     private void givenReleasesOnDate(Release... releases) {
-        given(releaseRepository.findByReleaseDateBetween(DATE, DATE)).willReturn(List.of(releases));
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, DATE, DATE))
+                .willReturn(List.of(releases));
     }
 
     private void givenApprovedRequestsOnDate(Request... requests) {
-        given(requestRepository.findByStatusAndRequestedDateBetween(RequestStatus.APPROVED, DATE, DATE))
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.PARKING, DATE, DATE))
                 .willReturn(List.of(requests));
     }
 

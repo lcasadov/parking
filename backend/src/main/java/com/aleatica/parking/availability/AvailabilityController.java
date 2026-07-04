@@ -3,6 +3,7 @@ package com.aleatica.parking.availability;
 import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.availability.dto.AvailabilityResponse;
 import com.aleatica.parking.exception.ApiError;
+import com.aleatica.parking.resource.ResourceType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -48,7 +49,8 @@ public class AvailabilityController {
      * Devuelve los recursos disponibles para la fecha indicada (cualquier usuario
      * autenticado). Consulta-only: no modifica ningun estado.
      *
-     * @param date fecha a consultar (ISO-8601 {@code YYYY-MM-DD})
+     * @param date         fecha a consultar (ISO-8601 {@code YYYY-MM-DD})
+     * @param resourceType tipo de recurso ({@code PARKING} por defecto, {@code DESK} para puestos)
      * @return {@code 200} con la disponibilidad de la fecha
      */
     @Operation(summary = "Recursos disponibles para una fecha",
@@ -64,7 +66,10 @@ public class AvailabilityController {
     public ResponseEntity<AvailabilityResponse> getAvailability(
             @Parameter(description = "Fecha a consultar (ISO-8601)", required = true, example = "2026-07-10")
             @RequestParam(name = "date")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(availabilityService.availabilityForDate(date));
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @Parameter(description = "Tipo de recurso; por defecto PARKING", example = "DESK")
+            @RequestParam(name = "resourceType", required = false, defaultValue = "PARKING")
+            ResourceType resourceType) {
+        return ResponseEntity.ok(availabilityService.availabilityForDate(date, resourceType));
     }
 }

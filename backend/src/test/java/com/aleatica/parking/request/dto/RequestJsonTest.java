@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.aleatica.parking.request.RejectionReasonCode;
 import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -30,7 +31,7 @@ class RequestJsonTest {
         // Arrange
         RequestResponse response = new RequestResponse(
                 42L, 15L, LocalDate.of(2026, 7, 10), RequestStatus.PENDING,
-                null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"));
+                null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
 
         // Act
         String json = objectMapper.writeValueAsString(response);
@@ -51,7 +52,7 @@ class RequestJsonTest {
         RequestResponse response = new RequestResponse(
                 42L, 15L, LocalDate.of(2026, 7, 10), RequestStatus.APPROVED,
                 8L, "Bienvenido", null, null, 1L, Instant.parse("2026-07-04T11:00:00Z"),
-                Instant.parse("2026-07-04T10:00:00Z"));
+                Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
 
         // Act
         String json = objectMapper.writeValueAsString(response);
@@ -71,7 +72,7 @@ class RequestJsonTest {
         RequestResponse response = new RequestResponse(
                 42L, 15L, LocalDate.of(2026, 7, 10), RequestStatus.REJECTED,
                 null, null, RejectionReasonCode.OTHER, "Motivo detallado", 1L,
-                Instant.parse("2026-07-04T11:00:00Z"), Instant.parse("2026-07-04T10:00:00Z"));
+                Instant.parse("2026-07-04T11:00:00Z"), Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
 
         // Act
         String json = objectMapper.writeValueAsString(response);

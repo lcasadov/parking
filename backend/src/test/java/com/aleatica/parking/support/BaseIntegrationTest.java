@@ -92,6 +92,10 @@ public abstract class BaseIntegrationTest {
         baseJdbcTemplate.update("DELETE FROM dbo.releases");
         baseJdbcTemplate.update("DELETE FROM dbo.requests");
         baseJdbcTemplate.update("DELETE FROM dbo.fixed_assignments");
+        // desks se limpia despues de sus referencias hijas (fixed_assignments/requests/releases
+        // via resource_id): tras generic-resource-refactor esas FK se soltaron, pero se respeta
+        // el orden logico para que ningun IT herede los 65 puestos del seed de desarrollo (V14).
+        baseJdbcTemplate.update("DELETE FROM dbo.desks");
         baseJdbcTemplate.update("DELETE FROM dbo.audit_log");
         baseJdbcTemplate.update("DELETE FROM dbo.login_log");
         baseJdbcTemplate.update("DELETE FROM dbo.visitors");

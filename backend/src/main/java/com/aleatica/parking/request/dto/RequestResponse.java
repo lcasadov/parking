@@ -3,6 +3,7 @@ package com.aleatica.parking.request.dto;
 import com.aleatica.parking.request.RejectionReasonCode;
 import com.aleatica.parking.request.Request;
 import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
@@ -63,7 +64,10 @@ public record RequestResponse(
         @JsonProperty("resolvedAt") Instant resolvedAt,
 
         @Schema(description = "Instante de creacion (ISO-8601)")
-        @JsonProperty("createdAt") Instant createdAt) {
+        @JsonProperty("createdAt") Instant createdAt,
+
+        @Schema(description = "Tipo de recurso solicitado", example = "PARKING")
+        @JsonProperty("resourceType") ResourceType resourceType) {
 
     /**
      * Mapea la entidad de persistencia a su DTO de salida.
@@ -83,6 +87,7 @@ public record RequestResponse(
                 request.getRejectionReason(),
                 request.getResolvedById(),
                 request.getResolvedAt(),
-                request.getCreatedAt());
+                request.getCreatedAt(),
+                request.getResourceType());
     }
 }

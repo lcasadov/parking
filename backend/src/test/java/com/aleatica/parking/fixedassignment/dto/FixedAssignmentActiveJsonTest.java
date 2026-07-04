@@ -2,6 +2,7 @@ package com.aleatica.parking.fixedassignment.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.Instant;
@@ -24,7 +25,7 @@ class FixedAssignmentActiveJsonTest {
         // Arrange
         FixedAssignmentResponse response = new FixedAssignmentResponse(
                 42L, 8L, 15L, 1, true, 1L,
-                Instant.parse("2026-01-01T00:00:00Z"), null, null);
+                Instant.parse("2026-01-01T00:00:00Z"), null, null, ResourceType.PARKING);
 
         // Act
         String json = objectMapper.writeValueAsString(response);
@@ -44,7 +45,7 @@ class FixedAssignmentActiveJsonTest {
         // Arrange
         FixedAssignmentResponse response = new FixedAssignmentResponse(
                 42L, 8L, 15L, 3, false, 1L,
-                Instant.parse("2026-01-01T00:00:00Z"), 1L, Instant.parse("2026-02-01T00:00:00Z"));
+                Instant.parse("2026-01-01T00:00:00Z"), 1L, Instant.parse("2026-02-01T00:00:00Z"), ResourceType.PARKING);
 
         // Act
         String json = objectMapper.writeValueAsString(response);

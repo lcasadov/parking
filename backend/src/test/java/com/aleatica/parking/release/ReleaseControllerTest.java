@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.config.SecurityConfig;
 import com.aleatica.parking.employee.dto.PageResponse;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.release.application.NoFixedAssignmentException;
 import com.aleatica.parking.release.application.PastReleaseCancellationException;
 import com.aleatica.parking.release.application.ReleaseDateInPastException;
@@ -282,6 +283,6 @@ class ReleaseControllerTest {
         Long releasedBy = type == ReleaseType.ADMINISTRATIVE ? 1L : 15L;
         return new ReleaseResponse(
                 42L, 8L, 15L, LocalDate.of(2026, 7, 10), type, reason, releasedBy,
-                Instant.parse("2026-07-04T10:00:00Z"));
+                Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
     }
 }

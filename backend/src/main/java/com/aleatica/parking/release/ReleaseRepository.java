@@ -52,6 +52,24 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
     List<Release> findByReleaseDateBetween(LocalDate start, LocalDate end);
 
     /**
+     * Liberaciones de un tipo de recurso cuyo {@code release_date} cae dentro del intervalo
+     * (extremos inclusive).
+     *
+     * <p>Variante filtrada por {@code resource_type} de {@link #findByReleaseDateBetween}:
+     * la disponibilidad y el calendario cargan solo las liberaciones del tipo consultado,
+     * evitando que una liberacion {@code DESK} con el mismo {@code resource_id} que una
+     * plaza marque erroneamente esa plaza como liberada (los identificadores no son unicos
+     * entre tablas de recurso).</p>
+     *
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param start        fecha inicial del intervalo (inclusive)
+     * @param end          fecha final del intervalo (inclusive)
+     * @return liberaciones del intervalo y tipo (posiblemente vacia)
+     */
+    List<Release> findByResourceTypeAndReleaseDateBetween(
+            ResourceType resourceType, LocalDate start, LocalDate end);
+
+    /**
      * Liberaciones de un empleado cuyo {@code release_date} cae dentro del intervalo
      * (extremos inclusive).
      *
@@ -64,4 +82,18 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
      * @return liberaciones propias del intervalo (posiblemente vacia)
      */
     List<Release> findByEmployeeIdAndReleaseDateBetween(Long employeeId, LocalDate start, LocalDate end);
+
+    /**
+     * Liberaciones de un empleado y de un tipo de recurso cuyo {@code release_date} cae
+     * dentro del intervalo (extremos inclusive): variante filtrada por {@code resource_type}
+     * de {@link #findByEmployeeIdAndReleaseDateBetween} para la vista "Mi Semana" por tipo.
+     *
+     * @param employeeId   empleado propietario
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param start        fecha inicial del intervalo (inclusive)
+     * @param end          fecha final del intervalo (inclusive)
+     * @return liberaciones propias del intervalo y tipo (posiblemente vacia)
+     */
+    List<Release> findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+            Long employeeId, ResourceType resourceType, LocalDate start, LocalDate end);
 }

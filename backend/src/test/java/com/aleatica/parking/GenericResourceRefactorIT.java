@@ -10,8 +10,8 @@ import com.aleatica.parking.release.Release;
 import com.aleatica.parking.release.ReleaseRepository;
 import com.aleatica.parking.request.Request;
 import com.aleatica.parking.request.RequestRepository;
+import com.aleatica.parking.parkingspace.ParkingSpaceResourceResolver;
 import com.aleatica.parking.resource.BookableResource;
-import com.aleatica.parking.resource.ResourceResolverPort;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.support.BaseIntegrationTest;
 import java.sql.Date;
@@ -54,8 +54,10 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
     @Autowired
     private AvailabilityService availabilityService;
 
+    // Adaptador PARKING concreto: tras la capability desks hay dos ResourceResolverPort
+    // (PARKING/DESK), asi que este IT del nucleo de parking inyecta el de plaza explicitamente.
     @Autowired
-    private ResourceResolverPort resourceResolver;
+    private ParkingSpaceResourceResolver resourceResolver;
 
     // ---- Req 1: modelo generalizado ----
 

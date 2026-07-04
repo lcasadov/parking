@@ -21,6 +21,7 @@ import com.aleatica.parking.release.ReleaseType;
 import com.aleatica.parking.release.dto.AdministrativeReleaseRequest;
 import com.aleatica.parking.release.dto.ReleaseCreateRequest;
 import com.aleatica.parking.release.dto.ReleaseResponse;
+import com.aleatica.parking.resource.ResourceResolvers;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -68,7 +69,7 @@ class ReleaseServiceTest {
     private EmployeeRepository employeeRepository;
 
     @Mock
-    private ParkingSpaceRepository parkingSpaceRepository;
+    private ResourceResolvers resourceResolvers;
 
     @Mock
     private FixedAssignmentRepository fixedAssignmentRepository;
@@ -86,7 +87,7 @@ class ReleaseServiceTest {
 
     private ReleaseService newService() {
         return new ReleaseService(
-                releaseRepository, employeeRepository, parkingSpaceRepository,
+                releaseRepository, employeeRepository, resourceResolvers,
                 fixedAssignmentRepository, eventPublisher, clock);
     }
 
@@ -102,7 +103,7 @@ class ReleaseServiceTest {
 
         // Act
         ReleaseResponse result =
-                newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null));
+                newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null));
 
         // Assert: VOLUNTARY, titular = ejecutor, reason nulo, plaza resuelta
         assertThat(result.type()).isEqualTo(ReleaseType.VOLUNTARY);
@@ -124,7 +125,7 @@ class ReleaseServiceTest {
         given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act / Assert
-        assertThat(newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(TODAY, null)).type())
+        assertThat(newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(TODAY, null, null)).type())
                 .isEqualTo(ReleaseType.VOLUNTARY);
     }
 
@@ -140,7 +141,7 @@ class ReleaseServiceTest {
 
         // Act
         ReleaseResponse result =
-                newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, OTHER_SPACE_ID));
+                newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, OTHER_SPACE_ID, null));
 
         // Assert
         assertThat(result.parkingSpaceId()).isEqualTo(OTHER_SPACE_ID);
@@ -152,7 +153,7 @@ class ReleaseServiceTest {
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(PAST, null)))
+        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(PAST, null, null)))
                 .isInstanceOf(ReleaseDateInPastException.class);
         verify(releaseRepository, never()).saveAndFlush(any());
     }
@@ -164,7 +165,7 @@ class ReleaseServiceTest {
         givenAssignmentsFor(EMP_ID, FUTURE_DOW);
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null)))
+        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null)))
                 .isInstanceOf(NoFixedAssignmentException.class);
         verify(releaseRepository, never()).saveAndFlush(any());
     }
@@ -179,7 +180,7 @@ class ReleaseServiceTest {
                 mock(com.aleatica.parking.fixedassignment.FixedAssignment.class));
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null)))
+        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null)))
                 .isInstanceOf(NoFixedAssignmentException.class);
         verify(releaseRepository, never()).saveAndFlush(any());
     }
@@ -192,7 +193,7 @@ class ReleaseServiceTest {
 
         // Act / Assert
         assertThatThrownBy(() -> newService()
-                .createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, OTHER_SPACE_ID)))
+                .createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, OTHER_SPACE_ID, null)))
                 .isInstanceOf(NoFixedAssignmentException.class);
         verify(releaseRepository, never()).saveAndFlush(any());
     }
@@ -205,7 +206,7 @@ class ReleaseServiceTest {
         given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(true);
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null)))
+        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null)))
                 .isInstanceOf(ResourceAlreadyReleasedException.class);
         verify(releaseRepository, never()).saveAndFlush(any());
     }
@@ -216,7 +217,7 @@ class ReleaseServiceTest {
         given(employeeRepository.findByLogin(EMP_LOGIN)).willReturn(Optional.empty());
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null)))
+        assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null)))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -227,14 +228,14 @@ class ReleaseServiceTest {
         // Arrange
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
         given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(false);
         given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
         ReleaseResponse result = newService().createAdministrativeRelease(
-                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON));
+                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON, null));
 
         // Assert: ADMINISTRATIVE, titular != ejecutor, reason presente
         assertThat(result.type()).isEqualTo(ReleaseType.ADMINISTRATIVE);
@@ -252,7 +253,7 @@ class ReleaseServiceTest {
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
-                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON)))
+                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON, null)))
                 .isInstanceOf(EntityNotFoundException.class);
         verify(releaseRepository, never()).saveAndFlush(any());
     }
@@ -262,11 +263,11 @@ class ReleaseServiceTest {
         // Arrange
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(false);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(false);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
-                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON)))
+                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON, null)))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -275,12 +276,12 @@ class ReleaseServiceTest {
         // Arrange: el recurso no tiene una asignacion fija activa del empleado ese dia
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(OTHER_SPACE_ID));
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
-                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON)))
+                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON, null)))
                 .isInstanceOf(NoFixedAssignmentException.class);
     }
 
@@ -289,13 +290,13 @@ class ReleaseServiceTest {
         // Arrange
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
         given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(true);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
-                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON)))
+                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON, null)))
                 .isInstanceOf(ResourceAlreadyReleasedException.class);
     }
 
@@ -306,7 +307,7 @@ class ReleaseServiceTest {
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
-                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, PAST, REASON)))
+                ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, PAST, REASON, null)))
                 .isInstanceOf(ReleaseDateInPastException.class);
         verify(releaseRepository, never()).saveAndFlush(any());
     }
@@ -404,7 +405,7 @@ class ReleaseServiceTest {
     }
 
     private void givenAssignmentsFor(Long employeeId, int dayOfWeek, FixedAssignment... assignments) {
-        given(fixedAssignmentRepository.findByEmployeeIdAndDayOfWeekAndActiveTrue(employeeId, dayOfWeek))
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(employeeId, ResourceType.PARKING, dayOfWeek))
                 .willReturn(List.of(assignments));
     }
 
