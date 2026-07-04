@@ -338,6 +338,38 @@ GO
 - **Official path:** `org/springframework/session/jdbc/schema-sqlserver.sql` inside the `spring-session-jdbc` jar (Spring Session 3.3.x, governed by the Spring Boot 3.3 BOM).
 - It is reproduced verbatim in migration `V2__spring_session_schema.sql` (section 7). It **must** match the Spring Session version on the classpath; copy it from the actual dependency rather than hand-editing.
 
+### 3.11 `email_outbox`
+**Purpose:** retry store for the cross-cutting `notifications` capability. A row is created **only** when the immediate SMTP send (in the `AFTER_COMMIT` phase of the originating event) fails; a scheduled job re-reads `PENDING` rows and retries them. Introduced by migration **`V11__email_outbox.sql`** (change `init-notifications`).
+
+```sql
+CREATE TABLE dbo.email_outbox (
+    id               BIGINT IDENTITY(1,1) NOT NULL,
+    recipient        NVARCHAR(255) NOT NULL,
+    subject          NVARCHAR(255) NOT NULL,
+    body_html        NVARCHAR(MAX) NOT NULL,
+    status           VARCHAR(20) NOT NULL,
+    attempts         INT NOT NULL CONSTRAINT DF_email_outbox_attempts DEFAULT 0,
+    last_error       NVARCHAR(500) NULL,
+    created_at       DATETIME2(3) NOT NULL,
+    last_attempt_at  DATETIME2(3) NULL,
+    sent_at          DATETIME2(3) NULL,
+    CONSTRAINT PK_email_outbox PRIMARY KEY (id),
+    CONSTRAINT CK_email_outbox_status CHECK (status IN ('PENDING', 'SENT', 'FAILED'))
+);
+GO
+
+-- The retry job filters by status = 'PENDING'; this index serves that scan.
+CREATE INDEX IX_email_outbox_status ON dbo.email_outbox(status);
+GO
+```
+
+**Notes**
+- The row stores the **already-rendered** message (`recipient`, `subject`, `body_html`) so the retry job re-sends without re-resolving recipients or re-rendering Thymeleaf templates.
+- `status` machine is `PENDING → SENT | FAILED`. The job reads only `PENDING`, so a `SENT` row is never re-sent (idempotency); `FAILED` is reached when `attempts` hits the configured `parking.notifications.max-attempts` (5), stopping the retry loop (e.g. a recipient without a valid email).
+- No FK: `recipient` is stored as the literal email address (needed verbatim to re-send), not an `employee_id`.
+- `created_at` / `last_attempt_at` / `sent_at` are set in code via the injectable `ClockPort` (no DB default), so retry-window behaviour is testable with a fixed clock.
+- **RGPD:** the row holds a recipient email + a rendered body (may contain personal data). It is transient (deleted on success/terminal failure by the app; a periodic purge of terminal rows can be added if volume warrants) and out of scope of the 2-year historical purge of section 9 unless later reclassified.
+
 ---
 
 ## 4. Critical constraints (filtered indexes)
@@ -416,6 +448,7 @@ CREATE INDEX IX_login_log_occurred_at ON dbo.login_log(occurred_at);
 | `releases` | `type` | `VOLUNTARY`, `ADMINISTRATIVE` |
 | `login_log` | `result` | `OK`, `INVALID_CREDENTIALS`, `LOCKED`, `INACTIVE`, `NO_ACCESS`, `FALLBACK_OK` |
 | `login_log` | `phase` | `PHASE_1`, `PHASE_2`, `FALLBACK` |
+| `email_outbox` | `status` | `PENDING`, `SENT`, `FAILED` |
 
 > **Translation note (vs prompt2, Spanish):** `EMPLEADO→EMPLOYEE`, `PENDIENTE/APROBADA/RECHAZADA/CANCELADA→PENDING/APPROVED/REJECTED/CANCELLED`, `VOLUNTARIA/ADMINISTRATIVA→VOLUNTARY/ADMINISTRATIVE`, `CRED_INVALIDAS→INVALID_CREDENTIALS`, `BLOQUEADO→LOCKED`, `INACTIVO→INACTIVE`, `SIN_ACCESO→NO_ACCESS`, `FASE_1/FASE_2→PHASE_1/PHASE_2`. The generic `FAILED` from the README is split into the finer `INVALID_CREDENTIALS` / `LOCKED` per the prompt.
 

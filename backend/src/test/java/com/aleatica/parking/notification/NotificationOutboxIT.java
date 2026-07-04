@@ -231,6 +231,25 @@ class NotificationOutboxIT extends BaseIntegrationTest {
         verify(emailSenderPort, never()).send(any());
     }
 
+    // ---- 2.10(c): las reservas de visitante no notifican ----
+
+    @Test
+    void shouldNotSendEmail_whenVisitorReservationCreated() throws Exception {
+        // Arrange: una ficha de visitante y una plaza/fecha libres
+        long visitorId = insertVisitor("87654321X");
+
+        // Act: el admin crea una reserva de visitante (plaza disponible ese dia)
+        String body = "{\"visitorId\":" + visitorId + ",\"parkingSpaceId\":" + spaceId
+                + ",\"reservationDate\":\"" + WITHIN + "\"}";
+        mockMvc.perform(post("/api/v1/visitor-reservations").cookie(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+
+        // Assert: los visitantes no tienen cuenta y no reciben emails -> ningun envio ni encolado
+        verify(emailSenderPort, never()).send(any());
+        assertThat(outboxCount()).isZero();
+    }
+
     // ---- 1.8: revocacion de asignacion fija -> empleado afectado ----
 
     @Test
@@ -307,6 +326,16 @@ class NotificationOutboxIT extends BaseIntegrationTest {
                 "INSERT INTO dbo.fixed_assignments (parking_space_id, employee_id, day_of_week, "
                         + "active, created_by_id, created_at) VALUES (?, ?, ?, 1, ?, ?)",
                 space, employeeId, dayOfWeek, adminId(), Timestamp.from(Instant.now()));
+    }
+
+    private long insertVisitor(String nationalId) {
+        jdbcTemplate.update(
+                "INSERT INTO dbo.visitors (first_name, last_name, national_id, created_by_id) "
+                        + "VALUES ('Visita', 'Notif', ?, ?)",
+                nationalId, adminId());
+        Long id = jdbcTemplate.queryForObject(
+                "SELECT id FROM dbo.visitors WHERE national_id = ?", Long.class, nationalId);
+        return id == null ? 0L : id;
     }
 
     private void insertOutbox(String recipient, EmailOutboxStatus status) {
