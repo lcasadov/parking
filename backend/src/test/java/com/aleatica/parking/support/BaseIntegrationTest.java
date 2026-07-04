@@ -118,6 +118,9 @@ public abstract class BaseIntegrationTest {
         // Amplia el periodo del job de reintento de emails para que el scheduler no dispare
         // durante los ITs: el reintento se ejerce invocandolo directamente (sin temporizadores).
         registry.add("parking.notifications.retry-interval-ms", () -> "3600000");
+        // Desactiva el job programado de purga de retencion durante los ITs ("-" = cron
+        // deshabilitado): la purga se ejerce invocando el servicio directamente (S2925).
+        registry.add("parking.retention.cron", () -> "-");
     }
 
     private static String jdbcUrl() {
