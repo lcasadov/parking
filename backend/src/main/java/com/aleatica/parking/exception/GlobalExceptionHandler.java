@@ -4,6 +4,10 @@ import com.aleatica.parking.auth.application.AuthenticationFailedException;
 import com.aleatica.parking.auth.application.InvalidCurrentPasswordException;
 import com.aleatica.parking.auth.application.PasswordPolicyException;
 import com.aleatica.parking.fixedassignment.application.InvalidDayOfWeekException;
+import com.aleatica.parking.release.application.NoFixedAssignmentException;
+import com.aleatica.parking.release.application.PastReleaseCancellationException;
+import com.aleatica.parking.release.application.ReleaseDateInPastException;
+import com.aleatica.parking.release.application.ResourceAlreadyReleasedException;
 import com.aleatica.parking.request.application.DuplicatePendingRequestException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.RejectionReasonRequiredException;
@@ -49,6 +53,10 @@ public class GlobalExceptionHandler {
     private static final String CODE_OUTSIDE_WINDOW = "OUTSIDE_REQUEST_WINDOW";
     private static final String CODE_REQUEST_PENDING = "REQUEST_ALREADY_PENDING";
     private static final String CODE_SPACE_UNAVAILABLE = "SPACE_NOT_AVAILABLE";
+    private static final String CODE_RELEASE_IN_PAST = "RELEASE_DATE_IN_PAST";
+    private static final String CODE_NO_FIXED_ASSIGNMENT = "NO_FIXED_ASSIGNMENT";
+    private static final String CODE_RESOURCE_RELEASED = "RESOURCE_ALREADY_RELEASED";
+    private static final String CODE_RELEASE_NOT_CANCELLABLE = "RELEASE_NOT_CANCELLABLE";
 
     private static final String FIELD_NEW_PASSWORD = "newPassword";
     private static final String FIELD_CURRENT_PASSWORD = "currentPassword";
@@ -60,6 +68,7 @@ public class GlobalExceptionHandler {
     private static final String FIELD_EMPLOYEE_ID = "employeeId";
     private static final String FIELD_REQUESTED_DATE = "requestedDate";
     private static final String FIELD_REJECTION_REASON = "rejectionReason";
+    private static final String FIELD_RELEASE_DATE = "releaseDate";
 
     private static final String INDEX_LOGIN = "ux_employees_login";
     private static final String INDEX_EMAIL = "ux_employees_email";
@@ -68,6 +77,7 @@ public class GlobalExceptionHandler {
     private static final String INDEX_FIXED_EMPLOYEE_DAY = "ux_fixed_assignments_employee_day_active";
     private static final String INDEX_REQUEST_PENDING = "ux_requests_employee_date_pending";
     private static final String INDEX_REQUEST_APPROVED = "ux_requests_space_date_approved";
+    private static final String INDEX_RELEASE_SPACE_DATE = "ux_releases_space_date";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
@@ -85,6 +95,8 @@ public class GlobalExceptionHandler {
             "Ya existe una solicitud pendiente para esa fecha";
     private static final String MSG_SPACE_APPROVED_TAKEN =
             "La plaza ya esta asignada a otra solicitud aprobada esa fecha";
+    private static final String MSG_RESOURCE_RELEASED_TAKEN =
+            "El recurso ya esta liberado para esa fecha";
 
     /**
      * Regla de traduccion de una violacion de indice unico de BD (por el fragmento del
@@ -107,7 +119,9 @@ public class GlobalExceptionHandler {
             new IndexRule(INDEX_FIXED_EMPLOYEE_DAY, FIELD_EMPLOYEE_ID, MSG_EMPLOYEE_DAY_TAKEN, CODE_CONFLICT),
             new IndexRule(INDEX_REQUEST_PENDING, null, MSG_REQUEST_PENDING_TAKEN, CODE_REQUEST_PENDING),
             new IndexRule(INDEX_REQUEST_APPROVED, FIELD_PARKING_SPACE_ID, MSG_SPACE_APPROVED_TAKEN,
-                    CODE_SPACE_UNAVAILABLE));
+                    CODE_SPACE_UNAVAILABLE),
+            new IndexRule(INDEX_RELEASE_SPACE_DATE, FIELD_PARKING_SPACE_ID, MSG_RESOURCE_RELEASED_TAKEN,
+                    CODE_RESOURCE_RELEASED));
 
     /**
      * Traduce errores de validacion de DTO de entrada a {@code 400 Bad Request}.
@@ -329,6 +343,62 @@ public class GlobalExceptionHandler {
         Map<String, String> fields = Map.of(FIELD_REJECTION_REASON, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce una fecha de liberacion anterior a hoy a {@code 400} con
+     * {@code error = RELEASE_DATE_IN_PAST} y el detalle en {@code releaseDate} (spec Req 1).
+     *
+     * @param ex excepcion de fecha de liberacion en el pasado
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(ReleaseDateInPastException.class)
+    public ResponseEntity<ApiError> handleReleaseDateInPast(ReleaseDateInPastException ex) {
+        Map<String, String> fields = Map.of(FIELD_RELEASE_DATE, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_RELEASE_IN_PAST, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce la ausencia (o ambiguedad) de una asignacion fija activa del recurso para
+     * el dia de la fecha a liberar a {@code 409} con {@code error = NO_FIXED_ASSIGNMENT}
+     * (spec Req 1).
+     *
+     * @param ex excepcion de ausencia de asignacion fija
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(NoFixedAssignmentException.class)
+    public ResponseEntity<ApiError> handleNoFixedAssignment(NoFixedAssignmentException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_NO_FIXED_ASSIGNMENT, ex.getMessage()));
+    }
+
+    /**
+     * Traduce la comprobacion previa de recurso ya liberado esa fecha a {@code 409} con
+     * {@code error = RESOURCE_ALREADY_RELEASED} y el detalle en {@code parkingSpaceId}
+     * (spec Req 4). El mismo codigo cubre la violacion del indice unico bajo concurrencia.
+     *
+     * @param ex excepcion de recurso ya liberado
+     * @return {@link ApiError} con estado 409 y detalle por campo
+     */
+    @ExceptionHandler(ResourceAlreadyReleasedException.class)
+    public ResponseEntity<ApiError> handleResourceAlreadyReleased(ResourceAlreadyReleasedException ex) {
+        Map<String, String> fields = Map.of(FIELD_PARKING_SPACE_ID, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_RESOURCE_RELEASED, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce el intento de cancelar una liberacion de fecha pasada a {@code 409} con
+     * {@code error = RELEASE_NOT_CANCELLABLE} (spec Req 2).
+     *
+     * @param ex excepcion de cancelacion de liberacion pasada
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(PastReleaseCancellationException.class)
+    public ResponseEntity<ApiError> handlePastReleaseCancellation(PastReleaseCancellationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_RELEASE_NOT_CANCELLABLE, ex.getMessage()));
     }
 
     /**

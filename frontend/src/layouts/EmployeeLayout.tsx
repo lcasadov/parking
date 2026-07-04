@@ -26,6 +26,13 @@ export function EmployeeLayout() {
             <i className="ti ti-calendar-check" aria-hidden="true" />
             {t('fixedAssignments.mine.navLabel')}
           </NavLink>
+          <NavLink
+            to={ROUTES.employeeReleases}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-calendar-off" aria-hidden="true" />
+            {t('releases.mine.navLabel')}
+          </NavLink>
         </Sidebar>
         <main className="main">
           <Outlet />

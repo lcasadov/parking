@@ -8,9 +8,11 @@ export const ROUTES = {
   adminParkingSpaces: '/admin/parking-spaces',
   adminFixedAssignments: '/admin/fixed-assignments',
   adminRequests: '/admin/requests',
+  adminReleases: '/admin/releases',
   employee: '/employee',
   employeeFixedAssignments: '/employee/fixed-assignments',
   employeeRequests: '/employee/requests',
+  employeeReleases: '/employee/releases',
 } as const;
 
 export type Role = 'ADMIN' | 'EMPLOYEE';
