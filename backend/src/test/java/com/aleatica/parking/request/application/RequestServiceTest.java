@@ -9,9 +9,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.aleatica.parking.auth.domain.ClockPort;
+import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.request.RejectionReasonCode;
 import com.aleatica.parking.request.Request;
@@ -70,7 +70,7 @@ class RequestServiceTest {
     private ParkingSpaceRepository parkingSpaceRepository;
 
     @Mock
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private AvailabilityService availabilityService;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -86,7 +86,7 @@ class RequestServiceTest {
     private RequestService newService() {
         return new RequestService(
                 requestRepository, employeeRepository, parkingSpaceRepository,
-                fixedAssignmentRepository, eventPublisher, clock);
+                availabilityService, eventPublisher, clock);
     }
 
     // ---- Creacion: ventana + unicidad ----
@@ -242,15 +242,11 @@ class RequestServiceTest {
 
     @Test
     void shouldApproveRequest_whenSpaceAvailable() {
-        // Arrange
+        // Arrange: la disponibilidad consolidada declara la plaza libre para la fecha
         Request pending = pending();
         given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
         given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
-        given(fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, WITHIN.getDayOfWeek().getValue()))
-                .willReturn(false);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, WITHIN, RequestStatus.APPROVED)).willReturn(false);
+        given(availabilityService.isSpaceTakenForDate(SPACE_ID, WITHIN)).willReturn(false);
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(requestRepository.saveAndFlush(any(Request.class)))
                 .willAnswer(inv -> inv.getArgument(0));
@@ -268,14 +264,31 @@ class RequestServiceTest {
     }
 
     @Test
-    void shouldThrowUnavailable_whenSpaceHasActiveFixedAssignment() {
-        // Arrange: plaza con asignacion fija activa ese dia de la semana
+    void shouldApproveRequest_whenFixedAssignmentIsReleasedForThatDate() {
+        // Arrange (issue #43): plaza con asignacion fija liberada esa fecha -> disponible.
+        // La disponibilidad consolidada aplica el release y la declara NO ocupada.
         Request pending = pending();
         given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
         given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
-        given(fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, WITHIN.getDayOfWeek().getValue()))
-                .willReturn(true);
+        given(availabilityService.isSpaceTakenForDate(SPACE_ID, WITHIN)).willReturn(false);
+        givenActor(ADMIN_LOGIN, ADMIN_ID);
+        given(requestRepository.saveAndFlush(any(Request.class)))
+                .willAnswer(inv -> inv.getArgument(0));
+
+        // Act / Assert: aprobable pese a existir una asignacion fija (por estar liberada)
+        assertThat(newService()
+                .approve(REQUEST_ID, new RequestApproveRequest(SPACE_ID, null), ADMIN_LOGIN).status())
+                .isEqualTo(RequestStatus.APPROVED);
+    }
+
+    @Test
+    void shouldThrowUnavailable_whenSpaceReservedByVisitor() {
+        // Arrange (issue #43): la disponibilidad consolidada incluye las reservas de visitante;
+        // aprobar sobre una plaza ya reservada por un visitante debe rechazarse (no doble reserva).
+        Request pending = pending();
+        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
+        given(availabilityService.isSpaceTakenForDate(SPACE_ID, WITHIN)).willReturn(true);
 
         // Act / Assert
         assertThatThrownBy(() -> newService()
@@ -285,16 +298,12 @@ class RequestServiceTest {
     }
 
     @Test
-    void shouldThrowUnavailable_whenSpaceHasApprovedRequest() {
-        // Arrange: otra solicitud ya APPROVED para esa plaza/fecha
+    void shouldThrowUnavailable_whenSpaceTakenByConsolidatedRule() {
+        // Arrange: la plaza esta ocupada segun la regla consolidada (fija sin liberar o APPROVED)
         Request pending = pending();
         given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
         given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
-        given(fixedAssignmentRepository
-                .existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(SPACE_ID, WITHIN.getDayOfWeek().getValue()))
-                .willReturn(false);
-        given(requestRepository.existsByParkingSpaceIdAndRequestedDateAndStatus(
-                SPACE_ID, WITHIN, RequestStatus.APPROVED)).willReturn(true);
+        given(availabilityService.isSpaceTakenForDate(SPACE_ID, WITHIN)).willReturn(true);
 
         // Act / Assert
         assertThatThrownBy(() -> newService()
