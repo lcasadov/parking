@@ -94,6 +94,7 @@ public class GlobalExceptionHandler {
     private static final String INDEX_FIXED_EMPLOYEE_DAY = "ux_fixed_assignments_employee_day_active";
     private static final String INDEX_REQUEST_PENDING = "ux_requests_employee_date_pending";
     private static final String INDEX_REQUEST_APPROVED = "ux_requests_space_date_approved";
+    private static final String INDEX_REQUEST_DESK_PENDING = "ux_requests_desk_date_pending";
     private static final String INDEX_RELEASE_SPACE_DATE = "ux_releases_space_date";
     private static final String INDEX_VISITOR_NATIONAL_ID = "ux_visitors_national_id";
     private static final String INDEX_VISITOR_RESERVATION_SPACE_DATE =
@@ -122,6 +123,8 @@ public class GlobalExceptionHandler {
             "La plaza ya esta asignada a otra solicitud aprobada esa fecha";
     private static final String MSG_RESOURCE_RELEASED_TAKEN =
             "El recurso ya esta liberado para esa fecha";
+    private static final String MSG_DESK_PENDING_TAKEN =
+            "El puesto no esta disponible para la fecha solicitada";
     private static final String MSG_NATIONAL_ID_TAKEN =
             "Ya existe un visitante con ese documento de identidad";
     private static final String MSG_RESERVATION_SPACE_TAKEN =
@@ -148,6 +151,8 @@ public class GlobalExceptionHandler {
             new IndexRule(INDEX_FIXED_SPACE_DAY, FIELD_PARKING_SPACE_ID, MSG_SPACE_DAY_TAKEN, CODE_CONFLICT),
             new IndexRule(INDEX_FIXED_EMPLOYEE_DAY, FIELD_EMPLOYEE_ID, MSG_EMPLOYEE_DAY_TAKEN, CODE_CONFLICT),
             new IndexRule(INDEX_REQUEST_PENDING, null, MSG_REQUEST_PENDING_TAKEN, CODE_REQUEST_PENDING),
+            new IndexRule(INDEX_REQUEST_DESK_PENDING, null, MSG_DESK_PENDING_TAKEN,
+                    CODE_SPACE_UNAVAILABLE),
             new IndexRule(INDEX_REQUEST_APPROVED, FIELD_PARKING_SPACE_ID, MSG_SPACE_APPROVED_TAKEN,
                     CODE_SPACE_UNAVAILABLE),
             new IndexRule(INDEX_RELEASE_SPACE_DATE, FIELD_PARKING_SPACE_ID, MSG_RESOURCE_RELEASED_TAKEN,
