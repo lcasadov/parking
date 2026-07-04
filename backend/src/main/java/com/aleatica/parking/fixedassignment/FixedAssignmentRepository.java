@@ -50,4 +50,18 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * @return pagina de asignaciones activas
      */
     Page<FixedAssignment> findByActiveTrue(Pageable pageable);
+
+    /**
+     * Indica si una plaza tiene una asignacion fija activa para un dia de la semana.
+     *
+     * <p>Soporte de la comprobacion de disponibilidad al aprobar una solicitud
+     * (init-requests): una plaza con asignacion fija activa ese dia de la semana no
+     * esta disponible para una solicitud puntual esa fecha. Logica temporal que
+     * consolidara la capability {@code availability-calendar} (B7).</p>
+     *
+     * @param parkingSpaceId plaza a comprobar
+     * @param dayOfWeek      dia de la semana (1=Lunes … 7=Domingo)
+     * @return {@code true} si existe una asignacion fija activa para esa plaza y dia
+     */
+    boolean existsByParkingSpaceIdAndDayOfWeekAndActiveTrue(Long parkingSpaceId, Integer dayOfWeek);
 }

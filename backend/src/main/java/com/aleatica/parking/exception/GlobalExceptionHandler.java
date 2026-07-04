@@ -4,8 +4,14 @@ import com.aleatica.parking.auth.application.AuthenticationFailedException;
 import com.aleatica.parking.auth.application.InvalidCurrentPasswordException;
 import com.aleatica.parking.auth.application.PasswordPolicyException;
 import com.aleatica.parking.fixedassignment.application.InvalidDayOfWeekException;
+import com.aleatica.parking.request.application.DuplicatePendingRequestException;
+import com.aleatica.parking.request.application.OutsideRequestWindowException;
+import com.aleatica.parking.request.application.RejectionReasonRequiredException;
+import com.aleatica.parking.request.application.RequestStateException;
+import com.aleatica.parking.request.application.SpaceUnavailableException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -40,6 +46,9 @@ public class GlobalExceptionHandler {
     private static final String CODE_UNAUTHORIZED = "UNAUTHORIZED";
     private static final String CODE_PASSWORD_POLICY = "PASSWORD_POLICY_VIOLATION";
     private static final String CODE_CONFLICT = "CONFLICT";
+    private static final String CODE_OUTSIDE_WINDOW = "OUTSIDE_REQUEST_WINDOW";
+    private static final String CODE_REQUEST_PENDING = "REQUEST_ALREADY_PENDING";
+    private static final String CODE_SPACE_UNAVAILABLE = "SPACE_NOT_AVAILABLE";
 
     private static final String FIELD_NEW_PASSWORD = "newPassword";
     private static final String FIELD_CURRENT_PASSWORD = "currentPassword";
@@ -49,12 +58,16 @@ public class GlobalExceptionHandler {
     private static final String FIELD_DAYS_OF_WEEK = "daysOfWeek";
     private static final String FIELD_PARKING_SPACE_ID = "parkingSpaceId";
     private static final String FIELD_EMPLOYEE_ID = "employeeId";
+    private static final String FIELD_REQUESTED_DATE = "requestedDate";
+    private static final String FIELD_REJECTION_REASON = "rejectionReason";
 
     private static final String INDEX_LOGIN = "ux_employees_login";
     private static final String INDEX_EMAIL = "ux_employees_email";
     private static final String INDEX_LABEL = "ux_parking_spaces_label";
     private static final String INDEX_FIXED_SPACE_DAY = "ux_fixed_assignments_space_day_active";
     private static final String INDEX_FIXED_EMPLOYEE_DAY = "ux_fixed_assignments_employee_day_active";
+    private static final String INDEX_REQUEST_PENDING = "ux_requests_employee_date_pending";
+    private static final String INDEX_REQUEST_APPROVED = "ux_requests_space_date_approved";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_FORBIDDEN = "No tiene permisos para realizar esta operacion";
@@ -68,6 +81,33 @@ public class GlobalExceptionHandler {
             "La plaza ya esta asignada a otro empleado ese dia de la semana";
     private static final String MSG_EMPLOYEE_DAY_TAKEN =
             "El empleado ya tiene un recurso asignado ese dia de la semana";
+    private static final String MSG_REQUEST_PENDING_TAKEN =
+            "Ya existe una solicitud pendiente para esa fecha";
+    private static final String MSG_SPACE_APPROVED_TAKEN =
+            "La plaza ya esta asignada a otra solicitud aprobada esa fecha";
+
+    /**
+     * Regla de traduccion de una violacion de indice unico de BD (por el fragmento del
+     * nombre del indice) al cuerpo {@link ApiError}: campo en conflicto (o {@code null}),
+     * mensaje y codigo de error de negocio.
+     *
+     * @param indexFragment fragmento del nombre del indice (en minusculas)
+     * @param field         campo en conflicto; {@code null} si no aplica
+     * @param message       mensaje legible por humanos
+     * @param code          codigo de error de negocio
+     */
+    private record IndexRule(String indexFragment, String field, String message, String code) {
+    }
+
+    private static final List<IndexRule> INDEX_RULES = List.of(
+            new IndexRule(INDEX_LOGIN, FIELD_LOGIN, MSG_LOGIN_TAKEN, CODE_CONFLICT),
+            new IndexRule(INDEX_EMAIL, FIELD_EMAIL, MSG_EMAIL_TAKEN, CODE_CONFLICT),
+            new IndexRule(INDEX_LABEL, FIELD_LABEL, MSG_LABEL_TAKEN, CODE_CONFLICT),
+            new IndexRule(INDEX_FIXED_SPACE_DAY, FIELD_PARKING_SPACE_ID, MSG_SPACE_DAY_TAKEN, CODE_CONFLICT),
+            new IndexRule(INDEX_FIXED_EMPLOYEE_DAY, FIELD_EMPLOYEE_ID, MSG_EMPLOYEE_DAY_TAKEN, CODE_CONFLICT),
+            new IndexRule(INDEX_REQUEST_PENDING, null, MSG_REQUEST_PENDING_TAKEN, CODE_REQUEST_PENDING),
+            new IndexRule(INDEX_REQUEST_APPROVED, FIELD_PARKING_SPACE_ID, MSG_SPACE_APPROVED_TAKEN,
+                    CODE_SPACE_UNAVAILABLE));
 
     /**
      * Traduce errores de validacion de DTO de entrada a {@code 400 Bad Request}.
@@ -212,26 +252,83 @@ public class GlobalExceptionHandler {
         LOG.warn("Violacion de integridad: {}", ex.getMostSpecificCause().getMessage());
         String detail = ex.getMostSpecificCause().getMessage();
         String lowerDetail = detail == null ? "" : detail.toLowerCase(Locale.ROOT);
-        Map<String, String> fields = null;
-        String message = MSG_CONFLICT;
-        if (lowerDetail.contains(INDEX_LOGIN)) {
-            fields = Map.of(FIELD_LOGIN, MSG_LOGIN_TAKEN);
-            message = MSG_LOGIN_TAKEN;
-        } else if (lowerDetail.contains(INDEX_EMAIL)) {
-            fields = Map.of(FIELD_EMAIL, MSG_EMAIL_TAKEN);
-            message = MSG_EMAIL_TAKEN;
-        } else if (lowerDetail.contains(INDEX_LABEL)) {
-            fields = Map.of(FIELD_LABEL, MSG_LABEL_TAKEN);
-            message = MSG_LABEL_TAKEN;
-        } else if (lowerDetail.contains(INDEX_FIXED_SPACE_DAY)) {
-            fields = Map.of(FIELD_PARKING_SPACE_ID, MSG_SPACE_DAY_TAKEN);
-            message = MSG_SPACE_DAY_TAKEN;
-        } else if (lowerDetail.contains(INDEX_FIXED_EMPLOYEE_DAY)) {
-            fields = Map.of(FIELD_EMPLOYEE_ID, MSG_EMPLOYEE_DAY_TAKEN);
-            message = MSG_EMPLOYEE_DAY_TAKEN;
+        for (IndexRule rule : INDEX_RULES) {
+            if (lowerDetail.contains(rule.indexFragment())) {
+                Map<String, String> fields =
+                        rule.field() == null ? null : Map.of(rule.field(), rule.message());
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(ApiError.of(rule.code(), rule.message(), fields));
+            }
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiError.of(CODE_CONFLICT, message, fields));
+                .body(ApiError.of(CODE_CONFLICT, MSG_CONFLICT, null));
+    }
+
+    /**
+     * Traduce una fecha de solicitud fuera de la ventana hoy..hoy+14 a {@code 400}
+     * con {@code error = OUTSIDE_REQUEST_WINDOW} y el detalle en {@code requestedDate}.
+     *
+     * @param ex excepcion de ventana de solicitud
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(OutsideRequestWindowException.class)
+    public ResponseEntity<ApiError> handleOutsideWindow(OutsideRequestWindowException ex) {
+        Map<String, String> fields = Map.of(FIELD_REQUESTED_DATE, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_OUTSIDE_WINDOW, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce la comprobacion previa de solicitud {@code PENDING} duplicada a
+     * {@code 409} con {@code error = REQUEST_ALREADY_PENDING}.
+     *
+     * @param ex excepcion de solicitud pendiente duplicada
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(DuplicatePendingRequestException.class)
+    public ResponseEntity<ApiError> handleDuplicatePending(DuplicatePendingRequestException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_REQUEST_PENDING, ex.getMessage()));
+    }
+
+    /**
+     * Traduce una transicion de estado no permitida (cancelar/aprobar/rechazar una
+     * solicitud que no esta en {@code PENDING}) a {@code 409}.
+     *
+     * @param ex excepcion de estado de la solicitud
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(RequestStateException.class)
+    public ResponseEntity<ApiError> handleRequestState(RequestStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_CONFLICT, ex.getMessage()));
+    }
+
+    /**
+     * Traduce la indisponibilidad de plaza al aprobar (asignacion fija o solicitud ya
+     * aprobada esa fecha) a {@code 409} con {@code error = SPACE_NOT_AVAILABLE}.
+     *
+     * @param ex excepcion de plaza no disponible
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(SpaceUnavailableException.class)
+    public ResponseEntity<ApiError> handleSpaceUnavailable(SpaceUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_SPACE_UNAVAILABLE, ex.getMessage()));
+    }
+
+    /**
+     * Traduce la ausencia del texto libre obligatorio en un rechazo {@code OTHER} a
+     * {@code 400} con el detalle en {@code rejectionReason}.
+     *
+     * @param ex excepcion de motivo de rechazo requerido
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(RejectionReasonRequiredException.class)
+    public ResponseEntity<ApiError> handleRejectionReasonRequired(RejectionReasonRequiredException ex) {
+        Map<String, String> fields = Map.of(FIELD_REJECTION_REASON, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
     }
 
     /**
