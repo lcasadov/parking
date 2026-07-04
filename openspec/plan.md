@@ -9,8 +9,8 @@
 |--------|--------|--------|
 | 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
 | 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1, A2, B1–B10 ✅ archivados (+ fix #43 doble-reserva) · Puerta 3 e2e ✅ 4/4 | `██████▌░░░` **~65%** |
-| **Avance global del proyecto** | 🔄 implementación | `███████▏░░` **~72%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — **Fase A + Fase B completas** (A1, A2, B1–B11 ✅ archivadas + fix #43) · Puerta 3 e2e ✅ 4/4 · pendiente Fase C (puestos) | `███████░░░` **~70%** |
+| **Avance global del proyecto** | 🔄 implementación | `███████▌░░` **~76%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
 
@@ -57,9 +57,9 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 | B8 | `init-visitors` | 🟢🔵 | B3 | ✅ **Archivado** (PR #40 mergeada, CI verde, verification-specialist PASS 8/8 — disponibilidad inline 4 condiciones, concurrencia, RBAC ADMIN, IT order-independent 3 órdenes; auditoría stub) → `changes/archive/2026-07-04-init-visitors`. _Adelantado antes de B7 para que availability-calendar consuma reservas reales._ | `██████████` 100% |
 | B9 | `init-notifications` | 🟢 | B5 | ✅ **Archivado** (PR #48 mergeada, CI verde, verification-specialist PASS 8/8 — email real SMTP+Thymeleaf, outbox V11 + reintentos idempotentes, 3 exclusiones con IT, rollback AFTER_COMMIT, sin regresión al eliminar el stub; IT order-independent 3 órdenes) → `changes/archive/2026-07-04-init-notifications`. Backend-only. | `██████████` 100% |
 | B10 | `init-audit-retention` | 🟢🔵 | B1 | ✅ **Archivado** (PR #51 mergeada, CI verde, verification-specialist PASS — auditoría AOP persistente consolidando stubs, purga RGPD 2 años **leída SQL: solo histórico**, best-effort aislado, IT order-independent 3 órdenes) → `changes/archive/2026-07-04-init-audit-retention` | `██████████` 100% |
-| B11 | `init-exports` | 🟢🔵 | B2, B5, B10 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
+| B11 | `init-exports` | 🟢🔵 | B2, B5, B10 | ✅ **Archivado** (PR #54 mergeada, CI verde, verification-specialist PASS — CSV/XLSX, sanitización de fórmulas sin bypass, rate-limit 5/min per-user, BOLA, sin fugas de credenciales, exportMyData RGPD con datos propios; IT order-independent 3 órdenes) → `changes/archive/2026-07-04-init-exports` | `██████████` 100% |
 
-**Subtotal núcleo (11 capabilities):** 15% medio · `█▌░░░░░░░░`
+**Subtotal núcleo (11 capabilities):** ✅ **100% — Fase B completa** (B1–B11 archivadas + fix #43) · `██████████`
 
 ---
 
