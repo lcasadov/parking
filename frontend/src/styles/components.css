@@ -442,10 +442,68 @@ body.theme-dark .segmented button.active {
 
 .toolbar {
   margin-bottom: var(--space-4);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .toolbar .field-input {
   max-width: 320px;
+  flex: 1 1 220px;
+}
+
+/* Tabs (visitantes: fichas / reservas) */
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: var(--space-4);
+}
+
+.tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--green, currentColor);
+  font-weight: 600;
+}
+
+/* Ficha de visitante (detalle) */
+.detail-list {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.detail-list dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.detail-list dd {
+  margin: 0;
+  color: var(--text);
+}
+
+/* Banner informativo de la reserva de visita */
+.banner-info {
+  background: var(--bg-subtle, rgba(0, 0, 0, 0.04));
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: var(--space-3) 0;
 }
 
 .config-card {

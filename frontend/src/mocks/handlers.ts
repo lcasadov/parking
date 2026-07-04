@@ -18,6 +18,13 @@ import {
 import type { RequestApproveRequest, RequestRejectRequest } from '../types/request';
 import { defaultMyReleasesPage, releaseFuture } from './releaseFixtures';
 import type { AdministrativeReleaseRequest, ReleaseCreateRequest } from '../types/release';
+import {
+  defaultVisitorPage,
+  defaultVisitorReservationPage,
+  reservationFuture,
+  visitorCarla,
+} from './visitorFixtures';
+import type { VisitorReservationCreateRequest } from '../types/visitor';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -210,6 +217,51 @@ export const handlers = [
       { status: 201 },
     );
   }),
+
+  // ---- Visitors (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/visitors`, () => HttpResponse.json(defaultVisitorPage)),
+
+  http.get(`${BASE}/visitors/:id`, ({ params }) => {
+    if (Number(params.id) === visitorCarla.id) {
+      return HttpResponse.json(visitorCarla);
+    }
+    return HttpResponse.json(apiError('not_found', 'Visitor not found'), { status: 404 });
+  }),
+
+  http.post(`${BASE}/visitors`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...visitorCarla, ...body, id: 99 }, { status: 201 });
+  }),
+
+  http.put(`${BASE}/visitors/:id`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...visitorCarla, ...body, id: Number(params.id) });
+  }),
+
+  // ---- VisitorReservations (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/visitor-reservations`, () =>
+    HttpResponse.json(defaultVisitorReservationPage),
+  ),
+
+  http.post(`${BASE}/visitor-reservations`, async ({ request }) => {
+    const body = (await request.json()) as VisitorReservationCreateRequest;
+    return HttpResponse.json(
+      {
+        ...reservationFuture,
+        id: 999,
+        visitorId: body.visitorId,
+        parkingSpaceId: body.parkingSpaceId,
+        reservationDate: body.reservationDate,
+        notes: body.notes ?? null,
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.delete(
+    `${BASE}/visitor-reservations/:id`,
+    () => new HttpResponse(null, { status: 204 }),
+  ),
 ];
 
 export { BASE as MSW_BASE };

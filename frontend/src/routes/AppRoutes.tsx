@@ -11,6 +11,7 @@ import { PendingRequestsPage } from '../pages/PendingRequestsPage';
 import { MyRequestsPage } from '../pages/MyRequestsPage';
 import { AdministrativeReleasesPage } from '../pages/AdministrativeReleasesPage';
 import { MyReleasesPage } from '../pages/MyReleasesPage';
+import { VisitorsPage } from '../pages/VisitorsPage';
 import { LoginPage } from '../pages/LoginPage';
 import { ROUTES } from './paths';
 
@@ -40,6 +41,7 @@ export function AppRoutes() {
         <Route path="fixed-assignments" element={<FixedAssignmentsPage />} />
         <Route path="requests" element={<PendingRequestsPage />} />
         <Route path="releases" element={<AdministrativeReleasesPage />} />
+        <Route path="visitors" element={<VisitorsPage />} />
       </Route>
       <Route
         path={ROUTES.employee}
