@@ -52,6 +52,21 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
     Page<FixedAssignment> findByActiveTrue(Pageable pageable);
 
     /**
+     * Asignaciones fijas activas de un empleado para un dia de la semana (soporte de la
+     * resolucion de plaza al liberar: init-releases).
+     *
+     * <p>Una liberacion opera sobre una asignacion fija activa del recurso para el dia
+     * de la semana de la fecha a liberar. Si el empleado tiene mas de una asignacion
+     * activa ese dia, la resolucion implicita de plaza es ambigua (409); si no tiene
+     * ninguna, no hay recurso fijo que liberar (409).</p>
+     *
+     * @param employeeId empleado titular
+     * @param dayOfWeek  dia de la semana (1=Lunes … 7=Domingo)
+     * @return lista de asignaciones activas de ese empleado y dia (posiblemente vacia)
+     */
+    List<FixedAssignment> findByEmployeeIdAndDayOfWeekAndActiveTrue(Long employeeId, Integer dayOfWeek);
+
+    /**
      * Indica si una plaza tiene una asignacion fija activa para un dia de la semana.
      *
      * <p>Soporte de la comprobacion de disponibilidad al aprobar una solicitud
