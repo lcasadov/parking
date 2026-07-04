@@ -68,6 +68,20 @@ export function AdminLayout() {
             <i className="ti ti-user-plus" aria-hidden="true" />
             {t('visitors.navLabel')}
           </NavLink>
+          <NavLink
+            to={ROUTES.adminAudit}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-history" aria-hidden="true" />
+            {t('audit.navLabel')}
+          </NavLink>
+          <NavLink
+            to={ROUTES.adminLoginLogs}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-login" aria-hidden="true" />
+            {t('loginLogs.navLabel')}
+          </NavLink>
         </Sidebar>
         <main className="main">
           <Outlet />

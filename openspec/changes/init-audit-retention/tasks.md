@@ -32,6 +32,6 @@
 - [ ] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Panel `ADMIN` de consulta de auditoría: tabla paginada con filtros `actorEmployeeId`, `action`, `from`/`to`.
-- [ ] 4.2 Panel `ADMIN` de consulta de logs de login: tabla paginada con filtros `result`, `from`/`to`.
-- [ ] 4.3 Ocultar ambos paneles a `EMPLOYEE` (RBAC en UI) y manejar 403.
+- [x] 4.1 Panel `ADMIN` de consulta de auditoría: tabla paginada con filtros `actorEmployeeId`, `action`, `from`/`to`.
+- [x] 4.2 Panel `ADMIN` de consulta de logs de login: tabla paginada con filtros `result`, `from`/`to`.
+- [x] 4.3 Ocultar ambos paneles a `EMPLOYEE` (RBAC en UI) y manejar 403.
