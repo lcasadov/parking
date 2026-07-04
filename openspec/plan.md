@@ -9,8 +9,8 @@
 |--------|--------|--------|
 | 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
 | 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1, A2, B1, B2, B3, B4, B5, B6, B7, B8 ✅ archivados · Puerta 3 e2e ✅ 4/4 | `█████▌░░░░` **~55%** |
-| **Avance global del proyecto** | 🔄 implementación | `██████▍░░░` **~64%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — A1, A2, B1–B9 ✅ archivados (+ fix #43 doble-reserva) · Puerta 3 e2e ✅ 4/4 | `██████░░░░` **~60%** |
+| **Avance global del proyecto** | 🔄 implementación | `██████▊░░░` **~68%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
 
@@ -55,7 +55,7 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 | B6 | `init-releases` | 🟢🔵 | B4 | ✅ **Archivado** (PR #37 mergeada, CI verde, verification-specialist PASS 7/7 — BOLA, unicidad/concurrencia, cancel-then-rerelease, IT order-independent 3 órdenes; auditoría stub) → `changes/archive/2026-07-04-init-releases` | `██████████` 100% |
 | B7 | `init-availability-calendar` | 🟢🔵 | B5, B6, B8 | ✅ **Archivado** (PR #44 mergeada, CI verde, verification-specialist PASS 9/9 — disponibilidad consolidada, N+1 descartado, privacidad mi-semana, IT order-independent 3 órdenes) → `changes/archive/2026-07-04-init-availability-calendar`. Destapó #43 (divergencia de RequestService.approve → fix dirigido). | `██████████` 100% |
 | B8 | `init-visitors` | 🟢🔵 | B3 | ✅ **Archivado** (PR #40 mergeada, CI verde, verification-specialist PASS 8/8 — disponibilidad inline 4 condiciones, concurrencia, RBAC ADMIN, IT order-independent 3 órdenes; auditoría stub) → `changes/archive/2026-07-04-init-visitors`. _Adelantado antes de B7 para que availability-calendar consuma reservas reales._ | `██████████` 100% |
-| B9 | `init-notifications` | 🟢🔵 | B5 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
+| B9 | `init-notifications` | 🟢 | B5 | ✅ **Archivado** (PR #48 mergeada, CI verde, verification-specialist PASS 8/8 — email real SMTP+Thymeleaf, outbox V11 + reintentos idempotentes, 3 exclusiones con IT, rollback AFTER_COMMIT, sin regresión al eliminar el stub; IT order-independent 3 órdenes) → `changes/archive/2026-07-04-init-notifications`. Backend-only. | `██████████` 100% |
 | B10 | `init-audit-retention` | 🟢🔵 | B1 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 | B11 | `init-exports` | 🟢🔵 | B2, B5, B10 | Propuesta ✅ | `█▌░░░░░░░░` 15% |
 
