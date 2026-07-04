@@ -13,6 +13,13 @@ export function EmployeeLayout() {
       <div className="layout">
         <Sidebar>
           <NavLink
+            to={ROUTES.employeeMyWeek}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-calendar-week" aria-hidden="true" />
+            {t('calendar.myWeek.navLabel')}
+          </NavLink>
+          <NavLink
             to={ROUTES.employeeRequests}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >

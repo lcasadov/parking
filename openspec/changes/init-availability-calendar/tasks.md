@@ -31,6 +31,6 @@
 - [ ] 3.1 Con los tests en verde: extraer métodos (complejidad < 15), eliminar duplicación y aplicar `docs/SONAR-STANDARDS.md`, sin cambiar comportamiento.
 
 ## 4. Frontend — mismo ciclo test-first (Vitest + RTL → implementación)
-- [ ] 4.1 Vista de disponibilidad por fecha (consume `getAvailability`).
-- [ ] 4.2 Rejilla de calendario semanal admin (consume `getAdminCalendar`, gated por rol `ADMIN`).
-- [ ] 4.3 Componente "Mi Semana" (consume `getMyWeek`; no renderiza nombres ajenos).
+- [x] 4.1 Vista de disponibilidad por fecha (consume `getAvailability`).
+- [x] 4.2 Rejilla de calendario semanal admin (consume `getAdminCalendar`, gated por rol `ADMIN`).
+- [x] 4.3 Componente "Mi Semana" (consume `getMyWeek`; no renderiza nombres ajenos).

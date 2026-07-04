@@ -13,6 +13,20 @@ export function AdminLayout() {
       <div className="layout">
         <Sidebar>
           <NavLink
+            to={ROUTES.adminCalendar}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-calendar-week" aria-hidden="true" />
+            {t('calendar.admin.navLabel')}
+          </NavLink>
+          <NavLink
+            to={ROUTES.adminAvailability}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-calendar-search" aria-hidden="true" />
+            {t('availability.navLabel')}
+          </NavLink>
+          <NavLink
             to={ROUTES.adminEmployees}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >

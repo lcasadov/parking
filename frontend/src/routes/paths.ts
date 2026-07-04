@@ -10,10 +10,13 @@ export const ROUTES = {
   adminRequests: '/admin/requests',
   adminReleases: '/admin/releases',
   adminVisitors: '/admin/visitors',
+  adminCalendar: '/admin/calendar',
+  adminAvailability: '/admin/availability',
   employee: '/employee',
   employeeFixedAssignments: '/employee/fixed-assignments',
   employeeRequests: '/employee/requests',
   employeeReleases: '/employee/releases',
+  employeeMyWeek: '/employee/my-week',
 } as const;
 
 export type Role = 'ADMIN' | 'EMPLOYEE';
