@@ -14,6 +14,8 @@ import { MyReleasesPage } from '../pages/MyReleasesPage';
 import { VisitorsPage } from '../pages/VisitorsPage';
 import { AdminCalendarPage } from '../pages/AdminCalendarPage';
 import { AvailabilityPage } from '../pages/AvailabilityPage';
+import { AuditPage } from '../pages/AuditPage';
+import { LoginLogsPage } from '../pages/LoginLogsPage';
 import { MyWeekPage } from '../pages/MyWeekPage';
 import { LoginPage } from '../pages/LoginPage';
 import { ROUTES } from './paths';
@@ -47,6 +49,8 @@ export function AppRoutes() {
         <Route path="visitors" element={<VisitorsPage />} />
         <Route path="calendar" element={<AdminCalendarPage />} />
         <Route path="availability" element={<AvailabilityPage />} />
+        <Route path="audit" element={<AuditPage />} />
+        <Route path="login-logs" element={<LoginLogsPage />} />
       </Route>
       <Route
         path={ROUTES.employee}

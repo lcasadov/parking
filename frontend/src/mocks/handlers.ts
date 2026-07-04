@@ -30,6 +30,7 @@ import {
   defaultAvailability,
   defaultMyWeek,
 } from './calendarFixtures';
+import { defaultAuditPage, defaultLoginLogPage } from './auditFixtures';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -291,6 +292,11 @@ export const handlers = [
       weekStart ? { ...defaultMyWeek, weekStart } : defaultMyWeek,
     );
   }),
+
+  // ---- Audit / LoginLog (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/audit`, () => HttpResponse.json(defaultAuditPage)),
+
+  http.get(`${BASE}/login-logs`, () => HttpResponse.json(defaultLoginLogPage)),
 ];
 
 export { BASE as MSW_BASE };
