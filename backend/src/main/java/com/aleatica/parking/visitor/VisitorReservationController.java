@@ -1,5 +1,6 @@
 package com.aleatica.parking.visitor;
 
+import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.exception.ApiError;
 import com.aleatica.parking.visitor.application.VisitorReservationService;
@@ -49,12 +50,16 @@ public class VisitorReservationController {
     private static final String SESSION_COOKIE = "sessionCookie";
 
     private final VisitorReservationService reservationService;
+    private final ConcurrencyRetry concurrencyRetry;
 
     /**
      * @param reservationService casos de uso de reservas de visitante
+     * @param concurrencyRetry   reintento acotado ante victima de deadlock (issue #57)
      */
-    public VisitorReservationController(VisitorReservationService reservationService) {
+    public VisitorReservationController(
+            VisitorReservationService reservationService, ConcurrencyRetry concurrencyRetry) {
         this.reservationService = reservationService;
+        this.concurrencyRetry = concurrencyRetry;
     }
 
     /**
@@ -113,8 +118,8 @@ public class VisitorReservationController {
     @PostMapping
     public ResponseEntity<VisitorReservationResponse> createVisitorReservation(
             @Valid @RequestBody VisitorReservationCreateRequest request, Authentication authentication) {
-        VisitorReservationResponse created =
-                reservationService.create(authentication.getName(), request);
+        VisitorReservationResponse created = concurrencyRetry.execute(
+                () -> reservationService.create(authentication.getName(), request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.config.SecurityConfig;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.visitor.application.PastVisitorReservationCancellationException;
@@ -40,7 +41,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * logica se mockea; aqui solo se verifica el contrato HTTP.
  */
 @WebMvcTest(VisitorReservationController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, ConcurrencyRetry.class})
 class VisitorReservationControllerTest {
 
     private static final String BASE_URL = "/api/v1/visitor-reservations";

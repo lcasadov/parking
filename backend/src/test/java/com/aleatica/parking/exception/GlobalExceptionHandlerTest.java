@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -154,6 +155,24 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().fields()).isNull();
+    }
+
+    @Test
+    void should_return_409_not_500_when_deadlock_victim_lock_failure() {
+        // Given: la victima de deadlock (SQL Server 1205) llega como CannotAcquireLockException,
+        // subtipo de ConcurrencyFailureException (issue #57).
+        CannotAcquireLockException deadlock = new CannotAcquireLockException(
+                "deadlock", new IllegalStateException("Transaction (Process ID) was deadlocked"));
+
+        // When
+        ResponseEntity<ApiError> response = handler.handleConcurrencyFailure(deadlock);
+
+        // Then: 409 controlado, nunca 500
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().error()).isEqualTo("CONFLICT");
+        // El mensaje al cliente no filtra el detalle interno del motor (OWASP API8).
+        assertThat(response.getBody().message()).doesNotContain("deadlocked");
     }
 
     @Test
