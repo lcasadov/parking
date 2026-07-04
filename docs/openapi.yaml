@@ -341,8 +341,10 @@ paths:
         - $ref: '#/components/parameters/ExportFormatParam'
       responses:
         '200': { $ref: '#/components/responses/FileExport' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/ServerError' }
 
   /employees/me/export:
@@ -357,8 +359,9 @@ paths:
         - $ref: '#/components/parameters/ExportFormatParam'
       responses:
         '200': { $ref: '#/components/responses/FileExport' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/ServerError' }
 
   # ---------------------------------------------------------------------------
@@ -816,13 +819,14 @@ paths:
     get:
       tags: [Requests, Exports]
       operationId: exportMyRequests
-      summary: Exporta mis solicitudes a CSV/XLSX (EMPLOYEE)
+      summary: Exporta mis solicitudes a CSV/XLSX (EMPLOYEE/ADMIN)
       parameters:
         - $ref: '#/components/parameters/ExportFormatParam'
       responses:
         '200': { $ref: '#/components/responses/FileExport' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/ServerError' }
 
   /requests/export:
@@ -834,8 +838,10 @@ paths:
         - $ref: '#/components/parameters/ExportFormatParam'
       responses:
         '200': { $ref: '#/components/responses/FileExport' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/ServerError' }
 
   # ---------------------------------------------------------------------------
@@ -1149,8 +1155,10 @@ paths:
         - $ref: '#/components/parameters/ExportFormatParam'
       responses:
         '200': { $ref: '#/components/responses/FileExport' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/ServerError' }
 
 # =============================================================================
@@ -1223,6 +1231,11 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
     ServerError:
       description: Error interno
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    TooManyRequests:
+      description: Límite de tasa superado (exportaciones 5/min por usuario)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
