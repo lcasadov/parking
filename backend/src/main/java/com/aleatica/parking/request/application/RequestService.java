@@ -8,7 +8,6 @@ import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
-import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.request.RejectionReasonCode;
 import com.aleatica.parking.request.Request;
 import com.aleatica.parking.request.RequestRepository;
@@ -17,6 +16,8 @@ import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.resource.ResourceResolvers;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -52,7 +53,7 @@ public class RequestService {
 
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
     private static final String MSG_REQUEST_NOT_FOUND = "Solicitud no encontrada: ";
-    private static final String MSG_SPACE_NOT_FOUND = "Plaza no encontrada: ";
+    private static final String MSG_RESOURCE_NOT_FOUND = "Recurso no encontrado: ";
     private static final String MSG_OUTSIDE_WINDOW =
             "La fecha solicitada debe estar entre hoy y hoy+14 dias";
     private static final String MSG_ALREADY_PENDING =
@@ -67,29 +68,30 @@ public class RequestService {
 
     private final RequestRepository requestRepository;
     private final EmployeeRepository employeeRepository;
-    private final ParkingSpaceRepository parkingSpaceRepository;
+    private final ResourceResolvers resourceResolvers;
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
 
     /**
-     * @param requestRepository      repositorio de solicitudes
-     * @param employeeRepository     repositorio de empleados (solicitante/resolutor)
-     * @param parkingSpaceRepository repositorio de plazas (integridad al aprobar)
-     * @param availabilityService    servicio de disponibilidad consolidado (regla unica al aprobar)
-     * @param eventPublisher         publicador de eventos de notificacion
-     * @param clock                  reloj inyectable para ventana y marcas de tiempo
+     * @param requestRepository   repositorio de solicitudes
+     * @param employeeRepository  repositorio de empleados (solicitante/resolutor)
+     * @param resourceResolvers   resolutor polimorfico de recursos (integridad al aprobar,
+     *                            plaza o puesto segun el tipo de la solicitud)
+     * @param availabilityService servicio de disponibilidad consolidado (regla unica al aprobar)
+     * @param eventPublisher      publicador de eventos de notificacion
+     * @param clock               reloj inyectable para ventana y marcas de tiempo
      */
     public RequestService(
             RequestRepository requestRepository,
             EmployeeRepository employeeRepository,
-            ParkingSpaceRepository parkingSpaceRepository,
+            ResourceResolvers resourceResolvers,
             AvailabilityService availabilityService,
             ApplicationEventPublisher eventPublisher,
             ClockPort clock) {
         this.requestRepository = requestRepository;
         this.employeeRepository = employeeRepository;
-        this.parkingSpaceRepository = parkingSpaceRepository;
+        this.resourceResolvers = resourceResolvers;
         this.availabilityService = availabilityService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
@@ -111,13 +113,14 @@ public class RequestService {
         Long employeeId = resolveEmployeeId(requesterLogin);
         Instant now = clock.now();
         LocalDate requestedDate = request.requestedDate();
+        ResourceType resourceType = request.resourceTypeOrDefault();
         requireWithinWindow(requestedDate, now);
-        if (requestRepository.existsByEmployeeIdAndRequestedDateAndStatus(
-                employeeId, requestedDate, RequestStatus.PENDING)) {
+        if (requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
+                employeeId, resourceType, requestedDate, RequestStatus.PENDING)) {
             throw new DuplicatePendingRequestException(MSG_ALREADY_PENDING);
         }
         Request saved = requestRepository.saveAndFlush(
-                Request.create(employeeId, requestedDate, now));
+                Request.create(employeeId, resourceType, requestedDate, now));
         RequestResponse response = RequestResponse.from(saved);
         eventPublisher.publishEvent(new RequestCreatedEvent(response));
         return response;
@@ -209,8 +212,9 @@ public class RequestService {
         Request request = loadRequest(id);
         requirePending(request);
         Long parkingSpaceId = body.parkingSpaceId();
-        requireSpaceExists(parkingSpaceId);
-        requireSpaceAvailable(parkingSpaceId, request.getRequestedDate());
+        ResourceType resourceType = request.getResourceType();
+        requireResourceExists(parkingSpaceId, resourceType);
+        requireResourceAvailable(parkingSpaceId, resourceType, request.getRequestedDate());
         Long resolverId = resolveEmployeeId(adminLogin);
         request.approve(parkingSpaceId, resolverId, body.approvalNote(), clock.now());
         Request saved = requestRepository.saveAndFlush(request);
@@ -253,11 +257,13 @@ public class RequestService {
         }
     }
 
-    private void requireSpaceAvailable(Long parkingSpaceId, LocalDate requestedDate) {
+    private void requireResourceAvailable(
+            Long resourceId, ResourceType resourceType, LocalDate requestedDate) {
         // Regla unica de disponibilidad (issue #43): delega en AvailabilityService para no
-        // divergir de la disponibilidad consolidada (liberaciones + reservas de visitante) y
-        // evitar la doble reserva de una plaza ya ocupada por un visitante.
-        if (availabilityService.isSpaceTakenForDate(parkingSpaceId, requestedDate)) {
+        // divergir de la disponibilidad consolidada (liberaciones + reservas de visitante para
+        // plazas) y evitar la doble reserva. Para DESK el termino de reserva de visitante no
+        // aplica (no hay reservas de visitante en puestos).
+        if (availabilityService.isSpaceTakenForDate(resourceId, resourceType, requestedDate)) {
             throw new SpaceUnavailableException(MSG_SPACE_UNAVAILABLE);
         }
     }
@@ -275,9 +281,9 @@ public class RequestService {
         }
     }
 
-    private void requireSpaceExists(Long parkingSpaceId) {
-        if (!parkingSpaceRepository.existsById(parkingSpaceId)) {
-            throw new EntityNotFoundException(MSG_SPACE_NOT_FOUND + parkingSpaceId);
+    private void requireResourceExists(Long resourceId, ResourceType resourceType) {
+        if (!resourceResolvers.exists(resourceId, resourceType)) {
+            throw new EntityNotFoundException(MSG_RESOURCE_NOT_FOUND + resourceId);
         }
     }
 

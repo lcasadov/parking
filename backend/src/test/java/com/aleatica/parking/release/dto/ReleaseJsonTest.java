@@ -3,6 +3,7 @@ package com.aleatica.parking.release.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.aleatica.parking.release.ReleaseType;
+import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -29,7 +30,7 @@ class ReleaseJsonTest {
         // Arrange
         ReleaseResponse response = new ReleaseResponse(
                 42L, 8L, 15L, LocalDate.of(2026, 7, 10), ReleaseType.VOLUNTARY, null, 15L,
-                Instant.parse("2026-07-04T10:00:00Z"));
+                Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
 
         // Act
         String json = objectMapper.writeValueAsString(response);
@@ -51,7 +52,7 @@ class ReleaseJsonTest {
         // Arrange
         ReleaseResponse response = new ReleaseResponse(
                 43L, 8L, 15L, LocalDate.of(2026, 7, 10), ReleaseType.ADMINISTRATIVE,
-                "Ausencia justificada", 1L, Instant.parse("2026-07-04T10:00:00Z"));
+                "Ausencia justificada", 1L, Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
 
         // Act
         String json = objectMapper.writeValueAsString(response);

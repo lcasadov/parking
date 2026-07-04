@@ -10,6 +10,7 @@ import com.aleatica.parking.availability.dto.CalendarCellResponse;
 import com.aleatica.parking.availability.dto.CalendarRowResponse;
 import com.aleatica.parking.availability.dto.MyWeekDayResponse;
 import com.aleatica.parking.availability.dto.MyWeekResponse;
+import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.fixedassignment.FixedAssignment;
@@ -70,6 +71,7 @@ public class AvailabilityService {
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
 
     private final ParkingSpaceRepository parkingSpaceRepository;
+    private final DeskRepository deskRepository;
     private final FixedAssignmentRepository fixedAssignmentRepository;
     private final ReleaseRepository releaseRepository;
     private final RequestRepository requestRepository;
@@ -78,7 +80,8 @@ public class AvailabilityService {
     private final ClockPort clock;
 
     /**
-     * @param parkingSpaceRepository       repositorio de plazas (recursos activos)
+     * @param parkingSpaceRepository       repositorio de plazas (recursos activos PARKING)
+     * @param deskRepository               repositorio de puestos (recursos activos DESK)
      * @param fixedAssignmentRepository    repositorio de asignaciones fijas (por dia de la semana)
      * @param releaseRepository            repositorio de liberaciones (libera el recurso una fecha)
      * @param requestRepository            repositorio de solicitudes (APPROVED ocupa el recurso)
@@ -88,6 +91,7 @@ public class AvailabilityService {
      */
     public AvailabilityService(
             ParkingSpaceRepository parkingSpaceRepository,
+            DeskRepository deskRepository,
             FixedAssignmentRepository fixedAssignmentRepository,
             ReleaseRepository releaseRepository,
             RequestRepository requestRepository,
@@ -95,6 +99,7 @@ public class AvailabilityService {
             EmployeeRepository employeeRepository,
             ClockPort clock) {
         this.parkingSpaceRepository = parkingSpaceRepository;
+        this.deskRepository = deskRepository;
         this.fixedAssignmentRepository = fixedAssignmentRepository;
         this.releaseRepository = releaseRepository;
         this.requestRepository = requestRepository;
@@ -121,6 +126,16 @@ public class AvailabilityService {
     private record SpaceDow(Long spaceId, int dow) {
     }
 
+    /**
+     * Recurso reservable minimo (id + etiqueta) para el calculo de disponibilidad, comun a
+     * plazas ({@code PARKING}) y puestos ({@code DESK}).
+     *
+     * @param id    identificador del recurso dentro de su tabla
+     * @param label etiqueta humana del recurso ({@code P-08} / {@code D-05})
+     */
+    private record ResourceRef(Long id, String label) {
+    }
+
     // -------------------------------------------------------------------------
     // Disponibilidad puntual
     // -------------------------------------------------------------------------
@@ -134,24 +149,58 @@ public class AvailabilityService {
      */
     @Transactional(readOnly = true)
     public AvailabilityResponse availabilityForDate(LocalDate date) {
-        List<ParkingSpace> spaces = parkingSpaceRepository.findByActiveTrueOrderByIdAsc();
-        List<Long> spaceIds = spaces.stream().map(ParkingSpace::getId).toList();
+        return availabilityForDate(date, ResourceType.PARKING);
+    }
+
+    /**
+     * Devuelve los recursos de un tipo ({@code PARKING} plazas / {@code DESK} puestos)
+     * disponibles para una fecha aplicando las condiciones consolidadas de disponibilidad.
+     *
+     * <p>Todas las lecturas por rango se filtran por {@code resource_type}, de modo que un
+     * puesto con el mismo {@code resource_id} que una plaza no interfiera en el calculo (los
+     * identificadores no son unicos entre tablas de recurso). La reserva de visitante solo
+     * aplica a {@code PARKING}: los puestos no tienen reservas de visitante (design §Decisions),
+     * por lo que ese termino se omite para {@code DESK}.</p>
+     *
+     * @param date         fecha a consultar
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @return la disponibilidad de la fecha (lista de recursos disponibles, posiblemente vacia)
+     */
+    @Transactional(readOnly = true)
+    public AvailabilityResponse availabilityForDate(LocalDate date, ResourceType resourceType) {
+        List<ResourceRef> resources = activeResources(resourceType);
+        List<Long> resourceIds = resources.stream().map(ResourceRef::id).toList();
         int dow = date.getDayOfWeek().getValue();
 
-        Set<Long> fixedAssigned = activeFixedSpaceIdsForDay(spaceIds, dow);
-        Set<Long> released = spaceIds(releaseRepository.findByReleaseDateBetween(date, date),
+        Set<Long> fixedAssigned = activeFixedResourceIdsForDay(resourceIds, resourceType, dow);
+        Set<Long> released = spaceIds(
+                releaseRepository.findByResourceTypeAndReleaseDateBetween(resourceType, date, date),
                 Release::getResourceId);
         Set<Long> approved = spaceIds(
-                requestRepository.findByStatusAndRequestedDateBetween(RequestStatus.APPROVED, date, date),
+                requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                        RequestStatus.APPROVED, resourceType, date, date),
                 Request::getResourceId);
-        Set<Long> reserved = spaceIds(visitorReservationRepository.findByReservationDateBetween(date, date),
-                VisitorReservation::getParkingSpaceId);
+        Set<Long> reserved = resourceType == ResourceType.PARKING
+                ? spaceIds(visitorReservationRepository.findByReservationDateBetween(date, date),
+                        VisitorReservation::getParkingSpaceId)
+                : Set.of();
 
-        List<AvailabilityItemResponse> items = spaces.stream()
-                .filter(space -> isAvailable(space.getId(), fixedAssigned, released, approved, reserved))
-                .map(space -> new AvailabilityItemResponse(space.getId(), space.getLabel()))
+        List<AvailabilityItemResponse> items = resources.stream()
+                .filter(ref -> isAvailable(ref.id(), fixedAssigned, released, approved, reserved))
+                .map(ref -> new AvailabilityItemResponse(ref.id(), ref.label()))
                 .toList();
         return new AvailabilityResponse(date, items);
+    }
+
+    private List<ResourceRef> activeResources(ResourceType resourceType) {
+        if (resourceType == ResourceType.DESK) {
+            return deskRepository.findByActiveTrueOrderByNumberAsc().stream()
+                    .map(desk -> new ResourceRef(desk.getId(), desk.getLabel()))
+                    .toList();
+        }
+        return parkingSpaceRepository.findByActiveTrueOrderByIdAsc().stream()
+                .map(space -> new ResourceRef(space.getId(), space.getLabel()))
+                .toList();
     }
 
     private boolean isAvailable(
@@ -180,17 +229,37 @@ public class AvailabilityService {
      */
     @Transactional(readOnly = true)
     public boolean isSpaceTakenForDate(Long spaceId, LocalDate date) {
+        return isSpaceTakenForDate(spaceId, ResourceType.PARKING, date);
+    }
+
+    /**
+     * Indica si un recurso de un tipo concreto ({@code PARKING} plaza / {@code DESK} puesto)
+     * esta ocupado para una fecha segun la regla consolidada de ocupacion.
+     *
+     * <p>Es la misma regla que {@link #isSpaceTakenForDate(Long, java.time.LocalDate)}
+     * parametrizada por tipo: tiene asignacion fija activa ese dia y no liberada esa fecha, o
+     * una solicitud {@code APPROVED} esa fecha, o (solo {@code PARKING}) una reserva de
+     * visitante esa fecha. Para {@code DESK} el termino de reserva de visitante se omite (no
+     * hay reservas de visitante en puestos, design §Decisions).</p>
+     *
+     * @param resourceId   identificador del recurso (se asume existente; el llamante lo verifica)
+     * @param resourceType tipo del recurso ({@code PARKING}/{@code DESK})
+     * @param date         fecha a evaluar
+     * @return {@code true} si el recurso esta ocupado esa fecha
+     */
+    @Transactional(readOnly = true)
+    public boolean isSpaceTakenForDate(Long spaceId, ResourceType resourceType, LocalDate date) {
         int dayOfWeek = date.getDayOfWeek().getValue();
         boolean fixedTaken = fixedAssignmentRepository
                 .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
-                        spaceId, ResourceType.PARKING, dayOfWeek)
+                        spaceId, resourceType, dayOfWeek)
                 && !releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
-                        spaceId, ResourceType.PARKING, date);
+                        spaceId, resourceType, date);
         boolean approvedTaken = requestRepository
                 .existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
-                        spaceId, ResourceType.PARKING, date, RequestStatus.APPROVED);
-        boolean reservedTaken = visitorReservationRepository
-                .existsByParkingSpaceIdAndReservationDate(spaceId, date);
+                        spaceId, resourceType, date, RequestStatus.APPROVED);
+        boolean reservedTaken = resourceType == ResourceType.PARKING
+                && visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(spaceId, date);
         return fixedTaken || approvedTaken || reservedTaken;
     }
 
@@ -214,16 +283,18 @@ public class AvailabilityService {
         List<ParkingSpace> spaces = parkingSpaceRepository.findByActiveTrueOrderByIdAsc();
         List<Long> spaceIds = spaces.stream().map(ParkingSpace::getId).toList();
 
-        List<FixedAssignment> fixed = activeFixed(spaceIds);
+        List<FixedAssignment> fixed = activeFixed(spaceIds, ResourceType.PARKING);
         Map<SpaceDow, FixedAssignment> fixedBySpaceDow = fixed.stream()
                 .collect(Collectors.toMap(
                         fa -> new SpaceDow(fa.getResourceId(), fa.getDayOfWeek()),
                         Function.identity(), (a, b) -> a));
-        Set<SpaceDate> releasedKeys = releaseRepository.findByReleaseDateBetween(weekStart, weekEnd).stream()
+        Set<SpaceDate> releasedKeys = releaseRepository
+                .findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, weekStart, weekEnd).stream()
                 .map(r -> new SpaceDate(r.getResourceId(), r.getReleaseDate()))
                 .collect(Collectors.toSet());
         Map<SpaceDate, Request> approvedBySpaceDate = requestRepository
-                .findByStatusAndRequestedDateBetween(RequestStatus.APPROVED, weekStart, weekEnd).stream()
+                .findByStatusAndResourceTypeAndRequestedDateBetween(
+                        RequestStatus.APPROVED, ResourceType.PARKING, weekStart, weekEnd).stream()
                 .collect(Collectors.toMap(
                         r -> new SpaceDate(r.getResourceId(), r.getRequestedDate()),
                         Function.identity(), (a, b) -> a));
@@ -285,12 +356,18 @@ public class AvailabilityService {
         LocalDate weekEnd = weekStart.plusDays(WEEK_DAYS - 1L);
         List<LocalDate> days = weekDays(weekStart);
 
-        List<FixedAssignment> myFixed =
-                fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(employeeId);
-        List<Request> myRequests =
-                requestRepository.findByEmployeeIdAndRequestedDateBetween(employeeId, weekStart, weekEnd);
-        List<Release> myReleases =
-                releaseRepository.findByEmployeeIdAndReleaseDateBetween(employeeId, weekStart, weekEnd);
+        // "Mi Semana" es una vista de PARKING (plazas): se filtra por tipo para que un recurso
+        // DESK del empleado con el mismo resource_id que una plaza no contamine la vista. La
+        // vista de puestos se aborda en floor-plan.
+        List<FixedAssignment> myFixed = fixedAssignmentRepository
+                .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+                        employeeId, ResourceType.PARKING);
+        List<Request> myRequests = requestRepository
+                .findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
+                        employeeId, ResourceType.PARKING, weekStart, weekEnd);
+        List<Release> myReleases = releaseRepository
+                .findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+                        employeeId, ResourceType.PARKING, weekStart, weekEnd);
 
         Map<Integer, FixedAssignment> fixedByDow = myFixed.stream()
                 .collect(Collectors.toMap(FixedAssignment::getDayOfWeek, Function.identity(), (a, b) -> a));
@@ -331,19 +408,20 @@ public class AvailabilityService {
     // Helpers de carga y utilidades
     // -------------------------------------------------------------------------
 
-    private Set<Long> activeFixedSpaceIdsForDay(List<Long> spaceIds, int dow) {
-        return activeFixed(spaceIds).stream()
+    private Set<Long> activeFixedResourceIdsForDay(
+            List<Long> resourceIds, ResourceType resourceType, int dow) {
+        return activeFixed(resourceIds, resourceType).stream()
                 .filter(fa -> fa.getDayOfWeek() == dow)
                 .map(FixedAssignment::getResourceId)
                 .collect(Collectors.toSet());
     }
 
-    private List<FixedAssignment> activeFixed(List<Long> spaceIds) {
-        if (spaceIds.isEmpty()) {
+    private List<FixedAssignment> activeFixed(List<Long> resourceIds, ResourceType resourceType) {
+        if (resourceIds.isEmpty()) {
             return List.of();
         }
         return fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
-                spaceIds, ResourceType.PARKING);
+                resourceIds, resourceType);
     }
 
     private Map<Long, String> employeeNames(

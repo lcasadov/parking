@@ -6,6 +6,7 @@ import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRequest } from '../hooks/useRequests';
 import { isWithinWindow, maxRequestDateIso, todayIso } from '../utils/requests';
+import type { ResourceType } from '../types/request';
 
 interface CreateRequestModalProps {
   onClose: () => void;
@@ -28,40 +29,60 @@ function toastKeyForError(error: unknown): string {
   return 'requests.errors.generic';
 }
 
-// Modal EMPLOYEE: crea una solicitud para una fecha dentro de la ventana
-// hoy..hoy+14 (POST /requests). El input restringe min/max y se valida ademas
-// en cliente antes de enviar.
+// Modal EMPLOYEE: solicitud unificada. Para una misma fecha (ventana hoy..hoy+14)
+// el empleado puede pedir plaza y/o puesto. Cada recurso seleccionado genera un
+// Request independiente vía POST /requests con su `resourceType` (init-desks §4.2).
 export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalProps) {
   const { t } = useTranslation();
   const [date, setDate] = useState('');
+  const [parkingSelected, setParkingSelected] = useState(true);
+  const [deskSelected, setDeskSelected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const createMutation = useCreateRequest();
 
-  function validate(): string | null {
+  function selectedResources(): ResourceType[] {
+    const resources: ResourceType[] = [];
+    if (parkingSelected) {
+      resources.push('PARKING');
+    }
+    if (deskSelected) {
+      resources.push('DESK');
+    }
+    return resources;
+  }
+
+  function validate(resources: ResourceType[]): string | null {
     if (date === '') {
       return t('requests.create.requiredDate');
     }
     if (!isWithinWindow(date)) {
       return t('requests.create.outsideWindow');
     }
+    if (resources.length === 0) {
+      return t('requests.create.requiredResource');
+    }
     return null;
   }
 
-  function handleSubmit(event: FormEvent): void {
+  async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    const validationError = validate();
+    const resources = selectedResources();
+    const validationError = validate(resources);
     if (validationError) {
       setError(validationError);
       return;
     }
     setError(null);
-    createMutation.mutate(
-      { requestedDate: date },
-      {
-        onSuccess: onCreated,
-        onError: (mutationError) => emitApiErrorToast(toastKeyForError(mutationError)),
-      },
-    );
+    try {
+      await Promise.all(
+        resources.map((resourceType) =>
+          createMutation.mutateAsync({ requestedDate: date, resourceType }),
+        ),
+      );
+      onCreated();
+    } catch (mutationError) {
+      emitApiErrorToast(toastKeyForError(mutationError));
+    }
   }
 
   return (
@@ -80,6 +101,26 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
           onChange={(event) => setDate(event.target.value)}
         />
         <p className="hint">{t('requests.create.hint')}</p>
+
+        <fieldset className="resource-fieldset">
+          <legend className="field-label">{t('requests.create.resources')}</legend>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={parkingSelected}
+              onChange={(event) => setParkingSelected(event.target.checked)}
+            />
+            {t('requests.create.resourceParking')}
+          </label>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={deskSelected}
+              onChange={(event) => setDeskSelected(event.target.checked)}
+            />
+            {t('requests.create.resourceDesk')}
+          </label>
+        </fieldset>
 
         {error ? (
           <p className="form-error" role="alert">

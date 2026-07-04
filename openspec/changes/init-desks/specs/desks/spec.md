@@ -26,13 +26,24 @@ tener simultáneamente plaza fija (`PARKING`) y puesto fijo (`DESK`).
 - `Employee`
 
 ## Endpoints
-> Los endpoints `/desks` y de solicitud de puesto **no existen aún en `docs/openapi.yaml`**; se proponen aquí. _[no en openapi.yaml todavía]_
-- GET /api/v1/desks (operationId: listDesks) _[no en openapi.yaml todavía]_
-- POST /api/v1/desks (operationId: createDesk) _[no en openapi.yaml todavía]_
-- GET /api/v1/desks/{id} (operationId: getDesk) _[no en openapi.yaml todavía]_
-- PUT /api/v1/desks/{id} (operationId: updateDesk) _[no en openapi.yaml todavía]_
-- PATCH /api/v1/desks/{id}/activation (operationId: setDeskActivation) _[no en openapi.yaml todavía]_
-- Asignación fija, solicitud, liberación y disponibilidad de puestos se sirven por los endpoints genéricos de `fixed-assignments`, `requests`, `releases` y `availability-calendar` con `resourceType = DESK`.
+> Definidos en `docs/openapi.yaml` — tag `Desks`. Ver también §"API Contract".
+- GET /api/v1/desks (operationId: listDesks) — ADMIN o EMPLOYEE
+- POST /api/v1/desks (operationId: createDesk) — ADMIN
+- GET /api/v1/desks/{id} (operationId: getDesk) — ADMIN o EMPLOYEE
+- PUT /api/v1/desks/{id} (operationId: updateDesk) — ADMIN
+- PATCH /api/v1/desks/{id}/activation (operationId: setDeskActivation) — ADMIN
+- Asignación fija, solicitud, liberación y disponibilidad de puestos se sirven por los endpoints genéricos de `fixed-assignments`, `requests`, `releases` y `availability` con el campo/parámetro `resourceType = DESK` (por defecto `PARKING`).
+
+## API Contract
+Ver `docs/openapi.yaml` — tag `Desks` para el CRUD de puestos y los schemas `Desk`, `DeskCreate`, `DeskUpdate`, `DeskActivationRequest`, `DeskCategory`, `PageDesk`, `ResourceType`.
+
+Cómo se expresa un recurso `DESK` en los endpoints genéricos (para alinear el frontend):
+- **Solicitud de puesto**: `POST /api/v1/requests` con cuerpo `{ "requestedDate": "<fecha>", "resourceType": "DESK" }`. El campo `resourceType` es opcional y por defecto `PARKING`.
+- **Aprobación**: `POST /api/v1/requests/{id}/approve` con `{ "parkingSpaceId": <deskId> }`; el tipo se hereda de la solicitud (no se reenvía). El campo `parkingSpaceId` transporta el `resource_id` genérico (id del puesto cuando la solicitud es `DESK`).
+- **Asignación fija de puesto**: `PUT /api/v1/fixed-assignments/employee/{employeeId}` con `{ "parkingSpaceId": <deskId>, "daysOfWeek": [...], "resourceType": "DESK" }`.
+- **Liberación de puesto**: `POST /api/v1/releases` (o `/releases/administrative`) con `{ "releaseDate": "<fecha>", "parkingSpaceId": <deskId>, "resourceType": "DESK" }`.
+- **Disponibilidad de puestos**: `GET /api/v1/availability?date=<fecha>&resourceType=DESK`. La respuesta reutiliza `availableResources[].parkingSpaceId` como identificador genérico del recurso (id del puesto) y `label` (`D-05`).
+- Las respuestas `Request`, `FixedAssignment` y `Release` incluyen ahora el campo `resourceType` para que el frontend distinga plaza de puesto en listados mixtos.
 
 ## Permisos
 | Rol | Permisos |

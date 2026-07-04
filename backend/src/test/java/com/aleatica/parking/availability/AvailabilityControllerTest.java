@@ -1,6 +1,7 @@
 package com.aleatica.parking.availability;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -11,6 +12,7 @@ import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
 import com.aleatica.parking.availability.dto.AvailabilityResponse;
 import com.aleatica.parking.config.SecurityConfig;
+import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -51,16 +53,30 @@ class AvailabilityControllerTest {
     @Test
     void shouldReturnAvailability_whenAuthenticatedWithValidDate() throws Exception {
         // Arrange
-        given(availabilityService.availabilityForDate(any()))
+        given(availabilityService.availabilityForDate(any(), eq(ResourceType.PARKING)))
                 .willReturn(new AvailabilityResponse(LocalDate.parse(DATE),
                         List.of(new AvailabilityItemResponse(8L, "P-08"))));
 
-        // Act / Assert
+        // Act / Assert: por defecto (sin resourceType) el tipo es PARKING
         mockMvc.perform(get(BASE_URL).param("date", DATE).with(user(EMP).roles(ROLE_EMPLOYEE)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.date").value(DATE))
                 .andExpect(jsonPath("$.availableResources[0].parkingSpaceId").value(8))
                 .andExpect(jsonPath("$.availableResources[0].label").value("P-08"));
+    }
+
+    @Test
+    void shouldReturnDeskAvailability_whenResourceTypeIsDesk() throws Exception {
+        // Arrange
+        given(availabilityService.availabilityForDate(any(), eq(ResourceType.DESK)))
+                .willReturn(new AvailabilityResponse(LocalDate.parse(DATE),
+                        List.of(new AvailabilityItemResponse(5L, "D-05"))));
+
+        // Act / Assert
+        mockMvc.perform(get(BASE_URL).param("date", DATE).param("resourceType", "DESK")
+                        .with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableResources[0].label").value("D-05"));
     }
 
     @Test

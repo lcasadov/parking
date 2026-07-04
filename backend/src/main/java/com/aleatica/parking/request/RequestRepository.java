@@ -73,6 +73,21 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
             Long employeeId, LocalDate requestedDate, RequestStatus status);
 
     /**
+     * Indica si el empleado ya tiene una solicitud en el estado dado, del tipo de recurso
+     * indicado, para la fecha (soporte de la unicidad {@code PENDING} por
+     * empleado/tipo/fecha: un empleado puede tener una solicitud de plaza y otra de puesto
+     * pendientes la misma fecha, pero no dos del mismo tipo).
+     *
+     * @param employeeId    empleado propietario
+     * @param resourceType  tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha solicitada
+     * @param status        estado a comprobar
+     * @return {@code true} si ya existe una solicitud en ese estado, tipo y fecha
+     */
+    boolean existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
+            Long employeeId, ResourceType resourceType, LocalDate requestedDate, RequestStatus status);
+
+    /**
      * Indica si la plaza ya tiene una solicitud en el estado dado para la fecha
      * (soporte de la disponibilidad al aprobar: plaza ya {@code APPROVED} esa fecha).
      *
@@ -102,6 +117,24 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
             RequestStatus status, LocalDate start, LocalDate end);
 
     /**
+     * Solicitudes en un estado y de un tipo de recurso cuyo {@code requested_date} cae
+     * dentro del intervalo (extremos inclusive).
+     *
+     * <p>Variante filtrada por {@code resource_type} de {@link #findByStatusAndRequestedDateBetween}:
+     * la disponibilidad y el calendario cargan solo las solicitudes del tipo consultado, de
+     * modo que un recurso {@code DESK} con el mismo {@code resource_id} que una plaza no
+     * contamine el calculo (los identificadores no son unicos entre tablas de recurso).</p>
+     *
+     * @param status       estado por el que filtrar (p. ej. {@code APPROVED})
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param start        fecha inicial del intervalo (inclusive)
+     * @param end          fecha final del intervalo (inclusive)
+     * @return solicitudes del intervalo en ese estado y tipo (posiblemente vacia)
+     */
+    List<Request> findByStatusAndResourceTypeAndRequestedDateBetween(
+            RequestStatus status, ResourceType resourceType, LocalDate start, LocalDate end);
+
+    /**
      * Solicitudes de un empleado cuyo {@code requested_date} cae dentro del intervalo
      * (extremos inclusive).
      *
@@ -116,4 +149,18 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
      */
     List<Request> findByEmployeeIdAndRequestedDateBetween(
             Long employeeId, LocalDate start, LocalDate end);
+
+    /**
+     * Solicitudes de un empleado y de un tipo de recurso cuyo {@code requested_date} cae
+     * dentro del intervalo (extremos inclusive): variante filtrada por {@code resource_type}
+     * de {@link #findByEmployeeIdAndRequestedDateBetween} para la vista "Mi Semana" por tipo.
+     *
+     * @param employeeId   empleado solicitante
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param start        fecha inicial del intervalo (inclusive)
+     * @param end          fecha final del intervalo (inclusive)
+     * @return solicitudes propias del intervalo y tipo (posiblemente vacia)
+     */
+    List<Request> findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
+            Long employeeId, ResourceType resourceType, LocalDate start, LocalDate end);
 }

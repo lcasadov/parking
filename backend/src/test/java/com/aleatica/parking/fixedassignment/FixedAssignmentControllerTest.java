@@ -19,6 +19,7 @@ import com.aleatica.parking.config.SecurityConfig;
 import com.aleatica.parking.fixedassignment.application.FixedAssignmentService;
 import com.aleatica.parking.fixedassignment.application.InvalidDayOfWeekException;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.util.List;
@@ -219,6 +220,6 @@ class FixedAssignmentControllerTest {
     private FixedAssignmentResponse sample(int day) {
         return new FixedAssignmentResponse(
                 (long) day, 8L, 15L, day, true, 1L,
-                Instant.parse("2026-01-01T00:00:00Z"), null, null);
+                Instant.parse("2026-01-01T00:00:00Z"), null, null, ResourceType.PARKING);
     }
 }

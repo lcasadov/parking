@@ -1,5 +1,6 @@
 package com.aleatica.parking.release.dto;
 
+import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -18,10 +19,14 @@ import java.time.LocalDate;
  * asignacion fija activa las verifica el caso de uso. Las claves contractuales se fijan
  * con {@link JsonProperty}.</p>
  *
+ * <p>{@code resourceType} es opcional y por defecto {@code PARKING}: con {@code DESK} el
+ * {@code ADMIN} libera el puesto fijo del empleado.</p>
+ *
  * @param employeeId     empleado titular cuyo recurso se libera (obligatorio)
  * @param parkingSpaceId recurso a liberar (obligatorio)
  * @param releaseDate    fecha a liberar (obligatoria, presente o futura)
  * @param reason         motivo de la liberacion administrativa (obligatorio)
+ * @param resourceType   tipo de recurso; {@code null} = {@code PARKING} por defecto
  */
 @Schema(description = "Peticion de liberacion administrativa de un recurso ajeno")
 public record AdministrativeReleaseRequest(
@@ -44,5 +49,17 @@ public record AdministrativeReleaseRequest(
         @JsonProperty("reason")
         @NotBlank(message = "El motivo es obligatorio en la liberacion administrativa")
         @Size(max = 500, message = "El motivo no puede exceder 500 caracteres")
-        String reason) {
+        String reason,
+
+        @Schema(description = "Tipo de recurso; por defecto PARKING", example = "DESK",
+                defaultValue = "PARKING")
+        @JsonProperty("resourceType")
+        ResourceType resourceType) {
+
+    /**
+     * @return el {@code resourceType} indicado, o {@code PARKING} si se omite
+     */
+    public ResourceType resourceTypeOrDefault() {
+        return resourceType == null ? ResourceType.PARKING : resourceType;
+    }
 }

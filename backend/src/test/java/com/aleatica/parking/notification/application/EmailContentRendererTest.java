@@ -104,17 +104,17 @@ class EmailContentRendererTest {
 
     private RequestResponse pendingRequest() {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.PENDING,
-                null, null, null, null, null, null, NOW);
+                null, null, null, null, null, null, NOW, com.aleatica.parking.resource.ResourceType.PARKING);
     }
 
     private RequestResponse approvedRequest(String approvalNote) {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.APPROVED,
-                SPACE_ID, approvalNote, null, null, 1L, NOW, NOW);
+                SPACE_ID, approvalNote, null, null, 1L, NOW, NOW, com.aleatica.parking.resource.ResourceType.PARKING);
     }
 
     private RequestResponse rejectedRequest(String reason) {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.REJECTED,
                 null, null, com.aleatica.parking.request.RejectionReasonCode.NO_AVAILABILITY,
-                reason, 1L, NOW, NOW);
+                reason, 1L, NOW, NOW, com.aleatica.parking.resource.ResourceType.PARKING);
     }
 }

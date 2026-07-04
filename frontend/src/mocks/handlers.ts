@@ -3,6 +3,7 @@ import type { ApiError, LoginRequest } from '../types/auth';
 import { adminUser, employeeUser } from './fixtures';
 import { defaultEmployeePage, employeeAlice } from './employeeFixtures';
 import { defaultParkingSpacePage, spaceP01 } from './parkingSpaceFixtures';
+import { defaultDeskPage, deskStandard } from './deskFixtures';
 import {
   aliceAssignments,
   defaultFixedAssignmentPage,
@@ -121,6 +122,19 @@ export const handlers = [
     return HttpResponse.json({ ...spaceP01, ...body, id: Number(params.id) });
   }),
 
+  // ---- Desks (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/desks`, () => HttpResponse.json(defaultDeskPage)),
+
+  http.post(`${BASE}/desks`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...deskStandard, ...body, id: 99 }, { status: 201 });
+  }),
+
+  http.put(`${BASE}/desks/:id`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...deskStandard, ...body, id: Number(params.id) });
+  }),
+
   // ---- FixedAssignments (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/fixed-assignments`, () => HttpResponse.json(defaultFixedAssignmentPage)),
 
@@ -157,9 +171,14 @@ export const handlers = [
   http.get(`${BASE}/requests/mine`, () => HttpResponse.json(defaultMyRequestsPage)),
 
   http.post(`${BASE}/requests`, async ({ request }) => {
-    const body = (await request.json()) as { requestedDate: string };
+    const body = (await request.json()) as { requestedDate: string; resourceType?: string };
     return HttpResponse.json(
-      { ...requestPending1, id: 999, requestedDate: body.requestedDate },
+      {
+        ...requestPending1,
+        id: 999,
+        requestedDate: body.requestedDate,
+        resourceType: body.resourceType ?? 'PARKING',
+      },
       { status: 201 },
     );
   }),

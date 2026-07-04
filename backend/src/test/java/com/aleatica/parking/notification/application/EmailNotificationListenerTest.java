@@ -25,7 +25,7 @@ class EmailNotificationListenerTest {
     private static final Long EMP_ID = 15L;
     private static final RequestResponse REQUEST = new RequestResponse(
             42L, EMP_ID, LocalDate.of(2026, 7, 10), RequestStatus.PENDING,
-            null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"));
+            null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"), com.aleatica.parking.resource.ResourceType.PARKING);
 
     @Mock
     private NotificationDispatcher dispatcher;

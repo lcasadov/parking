@@ -36,6 +36,8 @@ tags:
     description: Gestión de empleados (Empleados)
   - name: ParkingSpaces
     description: Gestión de plazas (Plazas)
+  - name: Desks
+    description: Gestión de puestos de oficina (Puestos)
   - name: FixedAssignments
     description: Asignaciones fijas por día de la semana
   - name: Requests
@@ -464,6 +466,122 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Desks (capability init-desks)
+  # ---------------------------------------------------------------------------
+  /desks:
+    get:
+      tags: [Desks]
+      operationId: listDesks
+      summary: Lista puestos (ADMIN o EMPLOYEE)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: active
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Página de puestos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageDesk'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Desks]
+      operationId: createDesk
+      summary: Crea un puesto (ADMIN)
+      description: '`number` único en el rango 1-65 (400 fuera de rango, 409 en colisión).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeskCreate'
+      responses:
+        '201':
+          description: Puesto creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Desk'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /desks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [Desks]
+      operationId: getDesk
+      summary: Detalle de un puesto (ADMIN o EMPLOYEE)
+      responses:
+        '200':
+          description: Puesto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Desk'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    put:
+      tags: [Desks]
+      operationId: updateDesk
+      summary: Modifica categoría y coordenadas de un puesto (ADMIN)
+      description: 'El `number` es inmutable. Coordenadas en el rango 0-100 (400 fuera de rango).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeskUpdate'
+      responses:
+        '200':
+          description: Puesto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Desk'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /desks/{id}/activation:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [Desks]
+      operationId: setDeskActivation
+      summary: Activa o desactiva un puesto (ADMIN)
+      description: Un puesto inactivo deja de aparecer como disponible.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeskActivationRequest'
+      responses:
+        '200':
+          description: Estado del puesto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Desk'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/ServerError' }
 
   # ---------------------------------------------------------------------------
@@ -1017,6 +1135,12 @@ paths:
           in: query
           required: true
           schema: { type: string, format: date }
+        - name: resourceType
+          in: query
+          required: false
+          description: Tipo de recurso; por defecto PARKING. DESK excluye reservas de visitante.
+          schema:
+            $ref: '#/components/schemas/ResourceType'
       responses:
         '200':
           description: Disponibilidad de la fecha
@@ -1437,6 +1561,66 @@ components:
               type: array
               items: { $ref: '#/components/schemas/ParkingSpace' }
 
+    # ---- Desk (capability init-desks) ----
+    ResourceType:
+      type: string
+      enum: [PARKING, DESK]
+      description: Discriminador del tipo de recurso reservable.
+    DeskCategory:
+      type: string
+      enum: [STANDARD, EXECUTIVE]
+      description: Categoría del puesto; distinción visual, no altera reglas de reserva.
+    Desk:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        number: { type: integer, minimum: 1, maximum: 65 }
+        label: { type: string, description: 'Etiqueta derivada del número (p. ej. D-12)' }
+        category: { $ref: '#/components/schemas/DeskCategory' }
+        coordX: { type: number, format: double, minimum: 0, maximum: 100 }
+        coordY: { type: number, format: double, minimum: 0, maximum: 100 }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    DeskCreate:
+      type: object
+      required: [number, category]
+      properties:
+        number: { type: integer, minimum: 1, maximum: 65 }
+        category: { $ref: '#/components/schemas/DeskCategory' }
+        coordX:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Opcional; si se omite se centra (50).
+        coordY:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Opcional; si se omite se centra (50).
+    DeskUpdate:
+      type: object
+      required: [category]
+      description: 'El número es inmutable. Coordenadas opcionales: si se omiten, se conservan.'
+      properties:
+        category: { $ref: '#/components/schemas/DeskCategory' }
+        coordX: { type: number, format: double, minimum: 0, maximum: 100 }
+        coordY: { type: number, format: double, minimum: 0, maximum: 100 }
+    DeskActivationRequest:
+      type: object
+      required: [active]
+      properties:
+        active: { type: boolean }
+    PageDesk:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/Desk' }
+
     # ---- FixedAssignment ----
     FixedAssignment:
       type: object
@@ -1450,15 +1634,23 @@ components:
         createdAt: { type: string, format: date-time }
         revokedById: { type: integer, format: int64, nullable: true }
         revokedAt: { type: string, format: date-time, nullable: true }
+        resourceType: { $ref: '#/components/schemas/ResourceType' }
     FixedAssignmentPutRequest:
       type: object
       required: [parkingSpaceId, daysOfWeek]
       properties:
-        parkingSpaceId: { type: integer, format: int64 }
+        parkingSpaceId:
+          type: integer
+          format: int64
+          description: 'Recurso a asignar: plaza (PARKING) o puesto (DESK).'
         daysOfWeek:
           type: array
           minItems: 1
           items: { type: integer, minimum: 1, maximum: 7 }
+        resourceType:
+          allOf: [ { $ref: '#/components/schemas/ResourceType' } ]
+          default: PARKING
+          description: Tipo de recurso; por defecto PARKING.
     PageFixedAssignment:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
@@ -1480,6 +1672,7 @@ components:
         reason: { type: string, nullable: true }
         releasedById: { type: integer, format: int64 }
         createdAt: { type: string, format: date-time }
+        resourceType: { $ref: '#/components/schemas/ResourceType' }
     ReleaseCreateRequest:
       type: object
       required: [releaseDate]
@@ -1488,7 +1681,11 @@ components:
         parkingSpaceId:
           type: integer
           format: int64
-          description: Opcional; si se omite, se resuelve la plaza fija del empleado para ese día.
+          description: Opcional; si se omite, se resuelve el recurso fijo del empleado para ese día.
+        resourceType:
+          allOf: [ { $ref: '#/components/schemas/ResourceType' } ]
+          default: PARKING
+          description: Tipo de recurso; por defecto PARKING.
     AdministrativeReleaseRequest:
       type: object
       required: [employeeId, parkingSpaceId, releaseDate, reason]
@@ -1497,6 +1694,10 @@ components:
         parkingSpaceId: { type: integer, format: int64 }
         releaseDate: { type: string, format: date }
         reason: { type: string, minLength: 1, maxLength: 500 }
+        resourceType:
+          allOf: [ { $ref: '#/components/schemas/ResourceType' } ]
+          default: PARKING
+          description: Tipo de recurso; por defecto PARKING.
     PageRelease:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
@@ -1524,11 +1725,16 @@ components:
         resolvedById: { type: integer, format: int64, nullable: true }
         resolvedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
+        resourceType: { $ref: '#/components/schemas/ResourceType' }
     RequestCreateRequest:
       type: object
       required: [requestedDate]
       properties:
         requestedDate: { type: string, format: date }
+        resourceType:
+          allOf: [ { $ref: '#/components/schemas/ResourceType' } ]
+          default: PARKING
+          description: Tipo de recurso solicitado; por defecto PARKING.
     RequestApproveRequest:
       type: object
       required: [parkingSpaceId]

@@ -15,7 +15,6 @@ import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
-import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.request.RejectionReasonCode;
 import com.aleatica.parking.request.Request;
 import com.aleatica.parking.request.RequestRepository;
@@ -24,6 +23,8 @@ import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.resource.ResourceResolvers;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -70,7 +71,7 @@ class RequestServiceTest {
     private EmployeeRepository employeeRepository;
 
     @Mock
-    private ParkingSpaceRepository parkingSpaceRepository;
+    private ResourceResolvers resourceResolvers;
 
     @Mock
     private AvailabilityService availabilityService;
@@ -88,7 +89,7 @@ class RequestServiceTest {
 
     private RequestService newService() {
         return new RequestService(
-                requestRepository, employeeRepository, parkingSpaceRepository,
+                requestRepository, employeeRepository, resourceResolvers,
                 availabilityService, eventPublisher, clock);
     }
 
@@ -98,13 +99,13 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateWithinWindow() {
         // Arrange
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.existsByEmployeeIdAndRequestedDateAndStatus(
-                EMP_ID, WITHIN, RequestStatus.PENDING)).willReturn(false);
+        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
+                EMP_ID, ResourceType.PARKING,WITHIN, RequestStatus.PENDING)).willReturn(false);
         given(requestRepository.saveAndFlush(any(Request.class)))
                 .willAnswer(inv -> inv.getArgument(0));
 
         // Act
-        RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN));
+        RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null));
 
         // Assert: estado inicial PENDING, sin plaza, con la fecha y el empleado
         assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
@@ -119,13 +120,13 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateExactlyToday() {
         // Arrange (frontera inferior inclusive)
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.existsByEmployeeIdAndRequestedDateAndStatus(
-                EMP_ID, TODAY, RequestStatus.PENDING)).willReturn(false);
+        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
+                EMP_ID, ResourceType.PARKING,TODAY, RequestStatus.PENDING)).willReturn(false);
         given(requestRepository.saveAndFlush(any(Request.class)))
                 .willAnswer(inv -> inv.getArgument(0));
 
         // Act / Assert
-        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(TODAY)).status())
+        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(TODAY, null)).status())
                 .isEqualTo(RequestStatus.PENDING);
     }
 
@@ -133,13 +134,13 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateExactlyMaxDay() {
         // Arrange (frontera superior inclusive: hoy+14)
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.existsByEmployeeIdAndRequestedDateAndStatus(
-                EMP_ID, MAX_DAY, RequestStatus.PENDING)).willReturn(false);
+        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
+                EMP_ID, ResourceType.PARKING,MAX_DAY, RequestStatus.PENDING)).willReturn(false);
         given(requestRepository.saveAndFlush(any(Request.class)))
                 .willAnswer(inv -> inv.getArgument(0));
 
         // Act / Assert
-        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(MAX_DAY)).status())
+        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(MAX_DAY, null)).status())
                 .isEqualTo(RequestStatus.PENDING);
     }
 
@@ -149,7 +150,7 @@ class RequestServiceTest {
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(BEFORE)))
+        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(BEFORE, null)))
                 .isInstanceOf(OutsideRequestWindowException.class);
         verify(requestRepository, never()).saveAndFlush(any());
     }
@@ -160,7 +161,7 @@ class RequestServiceTest {
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(AFTER)))
+        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(AFTER, null)))
                 .isInstanceOf(OutsideRequestWindowException.class);
         verify(requestRepository, never()).saveAndFlush(any());
     }
@@ -169,11 +170,11 @@ class RequestServiceTest {
     void shouldThrowDuplicatePending_whenRequestForSameDateExists() {
         // Arrange
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.existsByEmployeeIdAndRequestedDateAndStatus(
-                EMP_ID, WITHIN, RequestStatus.PENDING)).willReturn(true);
+        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
+                EMP_ID, ResourceType.PARKING,WITHIN, RequestStatus.PENDING)).willReturn(true);
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN)))
+        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null)))
                 .isInstanceOf(DuplicatePendingRequestException.class);
         verify(requestRepository, never()).saveAndFlush(any());
     }
@@ -184,7 +185,7 @@ class RequestServiceTest {
         given(employeeRepository.findByLogin(EMP_LOGIN)).willReturn(Optional.empty());
 
         // Act / Assert
-        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN)))
+        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null)))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -248,8 +249,9 @@ class RequestServiceTest {
         // Arrange: la disponibilidad consolidada declara la plaza libre para la fecha
         Request pending = pending();
         given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
-        given(availabilityService.isSpaceTakenForDate(SPACE_ID, WITHIN)).willReturn(false);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
+        given(availabilityService.isSpaceTakenForDate(SPACE_ID, ResourceType.PARKING, WITHIN))
+                .willReturn(false);
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(requestRepository.saveAndFlush(any(Request.class)))
                 .willAnswer(inv -> inv.getArgument(0));
@@ -272,8 +274,9 @@ class RequestServiceTest {
         // La disponibilidad consolidada aplica el release y la declara NO ocupada.
         Request pending = pending();
         given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
-        given(availabilityService.isSpaceTakenForDate(SPACE_ID, WITHIN)).willReturn(false);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
+        given(availabilityService.isSpaceTakenForDate(SPACE_ID, ResourceType.PARKING, WITHIN))
+                .willReturn(false);
         givenActor(ADMIN_LOGIN, ADMIN_ID);
         given(requestRepository.saveAndFlush(any(Request.class)))
                 .willAnswer(inv -> inv.getArgument(0));
@@ -290,8 +293,9 @@ class RequestServiceTest {
         // aprobar sobre una plaza ya reservada por un visitante debe rechazarse (no doble reserva).
         Request pending = pending();
         given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
-        given(availabilityService.isSpaceTakenForDate(SPACE_ID, WITHIN)).willReturn(true);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
+        given(availabilityService.isSpaceTakenForDate(SPACE_ID, ResourceType.PARKING, WITHIN))
+                .willReturn(true);
 
         // Act / Assert
         assertThatThrownBy(() -> newService()
@@ -305,8 +309,9 @@ class RequestServiceTest {
         // Arrange: la plaza esta ocupada segun la regla consolidada (fija sin liberar o APPROVED)
         Request pending = pending();
         given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
-        given(availabilityService.isSpaceTakenForDate(SPACE_ID, WITHIN)).willReturn(true);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
+        given(availabilityService.isSpaceTakenForDate(SPACE_ID, ResourceType.PARKING, WITHIN))
+                .willReturn(true);
 
         // Act / Assert
         assertThatThrownBy(() -> newService()
@@ -319,7 +324,7 @@ class RequestServiceTest {
     void shouldThrowNotFound_whenApprovingWithUnknownSpace() {
         // Arrange
         given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending()));
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(false);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(false);
 
         // Act / Assert
         assertThatThrownBy(() -> newService()

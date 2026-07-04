@@ -90,12 +90,31 @@ public class Request {
      * @return la solicitud nueva, aun no persistida
      */
     public static Request create(Long employeeId, LocalDate requestedDate, Instant now) {
+        return create(employeeId, ResourceType.PARKING, requestedDate, now);
+    }
+
+    /**
+     * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin recurso,
+     * para un tipo de recurso concreto ({@code PARKING} plaza / {@code DESK} puesto).
+     *
+     * <p>Nace con {@code resource_id = NULL}; el recurso concreto se asigna al aprobar. El
+     * {@code resource_type} se fija desde la creacion para que la unicidad {@code PENDING}
+     * por empleado/tipo/fecha permita a un empleado pedir plaza y puesto la misma fecha.</p>
+     *
+     * @param employeeId    empleado solicitante
+     * @param resourceType  tipo del recurso solicitado ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha solicitada
+     * @param now           instante de creacion (UTC)
+     * @return la solicitud nueva, aun no persistida
+     */
+    public static Request create(
+            Long employeeId, ResourceType resourceType, LocalDate requestedDate, Instant now) {
         Request request = new Request();
         request.employeeId = employeeId;
         request.requestedDate = requestedDate;
         request.status = RequestStatus.PENDING;
         request.resourceId = null;
-        request.resourceType = ResourceType.PARKING;
+        request.resourceType = resourceType;
         request.createdAt = now;
         return request;
     }

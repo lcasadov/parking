@@ -138,6 +138,33 @@ GO
 - `label` is unique and human-facing. Inactive spaces are never available for any date.
 - Future `desks` will be a sibling table; the `generic-resource-refactor` introduces a shared `resource_id` abstraction.
 
+### 3.2b `desks` (capability `init-desks`)
+**Purpose:** office desks as the second reservable resource type (`ResourceType.DESK`). Sibling table of `parking_spaces` (not single-table inheritance): the `generic-resource-refactor` already supplies the `resource_type` discriminator, so a separate table keeps the desk-only columns (`number`, `category`, `coord_x`, `coord_y`) without nullable columns on `parking_spaces`. Backfilled in migration **`V13__desks.sql`**; the 65 dev desks are seeded only in DES/tests via `db/seed/dev/V14__seed_dev_desks.sql`.
+
+```sql
+CREATE TABLE dbo.desks (
+    id          BIGINT IDENTITY(1,1) NOT NULL,
+    number      INT NOT NULL,                              -- CHECK 1-65
+    category    VARCHAR(15) NOT NULL DEFAULT 'STANDARD',   -- CHECK IN ('STANDARD','EXECUTIVE')
+    coord_x     DECIMAL(5,2) NOT NULL DEFAULT 50,          -- CHECK 0-100 (percent of plan width)
+    coord_y     DECIMAL(5,2) NOT NULL DEFAULT 50,          -- CHECK 0-100 (percent of plan height)
+    active      BIT NOT NULL DEFAULT 1,
+    created_at  DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_desks PRIMARY KEY (id)
+);
+GO
+CREATE UNIQUE INDEX UX_desks_number ON dbo.desks(number);
+GO
+```
+
+**Notes**
+- `number` is unique and range-bounded 1-65: the reservable set is fixed and numbered.
+- `category` `EXECUTIVE` is a visual distinction only — it does not change any reservation rule (released/requested exactly like `STANDARD`).
+- `coord_x`/`coord_y` are percentages (0-100) of the plan image, independent of its resolution; fine positioning belongs to `floor-plan`.
+- Desks reuse `fixed_assignments`, `requests`, `releases` and availability through `resource_id` + `resource_type = 'DESK'`. **V13 drops the single-table FKs to `parking_spaces`** on those three tables (a polymorphic `resource_id` cannot FK a single table); referential integrity of the resource moves to the application layer (`ResourceResolverPort#exists` per type). The filtered unique indexes (keyed on `resource_type`) are unchanged.
+- **No visitor reservations for desks:** the availability calculation for `DESK` omits the `visitor_reservations` term.
+- An employee may hold a `PARKING` and a `DESK` fixed assignment on the same weekday (the `UX_fixed_assignments_employee_day_active` index keys on `resource_type`).
+
 ### 3.3 `fixed_assignments`
 **Purpose:** indefinite link between an employee and a parking space for a given weekday. Logically revoked, never deleted.
 

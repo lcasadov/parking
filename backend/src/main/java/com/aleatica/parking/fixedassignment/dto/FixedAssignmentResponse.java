@@ -1,6 +1,7 @@
 package com.aleatica.parking.fixedassignment.dto;
 
 import com.aleatica.parking.fixedassignment.FixedAssignment;
+import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
@@ -51,7 +52,10 @@ public record FixedAssignmentResponse(
         @JsonProperty("revokedById") Long revokedById,
 
         @Schema(description = "Instante de revocacion (ISO-8601); null si vigente")
-        @JsonProperty("revokedAt") Instant revokedAt) {
+        @JsonProperty("revokedAt") Instant revokedAt,
+
+        @Schema(description = "Tipo de recurso asignado", example = "PARKING")
+        @JsonProperty("resourceType") ResourceType resourceType) {
 
     /**
      * Mapea la entidad de persistencia a su DTO de salida.
@@ -69,6 +73,7 @@ public record FixedAssignmentResponse(
                 assignment.getCreatedById(),
                 assignment.getCreatedAt(),
                 assignment.getRevokedById(),
-                assignment.getRevokedAt());
+                assignment.getRevokedAt(),
+                assignment.getResourceType());
     }
 }

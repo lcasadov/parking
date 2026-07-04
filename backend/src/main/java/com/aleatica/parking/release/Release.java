@@ -86,7 +86,26 @@ public class Release {
      */
     public static Release voluntary(
             Long resourceId, Long employeeId, LocalDate releaseDate, Instant now) {
-        return build(resourceId, employeeId, releaseDate, ReleaseType.VOLUNTARY, null, employeeId, now);
+        return voluntary(resourceId, ResourceType.PARKING, employeeId, releaseDate, now);
+    }
+
+    /**
+     * Da de alta una liberacion voluntaria de un recurso de un tipo concreto
+     * ({@code PARKING} plaza / {@code DESK} puesto): el titular libera su propio recurso
+     * ({@code employee_id = released_by_id}, {@code reason = null}).
+     *
+     * @param resourceId   recurso liberado (resuelto de la asignacion fija)
+     * @param resourceType tipo del recurso ({@code PARKING}/{@code DESK})
+     * @param employeeId   empleado titular = ejecutor
+     * @param releaseDate  fecha liberada (presente o futura)
+     * @param now          instante de creacion (UTC)
+     * @return la liberacion nueva, aun no persistida
+     */
+    public static Release voluntary(
+            Long resourceId, ResourceType resourceType, Long employeeId, LocalDate releaseDate,
+            Instant now) {
+        return build(resourceId, resourceType, employeeId, releaseDate, ReleaseType.VOLUNTARY, null,
+                employeeId, now);
     }
 
     /**
@@ -104,16 +123,37 @@ public class Release {
     public static Release administrative(
             Long resourceId, Long employeeId, LocalDate releaseDate, String reason,
             Long releasedById, Instant now) {
-        return build(resourceId, employeeId, releaseDate, ReleaseType.ADMINISTRATIVE, reason,
+        return administrative(resourceId, ResourceType.PARKING, employeeId, releaseDate, reason,
                 releasedById, now);
     }
 
-    private static Release build(
-            Long resourceId, Long employeeId, LocalDate releaseDate, ReleaseType type,
+    /**
+     * Da de alta una liberacion administrativa de un recurso de un tipo concreto
+     * ({@code PARKING} plaza / {@code DESK} puesto): un {@code ADMIN} libera el recurso de
+     * un empleado, indicando el motivo obligatorio.
+     *
+     * @param resourceId   recurso liberado
+     * @param resourceType tipo del recurso ({@code PARKING}/{@code DESK})
+     * @param employeeId   empleado titular cuyo recurso se libera
+     * @param releaseDate  fecha liberada (presente o futura)
+     * @param reason       motivo obligatorio de la liberacion administrativa
+     * @param releasedById empleado (ADMIN) que ejecuta la liberacion
+     * @param now          instante de creacion (UTC)
+     * @return la liberacion nueva, aun no persistida
+     */
+    public static Release administrative(
+            Long resourceId, ResourceType resourceType, Long employeeId, LocalDate releaseDate,
             String reason, Long releasedById, Instant now) {
+        return build(resourceId, resourceType, employeeId, releaseDate, ReleaseType.ADMINISTRATIVE,
+                reason, releasedById, now);
+    }
+
+    private static Release build(
+            Long resourceId, ResourceType resourceType, Long employeeId, LocalDate releaseDate,
+            ReleaseType type, String reason, Long releasedById, Instant now) {
         Release release = new Release();
         release.resourceId = resourceId;
-        release.resourceType = ResourceType.PARKING;
+        release.resourceType = resourceType;
         release.employeeId = employeeId;
         release.releaseDate = releaseDate;
         release.type = type;

@@ -21,6 +21,7 @@ import com.aleatica.parking.request.application.RequestService;
 import com.aleatica.parking.request.application.RequestStateException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -321,6 +322,6 @@ class RequestControllerTest {
     private RequestResponse sample(RequestStatus status) {
         return new RequestResponse(
                 42L, 15L, LocalDate.of(2026, 7, 10), status,
-                null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"));
+                null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
     }
 }

@@ -14,6 +14,7 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
@@ -55,7 +56,7 @@ class FixedAssignmentServiceTest {
     private EmployeeRepository employeeRepository;
 
     @Mock
-    private ParkingSpaceRepository parkingSpaceRepository;
+    private ResourceResolvers resourceResolvers;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -67,7 +68,7 @@ class FixedAssignmentServiceTest {
 
     private FixedAssignmentService newService() {
         return new FixedAssignmentService(
-                fixedAssignmentRepository, employeeRepository, parkingSpaceRepository,
+                fixedAssignmentRepository, employeeRepository, resourceResolvers,
                 eventPublisher, clock);
     }
 
@@ -245,7 +246,7 @@ class FixedAssignmentServiceTest {
     void shouldThrowNotFound_whenSettingWithUnknownSpace() {
         // Arrange: empleado valido, plaza inexistente
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(false);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(false);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().setAssignments(EMP_ID, request(1), ADMIN_LOGIN))
@@ -257,7 +258,7 @@ class FixedAssignmentServiceTest {
     void shouldThrow_whenDayOfWeekIsNull() {
         // Act / Assert: un elemento nulo en la lista de dias
         assertThatThrownBy(() -> newService().setAssignments(
-                EMP_ID, new FixedAssignmentPutRequest(SPACE_ID, java.util.Arrays.asList(1, null)), ADMIN_LOGIN))
+                EMP_ID, new FixedAssignmentPutRequest(SPACE_ID, java.util.Arrays.asList(1, null), null), ADMIN_LOGIN))
                 .isInstanceOf(InvalidDayOfWeekException.class);
         verify(fixedAssignmentRepository, never()).saveAll(any());
     }
@@ -289,7 +290,7 @@ class FixedAssignmentServiceTest {
 
     private void givenEmployeeAndSpaceExist() {
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
-        given(parkingSpaceRepository.existsById(SPACE_ID)).willReturn(true);
+        given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
     }
 
     private void givenActor(String login, Long id) {
@@ -303,6 +304,6 @@ class FixedAssignmentServiceTest {
     }
 
     private FixedAssignmentPutRequest request(Integer... days) {
-        return new FixedAssignmentPutRequest(SPACE_ID, List.of(days));
+        return new FixedAssignmentPutRequest(SPACE_ID, List.of(days), null);
     }
 }

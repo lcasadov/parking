@@ -6,9 +6,9 @@ import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
-import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.Release;
 import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.release.dto.AdministrativeReleaseRequest;
 import com.aleatica.parking.release.dto.ReleaseCreateRequest;
@@ -61,7 +61,7 @@ public class ReleaseService {
 
     private final ReleaseRepository releaseRepository;
     private final EmployeeRepository employeeRepository;
-    private final ParkingSpaceRepository parkingSpaceRepository;
+    private final ResourceResolvers resourceResolvers;
     private final FixedAssignmentRepository fixedAssignmentRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
@@ -69,21 +69,22 @@ public class ReleaseService {
     /**
      * @param releaseRepository         repositorio de liberaciones
      * @param employeeRepository        repositorio de empleados (titular/ejecutor)
-     * @param parkingSpaceRepository    repositorio de plazas (integridad de recurso)
-     * @param fixedAssignmentRepository repositorio de asignaciones fijas (resolucion de plaza)
+     * @param resourceResolvers         resolutor polimorfico de recursos (integridad de plaza
+     *                                  o puesto segun {@code resourceType})
+     * @param fixedAssignmentRepository repositorio de asignaciones fijas (resolucion de recurso)
      * @param eventPublisher            publicador de eventos de auditoria
      * @param clock                     reloj inyectable para la ventana y las marcas de tiempo
      */
     public ReleaseService(
             ReleaseRepository releaseRepository,
             EmployeeRepository employeeRepository,
-            ParkingSpaceRepository parkingSpaceRepository,
+            ResourceResolvers resourceResolvers,
             FixedAssignmentRepository fixedAssignmentRepository,
             ApplicationEventPublisher eventPublisher,
             ClockPort clock) {
         this.releaseRepository = releaseRepository;
         this.employeeRepository = employeeRepository;
-        this.parkingSpaceRepository = parkingSpaceRepository;
+        this.resourceResolvers = resourceResolvers;
         this.fixedAssignmentRepository = fixedAssignmentRepository;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
@@ -105,11 +106,13 @@ public class ReleaseService {
     public ReleaseResponse createRelease(String requesterLogin, ReleaseCreateRequest request) {
         Long employeeId = resolveEmployeeId(requesterLogin);
         LocalDate releaseDate = request.releaseDate();
+        ResourceType resourceType = request.resourceTypeOrDefault();
         requireNotPast(releaseDate);
-        Long spaceId = resolveVoluntarySpace(employeeId, releaseDate, request.parkingSpaceId());
-        requireResourceNotReleased(spaceId, releaseDate);
+        Long spaceId = resolveVoluntarySpace(
+                employeeId, resourceType, releaseDate, request.parkingSpaceId());
+        requireResourceNotReleased(spaceId, resourceType, releaseDate);
         Release saved = releaseRepository.saveAndFlush(
-                Release.voluntary(spaceId, employeeId, releaseDate, clock.now()));
+                Release.voluntary(spaceId, resourceType, employeeId, releaseDate, clock.now()));
         ReleaseResponse response = ReleaseResponse.from(saved);
         publish(ReleaseAuditEvent.Kind.VOLUNTARY_RELEASED, response);
         return response;
@@ -132,16 +135,17 @@ public class ReleaseService {
             String adminLogin, AdministrativeReleaseRequest request) {
         Long adminId = resolveEmployeeId(adminLogin);
         LocalDate releaseDate = request.releaseDate();
+        ResourceType resourceType = request.resourceTypeOrDefault();
         requireNotPast(releaseDate);
         Long employeeId = request.employeeId();
         Long spaceId = request.parkingSpaceId();
         requireEmployeeExists(employeeId);
-        requireSpaceExists(spaceId);
-        requireActiveAssignment(employeeId, spaceId, releaseDate);
-        requireResourceNotReleased(spaceId, releaseDate);
+        requireResourceExists(spaceId, resourceType);
+        requireActiveAssignment(employeeId, spaceId, resourceType, releaseDate);
+        requireResourceNotReleased(spaceId, resourceType, releaseDate);
         Release saved = releaseRepository.saveAndFlush(
-                Release.administrative(spaceId, employeeId, releaseDate, request.reason(), adminId,
-                        clock.now()));
+                Release.administrative(spaceId, resourceType, employeeId, releaseDate,
+                        request.reason(), adminId, clock.now()));
         ReleaseResponse response = ReleaseResponse.from(saved);
         publish(ReleaseAuditEvent.Kind.ADMINISTRATIVE_RELEASED, response);
         return response;
@@ -186,10 +190,12 @@ public class ReleaseService {
         publish(ReleaseAuditEvent.Kind.CANCELLED, snapshot);
     }
 
-    private Long resolveVoluntarySpace(Long employeeId, LocalDate releaseDate, Long requestedSpaceId) {
+    private Long resolveVoluntarySpace(
+            Long employeeId, ResourceType resourceType, LocalDate releaseDate, Long requestedSpaceId) {
         int dayOfWeek = releaseDate.getDayOfWeek().getValue();
         List<FixedAssignment> assignments =
-                fixedAssignmentRepository.findByEmployeeIdAndDayOfWeekAndActiveTrue(employeeId, dayOfWeek);
+                fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                        employeeId, resourceType, dayOfWeek);
         if (requestedSpaceId != null) {
             boolean owns = assignments.stream()
                     .anyMatch(assignment -> assignment.getResourceId().equals(requestedSpaceId));
@@ -207,10 +213,12 @@ public class ReleaseService {
         return assignments.get(0).getResourceId();
     }
 
-    private void requireActiveAssignment(Long employeeId, Long spaceId, LocalDate releaseDate) {
+    private void requireActiveAssignment(
+            Long employeeId, Long spaceId, ResourceType resourceType, LocalDate releaseDate) {
         int dayOfWeek = releaseDate.getDayOfWeek().getValue();
         boolean present = fixedAssignmentRepository
-                .findByEmployeeIdAndDayOfWeekAndActiveTrue(employeeId, dayOfWeek).stream()
+                .findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                        employeeId, resourceType, dayOfWeek).stream()
                 .anyMatch(assignment -> assignment.getResourceId().equals(spaceId));
         if (!present) {
             throw new NoFixedAssignmentException(MSG_NO_FIXED_ASSIGNMENT);
@@ -223,9 +231,10 @@ public class ReleaseService {
         }
     }
 
-    private void requireResourceNotReleased(Long spaceId, LocalDate releaseDate) {
+    private void requireResourceNotReleased(
+            Long spaceId, ResourceType resourceType, LocalDate releaseDate) {
         if (releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
-                spaceId, ResourceType.PARKING, releaseDate)) {
+                spaceId, resourceType, releaseDate)) {
             throw new ResourceAlreadyReleasedException(MSG_ALREADY_RELEASED);
         }
     }
@@ -236,8 +245,8 @@ public class ReleaseService {
         }
     }
 
-    private void requireSpaceExists(Long spaceId) {
-        if (!parkingSpaceRepository.existsById(spaceId)) {
+    private void requireResourceExists(Long spaceId, ResourceType resourceType) {
+        if (!resourceResolvers.exists(spaceId, resourceType)) {
             throw new EntityNotFoundException(MSG_SPACE_NOT_FOUND + spaceId);
         }
     }

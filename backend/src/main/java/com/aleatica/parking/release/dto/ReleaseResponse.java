@@ -2,6 +2,7 @@ package com.aleatica.parking.release.dto;
 
 import com.aleatica.parking.release.Release;
 import com.aleatica.parking.release.ReleaseType;
+import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
@@ -49,7 +50,10 @@ public record ReleaseResponse(
         @JsonProperty("releasedById") Long releasedById,
 
         @Schema(description = "Instante de creacion (ISO-8601)")
-        @JsonProperty("createdAt") Instant createdAt) {
+        @JsonProperty("createdAt") Instant createdAt,
+
+        @Schema(description = "Tipo de recurso liberado", example = "PARKING")
+        @JsonProperty("resourceType") ResourceType resourceType) {
 
     /**
      * Mapea la entidad de persistencia a su DTO de salida.
@@ -66,6 +70,7 @@ public record ReleaseResponse(
                 release.getType(),
                 release.getReason(),
                 release.getReleasedById(),
-                release.getCreatedAt());
+                release.getCreatedAt(),
+                release.getResourceType());
     }
 }

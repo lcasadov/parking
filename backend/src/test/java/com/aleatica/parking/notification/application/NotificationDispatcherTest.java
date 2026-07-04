@@ -120,6 +120,6 @@ class NotificationDispatcherTest {
 
     private RequestResponse createdRequest() {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.PENDING,
-                null, null, null, null, null, null, NOW);
+                null, null, null, null, null, null, NOW, com.aleatica.parking.resource.ResourceType.PARKING);
     }
 }

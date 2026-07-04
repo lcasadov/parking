@@ -92,9 +92,30 @@ public class FixedAssignment {
      */
     public static FixedAssignment create(
             Long resourceId, Long employeeId, Integer dayOfWeek, Long createdById, Instant now) {
+        return create(resourceId, ResourceType.PARKING, employeeId, dayOfWeek, createdById, now);
+    }
+
+    /**
+     * Da de alta una nueva asignacion fija activa para un tipo de recurso concreto
+     * ({@code PARKING} plaza / {@code DESK} puesto).
+     *
+     * <p>Nace con {@code active = true}; {@code created_at} lo fija el reloj inyectable
+     * ({@code ClockPort}) para tests deterministas.</p>
+     *
+     * @param resourceId   recurso asignado (plaza o puesto segun {@code resourceType})
+     * @param resourceType tipo del recurso ({@code PARKING}/{@code DESK})
+     * @param employeeId   empleado titular
+     * @param dayOfWeek    dia de la semana (1-7)
+     * @param createdById  empleado (ADMIN) que crea la asignacion
+     * @param now          instante de creacion (UTC)
+     * @return la asignacion nueva, aun no persistida
+     */
+    public static FixedAssignment create(
+            Long resourceId, ResourceType resourceType, Long employeeId, Integer dayOfWeek,
+            Long createdById, Instant now) {
         FixedAssignment assignment = new FixedAssignment();
         assignment.resourceId = resourceId;
-        assignment.resourceType = ResourceType.PARKING;
+        assignment.resourceType = resourceType;
         assignment.employeeId = employeeId;
         assignment.dayOfWeek = dayOfWeek;
         assignment.active = true;

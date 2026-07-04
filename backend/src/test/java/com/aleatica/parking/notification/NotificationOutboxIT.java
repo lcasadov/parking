@@ -137,7 +137,7 @@ class NotificationOutboxIT extends BaseIntegrationTest {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         RequestResponse snapshot = new RequestResponse(
                 1L, empId, WITHIN, RequestStatus.APPROVED, spaceId, "nota",
-                null, null, adminId(), Instant.now(), Instant.now());
+                null, null, adminId(), Instant.now(), Instant.now(), com.aleatica.parking.resource.ResourceType.PARKING);
 
         // Act
         tx.execute(statusCallback -> {

@@ -76,6 +76,7 @@ public class GlobalExceptionHandler {
     private static final String FIELD_LOGIN = "login";
     private static final String FIELD_EMAIL = "email";
     private static final String FIELD_LABEL = "label";
+    private static final String FIELD_NUMBER = "number";
     private static final String FIELD_DAYS_OF_WEEK = "daysOfWeek";
     private static final String FIELD_PARKING_SPACE_ID = "parkingSpaceId";
     private static final String FIELD_EMPLOYEE_ID = "employeeId";
@@ -88,6 +89,7 @@ public class GlobalExceptionHandler {
     private static final String INDEX_LOGIN = "ux_employees_login";
     private static final String INDEX_EMAIL = "ux_employees_email";
     private static final String INDEX_LABEL = "ux_parking_spaces_label";
+    private static final String INDEX_DESK_NUMBER = "ux_desks_number";
     private static final String INDEX_FIXED_SPACE_DAY = "ux_fixed_assignments_space_day_active";
     private static final String INDEX_FIXED_EMPLOYEE_DAY = "ux_fixed_assignments_employee_day_active";
     private static final String INDEX_REQUEST_PENDING = "ux_requests_employee_date_pending";
@@ -109,6 +111,7 @@ public class GlobalExceptionHandler {
     private static final String MSG_LOGIN_TAKEN = "El login ya esta en uso";
     private static final String MSG_EMAIL_TAKEN = "El email ya esta en uso";
     private static final String MSG_LABEL_TAKEN = "La etiqueta ya esta en uso";
+    private static final String MSG_DESK_NUMBER_TAKEN = "El numero de puesto ya esta en uso";
     private static final String MSG_SPACE_DAY_TAKEN =
             "La plaza ya esta asignada a otro empleado ese dia de la semana";
     private static final String MSG_EMPLOYEE_DAY_TAKEN =
@@ -141,6 +144,7 @@ public class GlobalExceptionHandler {
             new IndexRule(INDEX_LOGIN, FIELD_LOGIN, MSG_LOGIN_TAKEN, CODE_CONFLICT),
             new IndexRule(INDEX_EMAIL, FIELD_EMAIL, MSG_EMAIL_TAKEN, CODE_CONFLICT),
             new IndexRule(INDEX_LABEL, FIELD_LABEL, MSG_LABEL_TAKEN, CODE_CONFLICT),
+            new IndexRule(INDEX_DESK_NUMBER, FIELD_NUMBER, MSG_DESK_NUMBER_TAKEN, CODE_CONFLICT),
             new IndexRule(INDEX_FIXED_SPACE_DAY, FIELD_PARKING_SPACE_ID, MSG_SPACE_DAY_TAKEN, CODE_CONFLICT),
             new IndexRule(INDEX_FIXED_EMPLOYEE_DAY, FIELD_EMPLOYEE_ID, MSG_EMPLOYEE_DAY_TAKEN, CODE_CONFLICT),
             new IndexRule(INDEX_REQUEST_PENDING, null, MSG_REQUEST_PENDING_TAKEN, CODE_REQUEST_PENDING),
