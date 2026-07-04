@@ -104,7 +104,7 @@ mecanismo de exportación es estable desde Fase 1).
 #### Scenario: Sexta exportación en un minuto
 - **GIVEN** un usuario autenticado que ya ha realizado 5 exportaciones en el último minuto
 - **WHEN** envía una sexta petición de exportación dentro de la misma ventana
-- **THEN** el sistema responde 429 con `{ error, message, fields, timestamp }` _[verificar con docs/openapi.yaml: 429 no declarado en las respuestas de los endpoints de export]_
+- **THEN** el sistema responde 429 con `{ error, message, fields, timestamp }` (declarado en `docs/openapi.yaml` como `TooManyRequests` en los cinco endpoints de export)
 - **AND** no genera el fichero
 
 ## Casos límite (edge cases)

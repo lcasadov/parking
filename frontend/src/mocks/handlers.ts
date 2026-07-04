@@ -89,6 +89,15 @@ export const handlers = [
     }),
   ),
 
+  http.get(`${BASE}/employees/me/export`, () =>
+    HttpResponse.text('field,value\nlogin,emp', {
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="my-data.csv"',
+      },
+    }),
+  ),
+
   // ---- ParkingSpaces (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/parking-spaces`, () => HttpResponse.json(defaultParkingSpacePage)),
 
@@ -156,6 +165,18 @@ export const handlers = [
   }),
 
   http.get(`${BASE}/requests/pending`, () => HttpResponse.json(defaultPendingRequestsPage)),
+
+  http.get(`${BASE}/requests/export`, () =>
+    HttpResponse.text('id,status\n1,APPROVED', {
+      headers: { 'Content-Type': 'text/csv' },
+    }),
+  ),
+
+  http.get(`${BASE}/requests/mine/export`, () =>
+    HttpResponse.text('id,status\n1,PENDING', {
+      headers: { 'Content-Type': 'text/csv' },
+    }),
+  ),
 
   http.get(`${BASE}/requests/:id`, ({ params }) => {
     if (Number(params.id) === requestPending1.id) {
@@ -294,6 +315,12 @@ export const handlers = [
   }),
 
   // ---- Audit / LoginLog (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/audit/export`, () =>
+    HttpResponse.text('id,action\n1,LOGIN', {
+      headers: { 'Content-Type': 'text/csv' },
+    }),
+  ),
+
   http.get(`${BASE}/audit`, () => HttpResponse.json(defaultAuditPage)),
 
   http.get(`${BASE}/login-logs`, () => HttpResponse.json(defaultLoginLogPage)),

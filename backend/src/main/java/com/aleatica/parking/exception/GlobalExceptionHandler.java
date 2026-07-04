@@ -2,6 +2,8 @@ package com.aleatica.parking.exception;
 
 import com.aleatica.parking.audit.application.InvalidDateRangeException;
 import com.aleatica.parking.auth.application.AuthenticationFailedException;
+import com.aleatica.parking.export.application.ExportRateLimitExceededException;
+import com.aleatica.parking.export.application.UnsupportedExportFormatException;
 import com.aleatica.parking.auth.application.InvalidCurrentPasswordException;
 import com.aleatica.parking.auth.application.PasswordPolicyException;
 import com.aleatica.parking.fixedassignment.application.InvalidDayOfWeekException;
@@ -63,6 +65,10 @@ public class GlobalExceptionHandler {
     private static final String CODE_RESOURCE_RELEASED = "RESOURCE_ALREADY_RELEASED";
     private static final String CODE_RELEASE_NOT_CANCELLABLE = "RELEASE_NOT_CANCELLABLE";
     private static final String CODE_RESERVATION_NOT_CANCELLABLE = "VISITOR_RESERVATION_NOT_CANCELLABLE";
+    private static final String CODE_RATE_LIMITED = "RATE_LIMIT_EXCEEDED";
+    private static final String FIELD_FORMAT = "format";
+    private static final String MSG_UNSUPPORTED_FORMAT =
+            "Formato de exportacion no soportado; use csv o xlsx";
 
     private static final String FIELD_NEW_PASSWORD = "newPassword";
     private static final String FIELD_CURRENT_PASSWORD = "currentPassword";
@@ -497,6 +503,34 @@ public class GlobalExceptionHandler {
             PastVisitorReservationCancellationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_RESERVATION_NOT_CANCELLABLE, ex.getMessage()));
+    }
+
+    /**
+     * Traduce un formato de exportacion no soportado (p. ej. {@code pdf}) a {@code 400} con el
+     * detalle en {@code fields.format} (spec exports Req 3: validacion del formato).
+     *
+     * @param ex excepcion de formato de exportacion no soportado
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(UnsupportedExportFormatException.class)
+    public ResponseEntity<ApiError> handleUnsupportedFormat(UnsupportedExportFormatException ex) {
+        Map<String, String> fields = Map.of(FIELD_FORMAT, MSG_UNSUPPORTED_FORMAT);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, MSG_UNSUPPORTED_FORMAT, fields));
+    }
+
+    /**
+     * Traduce la superacion del limite de tasa de exportaciones (5/min por usuario) a
+     * {@code 429 Too Many Requests} (spec exports Req 4; {@code docs/security-design.md} §7).
+     *
+     * @param ex excepcion de limite de exportaciones superado
+     * @return {@link ApiError} con estado 429
+     */
+    @ExceptionHandler(ExportRateLimitExceededException.class)
+    public ResponseEntity<ApiError> handleRateLimited(ExportRateLimitExceededException ex) {
+        LOG.warn("Limite de exportaciones superado: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(ApiError.of(CODE_RATE_LIMITED, ex.getMessage()));
     }
 
     /**

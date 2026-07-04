@@ -28,6 +28,18 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
     Page<Request> findByEmployeeId(Long employeeId, Pageable pageable);
 
     /**
+     * Solicitudes de un empleado (sin paginar), ordenadas por id ascendente.
+     *
+     * <p>Origen de la exportacion "mis solicitudes" ({@code exportMyRequests}): restringe por
+     * construccion al sujeto de la sesion (comprobacion de objeto / BOLA), de modo que un
+     * empleado nunca exporte solicitudes ajenas.</p>
+     *
+     * @param employeeId empleado propietario (sujeto de la sesion)
+     * @return solicitudes del empleado en orden estable (posiblemente vacia)
+     */
+    List<Request> findByEmployeeIdOrderByIdAsc(Long employeeId);
+
+    /**
      * Pagina de las solicitudes de un empleado filtradas por estado.
      *
      * @param employeeId empleado propietario

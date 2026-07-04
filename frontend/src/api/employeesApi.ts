@@ -5,7 +5,6 @@ import type {
   EmployeeListParams,
   EmployeeResetPasswordResponse,
   EmployeeUpdate,
-  ExportFormat,
   PageEmployee,
 } from '../types/employee';
 
@@ -61,24 +60,4 @@ export async function resetEmployeePassword(id: number): Promise<EmployeeResetPa
     `${EMPLOYEES}/${id}/reset-password`,
   );
   return data;
-}
-
-// Dispara la descarga de un Blob en el navegador via anchor temporal.
-export function triggerBlobDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
-export async function exportEmployees(format: ExportFormat): Promise<void> {
-  const { data } = await apiClient.get<Blob>(`${EMPLOYEES}/export`, {
-    params: { format },
-    responseType: 'blob',
-  });
-  triggerBlobDownload(data, `employees.${format}`);
 }

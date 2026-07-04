@@ -173,32 +173,6 @@ class EmployeeControllerTest {
                 .andExpect(jsonPath("$.mustChange").value(true));
     }
 
-    @Test
-    void shouldReturn403_whenEmployeeRoleExportsEmployees() throws Exception {
-        // Act / Assert
-        mockMvc.perform(get(BASE_URL + "/export").with(user(EMP).roles(ROLE_EMPLOYEE)))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void shouldReturnCsv_whenAdminExportsEmployees() throws Exception {
-        // Arrange: un empleado con campos nulos y otro con comillas (cubre escape y rama null)
-        EmployeeResponse withNulls = new EmployeeResponse(
-                8L, "Ana \"A\"", "Ruiz", "aruiz", "aruiz@aleatica.com",
-                null, null, null, false, AuthOrigin.LOCAL, Role.EMPLOYEE, true, true, false,
-                Instant.parse("2026-02-01T00:00:00Z"), null);
-        given(employeeService.exportAll()).willReturn(List.of(sample(), withNulls));
-
-        // Act / Assert
-        mockMvc.perform(get(BASE_URL + "/export").with(user(ADMIN).roles(ROLE_ADMIN)))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .header().string("Content-Disposition",
-                                org.hamcrest.Matchers.containsString("employees.csv")))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .content().contentTypeCompatibleWith("text/csv"));
-    }
-
     private EmployeeResponse sample() {
         return new EmployeeResponse(
                 5L, "Juan", "Perez", LOGIN, EMAIL, "IT", "600100200", "1234ABC",

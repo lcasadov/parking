@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Button } from '../components/Button';
+import { ExportMenu } from '../components/ExportMenu';
 import { Input } from '../components/Input';
 import { Spinner } from '../components/Spinner';
 import { getStatus } from '../api/apiError';
+import { EXPORT_PATHS } from '../api/exportApi';
 import { useAuditQuery } from '../hooks/useAudit';
 import type { AuditListParams, AuditLogEntry, PageAuditLogEntry } from '../types/audit';
 import { formatDateTime, isValidWindow, toIsoEnd, toIsoStart } from '../utils/audit';
@@ -145,6 +147,9 @@ export function AuditPage() {
         <h1 id="audit-title" className="section-title">
           {t('audit.title')}
         </h1>
+        <div className="page-actions">
+          <ExportMenu path={EXPORT_PATHS.audit} fallbackBase="audit" requiredRole="ADMIN" />
+        </div>
       </header>
 
       <p className="form-hint">{t('audit.retentionNote')}</p>

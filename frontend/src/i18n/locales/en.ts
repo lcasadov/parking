@@ -40,14 +40,22 @@ export const en = {
     adminArea: 'Administration',
     employeeArea: 'My space',
   },
+  exports: {
+    groupLabel: 'Export options',
+    csv: 'Export CSV',
+    xlsx: 'Export XLSX',
+    myData: 'Export my data',
+    errors: {
+      rateLimit: 'You have reached the export limit. Please try again in a minute.',
+      generic: 'The export could not be generated. Please try again.',
+    },
+  },
   employees: {
     title: 'Employees',
     navLabel: 'Employees',
     searchPlaceholder: 'Search employee…',
     searchLabel: 'Search employee',
     new: 'New employee',
-    exportCsv: 'Export CSV',
-    exportXlsx: 'Export XLSX',
     columns: {
       name: 'Employee',
       email: 'Email',

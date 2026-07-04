@@ -16,13 +16,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,12 +44,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/employees")
 @PreAuthorize("hasRole('ADMIN')")
 public class EmployeeController {
-
-    private static final String CSV_HEADER =
-            "id,firstName,lastName,login,email,department,mobilePhone,"
-                    + "licensePlate,corporate,authOrigin,role,enabled,active";
-    private static final char CSV_SEPARATOR = ',';
-    private static final String CSV_FILENAME = "employees.csv";
 
     private final EmployeeService employeeService;
 
@@ -218,66 +208,4 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.resetPassword(id));
     }
 
-    /**
-     * Exporta los empleados a CSV.
-     *
-     * <p>El detalle del formato (CSV/XLSX) pertenece a la capability
-     * {@code exports}; en Fase 1 se entrega CSV.</p>
-     *
-     * @param format formato solicitado (aceptado por contrato; se entrega CSV)
-     * @return {@code 200} con el fichero CSV adjunto
-     */
-    @Operation(summary = "Exporta empleados a CSV/XLSX (ADMIN)",
-            security = @SecurityRequirement(name = "sessionCookie"))
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Fichero exportado"),
-            @ApiResponse(responseCode = "401", description = "No autenticado",
-                    content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "403", description = "Sin permisos",
-                    content = @Content(schema = @Schema(implementation = ApiError.class)))
-    })
-    @GetMapping("/export")
-    public ResponseEntity<byte[]> exportEmployees(
-            @Parameter(description = "Formato de exportacion")
-            @RequestParam(name = "format", required = false, defaultValue = "csv") String format) {
-        byte[] body = toCsv(employeeService.exportAll()).getBytes(StandardCharsets.UTF_8);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + CSV_FILENAME + "\"")
-                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
-                .body(body);
-    }
-
-    private String toCsv(List<EmployeeResponse> employees) {
-        StringBuilder builder = new StringBuilder();
-        builder.append(CSV_HEADER).append('\n');
-        for (EmployeeResponse employee : employees) {
-            appendRow(builder, employee);
-        }
-        return builder.toString();
-    }
-
-    private void appendRow(StringBuilder builder, EmployeeResponse employee) {
-        builder.append(employee.id()).append(CSV_SEPARATOR)
-                .append(csv(employee.firstName())).append(CSV_SEPARATOR)
-                .append(csv(employee.lastName())).append(CSV_SEPARATOR)
-                .append(csv(employee.login())).append(CSV_SEPARATOR)
-                .append(csv(employee.email())).append(CSV_SEPARATOR)
-                .append(csv(employee.department())).append(CSV_SEPARATOR)
-                .append(csv(employee.mobilePhone())).append(CSV_SEPARATOR)
-                .append(csv(employee.licensePlate())).append(CSV_SEPARATOR)
-                .append(employee.corporate()).append(CSV_SEPARATOR)
-                .append(employee.authOrigin()).append(CSV_SEPARATOR)
-                .append(employee.role()).append(CSV_SEPARATOR)
-                .append(employee.enabled()).append(CSV_SEPARATOR)
-                .append(employee.active()).append('\n');
-    }
-
-    private String csv(String value) {
-        if (value == null) {
-            return "";
-        }
-        String escaped = value.replace("\"", "\"\"");
-        return '"' + escaped + '"';
-    }
 }

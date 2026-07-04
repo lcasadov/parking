@@ -8,7 +8,6 @@ import {
 import {
   createEmployee,
   deactivateEmployee,
-  exportEmployees,
   listEmployees,
   reactivateEmployee,
   resetEmployeePassword,
@@ -20,7 +19,6 @@ import type {
   EmployeeListParams,
   EmployeeResetPasswordResponse,
   EmployeeUpdate,
-  ExportFormat,
   PageEmployee,
 } from '../types/employee';
 
@@ -91,11 +89,5 @@ export function useResetEmployeePassword(): UseMutationResult<
 > {
   return useMutation({
     mutationFn: (id: number) => resetEmployeePassword(id),
-  });
-}
-
-export function useExportEmployees(): UseMutationResult<void, unknown, ExportFormat> {
-  return useMutation({
-    mutationFn: (format: ExportFormat) => exportEmployees(format),
   });
 }

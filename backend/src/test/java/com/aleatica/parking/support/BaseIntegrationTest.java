@@ -1,5 +1,6 @@
 package com.aleatica.parking.support;
 
+import com.aleatica.parking.export.ExportRateLimiter;
 import com.aleatica.parking.notification.application.EmailSenderPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +62,9 @@ public abstract class BaseIntegrationTest {
     @Autowired
     private JdbcTemplate baseJdbcTemplate;
 
+    @Autowired
+    private ExportRateLimiter exportRateLimiter;
+
     /**
      * Aisla cada test del estado dejado por los demas en el contenedor SQL Server
      * compartido (singleton). Se ejecuta ANTES del {@code @BeforeEach} de la subclase
@@ -97,6 +101,9 @@ public abstract class BaseIntegrationTest {
                 "UPDATE dbo.employees SET failed_login_attempts = 0, locked_until = NULL, "
                         + "active = 1 WHERE login = ?",
                 SEED_ADMIN_LOGIN);
+        // El limitador de exportaciones mantiene estado por usuario en memoria: se vacia entre
+        // tests para que el conteo de un IT no filtre a otro segun el orden (issue #29 / exports).
+        exportRateLimiter.reset();
     }
 
     /**
