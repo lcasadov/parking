@@ -4,6 +4,7 @@ import { adminUser, employeeUser } from './fixtures';
 import { defaultEmployeePage, employeeAlice } from './employeeFixtures';
 import { defaultParkingSpacePage, spaceP01 } from './parkingSpaceFixtures';
 import { defaultDeskPage, deskStandard } from './deskFixtures';
+import { defaultFloorPlan } from './floorPlanFixtures';
 import {
   aliceAssignments,
   defaultFixedAssignmentPage,
@@ -134,6 +135,27 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...deskStandard, ...body, id: Number(params.id) });
   }),
+
+  // ---- Floor plan (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/floor-plan`, ({ request }) => {
+    const date = new URL(request.url).searchParams.get('date');
+    if (!date) {
+      return HttpResponse.json(
+        { ...apiError('OUTSIDE_REQUEST_WINDOW', 'date is required'), fields: { date: 'required' } },
+        { status: 400 },
+      );
+    }
+    return HttpResponse.json(defaultFloorPlan);
+  }),
+
+  http.post(`${BASE}/floor-plan/desks/:deskId/request`, () =>
+    HttpResponse.json({ requestId: 999, state: 'REQUESTED' }, { status: 201 }),
+  ),
+
+  http.put(
+    `${BASE}/floor-plan/desks/:deskId/position`,
+    () => new HttpResponse(null, { status: 204 }),
+  ),
 
   // ---- FixedAssignments (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/fixed-assignments`, () => HttpResponse.json(defaultFixedAssignmentPage)),

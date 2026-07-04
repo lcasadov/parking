@@ -48,6 +48,13 @@ export function AdminLayout() {
             {t('desks.navLabel')}
           </NavLink>
           <NavLink
+            to={ROUTES.adminFloorPlan}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-map-2" aria-hidden="true" />
+            {t('floorPlan.navLabel')}
+          </NavLink>
+          <NavLink
             to={ROUTES.adminFixedAssignments}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >

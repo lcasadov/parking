@@ -20,6 +20,13 @@ export function EmployeeLayout() {
             {t('calendar.myWeek.navLabel')}
           </NavLink>
           <NavLink
+            to={ROUTES.employeeFloorPlan}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-map-2" aria-hidden="true" />
+            {t('floorPlan.navLabel')}
+          </NavLink>
+          <NavLink
             to={ROUTES.employeeRequests}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
