@@ -347,6 +347,10 @@ export const es = {
       requiredDate: 'Selecciona una fecha.',
       requiredResource: 'Selecciona al menos un recurso (plaza o puesto).',
       outsideWindow: 'La fecha debe estar entre hoy y los próximos 14 días.',
+      availability: {
+        loading: 'Comprobando disponibilidad…',
+        count: '{{count}} disponible(s) para esta fecha',
+      },
     },
     cancel: {
       title: 'Cancelar solicitud',
@@ -572,10 +576,42 @@ export const es = {
     legendExecutive: 'Dirección',
     states: {
       FREE: 'Libre',
-      ASSIGNED: 'Asignado',
+      ASSIGNED: 'Ocupado',
       REQUESTED: 'Solicitado',
       MINE: 'Mi puesto',
-      RELEASED: 'Liberado',
+      RELEASED: 'Liberado hoy',
+    },
+    datebar: {
+      label: 'Cambiar día',
+      previous: 'Día anterior',
+      next: 'Día siguiente',
+      today: 'Hoy',
+      window: 'Ventana de reserva: {{days}} días',
+    },
+    filters: {
+      label: 'Filtros por estado',
+      chip: '{{label}}: {{count}}',
+    },
+    zoom: {
+      label: 'Controles de zoom',
+      in: 'Acercar',
+      out: 'Alejar',
+      reset: 'Restablecer zoom',
+      resetShort: 'Restablecer',
+      level: 'Zoom {{percent}}%',
+    },
+    side: {
+      label: 'Panel de puestos',
+      title: 'Puestos',
+      occupancyTitle: 'Ocupación del día',
+      searchLabel: 'Buscar puesto por número',
+      searchPlaceholder: 'Buscar nº…',
+      empty: 'Ningún puesto coincide con la búsqueda.',
+    },
+    mobile: {
+      title: 'Disponibles para solicitar',
+      empty: 'No hay puestos libres para esta fecha.',
+      request: 'Solicitar',
     },
   },
   availability: {

@@ -1,7 +1,18 @@
 import { AxiosError } from 'axios';
 import { describe, expect, it } from 'vitest';
-import { clampPercent, isOutsideWindowError, isPlaced, markerStateClass, nextCoord } from './floorPlan';
-import type { FloorPlanDesk } from '../types/floorPlan';
+import {
+  ZOOM_MAX,
+  ZOOM_MIN,
+  clampPercent,
+  clampScale,
+  countByState,
+  isOutsideWindowError,
+  isPlaced,
+  markerStateClass,
+  matchesDeskSearch,
+  nextCoord,
+} from './floorPlan';
+import type { DeskState, FloorPlanDesk } from '../types/floorPlan';
 
 const desk = (coordX: number | null, coordY: number | null): FloorPlanDesk => ({
   deskId: 1,
@@ -10,6 +21,15 @@ const desk = (coordX: number | null, coordY: number | null): FloorPlanDesk => ({
   coordX,
   coordY,
   state: 'FREE',
+});
+
+const deskWith = (deskNumber: number, state: DeskState): FloorPlanDesk => ({
+  deskId: deskNumber,
+  deskNumber,
+  category: 'STANDARD',
+  coordX: 10,
+  coordY: 10,
+  state,
 });
 
 describe('floorPlan utils', () => {
@@ -42,5 +62,33 @@ describe('floorPlan utils', () => {
     err.response = { status: 400 } as AxiosError['response'];
     expect(isOutsideWindowError(err)).toBe(true);
     expect(isOutsideWindowError(new Error('other'))).toBe(false);
+  });
+
+  it('should_count_desks_by_state', () => {
+    const counts = countByState([
+      deskWith(1, 'FREE'),
+      deskWith(2, 'FREE'),
+      deskWith(3, 'MINE'),
+      deskWith(4, 'ASSIGNED'),
+    ]);
+    expect(counts.FREE).toBe(2);
+    expect(counts.MINE).toBe(1);
+    expect(counts.ASSIGNED).toBe(1);
+    expect(counts.REQUESTED).toBe(0);
+    expect(counts.RELEASED).toBe(0);
+  });
+
+  it('should_match_desk_search_by_number_substring', () => {
+    expect(matchesDeskSearch(deskWith(12, 'FREE'), '')).toBe(true);
+    expect(matchesDeskSearch(deskWith(12, 'FREE'), '1')).toBe(true);
+    expect(matchesDeskSearch(deskWith(12, 'FREE'), '2')).toBe(true);
+    expect(matchesDeskSearch(deskWith(12, 'FREE'), '3')).toBe(false);
+    expect(matchesDeskSearch(deskWith(12, 'FREE'), '  ')).toBe(true);
+  });
+
+  it('should_clamp_scale_to_zoom_bounds', () => {
+    expect(clampScale(0.1)).toBe(ZOOM_MIN);
+    expect(clampScale(9)).toBe(ZOOM_MAX);
+    expect(clampScale(1.234)).toBe(1.23);
   });
 });

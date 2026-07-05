@@ -17,8 +17,6 @@ const HTTP_CONFLICT = 409;
 const HTTP_BAD_REQUEST = 400;
 const DESK_MIN = 1;
 const DESK_MAX = 65;
-// Coordenada por defecto (centro) hasta posicionar el puesto en el plano (floor-plan).
-const DEFAULT_COORD = 50;
 
 const DESK_CATEGORIES: DeskCategory[] = ['STANDARD', 'EXECUTIVE'];
 
@@ -97,11 +95,12 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
   }
 
   function submit(): void {
+    // Un puesto nuevo nace sin coordenadas (queda "no colocado" hasta que el ADMIN
+    // lo posiciona en el plano); en edición se conserva su posición actual.
     const body: DeskCreate = {
       number: Number(values.number.trim()),
       category: values.category,
-      coordX: desk?.coordX ?? DEFAULT_COORD,
-      coordY: desk?.coordY ?? DEFAULT_COORD,
+      ...(isEdit && desk ? { coordX: desk.coordX, coordY: desk.coordY } : {}),
       active: values.active,
     };
     const options = { onSuccess: onSaved, onError: handleServerError };

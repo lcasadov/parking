@@ -54,3 +54,18 @@ export function dayMonth(dateIso: string): string {
   const [, month, day] = dateIso.split('-');
   return `${day}/${month}`;
 }
+
+// Formato largo localizado (p. ej. "sábado, 5 de julio de 2026" / "Saturday,
+// July 5, 2026") a partir de un ISO date, sin desfase de zona horaria.
+export function longDate(dateIso: string, locale: string): string {
+  const parsed = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateIso;
+  }
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(parsed);
+}

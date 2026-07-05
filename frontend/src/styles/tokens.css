@@ -38,6 +38,13 @@
   --pink-border: #f4c0d1;
   --pink-text: #4b1528;
 
+  /* Neutro "libre / sin estado" (design-system §2.4) */
+  --neutral-soft: #f1efe8;
+  --neutral-border: #d3d1c7;
+
+  /* Anillo del puesto de dirección (EXECUTIVE) en el plano */
+  --exec-ring: #d99b1c;
+
   /* Marco exterior (auth/phones) */
   --frame-bg: #e8e6df;
 
@@ -86,5 +93,8 @@ body.theme-dark {
   --pink-text: #f3b9cd;
   --red-soft: rgba(226, 75, 74, 0.2);
   --red-text: #f3a3a3;
+  --neutral-soft: rgba(255, 255, 255, 0.08);
+  --neutral-border: rgba(255, 255, 255, 0.2);
+  --exec-ring: #e6b34a;
   --frame-bg: #141413;
 }

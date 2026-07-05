@@ -251,13 +251,97 @@ describe('FloorPlanPage', () => {
     });
 
     const marker = screen.getByRole('button', { name: /puesto 1/i });
-    fireEvent.mouseDown(marker, { clientX: 200, clientY: 300 });
-    fireEvent.mouseMove(surface, { clientX: 250, clientY: 500 });
-    fireEvent.mouseUp(surface, { clientX: 250, clientY: 500 });
+    // Pointer Events (unifican ratón + táctil): arrastre del marcador.
+    fireEvent.pointerDown(marker, { clientX: 200, clientY: 300, pointerId: 1 });
+    fireEvent.pointerMove(surface, { clientX: 250, clientY: 500, pointerId: 1 });
+    fireEvent.pointerUp(surface, { clientX: 250, clientY: 500, pointerId: 1 });
 
     await waitFor(() => expect(putBody).not.toBeNull());
     expect(putDeskId).toBe('1');
     expect(putBody).toEqual({ coordX: 25, coordY: 50 });
+  });
+
+  it('should_request_a_free_desk_from_the_mobile_list', async () => {
+    useEmployee();
+    let requestedDeskId: string | undefined;
+    server.use(
+      http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([floorDeskFree]))),
+      http.post(`${FLOOR_PLAN_URL}/desks/:deskId/request`, ({ params }) => {
+        requestedDeskId = params.deskId as string;
+        return HttpResponse.json({ requestId: 2, state: 'REQUESTED' }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<FloorPlanPage />);
+    await screen.findByTestId('floor-marker');
+
+    // The mobile "available to request" list exposes a Solicitar button per row.
+    await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
+
+    expect(await screen.findByText(/solicitud creada|request created/i)).toBeInTheDocument();
+    expect(requestedDeskId).toBe('1');
+  });
+
+  it('should_show_conflict_feedback_from_the_mobile_list_on_409', async () => {
+    useEmployee();
+    server.use(
+      http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([floorDeskFree]))),
+      http.post(`${FLOOR_PLAN_URL}/desks/:deskId/request`, () =>
+        HttpResponse.json(
+          { error: 'NOT_AVAILABLE', message: 'taken', timestamp: new Date().toISOString() },
+          { status: 409 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<FloorPlanPage />);
+    await screen.findByTestId('floor-marker');
+
+    await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
+
+    expect(
+      await screen.findByText(/no está disponible|no longer available/i),
+    ).toBeInTheDocument();
+  });
+
+  it('should_dim_non_matching_markers_when_a_state_filter_is_active', async () => {
+    useEmployee();
+    server.use(
+      http.get(FLOOR_PLAN_URL, () =>
+        HttpResponse.json(floorPlanOf([floorDeskFree, floorDeskAssigned])),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<FloorPlanPage />);
+    await screen.findByRole('button', { name: /puesto 1/i });
+
+    // Activate the "Occupied" (ASSIGNED) filter chip (scoped to the filters group
+    // so the marker whose label also contains "Ocupado" is not matched).
+    const filters = within(screen.getByRole('group', { name: /filtros por estado|filters by state/i }));
+    await user.click(filters.getByRole('button', { name: /ocupado|occupied/i }));
+
+    expect(screen.getByRole('button', { name: /puesto 1/i })).toHaveClass('floor-marker-dimmed');
+    expect(screen.getByRole('button', { name: /puesto 2/i })).not.toHaveClass(
+      'floor-marker-dimmed',
+    );
+  });
+
+  it('should_navigate_dates_with_the_datebar', async () => {
+    useEmployee();
+    const dates: string[] = [];
+    server.use(
+      http.get(FLOOR_PLAN_URL, ({ request }) => {
+        dates.push(new URL(request.url).searchParams.get('date') ?? '');
+        return HttpResponse.json(defaultFloorPlan);
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<FloorPlanPage />);
+    await screen.findAllByTestId('floor-marker');
+
+    await user.click(screen.getByRole('button', { name: /día siguiente|next day/i }));
+
+    await waitFor(() => expect(dates.length).toBeGreaterThan(1));
   });
 
   it('should_not_request_desk_when_admin_is_in_edit_mode', async () => {

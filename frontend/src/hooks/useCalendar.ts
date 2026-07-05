@@ -5,7 +5,9 @@ import type {
   AvailabilityResponse,
   MyWeekResponse,
 } from '../types/calendar';
+import type { ResourceType } from '../types/request';
 import { isValidIsoDate } from '../utils/calendar';
+import { isWithinWindow } from '../utils/requests';
 
 // Claves raiz de cache (S1192: sin literales repetidos).
 const CALENDAR_KEY = 'calendar';
@@ -15,6 +17,10 @@ const MY_WEEK_SCOPE = 'my-week';
 
 export function availabilityQueryKey(date: string): string[] {
   return [CALENDAR_KEY, AVAILABILITY_SCOPE, date];
+}
+
+export function resourceAvailabilityQueryKey(date: string, resourceType: ResourceType): string[] {
+  return [CALENDAR_KEY, AVAILABILITY_SCOPE, resourceType, date];
 }
 
 export function adminCalendarQueryKey(weekStart: string): string[] {
@@ -31,6 +37,20 @@ export function useAvailabilityQuery(date: string): UseQueryResult<AvailabilityR
     queryKey: availabilityQueryKey(date),
     queryFn: () => getAvailability(date),
     enabled: isValidIsoDate(date),
+  });
+}
+
+// Disponibilidad por recurso (plaza/puesto) para una fecha, usada como banner
+// informativo en la solicitud unificada. Solo consulta si la fecha cae dentro de
+// la ventana de reserva (hoy..+14d).
+export function useResourceAvailabilityQuery(
+  date: string,
+  resourceType: ResourceType,
+): UseQueryResult<AvailabilityResponse> {
+  return useQuery({
+    queryKey: resourceAvailabilityQueryKey(date, resourceType),
+    queryFn: () => getAvailability(date, resourceType),
+    enabled: isValidIsoDate(date) && isWithinWindow(date),
   });
 }
 

@@ -12,7 +12,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/parking-api': {
-        target: 'http://localhost:8080',
+        target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:8080',
         changeOrigin: true,
       },
     },
