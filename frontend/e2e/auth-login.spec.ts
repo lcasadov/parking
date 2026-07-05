@@ -29,16 +29,19 @@ async function submitLogin(page: Page, login: string, password: string): Promise
   await page.getByRole('button', { name: LABELS.signIn }).click();
 }
 
+// Tras el login, el area ADMIN (/admin) redirige por indice a /admin/employees:
+// esa es la landing real que debe aseverarse (no /admin a secas).
 async function loginAsAdmin(page: Page): Promise<void> {
   await submitLogin(page, ADMIN_LOGIN, ADMIN_PASSWORD);
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(/\/admin\/employees$/);
 }
 
 test('should_login_and_redirect_to_admin_when_valid_credentials', async ({ page, context }) => {
   await submitLogin(page, ADMIN_LOGIN, ADMIN_PASSWORD);
 
-  // Redireccion al area de administracion (rol ADMIN del seed).
-  await expect(page).toHaveURL(/\/admin$/);
+  // Redireccion al area de administracion (rol ADMIN del seed): /admin
+  // redirige por indice a la landing real /admin/employees.
+  await expect(page).toHaveURL(/\/admin\/employees$/);
   await expect(page.getByRole('button', { name: LABELS.logout })).toBeVisible();
 
   // Cookie de sesion emitida por el backend: HttpOnly (inaccesible a XSS),
