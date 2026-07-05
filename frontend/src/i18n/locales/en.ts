@@ -347,6 +347,10 @@ export const en = {
       requiredDate: 'Select a date.',
       requiredResource: 'Select at least one resource (space or desk).',
       outsideWindow: 'The date must be between today and the next 14 days.',
+      availability: {
+        loading: 'Checking availability…',
+        count: '{{count}} available for this date',
+      },
     },
     cancel: {
       title: 'Cancel request',
@@ -572,10 +576,42 @@ export const en = {
     legendExecutive: 'Executive',
     states: {
       FREE: 'Free',
-      ASSIGNED: 'Assigned',
+      ASSIGNED: 'Occupied',
       REQUESTED: 'Requested',
       MINE: 'My desk',
-      RELEASED: 'Released',
+      RELEASED: 'Released today',
+    },
+    datebar: {
+      label: 'Change day',
+      previous: 'Previous day',
+      next: 'Next day',
+      today: 'Today',
+      window: 'Booking window: {{days}} days',
+    },
+    filters: {
+      label: 'Filters by state',
+      chip: '{{label}}: {{count}}',
+    },
+    zoom: {
+      label: 'Zoom controls',
+      in: 'Zoom in',
+      out: 'Zoom out',
+      reset: 'Reset zoom',
+      resetShort: 'Reset',
+      level: 'Zoom {{percent}}%',
+    },
+    side: {
+      label: 'Desk panel',
+      title: 'Desks',
+      occupancyTitle: 'Occupancy for the day',
+      searchLabel: 'Search desk by number',
+      searchPlaceholder: 'Search no.…',
+      empty: 'No desk matches the search.',
+    },
+    mobile: {
+      title: 'Available to request',
+      empty: 'No free desks for this date.',
+      request: 'Request',
     },
   },
   availability: {

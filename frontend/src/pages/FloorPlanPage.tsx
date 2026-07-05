@@ -1,11 +1,18 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { FloorPlanSurface, type DragPosition } from '../components/FloorPlanSurface';
+import { FloorPlanSurface } from '../components/FloorPlanSurface';
 import { FloorPlanFeedback, type FloorPlanFeedbackKind } from '../components/FloorPlanFeedback';
 import { FloorPlanStatus } from '../components/FloorPlanStatus';
+import { FloorPlanDatebar } from '../components/FloorPlanDatebar';
+import { FloorPlanFilters, type FloorPlanFilterValue } from '../components/FloorPlanFilters';
+import { FloorPlanZoom } from '../components/FloorPlanZoom';
+import { FloorPlanSidePanel } from '../components/FloorPlanSidePanel';
+import { FloorPlanMobileList } from '../components/FloorPlanMobileList';
 import { useAuth } from '../auth/useAuth';
+import { useDeskDrag } from '../hooks/useDeskDrag';
+import { useFloorPlanViewport } from '../hooks/useFloorPlanViewport';
 import {
   useFloorPlanQuery,
   useRequestDeskFromFloorPlan,
@@ -13,25 +20,11 @@ import {
 } from '../hooks/useFloorPlan';
 import { isValidIsoDate } from '../utils/calendar';
 import { maxRequestDateIso, todayIso } from '../utils/requests';
-import { nextCoord } from '../utils/floorPlan';
 import type { FloorPlanDesk } from '../types/floorPlan';
 
-// Estado interno de un arrastre en curso (coordenadas en % del ancho/alto).
-interface DragState {
-  deskId: number;
-  startClientX: number;
-  startClientY: number;
-  baseX: number;
-  baseY: number;
-  rectWidth: number;
-  rectHeight: number;
-  x: number;
-  y: number;
-  moved: boolean;
-}
-
 // Vista del plano interactivo de puestos (floor-plan). Ver plano = autenticado;
-// arrastrar marcadores = solo ADMIN. Empleado pincha un puesto libre para solicitarlo.
+// arrastrar marcadores = solo ADMIN. Empleado pincha (o usa la lista móvil) un
+// puesto libre para solicitarlo. Incluye barra de fecha, filtros, zoom y panel.
 export function FloorPlanPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -40,78 +33,19 @@ export function FloorPlanPage() {
   const [date, setDate] = useState<string>(todayIso());
   const [editMode, setEditMode] = useState(false);
   const [feedback, setFeedback] = useState<FloorPlanFeedbackKind>(null);
-  const [dragPos, setDragPos] = useState<DragPosition | null>(null);
+  const [filter, setFilter] = useState<FloorPlanFilterValue | null>(null);
 
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<DragState | null>(null);
 
   const isDateValid = isValidIsoDate(date);
   const query = useFloorPlanQuery(date, isDateValid);
   const requestMutation = useRequestDeskFromFloorPlan();
   const positionMutation = useUpdateDeskPosition();
+  const viewport = useFloorPlanViewport(!editMode);
 
-  const mutatePositionRef = useRef(positionMutation.mutate);
-  mutatePositionRef.current = positionMutation.mutate;
-
-  const handleDragMove = useCallback((event: globalThis.MouseEvent) => {
-    const drag = dragRef.current;
-    if (!drag) {
-      return;
-    }
-    const x = nextCoord(drag.baseX, event.clientX - drag.startClientX, drag.rectWidth);
-    const y = nextCoord(drag.baseY, event.clientY - drag.startClientY, drag.rectHeight);
-    drag.x = x;
-    drag.y = y;
-    drag.moved = true;
-    setDragPos({ deskId: drag.deskId, x, y });
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    const drag = dragRef.current;
-    window.removeEventListener('mousemove', handleDragMove);
-    window.removeEventListener('mouseup', handleDragEnd);
-    if (drag?.moved) {
-      mutatePositionRef.current({
-        deskId: drag.deskId,
-        body: { coordX: drag.x, coordY: drag.y },
-      });
-    }
-    dragRef.current = null;
-    setDragPos(null);
-  }, [handleDragMove]);
-
-  const handleDragStart = useCallback(
-    (desk: FloorPlanDesk, event: MouseEvent<HTMLButtonElement>) => {
-      const surface = surfaceRef.current;
-      if (!surface) {
-        return;
-      }
-      const rect = surface.getBoundingClientRect();
-      dragRef.current = {
-        deskId: desk.deskId,
-        startClientX: event.clientX,
-        startClientY: event.clientY,
-        baseX: desk.coordX ?? 0,
-        baseY: desk.coordY ?? 0,
-        rectWidth: rect.width,
-        rectHeight: rect.height,
-        x: desk.coordX ?? 0,
-        y: desk.coordY ?? 0,
-        moved: false,
-      };
-      window.addEventListener('mousemove', handleDragMove);
-      window.addEventListener('mouseup', handleDragEnd);
-    },
-    [handleDragMove, handleDragEnd],
+  const { dragPos, startDrag } = useDeskDrag(surfaceRef, (deskId, coordX, coordY) =>
+    positionMutation.mutate({ deskId, body: { coordX, coordY } }),
   );
-
-  // Limpieza defensiva: si el componente se desmonta a mitad de un arrastre.
-  useEffect(() => {
-    return () => {
-      window.removeEventListener('mousemove', handleDragMove);
-      window.removeEventListener('mouseup', handleDragEnd);
-    };
-  }, [handleDragMove, handleDragEnd]);
 
   function handleDateChange(value: string): void {
     setDate(value);
@@ -121,6 +55,10 @@ export function FloorPlanPage() {
   function handleToggleEdit(): void {
     setEditMode((previous) => !previous);
     setFeedback(null);
+  }
+
+  function toggleFilter(value: FloorPlanFilterValue): void {
+    setFilter((previous) => (previous === value ? null : value));
   }
 
   function handleRequest(desk: FloorPlanDesk): void {
@@ -167,6 +105,7 @@ export function FloorPlanPage() {
           max={maxRequestDateIso()}
           onChange={(event) => handleDateChange(event.target.value)}
         />
+        {isDateValid ? <FloorPlanDatebar date={date} onChange={handleDateChange} /> : null}
       </div>
 
       {editMode ? (
@@ -185,14 +124,39 @@ export function FloorPlanPage() {
       />
 
       {showPlan ? (
-        <FloorPlanSurface
-          desks={desks}
-          editMode={editMode}
-          dragPos={dragPos}
-          surfaceRef={surfaceRef}
-          onRequest={handleRequest}
-          onDragStart={handleDragStart}
-        />
+        <>
+          <div className="floor-plan-toolbar">
+            <FloorPlanFilters desks={desks} active={filter} onToggle={toggleFilter} />
+            <FloorPlanZoom
+              scale={viewport.scale}
+              onZoomIn={viewport.zoomIn}
+              onZoomOut={viewport.zoomOut}
+              onReset={viewport.reset}
+            />
+          </div>
+
+          <div className="floor-plan-layout">
+            <FloorPlanSurface
+              desks={desks}
+              editMode={editMode}
+              dragPos={dragPos}
+              filter={filter}
+              viewport={viewport}
+              surfaceRef={surfaceRef}
+              onRequest={handleRequest}
+              onDragStart={startDrag}
+            />
+            <FloorPlanSidePanel desks={desks} showStatus={canEdit} />
+          </div>
+
+          {canEdit ? null : (
+            <FloorPlanMobileList
+              desks={desks}
+              pending={requestMutation.isPending}
+              onRequest={handleRequest}
+            />
+          )}
+        </>
       ) : null}
     </section>
   );

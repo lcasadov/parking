@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" role="img" aria-hidden="true">
+  <!-- Planta neutra acorde al design-system (tonos crema/neutros, sin azules
+       fuera de paleta). Los hex son los valores de token de la paleta base. -->
+  <defs>
+    <pattern id="fp-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ecebe4" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1000" height="640" fill="#faf9f5"/>
+  <rect width="1000" height="640" fill="url(#fp-grid)"/>
+  <rect x="40" y="40" width="920" height="560" fill="none" stroke="#d3d1c7" stroke-width="3" rx="8"/>
+  <rect x="80" y="90" width="360" height="200" fill="#f5f4ef" stroke="#dedcd3" stroke-width="2" rx="6"/>
+  <rect x="560" y="90" width="360" height="200" fill="#f5f4ef" stroke="#dedcd3" stroke-width="2" rx="6"/>
+  <rect x="80" y="360" width="840" height="200" fill="#f5f4ef" stroke="#dedcd3" stroke-width="2" rx="6"/>
+  <line x1="500" y1="40" x2="500" y2="290" stroke="#dedcd3" stroke-width="2"/>
+  <text x="500" y="628" fill="#a9a79d" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" text-anchor="middle">·</text>
+</svg>

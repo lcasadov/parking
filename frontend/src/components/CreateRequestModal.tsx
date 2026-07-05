@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Modal } from './Modal';
+import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRequest } from '../hooks/useRequests';
@@ -112,6 +113,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
             />
             {t('requests.create.resourceParking')}
           </label>
+          <ResourceAvailabilityBanner date={date} resourceType="PARKING" />
           <label className="checkbox-field">
             <input
               type="checkbox"
@@ -120,6 +122,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
             />
             {t('requests.create.resourceDesk')}
           </label>
+          <ResourceAvailabilityBanner date={date} resourceType="DESK" />
         </fieldset>
 
         {error ? (

@@ -22,8 +22,10 @@ export interface Desk {
 export interface DeskCreate {
   number: number;
   category: DeskCategory;
-  coordX: number;
-  coordY: number;
+  // Opcionales: un puesto nuevo nace sin posición (no se fuerza el centro). El
+  // ADMIN lo coloca después en el plano (floor-plan).
+  coordX?: number;
+  coordY?: number;
   active?: boolean;
 }
 

@@ -4,6 +4,7 @@ import type {
   AvailabilityResponse,
   MyWeekResponse,
 } from '../types/calendar';
+import type { ResourceType } from '../types/request';
 
 // Endpoints de Availability / Calendar segun docs/openapi.yaml.
 // baseURL relativo del apiClient.
@@ -12,10 +13,14 @@ const AVAILABILITY = '/availability';
 const CALENDAR_ADMIN = '/calendar/admin';
 const CALENDAR_MY_WEEK = '/calendar/my-week';
 
-// GET /availability?date=YYYY-MM-DD: recursos disponibles para una fecha.
-export async function getAvailability(date: string): Promise<AvailabilityResponse> {
+// GET /availability?date=YYYY-MM-DD[&resourceType]: recursos disponibles para una
+// fecha. `resourceType` es opcional (por defecto PARKING en el backend).
+export async function getAvailability(
+  date: string,
+  resourceType?: ResourceType,
+): Promise<AvailabilityResponse> {
   const { data } = await apiClient.get<AvailabilityResponse>(AVAILABILITY, {
-    params: { date },
+    params: resourceType ? { date, resourceType } : { date },
   });
   return data;
 }

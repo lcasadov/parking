@@ -1,6 +1,6 @@
-import { type MouseEvent } from 'react';
+import { type PointerEvent as ReactPointerEvent } from 'react';
 import type { FloorPlanDesk } from '../types/floorPlan';
-import { markerStateClass } from '../utils/floorPlan';
+import { EXECUTIVE_SYMBOL, markerStateClass } from '../utils/floorPlan';
 
 interface FloorPlanMarkerProps {
   desk: FloorPlanDesk;
@@ -9,18 +9,22 @@ interface FloorPlanMarkerProps {
   // Posición efectiva en % (puede diferir de desk.coord* durante el arrastre).
   left: number;
   top: number;
+  // Resalte por filtro activo (atenúa los que no coinciden).
+  dimmed?: boolean;
   onRequest: (desk: FloorPlanDesk) => void;
-  onDragStart: (desk: FloorPlanDesk, event: MouseEvent<HTMLButtonElement>) => void;
+  onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
 // Un marcador de puesto sobre el plano: botón accesible posicionado por %.
-// En modo edición inicia el arrastre; fuera de él, un puesto FREE se solicita.
+// En modo edición inicia el arrastre (Pointer Events, ratón + táctil); fuera de
+// él, un puesto FREE se solicita. EXECUTIVE se distingue con anillo ámbar + ◆.
 export function FloorPlanMarker({
   desk,
   label,
   editMode,
   left,
   top,
+  dimmed = false,
   onRequest,
   onDragStart,
 }: FloorPlanMarkerProps) {
@@ -30,6 +34,7 @@ export function FloorPlanMarker({
     markerStateClass(desk.state),
     isExecutive ? 'floor-marker-executive' : '',
     editMode ? 'floor-marker-editing' : '',
+    dimmed ? 'floor-marker-dimmed' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -42,7 +47,7 @@ export function FloorPlanMarker({
     }
   }
 
-  function handleMouseDown(event: MouseEvent<HTMLButtonElement>): void {
+  function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>): void {
     if (editMode) {
       onDragStart(desk, event);
     }
@@ -57,11 +62,16 @@ export function FloorPlanMarker({
       aria-label={label}
       disabled={!editMode && desk.state !== 'FREE'}
       onClick={handleClick}
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
     >
       <span aria-hidden="true" className="floor-marker-number">
         {desk.deskNumber}
       </span>
+      {isExecutive ? (
+        <span aria-hidden="true" className="floor-marker-exec-badge">
+          {EXECUTIVE_SYMBOL}
+        </span>
+      ) : null}
     </button>
   );
 }
