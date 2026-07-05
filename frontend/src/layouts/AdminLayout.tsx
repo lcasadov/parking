@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 import { AppHeader } from '../components/AppHeader';
+import { PendingRequestsBadge } from '../components/PendingRequestsBadge';
 import { Sidebar } from '../components/Sidebar';
 import { ROUTES } from '../routes/paths';
 
@@ -16,14 +17,14 @@ export function AdminLayout() {
             to={ROUTES.adminCalendar}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <i className="ti ti-calendar-week" aria-hidden="true" />
+            <i className="ti ti-calendar-event" aria-hidden="true" />
             {t('calendar.admin.navLabel')}
           </NavLink>
           <NavLink
             to={ROUTES.adminAvailability}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <i className="ti ti-calendar-search" aria-hidden="true" />
+            <i className="ti ti-calendar-stats" aria-hidden="true" />
             {t('availability.navLabel')}
           </NavLink>
           <NavLink
@@ -58,7 +59,7 @@ export function AdminLayout() {
             to={ROUTES.adminFixedAssignments}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <i className="ti ti-calendar-check" aria-hidden="true" />
+            <i className="ti ti-pin" aria-hidden="true" />
             {t('fixedAssignments.navLabel')}
           </NavLink>
           <NavLink
@@ -67,12 +68,13 @@ export function AdminLayout() {
           >
             <i className="ti ti-inbox" aria-hidden="true" />
             {t('requests.inbox.navLabel')}
+            <PendingRequestsBadge />
           </NavLink>
           <NavLink
             to={ROUTES.adminReleases}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <i className="ti ti-calendar-off" aria-hidden="true" />
+            <i className="ti ti-arrow-back-up" aria-hidden="true" />
             {t('releases.admin.navLabel')}
           </NavLink>
           <NavLink

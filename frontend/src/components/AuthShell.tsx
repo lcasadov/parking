@@ -10,7 +10,7 @@ export function AuthShell({ title, children }: { title: string; children: ReactN
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="auth-head">
-          <BrandCurve className="curve" />
+          <BrandCurve className="curve" variant="auth" />
           <BrandLogo />
           <h1 className="auth-title">{title}</h1>
         </div>

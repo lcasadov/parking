@@ -37,6 +37,9 @@ describe('AppHeader', () => {
       { name: /cerrar sesión|log out/i },
       { timeout: 10000 },
     );
+    // El avatar con iniciales del usuario autenticado se muestra junto a los controles.
+    expect(screen.getByRole('img', { name: /ada admin/i })).toHaveTextContent('AA');
+
     await user.click(logoutBtn);
 
     await waitFor(() => {
