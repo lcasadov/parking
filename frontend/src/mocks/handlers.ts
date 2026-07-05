@@ -30,6 +30,7 @@ import type { VisitorReservationCreateRequest } from '../types/visitor';
 import {
   adminCalendarFor,
   defaultAvailability,
+  defaultDeskAvailability,
   defaultMyWeek,
 } from './calendarFixtures';
 import { defaultAuditPage, defaultLoginLogPage } from './auditFixtures';
@@ -333,11 +334,14 @@ export const handlers = [
 
   // ---- Availability / Calendar (defaults; cada test los sobrescribe) ----
   http.get(`${BASE}/availability`, ({ request }) => {
-    const date = new URL(request.url).searchParams.get('date');
+    const url = new URL(request.url);
+    const date = url.searchParams.get('date');
     if (!date) {
       return HttpResponse.json(apiError('validation', 'date is required'), { status: 400 });
     }
-    return HttpResponse.json({ ...defaultAvailability, date });
+    const base =
+      url.searchParams.get('resourceType') === 'DESK' ? defaultDeskAvailability : defaultAvailability;
+    return HttpResponse.json({ ...base, date });
   }),
 
   http.get(`${BASE}/calendar/admin`, ({ request }) => {

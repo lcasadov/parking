@@ -4,10 +4,10 @@ import { ApproveRequestModal } from '../components/ApproveRequestModal';
 import { Button } from '../components/Button';
 import { ExportMenu } from '../components/ExportMenu';
 import { RejectRequestModal } from '../components/RejectRequestModal';
+import { ResourceTypePill } from '../components/ResourceTypePill';
 import { Spinner } from '../components/Spinner';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useEmployeesQuery } from '../hooks/useEmployees';
-import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
 import { usePendingRequestsQuery } from '../hooks/useRequests';
 import type { Employee } from '../types/employee';
 
@@ -33,16 +33,16 @@ export function PendingRequestsPage() {
 
   const query = usePendingRequestsQuery({ page, size: PAGE_SIZE });
   const employeesQuery = useEmployeesQuery({ page: 0, size: LOOKUP_SIZE });
-  const spacesQuery = useParkingSpacesQuery({ page: 0, size: LOOKUP_SIZE, active: true });
 
   const employees = useMemo(() => employeesQuery.data?.content ?? [], [employeesQuery.data]);
-  const spaces = useMemo(() => spacesQuery.data?.content ?? [], [spacesQuery.data]);
   const employeeNames = useMemo(() => buildEmployeeNames(employees), [employees]);
 
   const requests = query.data?.content ?? [];
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
+
+  const approveTarget = requests.find((request) => request.id === approveId) ?? null;
 
   function employeeName(id: number): string {
     return employeeNames.get(id) ?? `#${id}`;
@@ -73,6 +73,7 @@ export function PendingRequestsPage() {
             <thead>
               <tr className="table-header">
                 <th scope="col">{t('requests.inbox.columns.employee')}</th>
+                <th scope="col">{t('requests.inbox.columns.resource')}</th>
                 <th scope="col">{t('requests.inbox.columns.date')}</th>
                 <th scope="col">{t('requests.inbox.columns.created')}</th>
                 <th scope="col">{t('requests.inbox.columns.actions')}</th>
@@ -81,7 +82,7 @@ export function PendingRequestsPage() {
             <tbody>
               {requests.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="table-empty">
+                  <td colSpan={5} className="table-empty">
                     {t('requests.inbox.empty')}
                   </td>
                 </tr>
@@ -89,6 +90,9 @@ export function PendingRequestsPage() {
                 requests.map((request) => (
                   <tr key={request.id} className="table-row">
                     <td>{employeeName(request.employeeId)}</td>
+                    <td>
+                      <ResourceTypePill resourceType={request.resourceType} />
+                    </td>
                     <td>{request.requestedDate}</td>
                     <td>{request.createdAt}</td>
                     <td className="table-actions">
@@ -125,10 +129,9 @@ export function PendingRequestsPage() {
         </nav>
       ) : null}
 
-      {approveId !== null ? (
+      {approveTarget !== null ? (
         <ApproveRequestModal
-          requestId={approveId}
-          spaces={spaces}
+          request={approveTarget}
           onClose={() => setApproveId(null)}
           onApproved={() => setApproveId(null)}
         />

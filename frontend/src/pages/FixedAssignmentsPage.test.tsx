@@ -192,4 +192,39 @@ describe('FixedAssignmentsPage (ADMIN)', () => {
     expect(next).toBeEnabled();
     expect(screen.getByRole('button', { name: /anterior|previous/i })).toBeDisabled();
   });
+
+  it('should_send_resource_type_desk_when_assigning_a_desk', async () => {
+    const user = userEvent.setup();
+    let putBody: unknown = null;
+    server.use(
+      http.put(`${MSW_BASE}/fixed-assignments/employee/:id`, async ({ request }) => {
+        putBody = await request.json();
+        return HttpResponse.json([]);
+      }),
+    );
+    renderWithProviders(<FixedAssignmentsPage />);
+    await openCreateForm();
+
+    const dialog = within(screen.getByRole('dialog'));
+    await user.selectOptions(dialog.getByLabelText(/empleado|employee/i), '10');
+    // Elegir recurso "Puesto" cambia la lista a puestos (D-xx).
+    await user.selectOptions(dialog.getByLabelText(/tipo de recurso|resource type/i), 'DESK');
+    await dialog.findByRole('option', { name: 'D-01' });
+    await user.selectOptions(dialog.getByLabelText(/^puesto$|^desk$/i), '1');
+    await user.click(dialog.getByRole('checkbox', { name: /lunes|monday/i }));
+    await user.click(dialog.getByRole('button', { name: /guardar|save/i }));
+
+    await waitFor(() =>
+      expect(putBody).toEqual({ parkingSpaceId: 1, daysOfWeek: [1], resourceType: 'DESK' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('should_show_resource_type_pill_in_assignment_rows', async () => {
+    renderWithProviders(<FixedAssignmentsPage />);
+
+    await screen.findByText('Alice Andersson');
+    // Las asignaciones sin resourceType son de plaza (retrocompatible).
+    expect(screen.getAllByText(/^plaza$|^space$/i).length).toBeGreaterThan(0);
+  });
 });

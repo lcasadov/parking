@@ -3,11 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { DayBadges } from '../components/DayBadges';
 import { FixedAssignmentModal } from '../components/FixedAssignmentModal';
+import { ResourceTypePill } from '../components/ResourceTypePill';
 import { RevokeFixedAssignmentModal } from '../components/RevokeFixedAssignmentModal';
 import { Spinner } from '../components/Spinner';
+import { useDesksQuery } from '../hooks/useDesks';
 import { useEmployeesQuery } from '../hooks/useEmployees';
 import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
 import { useFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
+import { buildDeskLabels } from '../utils/desks';
 import { groupFixedAssignments, type FixedAssignmentGroup } from '../utils/fixedAssignments';
 import type { Employee } from '../types/employee';
 import type { ParkingSpace } from '../types/parkingSpace';
@@ -49,11 +52,21 @@ export function FixedAssignmentsPage() {
   const query = useFixedAssignmentsQuery({ page, size: PAGE_SIZE });
   const employeesQuery = useEmployeesQuery({ page: 0, size: LOOKUP_SIZE });
   const spacesQuery = useParkingSpacesQuery({ page: 0, size: LOOKUP_SIZE, active: true });
+  const desksQuery = useDesksQuery({ page: 0, size: LOOKUP_SIZE, active: true });
 
   const employees = useMemo(() => employeesQuery.data?.content ?? [], [employeesQuery.data]);
   const spaces = useMemo(() => spacesQuery.data?.content ?? [], [spacesQuery.data]);
+  const desks = useMemo(() => desksQuery.data?.content ?? [], [desksQuery.data]);
   const employeeNames = useMemo(() => buildEmployeeNames(employees), [employees]);
   const spaceLabels = useMemo(() => buildSpaceLabels(spaces), [spaces]);
+  const deskLabels = useMemo(() => buildDeskLabels(desks), [desks]);
+
+  function resourceLabel(group: FixedAssignmentGroup): string {
+    if (group.resourceType === 'DESK') {
+      return deskLabels.get(group.parkingSpaceId) ?? `#${group.parkingSpaceId}`;
+    }
+    return spaceLabels.get(group.parkingSpaceId) ?? `#${group.parkingSpaceId}`;
+  }
 
   const groups = useMemo(
     () => groupFixedAssignments(query.data?.content ?? []),
@@ -109,6 +122,7 @@ export function FixedAssignmentsPage() {
             <thead>
               <tr className="table-header">
                 <th scope="col">{t('fixedAssignments.columns.employee')}</th>
+                <th scope="col">{t('fixedAssignments.columns.type')}</th>
                 <th scope="col">{t('fixedAssignments.columns.space')}</th>
                 <th scope="col">{t('fixedAssignments.columns.days')}</th>
                 <th scope="col">{t('fixedAssignments.columns.actions')}</th>
@@ -117,7 +131,7 @@ export function FixedAssignmentsPage() {
             <tbody>
               {groups.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="table-empty">
+                  <td colSpan={5} className="table-empty">
                     {t('fixedAssignments.empty')}
                   </td>
                 </tr>
@@ -125,7 +139,10 @@ export function FixedAssignmentsPage() {
                 groups.map((group) => (
                   <tr key={group.key} className="table-row">
                     <td>{employeeName(group.employeeId)}</td>
-                    <td>{spaceLabels.get(group.parkingSpaceId) ?? `#${group.parkingSpaceId}`}</td>
+                    <td>
+                      <ResourceTypePill resourceType={group.resourceType} />
+                    </td>
+                    <td>{resourceLabel(group)}</td>
                     <td>
                       <DayBadges days={group.days} />
                     </td>
@@ -177,6 +194,7 @@ export function FixedAssignmentsPage() {
         <FixedAssignmentModal
           employees={employees}
           spaces={spaces}
+          desks={desks}
           initial={editing}
           onClose={closeForm}
           onSaved={closeForm}

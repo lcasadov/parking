@@ -54,6 +54,20 @@ export function useResourceAvailabilityQuery(
   });
 }
 
+// Disponibilidad por recurso para la aprobacion admin de una solicitud: lista los
+// recursos libres (plaza o puesto) de la fecha solicitada. A diferencia del banner,
+// no se limita a la ventana hoy..+14 (el admin puede resolver cualquier fecha).
+export function useApprovalAvailabilityQuery(
+  date: string,
+  resourceType: ResourceType,
+): UseQueryResult<AvailabilityResponse> {
+  return useQuery({
+    queryKey: resourceAvailabilityQueryKey(date, resourceType),
+    queryFn: () => getAvailability(date, resourceType),
+    enabled: isValidIsoDate(date),
+  });
+}
+
 // Calendario semanal admin; solo consulta con un weekStart valido.
 export function useAdminCalendarQuery(
   weekStart: string,

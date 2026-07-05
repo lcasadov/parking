@@ -10,6 +10,7 @@ import {
   pageOfRequests,
   requestApproved,
   requestPending1,
+  requestPendingDesk,
 } from '../mocks/requestFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { todayIso } from '../utils/requests';
@@ -188,5 +189,23 @@ describe('MyRequestsPage (EMPLOYEE)', () => {
     const next = await screen.findByRole('button', { name: /siguiente|next/i });
     expect(next).toBeEnabled();
     expect(screen.getByRole('button', { name: /anterior|previous/i })).toBeDisabled();
+  });
+
+  it('should_show_resource_type_pill_when_listing_my_requests', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () =>
+        HttpResponse.json(pageOfRequests([requestPending1, requestPendingDesk])),
+      ),
+    );
+    renderWithProviders(<MyRequestsPage />);
+
+    // El empleado ve el tipo de recurso de cada solicitud (pill plaza / puesto).
+    // Se filtra por la clase `pill` para no chocar con la cabecera «Plaza».
+    const deskPill = await screen.findByText(/^puesto$|^desk$/i);
+    expect(deskPill).toHaveClass('pill');
+    const parkingPills = screen
+      .getAllByText(/^plaza$|^space$/i)
+      .filter((node) => node.classList.contains('pill'));
+    expect(parkingPills).toHaveLength(1);
   });
 });
