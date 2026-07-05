@@ -82,7 +82,7 @@ Leyenda de estado: ✅ hecho · 🔄 en curso · ⬜ pendiente.
 | # | Change | Tipo | Estado | % |
 |---|--------|------|--------|---|
 | R1 | `refine-floor-plan-mockup-parity` | Frontend (UI) | ✅ **Archivado** (PR #68 mergeada, CI verde, verification-specialist PASS — FE 335/335 95.95%/92.47%, BE 172 IT, seed V16 confinado a `des`, design-system limpio, marcadores pastel + ◆, móvil Pointer Events + lista Solicitar, banners disponibilidad; sin cambio de contrato) → `changes/archive/2026-07-05-refine-floor-plan-mockup-parity`. Paridad **visual** pendiente de firma ocular del usuario. | `██████████` 100% |
-| R2 | `e2e-employee-request-approval-mobile` | Testing (E2E) | ⬜ En cola — seed empleado dev + E2E solicitud (plaza+puesto)/aprobación/rechazo + E2E viewport móvil + fix e2e obsoleto `/admin$` | `░░░░░░░░░░` 0% |
+| R2 | `e2e-employee-request-approval-mobile` | Testing (E2E) | ✅ **Archivado** (PR #71 mergeada, CI verde — Backend+Frontend+CodeRabbit pass; **E2E 7/7 verdes contra stack real** —auth ×4, solicitud empleado plaza+puesto, aprobación/rechazo admin, plano móvil Pixel 5—; seed empleado dev V17 BCrypt verificado, fix e2e obsoleto `/admin/employees`, proyecto Playwright móvil + serial; unit 335/335) → `changes/archive/2026-07-05-e2e-employee-request-approval-mobile` | `██████████` 100% |
 
 ---
 
