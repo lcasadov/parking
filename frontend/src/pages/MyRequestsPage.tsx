@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { CancelRequestModal } from '../components/CancelRequestModal';
 import { CreateRequestModal } from '../components/CreateRequestModal';
 import { ExportMenu } from '../components/ExportMenu';
+import { ResourceTypePill } from '../components/ResourceTypePill';
 import { Spinner } from '../components/Spinner';
 import { emitApiErrorToast } from '../api/events';
 import { EXPORT_PATHS } from '../api/exportApi';
@@ -69,6 +70,7 @@ export function MyRequestsPage() {
               <tr className="table-header">
                 <th scope="col">{t('requests.mine.columns.date')}</th>
                 <th scope="col">{t('requests.mine.columns.status')}</th>
+                <th scope="col">{t('requests.mine.columns.resource')}</th>
                 <th scope="col">{t('requests.mine.columns.space')}</th>
                 <th scope="col">{t('requests.mine.columns.actions')}</th>
               </tr>
@@ -76,7 +78,7 @@ export function MyRequestsPage() {
             <tbody>
               {requests.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="table-empty">
+                  <td colSpan={5} className="table-empty">
                     {t('requests.mine.empty')}
                   </td>
                 </tr>
@@ -88,6 +90,9 @@ export function MyRequestsPage() {
                       <span className={`status-badge status-${request.status.toLowerCase()}`}>
                         {t(`requests.status.${request.status}`)}
                       </span>
+                    </td>
+                    <td>
+                      <ResourceTypePill resourceType={request.resourceType} />
                     </td>
                     <td>{spaceLabel(request)}</td>
                     <td className="table-actions">

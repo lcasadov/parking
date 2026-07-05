@@ -11,6 +11,7 @@ import {
   requestApproved,
   requestPending1,
   requestPending2,
+  requestPendingDesk,
 } from '../mocks/requestFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 
@@ -52,7 +53,9 @@ describe('PendingRequestsPage (ADMIN)', () => {
     await openApproveModal();
 
     const dialog = within(screen.getByRole('dialog'));
-    await user.selectOptions(dialog.getByLabelText(/plaza a asignar|space to assign/i), '1');
+    // La lista de plazas disponibles se carga via GET /availability (async).
+    await dialog.findByRole('option', { name: 'P-01' });
+    await user.selectOptions(dialog.getByLabelText(/plaza disponible|available space/i), '1');
     await user.type(dialog.getByLabelText(/nota de aprobación|approval note/i), 'ok');
     await user.click(dialog.getByRole('button', { name: /^aprobar$|^approve$/i }));
 
@@ -91,7 +94,8 @@ describe('PendingRequestsPage (ADMIN)', () => {
     await openApproveModal();
 
     const dialog = within(screen.getByRole('dialog'));
-    await user.selectOptions(dialog.getByLabelText(/plaza a asignar|space to assign/i), '1');
+    await dialog.findByRole('option', { name: 'P-01' });
+    await user.selectOptions(dialog.getByLabelText(/plaza disponible|available space/i), '1');
     await user.click(dialog.getByRole('button', { name: /^aprobar$|^approve$/i }));
 
     expect(
@@ -214,5 +218,48 @@ describe('PendingRequestsPage (ADMIN)', () => {
     const next = await screen.findByRole('button', { name: /siguiente|next/i });
     expect(next).toBeEnabled();
     expect(screen.getByRole('button', { name: /anterior|previous/i })).toBeDisabled();
+  });
+
+  it('should_show_resource_type_pill_per_row_when_listing_pending', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/requests/pending`, () =>
+        HttpResponse.json(pageOfRequests([requestPending1, requestPendingDesk])),
+      ),
+    );
+    renderWithProviders(<PendingRequestsPage />);
+
+    // Una fila de plaza y una de puesto: cada tipo visible como pill.
+    expect(await screen.findByText(/^puesto$|^desk$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^plaza$|^space$/i)).toBeInTheDocument();
+  });
+
+  it('should_offer_desks_and_approve_desk_request_when_request_is_desk', async () => {
+    const user = userEvent.setup();
+    let approvedBody: unknown = null;
+    server.use(
+      http.get(`${MSW_BASE}/requests/pending`, () =>
+        HttpResponse.json(pageOfRequests([requestPendingDesk])),
+      ),
+      http.post(`${MSW_BASE}/requests/:id/approve`, async ({ request, params }) => {
+        approvedBody = await request.json();
+        return HttpResponse.json({ ...requestApproved, id: Number(params.id) });
+      }),
+    );
+    renderWithProviders(<PendingRequestsPage />);
+    await openApproveModal();
+
+    const dialog = within(screen.getByRole('dialog'));
+    // Solicitud de puesto: el modal ofrece puestos (D-xx), no plazas.
+    expect(dialog.getByText(/solicitud de puesto|desk request/i)).toBeInTheDocument();
+    await dialog.findByRole('option', { name: 'D-01' });
+    expect(dialog.getByRole('option', { name: 'D-02' })).toBeInTheDocument();
+    expect(dialog.queryByRole('option', { name: 'P-01' })).not.toBeInTheDocument();
+
+    await user.selectOptions(dialog.getByLabelText(/puesto disponible|available desk/i), '2');
+    await user.click(dialog.getByRole('button', { name: /^aprobar$|^approve$/i }));
+
+    // El id del puesto viaja en parkingSpaceId (resource_id generico).
+    await waitFor(() => expect(approvedBody).toEqual({ parkingSpaceId: 2 }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });

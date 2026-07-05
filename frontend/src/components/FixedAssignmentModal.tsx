@@ -5,14 +5,18 @@ import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useSetFixedAssignments } from '../hooks/useFixedAssignments';
+import { deskLabel } from '../utils/desks';
 import { toggleDay, WEEK_DAYS } from '../utils/fixedAssignments';
+import type { Desk } from '../types/desk';
 import type { Employee } from '../types/employee';
 import type { ParkingSpace } from '../types/parkingSpace';
+import type { ResourceType } from '../types/request';
 import type { FixedAssignmentGroup } from '../utils/fixedAssignments';
 
 interface FixedAssignmentModalProps {
   employees: Employee[];
   spaces: ParkingSpace[];
+  desks: Desk[];
   initial?: FixedAssignmentGroup | null;
   onClose: () => void;
   onSaved: () => void;
@@ -34,11 +38,26 @@ function toastKeyForError(error: unknown): string {
   return 'fixedAssignments.errors.generic';
 }
 
-// Modal ADMIN: asigna/modifica la asignacion fija de un empleado (plaza + dias).
-// Guarda via PUT /fixed-assignments/employee/{id} (reemplaza el conjunto).
+// Opciones { value, label } del selector de recurso segun el tipo elegido.
+function resourceOptions(
+  resourceType: ResourceType,
+  spaces: ParkingSpace[],
+  desks: Desk[],
+): Array<{ id: number; label: string }> {
+  if (resourceType === 'DESK') {
+    return desks.map((desk) => ({ id: desk.id, label: deskLabel(desk.number) }));
+  }
+  return spaces.map((space) => ({ id: space.id, label: space.label }));
+}
+
+// Modal ADMIN: asigna/modifica la asignacion fija de un empleado (recurso + dias).
+// El selector de recurso (Plaza/Puesto) cambia la lista de recursos y envia el
+// `resourceType` en PUT /fixed-assignments/employee/{id}. Un empleado puede tener
+// plaza fija y puesto fijo (recursos independientes). En edicion el tipo es fijo.
 export function FixedAssignmentModal({
   employees,
   spaces,
+  desks,
   initial,
   onClose,
   onSaved,
@@ -46,17 +65,28 @@ export function FixedAssignmentModal({
   const { t } = useTranslation();
   const isEdit = Boolean(initial);
   const [employeeId, setEmployeeId] = useState<number | ''>(initial?.employeeId ?? '');
-  const [spaceId, setSpaceId] = useState<number | ''>(initial?.parkingSpaceId ?? '');
+  const [resourceType, setResourceType] = useState<ResourceType>(
+    initial?.resourceType ?? 'PARKING',
+  );
+  const [resourceId, setResourceId] = useState<number | ''>(initial?.parkingSpaceId ?? '');
   const [days, setDays] = useState<number[]>(initial?.days ?? []);
   const [error, setError] = useState<string | null>(null);
   const setMutation = useSetFixedAssignments();
+
+  const isDesk = resourceType === 'DESK';
+  const options = resourceOptions(resourceType, spaces, desks);
+
+  function changeResourceType(next: ResourceType): void {
+    setResourceType(next);
+    setResourceId('');
+  }
 
   function validate(): string | null {
     if (employeeId === '') {
       return t('fixedAssignments.form.requiredEmployee');
     }
-    if (spaceId === '') {
-      return t('fixedAssignments.form.requiredSpace');
+    if (resourceId === '') {
+      return t(isDesk ? 'fixedAssignments.form.requiredDesk' : 'fixedAssignments.form.requiredSpace');
     }
     if (days.length === 0) {
       return t('fixedAssignments.form.requiredDays');
@@ -75,7 +105,7 @@ export function FixedAssignmentModal({
     setMutation.mutate(
       {
         employeeId: Number(employeeId),
-        body: { parkingSpaceId: Number(spaceId), daysOfWeek: days },
+        body: { parkingSpaceId: Number(resourceId), daysOfWeek: days, resourceType },
       },
       {
         onSuccess: onSaved,
@@ -110,21 +140,37 @@ export function FixedAssignmentModal({
           ))}
         </select>
 
+        <label className="field-label" htmlFor="fixed-assignment-resource-type">
+          {t('fixedAssignments.form.resource')}
+        </label>
+        <select
+          id="fixed-assignment-resource-type"
+          className="field-input"
+          value={resourceType}
+          disabled={isEdit}
+          onChange={(event) => changeResourceType(event.target.value as ResourceType)}
+        >
+          <option value="PARKING">{t('fixedAssignments.form.resourceParking')}</option>
+          <option value="DESK">{t('fixedAssignments.form.resourceDesk')}</option>
+        </select>
+
         <label className="field-label" htmlFor="fixed-assignment-space">
-          {t('fixedAssignments.form.space')}
+          {t(isDesk ? 'fixedAssignments.form.desk' : 'fixedAssignments.form.space')}
         </label>
         <select
           id="fixed-assignment-space"
           className="field-input"
-          value={spaceId}
+          value={resourceId}
           onChange={(event) =>
-            setSpaceId(event.target.value === '' ? '' : Number(event.target.value))
+            setResourceId(event.target.value === '' ? '' : Number(event.target.value))
           }
         >
-          <option value="">{t('fixedAssignments.form.selectSpace')}</option>
-          {spaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.label}
+          <option value="">
+            {t(isDesk ? 'fixedAssignments.form.selectDesk' : 'fixedAssignments.form.selectSpace')}
+          </option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
             </option>
           ))}
         </select>

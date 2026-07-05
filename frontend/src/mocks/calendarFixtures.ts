@@ -30,6 +30,16 @@ export const emptyAvailability: AvailabilityResponse = {
   availableResources: [],
 };
 
+// Disponibilidad de puestos (resourceType=DESK): parkingSpaceId = id del puesto,
+// label 'D-xx'. La usa la aprobacion admin de una solicitud de puesto.
+export const defaultDeskAvailability: AvailabilityResponse = {
+  date: FIXTURE_WEEK_START,
+  availableResources: [
+    { parkingSpaceId: 1, label: 'D-01' },
+    { parkingSpaceId: 2, label: 'D-02' },
+  ],
+};
+
 // ---- Admin weekly calendar ----
 // Fila P-01: cubre los 5 estados de CalendarCellState en orden lun..vie.
 const rowP01Cells: CalendarCell[] = [

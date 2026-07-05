@@ -31,6 +31,23 @@ export const requestPending2: Request = {
   createdAt: '2026-03-01T09:30:00Z',
 };
 
+// Solicitud pendiente de PUESTO (resourceType=DESK) para los flujos de puesto.
+export const requestPendingDesk: Request = {
+  id: 505,
+  employeeId: 2,
+  requestedDate: todayIso(),
+  status: 'PENDING',
+  resourceType: 'DESK',
+  parkingSpaceId: null,
+  deskId: null,
+  approvalNote: null,
+  rejectionReasonCode: null,
+  rejectionReason: null,
+  resolvedById: null,
+  resolvedAt: null,
+  createdAt: '2026-03-01T08:15:00Z',
+};
+
 export const requestApproved: Request = {
   id: 503,
   employeeId: 2,

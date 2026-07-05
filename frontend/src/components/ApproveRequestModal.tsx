@@ -4,12 +4,12 @@ import { Button } from './Button';
 import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
+import { useApprovalAvailabilityQuery } from '../hooks/useCalendar';
 import { useApproveRequest } from '../hooks/useRequests';
-import type { ParkingSpace } from '../types/parkingSpace';
+import type { Request, ResourceType } from '../types/request';
 
 interface ApproveRequestModalProps {
-  requestId: number;
-  spaces: ParkingSpace[];
+  request: Request;
   onClose: () => void;
   onApproved: () => void;
 }
@@ -25,15 +25,40 @@ function toastKeyForError(error: unknown): string {
   return 'requests.errors.generic';
 }
 
-// Modal ADMIN: aprueba una solicitud asignando una plaza y una nota opcional
-// (POST /requests/{id}/approve). Un 409 indica plaza no disponible o colision.
-export function ApproveRequestModal({
-  requestId,
-  spaces,
-  onClose,
-  onApproved,
-}: ApproveRequestModalProps) {
+// Etiquetas i18n dependientes del tipo de recurso de la solicitud.
+function labelsFor(resourceType: ResourceType): {
+  title: string;
+  field: string;
+  select: string;
+  required: string;
+} {
+  if (resourceType === 'DESK') {
+    return {
+      title: 'requests.approve.titleDesk',
+      field: 'requests.approve.resourceDesk',
+      select: 'requests.approve.selectDesk',
+      required: 'requests.approve.requiredDesk',
+    };
+  }
+  return {
+    title: 'requests.approve.titleParking',
+    field: 'requests.approve.resourceParking',
+    select: 'requests.approve.selectParking',
+    required: 'requests.approve.requiredParking',
+  };
+}
+
+// Modal ADMIN: aprueba una solicitud asignando el recurso del tipo correcto
+// (plaza o puesto). Lee `resourceType` de la solicitud y ofrece los recursos
+// disponibles para la fecha via GET /availability?date&resourceType. El id elegido
+// viaja en `parkingSpaceId` (resource_id generico). Un 409 = recurso no disponible.
+export function ApproveRequestModal({ request, onClose, onApproved }: ApproveRequestModalProps) {
   const { t } = useTranslation();
+  const resourceType: ResourceType = request.resourceType ?? 'PARKING';
+  const labels = labelsFor(resourceType);
+  const availabilityQuery = useApprovalAvailabilityQuery(request.requestedDate, resourceType);
+  const resources = availabilityQuery.data?.availableResources ?? [];
+
   const [spaceId, setSpaceId] = useState<number | ''>('');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -42,14 +67,14 @@ export function ApproveRequestModal({
   function handleSubmit(event: FormEvent): void {
     event.preventDefault();
     if (spaceId === '') {
-      setError(t('requests.approve.requiredSpace'));
+      setError(t(labels.required));
       return;
     }
     setError(null);
     const trimmedNote = note.trim();
     approveMutation.mutate(
       {
-        id: requestId,
+        id: request.id,
         body: {
           parkingSpaceId: Number(spaceId),
           ...(trimmedNote === '' ? {} : { approvalNote: trimmedNote }),
@@ -63,23 +88,26 @@ export function ApproveRequestModal({
   }
 
   return (
-    <Modal title={t('requests.approve.title')} onClose={onClose}>
+    <Modal title={t(labels.title)} onClose={onClose}>
       <form id="approve-request-form" onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="approve-request-space">
-          {t('requests.approve.space')}
+          {t(labels.field)}
         </label>
         <select
           id="approve-request-space"
           className="field-input"
           value={spaceId}
+          disabled={availabilityQuery.isLoading}
           onChange={(event) =>
             setSpaceId(event.target.value === '' ? '' : Number(event.target.value))
           }
         >
-          <option value="">{t('requests.approve.selectSpace')}</option>
-          {spaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.label}
+          <option value="">
+            {availabilityQuery.isLoading ? t('requests.approve.loadingResources') : t(labels.select)}
+          </option>
+          {resources.map((resource) => (
+            <option key={resource.parkingSpaceId} value={resource.parkingSpaceId}>
+              {resource.label}
             </option>
           ))}
         </select>

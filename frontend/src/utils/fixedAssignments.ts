@@ -1,22 +1,27 @@
 import type { FixedAssignment } from '../types/fixedAssignment';
+import type { ResourceType } from '../types/request';
 
 // Dias ISO validos: 1 (lunes) .. 7 (domingo).
 export const WEEK_DAYS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
 
-// Grupo de asignaciones fijas de un empleado sobre una misma plaza, con sus dias.
+// Grupo de asignaciones fijas de un empleado sobre un mismo recurso, con sus dias.
+// `parkingSpaceId` transporta el resource_id generico; `resourceType` lo discrimina.
 export interface FixedAssignmentGroup {
   key: string;
   employeeId: number;
   parkingSpaceId: number;
+  resourceType: ResourceType;
   days: number[];
 }
 
-// Agrupa las filas (una por dia) por empleado+plaza y ordena los dias ascendente.
-// La revocacion actua por empleado; el detalle muestra plaza + dias.
+// Agrupa las filas (una por dia) por empleado+recurso+tipo y ordena los dias
+// ascendente. Un empleado puede tener plaza fija y puesto fijo (grupos distintos).
+// La revocacion actua por empleado; el detalle muestra recurso + dias.
 export function groupFixedAssignments(rows: FixedAssignment[]): FixedAssignmentGroup[] {
   const groups = new Map<string, FixedAssignmentGroup>();
   for (const row of rows) {
-    const key = `${row.employeeId}:${row.parkingSpaceId}`;
+    const resourceType: ResourceType = row.resourceType ?? 'PARKING';
+    const key = `${row.employeeId}:${row.parkingSpaceId}:${resourceType}`;
     const existing = groups.get(key);
     if (existing) {
       existing.days.push(row.dayOfWeek);
@@ -25,6 +30,7 @@ export function groupFixedAssignments(rows: FixedAssignment[]): FixedAssignmentG
         key,
         employeeId: row.employeeId,
         parkingSpaceId: row.parkingSpaceId,
+        resourceType,
         days: [row.dayOfWeek],
       });
     }
