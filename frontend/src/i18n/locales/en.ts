@@ -324,6 +324,7 @@ export const en = {
     inbox: {
       title: 'Pending requests',
       navLabel: 'Requests',
+      pendingBadge: '{{count}} pending requests',
       empty: 'There are no pending requests.',
       loadError: 'Could not load pending requests.',
       columns: {

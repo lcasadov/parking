@@ -16,7 +16,7 @@ export function EmployeeLayout() {
             to={ROUTES.employeeMyWeek}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <i className="ti ti-calendar-week" aria-hidden="true" />
+            <i className="ti ti-calendar-event" aria-hidden="true" />
             {t('calendar.myWeek.navLabel')}
           </NavLink>
           <NavLink
@@ -30,21 +30,21 @@ export function EmployeeLayout() {
             to={ROUTES.employeeRequests}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <i className="ti ti-clipboard-list" aria-hidden="true" />
+            <i className="ti ti-inbox" aria-hidden="true" />
             {t('requests.mine.navLabel')}
           </NavLink>
           <NavLink
             to={ROUTES.employeeFixedAssignments}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <i className="ti ti-calendar-check" aria-hidden="true" />
+            <i className="ti ti-pin" aria-hidden="true" />
             {t('fixedAssignments.mine.navLabel')}
           </NavLink>
           <NavLink
             to={ROUTES.employeeReleases}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <i className="ti ti-calendar-off" aria-hidden="true" />
+            <i className="ti ti-arrow-back-up" aria-hidden="true" />
             {t('releases.mine.navLabel')}
           </NavLink>
         </Sidebar>

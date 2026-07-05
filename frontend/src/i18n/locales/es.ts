@@ -324,6 +324,7 @@ export const es = {
     inbox: {
       title: 'Solicitudes pendientes',
       navLabel: 'Solicitudes',
+      pendingBadge: '{{count}} solicitudes pendientes',
       empty: 'No hay solicitudes pendientes.',
       loadError: 'No se pudieron cargar las solicitudes pendientes.',
       columns: {

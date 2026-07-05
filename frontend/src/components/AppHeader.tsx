@@ -9,6 +9,7 @@ import { Button } from './Button';
 import { ExportMyDataButton } from './ExportMyDataButton';
 import { LanguageToggle } from './LanguageToggle';
 import { ThemeToggle } from './ThemeToggle';
+import { UserAvatar } from './UserAvatar';
 
 // Cabecera de la app: logo + curva SVG + toggles tema/idioma + logout.
 export function AppHeader({ pageTitle }: { pageTitle?: string }) {
@@ -34,14 +35,24 @@ export function AppHeader({ pageTitle }: { pageTitle?: string }) {
         <LanguageToggle />
         <ThemeToggle />
         {user ? (
-          <Button
-            variant="white"
-            icon="logout"
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
-          >
-            {t('common.logout')}
-          </Button>
+          <>
+            <Button
+              variant="white"
+              icon="logout"
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending}
+            >
+              {t('common.logout')}
+            </Button>
+            <UserAvatar
+              user={user}
+              label={
+                user.firstName || user.lastName
+                  ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
+                  : user.login
+              }
+            />
+          </>
         ) : null}
       </div>
     </header>

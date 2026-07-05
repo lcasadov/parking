@@ -87,7 +87,7 @@ export function AdministrativeReleaseModal({
   }
 
   return (
-    <Modal title={t('releases.admin.title')} onClose={onClose}>
+    <Modal title={t('releases.admin.title')} onClose={onClose} variant="red">
       <form id="administrative-release-form" onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="administrative-release-employee">
           {t('releases.admin.employee')}
