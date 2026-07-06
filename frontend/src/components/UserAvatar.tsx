@@ -1,8 +1,9 @@
 import type { CurrentUser } from '../types/auth';
 import { initialsOf } from '../utils/initials';
+import { Avatar } from './Avatar';
 
-// Avatar circular con iniciales del usuario (mockup .avatar). label accesible
-// (nombre completo o login) para lectores de pantalla.
+// Avatar del usuario autenticado (cabecera). Delega en <Avatar> con las
+// iniciales calculadas; mantiene la API publica previa (user + label).
 export function UserAvatar({
   user,
   label,
@@ -10,9 +11,5 @@ export function UserAvatar({
   user: Pick<CurrentUser, 'firstName' | 'lastName' | 'login'>;
   label: string;
 }) {
-  return (
-    <span className="avatar" title={label} aria-label={label} role="img">
-      {initialsOf(user)}
-    </span>
-  );
+  return <Avatar initials={initialsOf(user)} label={label} size="md" />;
 }

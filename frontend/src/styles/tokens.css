@@ -44,6 +44,27 @@
   /* Neutro "libre / sin estado" (design-system §2.4) */
   --neutral-soft: #f1efe8;
   --neutral-border: #d3d1c7;
+  --neutral-strong: #b4b2a9;
+
+  /* Fondo de campos de formulario (input/field-value/tab activa). */
+  --field-bg: var(--bg-card);
+
+  /* Acento rosa fuerte (borde izquierdo de semanas "liberadas"). */
+  --pink-strong: #d4537e;
+
+  /* Paleta de avatares por hash de nombre (mockup .av-*). */
+  --av-purple-bg: #cecbf6;
+  --av-purple-text: #26215c;
+  --av-teal-bg: #9fe1cb;
+  --av-teal-text: #04342c;
+  --av-pink-bg: #f4c0d1;
+  --av-pink-text: #4b1528;
+  --av-amber-bg: #fac775;
+  --av-amber-text: #412402;
+  --av-blue-bg: #b5d4f4;
+  --av-blue-text: #042c53;
+  --av-coral-bg: #f5c4b3;
+  --av-coral-text: #712b13;
 
   /* Anillo del puesto de dirección (EXECUTIVE) en el plano */
   --exec-ring: #d99b1c;
@@ -98,6 +119,8 @@ body.theme-dark {
   --red-text: #f3a3a3;
   --neutral-soft: rgba(255, 255, 255, 0.08);
   --neutral-border: rgba(255, 255, 255, 0.2);
+  --neutral-strong: rgba(255, 255, 255, 0.28);
+  --field-bg: #2f2f27;
   --exec-ring: #e6b34a;
   --frame-bg: #141413;
 }
