@@ -1,6 +1,7 @@
 package com.aleatica.parking.fixedassignment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -169,6 +170,82 @@ class FixedAssignmentManagementIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldRevokeOnlyParkingAndKeepDesk_whenDeletingWithResourceTypeParking() throws Exception {
+        // Arrange: el empleado tiene plaza (dia 1) y puesto (dia 1) simultaneamente
+        long deskId = insertDesk(11);
+        setAssignments(adminSession, empAId, spaceX, "[1]").andExpect(status().isOk());
+        setDeskAssignments(adminSession, empAId, deskId, "[1]").andExpect(status().isOk());
+
+        // Act: revoca SOLO la plaza
+        mockMvc.perform(delete(BASE_URL + "/employee/" + empAId)
+                        .param("resourceType", "PARKING").cookie(adminSession))
+                .andExpect(status().isNoContent());
+
+        // Assert: la plaza queda revocada, el puesto intacto
+        assertThat(activeCountByType(empAId, "PARKING")).isZero();
+        assertThat(activeCountByType(empAId, "DESK")).isEqualTo(1);
+    }
+
+    @Test
+    void shouldRevokeOnlyDeskAndKeepParking_whenDeletingWithResourceTypeDesk() throws Exception {
+        // Arrange: plaza (dia 2) + puesto (dia 2)
+        long deskId = insertDesk(12);
+        setAssignments(adminSession, empAId, spaceX, "[2]").andExpect(status().isOk());
+        setDeskAssignments(adminSession, empAId, deskId, "[2]").andExpect(status().isOk());
+
+        // Act: revoca SOLO el puesto
+        mockMvc.perform(delete(BASE_URL + "/employee/" + empAId)
+                        .param("resourceType", "DESK").cookie(adminSession))
+                .andExpect(status().isNoContent());
+
+        // Assert: el puesto queda revocado, la plaza intacta
+        assertThat(activeCountByType(empAId, "DESK")).isZero();
+        assertThat(activeCountByType(empAId, "PARKING")).isEqualTo(1);
+    }
+
+    @Test
+    void shouldReturn404_whenRevokingTypeWithoutActiveOfThatType() throws Exception {
+        // Arrange: el empleado solo tiene plaza; se intenta revocar el puesto
+        setAssignments(adminSession, empAId, spaceX, "[1]").andExpect(status().isOk());
+
+        // Act / Assert: no hay puesto activo que revocar -> 404, la plaza no se toca
+        mockMvc.perform(delete(BASE_URL + "/employee/" + empAId)
+                        .param("resourceType", "DESK").cookie(adminSession))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+        assertThat(activeCountByType(empAId, "PARKING")).isEqualTo(1);
+    }
+
+    @Test
+    void shouldReturn400_whenRevokingWithInvalidResourceType() throws Exception {
+        // Arrange
+        setAssignments(adminSession, empAId, spaceX, "[1]").andExpect(status().isOk());
+
+        // Act / Assert: tipo de recurso fuera del enum
+        mockMvc.perform(delete(BASE_URL + "/employee/" + empAId)
+                        .param("resourceType", "BICYCLE").cookie(adminSession))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldExposeBothResourcesGroupableByType_whenEmployeeHasParkingAndDesk() throws Exception {
+        // Arrange: plaza (dias 1,2) y puesto (dias 3,4) del mismo empleado
+        long deskId = insertDesk(13);
+        setAssignments(adminSession, empAId, spaceX, "[1,2]").andExpect(status().isOk());
+        setDeskAssignments(adminSession, empAId, deskId, "[3,4]").andExpect(status().isOk());
+
+        // Act / Assert: el GET devuelve las 4 filas activas, con su resourceType, para que
+        // el modal reconstruya plaza y puesto por separado (prefill).
+        mockMvc.perform(get(BASE_URL + "/employee/" + empAId).cookie(adminSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$[?(@.resourceType == 'PARKING')]", hasSize(2)))
+                .andExpect(jsonPath("$[?(@.resourceType == 'DESK')]", hasSize(2)))
+                .andExpect(jsonPath("$[?(@.resourceType == 'DESK' && @.parkingSpaceId == " + deskId + ")]",
+                        hasSize(2)));
+    }
+
+    @Test
     void shouldReturnOwnAssignments_whenEmployeeQueriesSelf() throws Exception {
         // Arrange
         setAssignments(adminSession, empAId, spaceX, "[1]").andExpect(status().isOk());
@@ -274,6 +351,14 @@ class FixedAssignmentManagementIT extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
+    private ResultActions setDeskAssignments(Cookie session, long employeeId, long deskId, String days)
+            throws Exception {
+        String body = "{\"parkingSpaceId\":" + deskId + ",\"daysOfWeek\":" + days
+                + ",\"resourceType\":\"DESK\"}";
+        return mockMvc.perform(put(BASE_URL + "/employee/" + employeeId).cookie(session)
+                .contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
     private Cookie login(String login, String password) throws Exception {
         Cookie cookie = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post(LOGIN_URL)
@@ -302,6 +387,14 @@ class FixedAssignmentManagementIT extends BaseIntegrationTest {
         return id == null ? 0L : id;
     }
 
+    private long insertDesk(int number) {
+        jdbcTemplate.update(
+                "INSERT INTO dbo.desks (number, category, active) VALUES (?, 'STANDARD', 1)", number);
+        Long id = jdbcTemplate.queryForObject(
+                "SELECT id FROM dbo.desks WHERE number = ?", Long.class, number);
+        return id == null ? 0L : id;
+    }
+
     private long idOfEmployee(String login) {
         Long id = jdbcTemplate.queryForObject(
                 "SELECT id FROM dbo.employees WHERE login = ?", Long.class, login);
@@ -315,6 +408,11 @@ class FixedAssignmentManagementIT extends BaseIntegrationTest {
     private int activeCount(long employeeId) {
         return count("SELECT COUNT(*) FROM dbo.fixed_assignments WHERE employee_id = ? AND active = 1",
                 employeeId);
+    }
+
+    private int activeCountByType(long employeeId, String resourceType) {
+        return count("SELECT COUNT(*) FROM dbo.fixed_assignments "
+                + "WHERE employee_id = ? AND resource_type = ? AND active = 1", employeeId, resourceType);
     }
 
     private int totalCount(long employeeId) {

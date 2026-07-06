@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -197,19 +198,44 @@ class FixedAssignmentControllerTest {
 
     @Test
     void shouldReturn204_whenAdminRevokes() throws Exception {
-        // Arrange
-        willDoNothing().given(fixedAssignmentService).revoke(eq(15L), anyString());
+        // Arrange: sin resourceType -> el controlador pasa null (revoca todos los tipos)
+        willDoNothing().given(fixedAssignmentService).revoke(eq(15L), eq((ResourceType) null), anyString());
 
         // Act / Assert
         mockMvc.perform(delete(EMP_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isNoContent());
+
+        // Assert: se delega con resourceType nulo (default retrocompatible)
+        verify(fixedAssignmentService).revoke(eq(15L), eq((ResourceType) null), anyString());
+    }
+
+    @Test
+    void shouldRevokeOnlyRequestedType_whenResourceTypeQueryParamGiven() throws Exception {
+        // Arrange
+        willDoNothing().given(fixedAssignmentService).revoke(eq(15L), eq(ResourceType.DESK), anyString());
+
+        // Act: revoca solo el puesto (DESK) via query param
+        mockMvc.perform(delete(EMP_URL).param("resourceType", "DESK")
+                        .with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isNoContent());
+
+        // Assert: el tipo viaja al servicio sin tocar el otro recurso
+        verify(fixedAssignmentService).revoke(eq(15L), eq(ResourceType.DESK), anyString());
+    }
+
+    @Test
+    void shouldReturn400_whenResourceTypeQueryParamInvalid() throws Exception {
+        // Act / Assert: valor no perteneciente al enum -> 400 (conversion de tipo)
+        mockMvc.perform(delete(EMP_URL).param("resourceType", "BICYCLE")
+                        .with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void shouldReturn404_whenRevokingEmployeeWithoutActiveAssignment() throws Exception {
         // Arrange
         willThrow(new EntityNotFoundException("sin asignacion activa"))
-                .given(fixedAssignmentService).revoke(eq(15L), anyString());
+                .given(fixedAssignmentService).revoke(eq(15L), eq((ResourceType) null), anyString());
 
         // Act / Assert
         mockMvc.perform(delete(EMP_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
