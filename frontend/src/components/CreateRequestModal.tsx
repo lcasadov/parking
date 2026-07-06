@@ -127,6 +127,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
               checked={parkingSelected}
               onChange={(event) => setParkingSelected(event.target.checked)}
             />
+            <i className="ti ti-parking" aria-hidden="true" />
             {t('requests.create.resourceParking')}
           </label>
           <ResourceAvailabilityBanner date={date} resourceType="PARKING" />
@@ -136,6 +137,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
               checked={deskSelected}
               onChange={(event) => setDeskSelected(event.target.checked)}
             />
+            <i className="ti ti-armchair" aria-hidden="true" />
             {t('requests.create.resourceDesk')}
           </label>
           <ResourceAvailabilityBanner date={date} resourceType="DESK" />

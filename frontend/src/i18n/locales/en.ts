@@ -570,6 +570,16 @@ export const en = {
       cancel: 'Cancel',
       requiredDate: 'Select a date.',
       created: 'Space released.',
+      fixedResource: 'Your fixed resource is {{label}}.',
+      summary: {
+        title: 'Summary',
+        resource: 'Space / Desk',
+        day: 'Day',
+        type: 'Type',
+        voluntary: 'VOLUNTARY',
+        pendingDay: 'Select a day',
+        availableNote: 'That day your resource will become available for another employee to request.',
+      },
     },
     cancel: {
       title: 'Cancel release',
@@ -714,6 +724,8 @@ export const en = {
     outsideWindow: 'The date is outside the request window (today to +14 days).',
     editPositions: 'Edit positions',
     editHint: 'Drag the markers to place each desk; the position is saved on drop.',
+    savePositions: 'Save positions',
+    positionsSaved: 'Positions saved.',
     requestSuccess: 'Request created. It is pending approval.',
     requestConflict: 'The desk is no longer available for that date.',
     imageAlt: 'Office floor plan',
@@ -756,6 +768,7 @@ export const en = {
       searchLabel: 'Search desk by number',
       searchPlaceholder: 'Search no.…',
       empty: 'No desk matches the search.',
+      rowAction: 'View details for no. {{number}}',
     },
     mobile: {
       title: 'Available to request',
@@ -815,6 +828,8 @@ export const en = {
       space: 'Space {{label}}',
       noSpace: 'No space',
       requestPending: 'Request pending',
+      requestAction: 'Request',
+      releaseAction: 'Release',
       states: {
         ASSIGNED: 'Space assigned',
         RELEASED: 'Space released',

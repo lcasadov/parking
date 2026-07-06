@@ -1,11 +1,15 @@
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { MyWeekPage } from './MyWeekPage';
 import { server } from '../mocks/server';
 import { MSW_BASE } from '../mocks/handlers';
+import { adminUser } from '../mocks/fixtures';
 import { defaultMyWeek } from '../mocks/calendarFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
+
+const ME_URL = `${MSW_BASE}/auth/me`;
 
 describe('MyWeekPage (EMPLOYEE)', () => {
   it('should_renderOwnWeek_when_myWeekLoaded', async () => {
@@ -63,6 +67,48 @@ describe('MyWeekPage (EMPLOYEE)', () => {
         screen.getByText(/no se pudo cargar tu semana|your week could not be loaded/i),
       ).toBeInTheDocument();
     });
+  });
+
+  it('should_openRequestModal_when_requestActionClicked', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/calendar/my-week`, () => HttpResponse.json(defaultMyWeek)),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MyWeekPage />);
+    await screen.findAllByText(/plaza asignada|space assigned/i);
+
+    await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
+
+    // El modal de solicitud unificada aparece (diálogo + botón de envío).
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /enviar solicitud|submit request/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('should_enableRelease_when_employeeHasFixedParking', async () => {
+    // El empleado 10 (Alice) tiene plaza fija en los handlers por defecto.
+    server.use(
+      http.get(ME_URL, () => HttpResponse.json({ ...adminUser, employeeId: 10, role: 'EMPLOYEE' })),
+      http.get(`${MSW_BASE}/calendar/my-week`, () => HttpResponse.json(defaultMyWeek)),
+    );
+    renderWithProviders(<MyWeekPage />);
+    await screen.findAllByText(/plaza asignada|space assigned/i);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^liberar$|^release$/i })).toBeEnabled(),
+    );
+  });
+
+  it('should_disableRelease_when_employeeHasNoFixedParking', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/calendar/my-week`, () => HttpResponse.json(defaultMyWeek)),
+    );
+    renderWithProviders(<MyWeekPage />);
+    await screen.findAllByText(/plaza asignada|space assigned/i);
+
+    // adminUser por defecto (employeeId 1) no tiene asignaciones fijas → deshabilitado.
+    expect(screen.getByRole('button', { name: /^liberar$|^release$/i })).toBeDisabled();
   });
 
   it('should_showEmptyState_when_noDaysReturned', async () => {

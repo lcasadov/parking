@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { FloorPlanSidePanel } from './FloorPlanSidePanel';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { defaultFloorPlan } from '../mocks/floorPlanFixtures';
+import { defaultFloorPlan, floorDeskExecutive } from '../mocks/floorPlanFixtures';
 
 describe('FloorPlanSidePanel', () => {
   it('should_list_every_desk_by_number', () => {
@@ -29,6 +29,19 @@ describe('FloorPlanSidePanel', () => {
     expect(screen.getByText(/ocupación del día|occupancy for the day/i)).toBeInTheDocument();
     // At least one occupancy pill rendered (assigned desk).
     expect(screen.getByText(/ocupado|occupied/i)).toBeInTheDocument();
+  });
+
+  it('should_show_category_and_state_subtitle_in_the_default_variant', () => {
+    renderWithProviders(<FloorPlanSidePanel desks={[floorDeskExecutive]} />);
+    // Sin pill de ocupación, el subtítulo combina categoría y estado.
+    expect(screen.getByText(/dirección.*libre|executive.*free/i)).toBeInTheDocument();
+  });
+
+  it('should_render_focusable_rows_with_a_chevron_affordance', () => {
+    renderWithProviders(<FloorPlanSidePanel desks={defaultFloorPlan.desks} />);
+    // Cada fila es un botón enfocable (chevron como afordancia visual).
+    const rows = screen.getAllByRole('button');
+    expect(rows.length).toBeGreaterThanOrEqual(defaultFloorPlan.desks.length);
   });
 
   it('should_show_empty_message_when_no_desk_matches', async () => {

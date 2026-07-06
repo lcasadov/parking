@@ -29,9 +29,12 @@ export function FloorPlanMarker({
   onDragStart,
 }: FloorPlanMarkerProps) {
   const isExecutive = desk.category === 'EXECUTIVE';
+  // En modo edición los marcadores se pintan neutros (gris uniforme) para
+  // enfocar el reposicionamiento; fuera de él, el color semántico de estado.
+  const colorClass = editMode ? 'floor-marker-neutral' : markerStateClass(desk.state);
   const classes = [
     'floor-marker',
-    markerStateClass(desk.state),
+    colorClass,
     isExecutive ? 'floor-marker-executive' : '',
     editMode ? 'floor-marker-editing' : '',
     dimmed ? 'floor-marker-dimmed' : '',

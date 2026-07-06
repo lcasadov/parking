@@ -19,6 +19,16 @@ export function FloorPlanSidePanel({ desks, showStatus = false }: FloorPlanSideP
     [desks, search],
   );
 
+  // Subtítulo de la fila: categoría siempre; el estado se añade solo cuando la
+  // variante no muestra la pill de ocupación (para no duplicar la información).
+  function subtitleFor(desk: FloorPlanDesk, withStatusPill: boolean): string {
+    const category = t(`desks.category.${desk.category}`);
+    if (withStatusPill) {
+      return category;
+    }
+    return `${category} · ${t(`floorPlan.states.${desk.state}`)}`;
+  }
+
   return (
     <aside className="plano-side" aria-label={t('floorPlan.side.label')}>
       <h2 className="plano-side-title">
@@ -41,12 +51,28 @@ export function FloorPlanSidePanel({ desks, showStatus = false }: FloorPlanSideP
         <ul className="plano-side-list">
           {filtered.map((desk) => (
             <li key={desk.deskId} className="plano-side-row">
-              <span className="plano-side-desk">{t('floorPlan.deskNumber', { number: desk.deskNumber })}</span>
-              {showStatus ? (
-                <span className={`pill ${deskStatePillClass(desk.state)}`}>
-                  {t(`floorPlan.states.${desk.state}`)}
+              {/* Fila enfocable/clicable con chevron de afordancia. El contrato de
+                  floor-plan no incluye el titular del puesto, por lo que el
+                  subtítulo usa el dato disponible: categoría (y estado cuando no
+                  hay pill de ocupación). */}
+              <button
+                type="button"
+                className="plano-side-row-btn"
+                aria-label={t('floorPlan.side.rowAction', { number: desk.deskNumber })}
+              >
+                <span className="side-meta">
+                  <span className="plano-side-desk">
+                    {t('floorPlan.deskNumber', { number: desk.deskNumber })}
+                  </span>
+                  <span className="sub">{subtitleFor(desk, showStatus)}</span>
                 </span>
-              ) : null}
+                {showStatus ? (
+                  <span className={`pill ${deskStatePillClass(desk.state)}`}>
+                    {t(`floorPlan.states.${desk.state}`)}
+                  </span>
+                ) : null}
+                <i className="ti ti-chevron-right plano-side-chevron" aria-hidden="true" />
+              </button>
             </li>
           ))}
         </ul>

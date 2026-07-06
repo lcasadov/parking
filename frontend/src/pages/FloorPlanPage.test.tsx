@@ -16,6 +16,8 @@ import {
   floorPlanOf,
 } from '../mocks/floorPlanFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
+import { addDaysIso } from '../utils/calendar';
+import { todayIso } from '../utils/requests';
 
 const FLOOR_PLAN_URL = `${MSW_BASE}/floor-plan`;
 const ME_URL = `${MSW_BASE}/auth/me`;
@@ -91,7 +93,7 @@ describe('FloorPlanPage', () => {
     expect(within(unplaced).getByText(/7/)).toBeInTheDocument();
   });
 
-  it('should_reload_plan_with_new_date_when_date_selector_changes', async () => {
+  it('should_reload_plan_with_new_date_when_datebar_steps_forward', async () => {
     useEmployee();
     const dates: string[] = [];
     server.use(
@@ -100,13 +102,15 @@ describe('FloorPlanPage', () => {
         return HttpResponse.json(defaultFloorPlan);
       }),
     );
+    const user = userEvent.setup();
     renderWithProviders(<FloorPlanPage />);
     await screen.findAllByTestId('floor-marker');
 
-    const dateInput = screen.getByLabelText(/fecha|date/i);
-    fireEvent.change(dateInput, { target: { value: '2026-07-15' } });
+    // El stepper de la datebar es el único control de fecha (se eliminó el
+    // input[type=date] redundante). Avanzar un día debe recargar el plano.
+    await user.click(screen.getByRole('button', { name: /día siguiente|next day/i }));
 
-    await waitFor(() => expect(dates).toContain('2026-07-15'));
+    await waitFor(() => expect(dates).toContain(addDaysIso(todayIso(), 1)));
   });
 
   it('should_show_success_feedback_when_requesting_a_free_desk', async () => {
@@ -187,16 +191,36 @@ describe('FloorPlanPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('should_prompt_for_valid_date_when_date_is_cleared', async () => {
-    useEmployee();
+  it('should_show_the_save_positions_button_and_confirm_on_click', async () => {
+    useAdmin();
+    server.use(http.get(FLOOR_PLAN_URL, () => HttpResponse.json(defaultFloorPlan)));
+    const user = userEvent.setup();
     renderWithProviders(<FloorPlanPage />);
     await screen.findAllByTestId('floor-marker');
 
-    const dateInput = screen.getByLabelText(/fecha|date/i);
-    fireEvent.change(dateInput, { target: { value: '' } });
+    await user.click(screen.getByRole('button', { name: /editar posiciones|edit positions/i }));
+    // El editor expone un guardado explícito además del auto-save por arrastre.
+    await user.click(screen.getByRole('button', { name: /guardar posiciones|save positions/i }));
 
-    expect(await screen.findByText(/introduce una fecha válida|enter a valid date/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('floor-marker')).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(/posiciones guardadas|positions saved/i),
+    ).toBeInTheDocument();
+  });
+
+  it('should_render_markers_neutral_in_edit_mode', async () => {
+    useAdmin();
+    server.use(
+      http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([floorDeskAssigned]))),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<FloorPlanPage />);
+    await screen.findByTestId('floor-marker');
+
+    await user.click(screen.getByRole('button', { name: /editar posiciones|edit positions/i }));
+
+    const marker = screen.getByRole('button', { name: /puesto 2/i });
+    expect(marker).toHaveClass('floor-marker-neutral');
+    expect(marker).not.toHaveClass('floor-marker-assigned');
   });
 
   it('should_not_show_edit_toggle_when_user_is_employee', async () => {

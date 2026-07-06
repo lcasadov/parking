@@ -1091,7 +1091,19 @@ body.theme-dark .segmented button.active {
    ============================================================ */
 .floor-plan-controls {
   margin: var(--space-4) 0;
-  max-width: 240px;
+}
+
+/* Barra del editor de posiciones: ayuda (info-banner) + guardado explícito. */
+.floor-plan-editor-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+.floor-plan-editor-bar .info-banner {
+  flex: 1;
+  min-width: 220px;
 }
 
 .floor-plan-feedback {
@@ -1175,10 +1187,10 @@ body.theme-dark .segmented button.active {
 .floor-marker {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 1px solid var(--neutral-border);
+  border: 1px solid var(--border-strong);
   display: grid;
   place-items: center;
   font-size: var(--text-xs);
@@ -1222,6 +1234,12 @@ body.theme-dark .segmented button.active {
 .floor-marker-free {
   background: var(--neutral-soft);
   border-color: var(--neutral-border);
+  color: var(--text-soft);
+}
+/* Modo edición: gris uniforme para enfocar el reposicionamiento (WP5 §3). */
+.floor-marker-neutral {
+  background: var(--neutral-soft);
+  border-color: var(--border-strong);
   color: var(--text-soft);
 }
 .floor-marker-mine {
@@ -1407,17 +1425,45 @@ body.theme-dark .segmented button.active {
   overflow-y: auto;
 }
 .plano-side-row {
+  border-radius: var(--radius-sm);
+}
+.plano-side-row-btn {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
   padding: 6px 8px;
+  border: none;
   border-radius: var(--radius-sm);
+  background: transparent;
   font-size: var(--text-sm);
   color: var(--text);
+  text-align: left;
+  cursor: pointer;
 }
-.plano-side-row:hover {
+.plano-side-row-btn:hover {
   background: var(--bg-soft);
+}
+.plano-side-row-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+.side-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.side-meta .sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.plano-side-chevron {
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  flex-shrink: 0;
 }
 .plano-side-empty {
   margin: 0;
@@ -1520,6 +1566,23 @@ body.theme-dark .segmented button.active {
 .availability-banner {
   margin: var(--space-1) 0 var(--space-3);
   font-size: var(--text-xs);
+}
+
+/* Resumen de confirmación de liberación (mockup 14): recurso · día · tipo. */
+.release-summary {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-soft);
+}
+.release-summary .summary-label {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
 }
 
 /* La lista móvil solo se muestra en viewport estrecho (empleado). */
@@ -1763,14 +1826,47 @@ body.theme-dark .segmented button.active {
   border-color: var(--neutral-strong);
   color: var(--text-soft);
 }
+.week-card {
+  gap: var(--space-3);
+}
 .week-card .day-abbr-m {
+  display: flex;
+  flex-direction: column;
   font-size: var(--text-xs);
   font-weight: 500;
-  width: 34px;
+  width: 40px;
+  flex-shrink: 0;
+}
+.week-card .week-day-date {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.75;
 }
 .week-card .desc {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
   font-size: 12px;
+}
+.week-card .week-day-state {
+  font-weight: 600;
+}
+.week-card .week-day-space {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* Acciones a ancho completo bajo la lista de la semana (mockup 07). */
+.week-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.week-actions .week-action-btn {
+  width: 100%;
+  justify-content: center;
 }
 
 /* ---- Leyenda de colores (mockup 148-150) ---- */

@@ -571,6 +571,16 @@ export const es = {
       cancel: 'Cancelar',
       requiredDate: 'Selecciona una fecha.',
       created: 'Plaza liberada.',
+      fixedResource: 'Tu recurso fijo es {{label}}.',
+      summary: {
+        title: 'Resumen',
+        resource: 'Plaza / Puesto',
+        day: 'Día',
+        type: 'Tipo',
+        voluntary: 'VOLUNTARIA',
+        pendingDay: 'Selecciona un día',
+        availableNote: 'Ese día tu recurso quedará disponible para que otro empleado lo solicite.',
+      },
     },
     cancel: {
       title: 'Anular liberación',
@@ -715,6 +725,8 @@ export const es = {
     outsideWindow: 'La fecha está fuera de la ventana de solicitud (hoy a +14 días).',
     editPositions: 'Editar posiciones',
     editHint: 'Arrastra los marcadores para colocar cada puesto; la posición se guarda al soltar.',
+    savePositions: 'Guardar posiciones',
+    positionsSaved: 'Posiciones guardadas.',
     requestSuccess: 'Solicitud creada. Queda pendiente de aprobación.',
     requestConflict: 'El puesto ya no está disponible para esa fecha.',
     imageAlt: 'Plano de la planta de oficina',
@@ -757,6 +769,7 @@ export const es = {
       searchLabel: 'Buscar puesto por número',
       searchPlaceholder: 'Buscar nº…',
       empty: 'Ningún puesto coincide con la búsqueda.',
+      rowAction: 'Ver detalle del nº {{number}}',
     },
     mobile: {
       title: 'Disponibles para solicitar',
@@ -816,6 +829,8 @@ export const es = {
       space: 'Plaza {{label}}',
       noSpace: 'Sin plaza',
       requestPending: 'Solicitud pendiente',
+      requestAction: 'Solicitar',
+      releaseAction: 'Liberar',
       states: {
         ASSIGNED: 'Plaza asignada',
         RELEASED: 'Plaza liberada',

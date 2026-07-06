@@ -31,9 +31,13 @@ export function ResourceAvailabilityBanner({ date, resourceType }: ResourceAvail
   }
 
   const count = data?.availableResources.length ?? 0;
-  const tone = count > 0 ? 'green' : 'amber';
+  const available = count > 0;
+  // Sin disponibilidad → tono rojo de alerta; con disponibilidad → verde de OK.
+  const tone = available ? 'green' : 'red';
+  const icon = available ? 'circle-check' : 'alert-triangle';
   return (
     <p className={`info-banner ${tone} availability-banner`} role="status" aria-live="polite">
+      <i className={`ti ti-${icon}`} aria-hidden="true" />
       {t('requests.create.availability.count', { count })}
     </p>
   );
