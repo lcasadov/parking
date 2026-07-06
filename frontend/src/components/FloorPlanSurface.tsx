@@ -6,7 +6,7 @@ import { EXECUTIVE_SYMBOL, isPlaced, markerStateClass, matchesFilter } from '../
 import type { FloorPlanFilterValue } from './FloorPlanFilters';
 import type { FloorPlanViewport } from '../hooks/useFloorPlanViewport';
 import type { DragPosition } from '../hooks/useDeskDrag';
-import floorPlanImage from '../assets/floor-plan-neutral.svg';
+import floorPlanImage from '../assets/floor-plan.png';
 
 // Orden de estados en la leyenda (sin literales repetidos, S1192).
 const LEGEND_STATES: DeskState[] = ['FREE', 'MINE', 'ASSIGNED', 'REQUESTED', 'RELEASED'];
