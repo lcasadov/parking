@@ -12,11 +12,16 @@ describe('ThemeToggle', () => {
 
     expect(document.body.classList.contains('theme-dark')).toBe(false);
 
-    await user.click(screen.getByRole('button', { name: /tema|theme|oscuro|dark/i }));
+    // WP2: el control de tema es ahora un switch (role=switch), on = oscuro.
+    const themeSwitch = screen.getByRole('switch', { name: /claro|light|oscuro|dark/i });
+    expect(themeSwitch).toHaveAttribute('aria-checked', 'false');
+
+    await user.click(themeSwitch);
 
     await waitFor(() => {
       expect(document.body.classList.contains('theme-dark')).toBe(true);
     });
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
   });
 });

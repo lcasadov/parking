@@ -5,10 +5,11 @@ import { SESSION_EXPIRED } from '../api/events';
 import { useAuth } from '../auth/useAuth';
 import { ROUTES } from '../routes/paths';
 import { Button } from './Button';
+import { InfoBanner } from './InfoBanner';
 import { Modal } from './Modal';
 
-// Suscrita al evento del interceptor 401: muestra el modal y, al cerrar,
-// limpia la sesion y vuelve a /login.
+// Suscrita al evento del interceptor 401: muestra el modal (mockup 19) y, al
+// cerrar, limpia la sesion y vuelve a /login. Cabecera ambar (no roja).
 export function SessionExpiredModal() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -36,16 +37,26 @@ export function SessionExpiredModal() {
   return (
     <Modal
       title={t('auth.sessionExpiredTitle')}
-      variant="red"
+      variant="amber"
+      icon="clock-exclamation"
       narrow
       onClose={handleClose}
       footer={
-        <Button variant="red" onClick={handleClose}>
-          {t('auth.backToLogin')}
-        </Button>
+        <div className="footer-center">
+          <Button variant="green" icon="login-2" onClick={handleClose}>
+            {t('auth.backToLogin')}
+          </Button>
+        </div>
       }
     >
-      <p>{t('auth.sessionExpiredBody')}</p>
+      <div className="session-expired-body">
+        <i className="ti ti-lock-access session-expired-icon" aria-hidden="true" />
+        <p className="session-expired-heading">{t('auth.sessionExpiredHeading')}</p>
+        <p className="muted session-expired-detail">{t('auth.sessionExpiredDetail')}</p>
+        <InfoBanner variant="blue" icon="info-circle">
+          {t('auth.sessionExpiredPhaseNote')}
+        </InfoBanner>
+      </div>
     </Modal>
   );
 }

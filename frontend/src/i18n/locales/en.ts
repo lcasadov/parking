@@ -40,10 +40,23 @@ export const en = {
     passwordField: 'Password',
     signIn: 'Sign in',
     invalidCredentials: 'Invalid username or password',
+    invalidCredentialsAttempts:
+      'Invalid username or password. You have {{count}} attempts left before a temporary lockout.',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    forgotPassword: 'Forgot your password? Ask the administrator for a reset.',
+    lockoutNote: 'After 5 failed attempts the account is locked for 15 minutes.',
     sessionExpiredTitle: 'Session expired',
     sessionExpiredBody: 'Your session has expired. Please sign in again.',
+    sessionExpiredHeading: 'Your session has expired',
+    sessionExpiredDetail:
+      'For security, the session was closed after a period of inactivity (or it was invalidated). Please sign in again to continue.',
+    sessionExpiredPhaseNote:
+      'In Phase 2 you are redirected to the ALEATICA landing to re-authenticate. In Phase 1 you return to the login screen.',
     backToLogin: 'Back to sign in',
     changePasswordTitle: 'Change password',
+    changePasswordIntro:
+      'You must set a new password before continuing (first sign-in after a reset).',
     currentPassword: 'Current password',
     newPassword: 'New password',
     confirmPassword: 'Confirm new password',
@@ -56,6 +69,14 @@ export const en = {
       lower: 'One lowercase letter',
       digit: 'One digit',
       symbol: 'One symbol',
+    },
+  },
+  account: {
+    openMenu: 'Open user menu',
+    menuLabel: 'User menu',
+    role: {
+      ADMIN: 'Administrator',
+      EMPLOYEE: 'Employee',
     },
   },
   layout: {
@@ -173,6 +194,7 @@ export const en = {
       tempPasswordLabel: 'Temporary password',
       copy: 'Copy',
       copied: 'Copied',
+      done: 'Done',
       mustChangeNote: 'The employee must change it on their first sign-in.',
       phase2Note: 'In Phase 2 the password is sent by email and not shown here.',
       confirm: 'Generate temporary password',

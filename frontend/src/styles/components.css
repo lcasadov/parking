@@ -1831,3 +1831,152 @@ body.theme-dark .segmented button.active {
   font-weight: 500;
   color: var(--green-darker);
 }
+
+/* ---- WP2: menú de usuario, auth y modales (mockups 12-19) ---- */
+
+/* Menú de usuario anclado bajo el avatar (mockup 17). */
+.user-menu {
+  position: relative;
+}
+.user-menu .popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+}
+.avatar-trigger {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+}
+.avatar-trigger:focus-visible {
+  outline: 2px solid var(--green-focus);
+  outline-offset: 2px;
+}
+.popover .pop-row.identity {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.popover .pop-name {
+  font-weight: 500;
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+.popover .pop-sub {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+.popover .pop-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+button.pop-row.pop-danger {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-top: 0.5px solid var(--border);
+  cursor: pointer;
+  color: var(--red-text);
+  font-family: inherit;
+}
+button.pop-row.pop-danger .pop-label {
+  color: var(--red-text);
+}
+button.pop-row.pop-danger:hover:not(:disabled) {
+  background: var(--red-soft);
+}
+button.pop-row.pop-danger:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Campo de contraseña con botón mostrar/ocultar (mockups 12). */
+.field-value.with-icon .field-input {
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  flex: 1;
+}
+.field-value.with-icon .field-input:focus {
+  border: none;
+}
+.pw-toggle {
+  background: transparent;
+  border: none;
+  padding: 0 0 0 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.pw-toggle:focus-visible {
+  outline: 2px solid var(--green-focus);
+  outline-offset: 2px;
+}
+
+/* Textos de ayuda del login (mockup 12). */
+.auth-help {
+  text-align: center;
+  margin-top: 16px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.auth-lockout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Espaciado de banners informativos en pantallas de auth. */
+.auth-body .info-banner,
+.auth-body [role='alert'] {
+  margin-bottom: 16px;
+}
+
+/* Contraseña temporal monoespaciada (mockup 15). */
+.field-value.with-icon.temp-password {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 15px;
+  letter-spacing: 1px;
+  background: var(--bg-soft);
+  margin: 6px 0;
+}
+
+/* Cuerpo centrado del modal de sesión expirada (mockup 19). */
+.session-expired-body {
+  text-align: center;
+}
+.session-expired-icon {
+  font-size: 42px;
+  color: var(--amber-text);
+}
+.session-expired-heading {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  margin: 12px 0 6px;
+}
+.session-expired-detail {
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.session-expired-body .info-banner {
+  text-align: left;
+}
+
+/* Footer de modal centrado (mockup 19). */
+.modal-footer .footer-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}

@@ -40,10 +40,23 @@ export const es = {
     passwordField: 'Contraseña',
     signIn: 'Entrar',
     invalidCredentials: 'Usuario o contraseña incorrectos',
+    invalidCredentialsAttempts:
+      'Usuario o contraseña incorrectos. Te quedan {{count}} intentos antes del bloqueo temporal.',
+    showPassword: 'Mostrar contraseña',
+    hidePassword: 'Ocultar contraseña',
+    forgotPassword: '¿Has olvidado tu contraseña? Solicita un restablecimiento al administrador.',
+    lockoutNote: 'Tras 5 intentos fallidos la cuenta se bloquea 15 minutos.',
     sessionExpiredTitle: 'Sesión expirada',
     sessionExpiredBody: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
+    sessionExpiredHeading: 'Tu sesión ha caducado',
+    sessionExpiredDetail:
+      'Por seguridad, la sesión se ha cerrado tras un periodo de inactividad (o ha sido invalidada). Vuelve a iniciar sesión para continuar.',
+    sessionExpiredPhaseNote:
+      'En Fase 2 se redirige a la landing de ALEATICA para volver a autenticarse. En Fase 1 vuelve a la pantalla de login.',
     backToLogin: 'Volver a iniciar sesión',
     changePasswordTitle: 'Cambiar contraseña',
+    changePasswordIntro:
+      'Debes establecer una nueva contraseña antes de continuar (primer acceso tras un restablecimiento).',
     currentPassword: 'Contraseña actual',
     newPassword: 'Nueva contraseña',
     confirmPassword: 'Confirmar nueva contraseña',
@@ -56,6 +69,14 @@ export const es = {
       lower: 'Una letra minúscula',
       digit: 'Un dígito',
       symbol: 'Un símbolo',
+    },
+  },
+  account: {
+    openMenu: 'Abrir menú de usuario',
+    menuLabel: 'Menú de usuario',
+    role: {
+      ADMIN: 'Administrador',
+      EMPLOYEE: 'Empleado',
     },
   },
   layout: {
@@ -173,6 +194,7 @@ export const es = {
       tempPasswordLabel: 'Contraseña temporal',
       copy: 'Copiar',
       copied: 'Copiada',
+      done: 'Hecho',
       mustChangeNote: 'El empleado deberá cambiarla en su primer inicio de sesión.',
       phase2Note: 'En Fase 2 la contraseña se enviará por email y no se mostrará aquí.',
       confirm: 'Generar contraseña temporal',

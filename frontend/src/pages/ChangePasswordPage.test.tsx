@@ -20,6 +20,13 @@ function renderChangePassword() {
 }
 
 describe('ChangePasswordPage', () => {
+  it('should_show_first_access_intro_banner', () => {
+    renderChangePassword();
+    expect(
+      screen.getByText(/debes establecer una nueva contraseña|must set a new password/i),
+    ).toBeInTheDocument();
+  });
+
   it('should_validate_policy_before_submit', async () => {
     const user = userEvent.setup();
     renderChangePassword();
