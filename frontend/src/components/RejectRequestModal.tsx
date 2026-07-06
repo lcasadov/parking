@@ -1,19 +1,25 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { InfoBanner } from './InfoBanner';
 import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useRejectRequest } from '../hooks/useRequests';
+import { longDate } from '../utils/calendar';
 import { REJECTION_FREE_TEXT_MIN, REJECTION_REASON_CODES } from '../utils/requests';
-import type { RejectionReasonCode } from '../types/request';
+import type { Employee } from '../types/employee';
+import type { RejectionReasonCode, Request, ResourceType } from '../types/request';
 
 interface RejectRequestModalProps {
-  requestId: number;
+  request: Request;
+  // Empleado solicitante (contexto del banner); opcional si no está en el lookup.
+  employee?: Employee;
   onClose: () => void;
   onRejected: () => void;
 }
 
+const FORM_ID = 'reject-request-form';
 const HTTP_BAD_REQUEST = 400;
 
 // Traduce el error del servidor (400 validacion del motivo) a la clave i18n.
@@ -26,14 +32,23 @@ function toastKeyForError(error: unknown): string {
 
 // Modal ADMIN: rechaza una solicitud con un motivo del catalogo. Cuando el motivo
 // es OTHER, el texto libre (>=5 caracteres) es obligatorio (POST /requests/{id}/reject).
-export function RejectRequestModal({ requestId, onClose, onRejected }: RejectRequestModalProps) {
-  const { t } = useTranslation();
+export function RejectRequestModal({
+  request,
+  employee,
+  onClose,
+  onRejected,
+}: RejectRequestModalProps) {
+  const { t, i18n } = useTranslation();
   const [reasonCode, setReasonCode] = useState<RejectionReasonCode | ''>('');
   const [detail, setDetail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const rejectMutation = useRejectRequest();
 
   const requiresDetail = reasonCode === 'OTHER';
+  const resourceType: ResourceType = request.resourceType ?? 'PARKING';
+  const employeeName = employee
+    ? `${employee.firstName} ${employee.lastName}`
+    : `#${request.employeeId}`;
 
   function validate(): string | null {
     if (reasonCode === '') {
@@ -56,7 +71,7 @@ export function RejectRequestModal({ requestId, onClose, onRejected }: RejectReq
     const trimmedDetail = detail.trim();
     rejectMutation.mutate(
       {
-        id: requestId,
+        id: request.id,
         body: {
           reasonCode: reasonCode as RejectionReasonCode,
           ...(trimmedDetail === '' ? {} : { rejectionReason: trimmedDetail }),
@@ -69,10 +84,36 @@ export function RejectRequestModal({ requestId, onClose, onRejected }: RejectReq
     );
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('requests.reject.cancel')}
+      </Button>
+      <Button variant="red" icon="x" submit form={FORM_ID} disabled={rejectMutation.isPending}>
+        {t('requests.reject.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t('requests.reject.title')} onClose={onClose} variant="red">
-      <form id="reject-request-form" onSubmit={handleSubmit} noValidate>
-        <label className="field-label" htmlFor="reject-request-reason">
+    <Modal
+      title={t('requests.reject.title')}
+      icon="alert-triangle"
+      onClose={onClose}
+      variant="red"
+      narrow
+      footer={footer}
+    >
+      <InfoBanner variant="red">
+        {t('requests.reject.intro', {
+          resource: t(`requests.resourceType.${resourceType}`).toLowerCase(),
+          name: employeeName,
+          date: longDate(request.requestedDate, i18n.language),
+        })}
+      </InfoBanner>
+
+      <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
+        <label className="field-label red" htmlFor="reject-request-reason">
           {t('requests.reject.reason')}
         </label>
         <select
@@ -89,7 +130,7 @@ export function RejectRequestModal({ requestId, onClose, onRejected }: RejectReq
           ))}
         </select>
 
-        <label className="field-label" htmlFor="reject-request-detail">
+        <label className="field-label red" htmlFor="reject-request-detail">
           {t('requests.reject.detail')}
         </label>
         <textarea
@@ -107,16 +148,11 @@ export function RejectRequestModal({ requestId, onClose, onRejected }: RejectReq
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('requests.reject.cancel')}
-          </Button>
-          <Button variant="red" submit disabled={rejectMutation.isPending}>
-            {t('requests.reject.submit')}
-          </Button>
-        </div>
       </form>
+
+      <InfoBanner variant="blue" icon="mail">
+        {t('requests.reject.emailNotice')}
+      </InfoBanner>
     </Modal>
   );
 }

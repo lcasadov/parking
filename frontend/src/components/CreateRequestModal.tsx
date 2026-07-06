@@ -86,8 +86,24 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
     }
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('requests.create.cancel')}
+      </Button>
+      <Button
+        variant="green"
+        submit
+        form="create-request-form"
+        disabled={createMutation.isPending}
+      >
+        {t('requests.create.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t('requests.create.title')} onClose={onClose}>
+    <Modal title={t('requests.create.title')} onClose={onClose} footer={footer}>
       <form id="create-request-form" onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="create-request-date">
           {t('requests.create.date')}
@@ -130,15 +146,6 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('requests.create.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={createMutation.isPending}>
-            {t('requests.create.submit')}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
+import { Legend } from '../components/Legend';
 import { Spinner } from '../components/Spinner';
 import { useMyWeekQuery } from '../hooks/useCalendar';
+import { myWeekLegend } from '../utils/calendarLegend';
 import type { MyWeekDay } from '../types/calendar';
 import {
   addDaysIso,
@@ -46,23 +48,23 @@ export function MyWeekPage() {
       <nav className="calendar-toolbar" aria-label={t('calendar.myWeek.title')}>
         <Button
           variant="white"
+          className="btn-icon-only"
           icon="chevron-left"
+          aria-label={t('calendar.toolbar.previous')}
           onClick={() => setWeekStart((current) => addDaysIso(current, -WEEK_LENGTH))}
-        >
-          {t('calendar.toolbar.previous')}
-        </Button>
+        />
         <span className="calendar-week-label" aria-live="polite">
           {t('calendar.toolbar.weekOf', { date: weekStart })}
         </span>
-        <Button variant="white" onClick={() => setWeekStart(mondayOfWeek())}>
-          {t('calendar.toolbar.today')}
-        </Button>
         <Button
           variant="white"
+          className="btn-icon-only"
           icon="chevron-right"
+          aria-label={t('calendar.toolbar.next')}
           onClick={() => setWeekStart((current) => addDaysIso(current, WEEK_LENGTH))}
-        >
-          {t('calendar.toolbar.next')}
+        />
+        <Button variant="white" onClick={() => setWeekStart(mondayOfWeek())}>
+          {t('calendar.toolbar.today')}
         </Button>
       </nav>
 
@@ -89,6 +91,8 @@ export function MyWeekPage() {
           )}
         </ul>
       ) : null}
+
+      {!query.isLoading && !query.isError ? <Legend items={myWeekLegend(t)} /> : null}
     </section>
   );
 }

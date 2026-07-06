@@ -14,9 +14,10 @@ describe('MyWeekPage (EMPLOYEE)', () => {
     );
     renderWithProviders(<MyWeekPage />);
 
-    expect(await screen.findByText(/plaza asignada|space assigned/i)).toBeInTheDocument();
-    expect(screen.getByText(/plaza liberada|space released/i)).toBeInTheDocument();
-    expect(screen.getByText(/solicitud pendiente|request pending/i)).toBeInTheDocument();
+    // El estado aparece en la celda del día y (parcialmente) en la leyenda inferior.
+    expect((await screen.findAllByText(/plaza asignada|space assigned/i)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/plaza liberada|space released/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/solicitud pendiente|request pending/i).length).toBeGreaterThan(0);
     // Muestra la etiqueta de la plaza propia (asignada y liberada la misma semana).
     expect(screen.getAllByText(/plaza P-12|space P-12/i).length).toBeGreaterThan(0);
   });
@@ -42,7 +43,7 @@ describe('MyWeekPage (EMPLOYEE)', () => {
     );
     renderWithProviders(<MyWeekPage />);
 
-    await screen.findByText(/plaza asignada|space assigned/i);
+    await screen.findAllByText(/plaza asignada|space assigned/i);
     expect(screen.queryByText('Alice Andersson')).not.toBeInTheDocument();
   });
 

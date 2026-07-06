@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CalendarCellView } from '../components/CalendarCellView';
+import { Legend } from '../components/Legend';
 import { Spinner } from '../components/Spinner';
 import { useAdminCalendarQuery } from '../hooks/useCalendar';
+import { adminCalendarLegend } from '../utils/calendarLegend';
 import {
   addDaysIso,
   dayMonth,
@@ -48,17 +50,25 @@ export function AdminCalendarPage() {
       </header>
 
       <nav className="calendar-toolbar" aria-label={t('calendar.admin.title')}>
-        <Button variant="white" icon="chevron-left" onClick={goPrevious}>
-          {t('calendar.toolbar.previous')}
-        </Button>
+        <Button
+          variant="white"
+          className="btn-icon-only"
+          icon="chevron-left"
+          aria-label={t('calendar.toolbar.previous')}
+          onClick={goPrevious}
+        />
         <span className="calendar-week-label" aria-live="polite">
           {t('calendar.toolbar.weekOf', { date: weekStart })}
         </span>
+        <Button
+          variant="white"
+          className="btn-icon-only"
+          icon="chevron-right"
+          aria-label={t('calendar.toolbar.next')}
+          onClick={goNext}
+        />
         <Button variant="white" onClick={goToday}>
           {t('calendar.toolbar.today')}
-        </Button>
-        <Button variant="white" icon="chevron-right" onClick={goNext}>
-          {t('calendar.toolbar.next')}
         </Button>
       </nav>
 
@@ -103,6 +113,7 @@ export function AdminCalendarPage() {
               )}
             </tbody>
           </table>
+          <Legend items={adminCalendarLegend(t)} />
         </div>
       ) : null}
     </section>

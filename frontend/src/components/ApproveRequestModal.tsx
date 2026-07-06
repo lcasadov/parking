@@ -1,20 +1,36 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { FieldRow } from './FieldRow';
+import { FieldValue } from './FieldValue';
+import { InfoBanner } from './InfoBanner';
 import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useApprovalAvailabilityQuery } from '../hooks/useCalendar';
 import { useApproveRequest } from '../hooks/useRequests';
-import type { Request, ResourceType } from '../types/request';
+import { longDate } from '../utils/calendar';
+import type { Employee } from '../types/employee';
+import type { Request, RequestStatus, ResourceType } from '../types/request';
 
 interface ApproveRequestModalProps {
   request: Request;
+  // Empleado solicitante (contexto read-only); opcional si no está en el lookup.
+  employee?: Employee;
   onClose: () => void;
   onApproved: () => void;
 }
 
+const FORM_ID = 'approve-request-form';
 const HTTP_CONFLICT = 409;
+
+// Tono de pill por estado de la solicitud (mockup: PENDIENTE en ambar).
+const STATUS_PILL_TONE: Record<RequestStatus, string> = {
+  PENDING: 'pill-amber',
+  APPROVED: 'pill-green',
+  REJECTED: 'pill-pink',
+  CANCELLED: 'pill-gray',
+};
 
 // Traduce el error del servidor (409 no disponible/concurrencia) a la clave i18n
 // del toast; el resto (400 validacion, 5xx) cae en el mensaje generico (§4.4).
@@ -52,8 +68,13 @@ function labelsFor(resourceType: ResourceType): {
 // (plaza o puesto). Lee `resourceType` de la solicitud y ofrece los recursos
 // disponibles para la fecha via GET /availability?date&resourceType. El id elegido
 // viaja en `parkingSpaceId` (resource_id generico). Un 409 = recurso no disponible.
-export function ApproveRequestModal({ request, onClose, onApproved }: ApproveRequestModalProps) {
-  const { t } = useTranslation();
+export function ApproveRequestModal({
+  request,
+  employee,
+  onClose,
+  onApproved,
+}: ApproveRequestModalProps) {
+  const { t, i18n } = useTranslation();
   const resourceType: ResourceType = request.resourceType ?? 'PARKING';
   const labels = labelsFor(resourceType);
   const availabilityQuery = useApprovalAvailabilityQuery(request.requestedDate, resourceType);
@@ -63,6 +84,12 @@ export function ApproveRequestModal({ request, onClose, onApproved }: ApproveReq
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const approveMutation = useApproveRequest();
+
+  const employeeName = employee
+    ? `${employee.firstName} ${employee.lastName}`
+    : `#${request.employeeId}`;
+  const department = employee?.department ?? t('requests.approve.context.noDepartment');
+  const showFreeHint = !availabilityQuery.isLoading && !availabilityQuery.isError;
 
   function handleSubmit(event: FormEvent): void {
     event.preventDefault();
@@ -87,9 +114,65 @@ export function ApproveRequestModal({ request, onClose, onApproved }: ApproveReq
     );
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('requests.approve.cancel')}
+      </Button>
+      <Button variant="green" icon="check" submit form={FORM_ID} disabled={approveMutation.isPending}>
+        {t('requests.approve.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t(labels.title)} onClose={onClose}>
-      <form id="approve-request-form" onSubmit={handleSubmit} noValidate>
+    <Modal title={t(labels.title)} icon="calendar-check" onClose={onClose} footer={footer}>
+      <FieldRow>
+        <div>
+          <span className="field-label">{t('requests.approve.context.employee')}</span>
+          <FieldValue readOnly>{employeeName}</FieldValue>
+        </div>
+        <div>
+          <span className="field-label">{t('requests.approve.context.department')}</span>
+          <FieldValue readOnly>{department}</FieldValue>
+        </div>
+      </FieldRow>
+
+      <FieldRow>
+        <div>
+          <span className="field-label">{t('requests.approve.context.day')}</span>
+          <FieldValue readOnly withIcon>
+            <span>
+              <i className="ti ti-calendar green-icon" aria-hidden="true" />{' '}
+              {longDate(request.requestedDate, i18n.language)}
+            </span>
+          </FieldValue>
+        </div>
+        <div>
+          <span className="field-label">{t('requests.approve.context.status')}</span>
+          <div>
+            <span className={`pill ${STATUS_PILL_TONE[request.status]}`}>
+              {t(`requests.status.${request.status}`)}
+            </span>
+          </div>
+        </div>
+      </FieldRow>
+
+      <FieldRow>
+        <div>
+          <span className="field-label">{t('requests.approve.context.resourceType')}</span>
+          <div>
+            <span className={`pill ${resourceType === 'DESK' ? 'pill-blue' : 'pill-gray'}`}>
+              {t(`requests.resourceType.${resourceType}`)}
+            </span>
+          </div>
+        </div>
+        <div />
+      </FieldRow>
+
+      <div className="divider" />
+
+      <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="approve-request-space">
           {t(labels.field)}
         </label>
@@ -111,6 +194,9 @@ export function ApproveRequestModal({ request, onClose, onApproved }: ApproveReq
             </option>
           ))}
         </select>
+        {showFreeHint ? (
+          <p className="hint">{t('requests.approve.freeResources', { count: resources.length })}</p>
+        ) : null}
 
         <label className="field-label" htmlFor="approve-request-note">
           {t('requests.approve.note')}
@@ -128,16 +214,13 @@ export function ApproveRequestModal({ request, onClose, onApproved }: ApproveReq
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('requests.approve.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={approveMutation.isPending}>
-            {t('requests.approve.submit')}
-          </Button>
-        </div>
       </form>
+
+      <InfoBanner variant="blue" icon="mail">
+        {employee?.email
+          ? t('requests.approve.emailNotice', { email: employee.email })
+          : t('requests.approve.emailNoticeGeneric')}
+      </InfoBanner>
     </Modal>
   );
 }

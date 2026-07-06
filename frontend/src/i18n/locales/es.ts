@@ -421,6 +421,19 @@ export const es = {
       pendingBadge: '{{count}} solicitudes pendientes',
       empty: 'No hay solicitudes pendientes.',
       loadError: 'No se pudieron cargar las solicitudes pendientes.',
+      tabs: {
+        pending: 'Pendientes',
+        approved: 'Aprobadas',
+        rejected: 'Rechazadas',
+        all: 'Todas',
+        ariaLabel: 'Filtrar solicitudes por estado',
+      },
+      search: {
+        label: 'Buscar empleado',
+        placeholder: 'Buscar empleado…',
+      },
+      resolvedUnavailable:
+        'La consulta de solicitudes resueltas no está disponible en esta vista. Usa la exportación para revisar el histórico.',
       columns: {
         employee: 'Empleado',
         resource: 'Recurso',
@@ -471,17 +484,31 @@ export const es = {
       requiredSpace: 'Selecciona una plaza.',
       requiredParking: 'Selecciona una plaza.',
       requiredDesk: 'Selecciona un puesto.',
+      context: {
+        employee: 'Empleado',
+        department: 'Departamento',
+        noDepartment: 'Sin departamento',
+        day: 'Día solicitado',
+        status: 'Estado',
+        resourceType: 'Tipo de recurso',
+      },
+      freeResources: '{{count}} libre(s) ese día',
+      emailNotice: 'Al aprobar, se enviará un email automático a {{email}}.',
+      emailNoticeGeneric: 'Al aprobar, se enviará un email automático al empleado.',
     },
     reject: {
       title: 'Rechazar solicitud',
       reason: 'Motivo del rechazo',
       selectReason: 'Selecciona un motivo',
-      detail: 'Detalle del motivo',
+      detail: 'Comentario adicional',
       detailHint: 'Obligatorio (mínimo 5 caracteres) cuando el motivo es «Otro motivo».',
       submit: 'Confirmar rechazo',
       cancel: 'Cancelar',
       requiredReason: 'Selecciona un motivo.',
       requiredDetail: 'Indica el detalle del motivo (mínimo 5 caracteres).',
+      intro:
+        'Estás a punto de rechazar la solicitud de {{resource}} de {{name}} para el {{date}}.',
+      emailNotice: 'El empleado recibirá un email con el motivo del rechazo.',
     },
     errors: {
       window: 'La fecha está fuera de la ventana permitida (hoy..hoy+14 días).',

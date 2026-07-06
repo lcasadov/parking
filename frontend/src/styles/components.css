@@ -608,6 +608,30 @@ body.theme-dark .segmented button.active {
   flex: 1 1 220px;
 }
 
+/* Tabs + búsqueda en una misma barra (mockup 02): la búsqueda se alinea a la
+   derecha y las pestañas pierden su margen inferior dentro del toolbar. */
+.toolbar .tabs {
+  margin-bottom: 0;
+}
+.toolbar .search-box {
+  margin-left: auto;
+}
+
+/* Celda de empleado con avatar + nombre + departamento (mockup 02). */
+.employee-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.employee-cell-name {
+  font-weight: 500;
+  color: var(--text);
+}
+.employee-cell-dept {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 /* Tabs estilo caja (mockup styles.css:113-115) */
 .tabs {
   display: flex;
