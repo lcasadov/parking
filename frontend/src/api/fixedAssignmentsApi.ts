@@ -5,6 +5,7 @@ import type {
   FixedAssignmentPutRequest,
   PageFixedAssignment,
 } from '../types/fixedAssignment';
+import type { ResourceType } from '../types/request';
 
 // Endpoints de FixedAssignments segun docs/openapi.yaml. baseURL relativo del apiClient.
 
@@ -55,6 +56,13 @@ export async function setEmployeeFixedAssignments(
 }
 
 // DELETE /fixed-assignments/employee/{employeeId} (ADMIN): revocacion logica (204).
-export async function revokeEmployeeFixedAssignment(employeeId: number): Promise<void> {
-  await apiClient.delete(`${FIXED_ASSIGNMENTS}/employee/${employeeId}`);
+// `resourceType` opcional acota la revocacion a un tipo (PARKING|DESK); omitido
+// revoca todas las asignaciones activas del empleado (retrocompatible).
+export async function revokeEmployeeFixedAssignment(
+  employeeId: number,
+  resourceType?: ResourceType,
+): Promise<void> {
+  await apiClient.delete(`${FIXED_ASSIGNMENTS}/employee/${employeeId}`, {
+    params: resourceType ? { resourceType } : undefined,
+  });
 }

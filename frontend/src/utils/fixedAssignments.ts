@@ -58,3 +58,51 @@ export function toggleDay(days: number[], day: number): number[] {
   }
   return [...days, day].sort((a, b) => a - b);
 }
+
+// Une una lista con comas y un conector final localizado ("y" / "and"), p.ej.
+// ["Lunes","Martes","Jueves"] -> "Lunes, Martes y Jueves".
+export function joinWithAnd(items: string[], and: string): string {
+  if (items.length <= 1) {
+    return items[0] ?? '';
+  }
+  const head = items.slice(0, -1).join(', ');
+  return `${head} ${and} ${items[items.length - 1]}`;
+}
+
+// Plaza fija y/o puesto fijo de un empleado, ya agrupados por tipo de recurso.
+export interface EmployeeFixedResources {
+  parking: FixedAssignmentGroup | null;
+  desk: FixedAssignmentGroup | null;
+}
+
+// Reduce las filas planas de un empleado a su plaza fija (PARKING) y su puesto
+// fijo (DESK). Reutiliza groupFixedAssignments: como los recursos son
+// independientes, cada tipo aparece como mucho una vez.
+export function toEmployeeFixedResources(rows: FixedAssignment[]): EmployeeFixedResources {
+  const groups = groupFixedAssignments(rows);
+  return {
+    parking: groups.find((group) => group.resourceType === 'PARKING') ?? null,
+    desk: groups.find((group) => group.resourceType === 'DESK') ?? null,
+  };
+}
+
+// Indexa TODAS las asignaciones fijas por empleado, separando plaza y puesto.
+// Se usa para pintar las columnas de la tabla de empleados de una sola pasada.
+export function indexFixedResourcesByEmployee(
+  rows: FixedAssignment[],
+): Map<number, EmployeeFixedResources> {
+  const byEmployee = new Map<number, FixedAssignment[]>();
+  for (const row of rows) {
+    const bucket = byEmployee.get(row.employeeId);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      byEmployee.set(row.employeeId, [row]);
+    }
+  }
+  const result = new Map<number, EmployeeFixedResources>();
+  for (const [employeeId, employeeRows] of byEmployee) {
+    result.set(employeeId, toEmployeeFixedResources(employeeRows));
+  }
+  return result;
+}

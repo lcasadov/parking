@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
+import { DayBadges } from '../components/DayBadges';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { ExportMenu } from '../components/ExportMenu';
+import { Legend } from '../components/Legend';
 import { ResetPasswordModal } from '../components/ResetPasswordModal';
 import { Spinner } from '../components/Spinner';
 import { EXPORT_PATHS } from '../api/exportApi';
@@ -11,11 +14,52 @@ import {
   useEmployeesQuery,
   useReactivateEmployee,
 } from '../hooks/useEmployees';
+import { useDesksQuery } from '../hooks/useDesks';
+import { useFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
+import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
+import { buildDeskLabels } from '../utils/desks';
+import { initialsOf } from '../utils/initials';
+import {
+  indexFixedResourcesByEmployee,
+  type EmployeeFixedResources,
+  type FixedAssignmentGroup,
+} from '../utils/fixedAssignments';
 import type { Employee } from '../types/employee';
+import type { ParkingSpace } from '../types/parkingSpace';
 
 const PAGE_SIZE = 20;
+const LOOKUP_SIZE = 200;
+const NONE = '—';
 
-// Vista de gestion de empleados (ADMIN): tabla paginada + busqueda + acciones.
+function buildSpaceLabels(spaces: ParkingSpace[]): Map<number, string> {
+  const map = new Map<number, string>();
+  for (const space of spaces) {
+    map.set(space.id, space.label);
+  }
+  return map;
+}
+
+// Celda de recurso fijo: etiqueta (verde) + chips de dias, o "—" si no tiene.
+function ResourceCell({
+  group,
+  labels,
+}: {
+  group: FixedAssignmentGroup | null;
+  labels: Map<number, string>;
+}) {
+  if (!group) {
+    return <span className="text-muted">{NONE}</span>;
+  }
+  return (
+    <div className="fixed-cell">
+      <span className="fixed-cell-label">{labels.get(group.parkingSpaceId) ?? `#${group.parkingSpaceId}`}</span>
+      <DayBadges days={group.days} />
+    </div>
+  );
+}
+
+// Vista de gestion de empleados (ADMIN): tabla paginada + busqueda + acciones,
+// con avatar por empleado y columnas de plaza y puesto fijos (mockup 03).
 export function EmployeesPage() {
   const { t } = useTranslation();
   const [q, setQ] = useState('');
@@ -25,8 +69,24 @@ export function EmployeesPage() {
   const [resetEmployee, setResetEmployee] = useState<Employee | null>(null);
 
   const query = useEmployeesQuery({ page, size: PAGE_SIZE, q });
+  const assignmentsQuery = useFixedAssignmentsQuery({ page: 0, size: LOOKUP_SIZE });
+  const spacesQuery = useParkingSpacesQuery({ page: 0, size: LOOKUP_SIZE });
+  const desksQuery = useDesksQuery({ page: 0, size: LOOKUP_SIZE });
   const deactivateMutation = useDeactivateEmployee();
   const reactivateMutation = useReactivateEmployee();
+
+  const spaceLabels = useMemo(
+    () => buildSpaceLabels(spacesQuery.data?.content ?? []),
+    [spacesQuery.data],
+  );
+  const deskLabels = useMemo(
+    () => buildDeskLabels(desksQuery.data?.content ?? []),
+    [desksQuery.data],
+  );
+  const resourcesByEmployee = useMemo(
+    () => indexFixedResourcesByEmployee(assignmentsQuery.data?.content ?? []),
+    [assignmentsQuery.data],
+  );
 
   function handleSearch(value: string): void {
     setQ(value);
@@ -56,10 +116,19 @@ export function EmployeesPage() {
     }
   }
 
+  function resourcesFor(employeeId: number): EmployeeFixedResources {
+    return resourcesByEmployee.get(employeeId) ?? { parking: null, desk: null };
+  }
+
   const employees = query.data?.content ?? [];
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
+
+  const legendItems = [
+    { color: 'var(--green)', label: t('employees.legend.assigned') },
+    { color: 'var(--border)', label: t('employees.legend.none') },
+  ];
 
   return (
     <section className="employees-page" aria-labelledby="employees-title">
@@ -76,14 +145,16 @@ export function EmployeesPage() {
       </header>
 
       <div className="toolbar">
-        <input
-          type="search"
-          className="field-input"
-          aria-label={t('employees.searchLabel')}
-          placeholder={t('employees.searchPlaceholder')}
-          value={q}
-          onChange={(event) => handleSearch(event.target.value)}
-        />
+        <div className="search-box">
+          <i className="ti ti-search" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label={t('employees.searchLabel')}
+            placeholder={t('employees.searchPlaceholder')}
+            value={q}
+            onChange={(event) => handleSearch(event.target.value)}
+          />
+        </div>
       </div>
 
       {query.isLoading ? <Spinner /> : null}
@@ -100,8 +171,9 @@ export function EmployeesPage() {
             <thead>
               <tr className="table-header">
                 <th scope="col">{t('employees.columns.name')}</th>
-                <th scope="col">{t('employees.columns.email')}</th>
                 <th scope="col">{t('employees.columns.department')}</th>
+                <th scope="col">{t('employees.columns.parkingFixed')}</th>
+                <th scope="col">{t('employees.columns.deskFixed')}</th>
                 <th scope="col">{t('employees.columns.role')}</th>
                 <th scope="col">{t('employees.columns.status')}</th>
                 <th scope="col">{t('employees.columns.actions')}</th>
@@ -110,54 +182,81 @@ export function EmployeesPage() {
             <tbody>
               {employees.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="table-empty">
+                  <td colSpan={7} className="table-empty">
                     {t('employees.empty')}
                   </td>
                 </tr>
               ) : (
-                employees.map((employee) => (
-                  <tr key={employee.id} className="table-row">
-                    <td>{`${employee.firstName} ${employee.lastName}`}</td>
-                    <td>{employee.email}</td>
-                    <td>{employee.department ?? '—'}</td>
-                    <td>{t(`employees.role.${employee.role}`)}</td>
-                    <td>
-                      <span className={`pill ${employee.active ? 'pill-green' : 'pill-gray'}`}>
-                        {t(employee.active ? 'employees.status.active' : 'employees.status.inactive')}
-                      </span>
-                    </td>
-                    <td className="table-actions">
-                      <Button
-                        variant="white"
-                        icon="pencil"
-                        aria-label={t('employees.actions.edit')}
-                        onClick={() => openEdit(employee)}
-                      >
-                        {t('employees.actions.edit')}
-                      </Button>
-                      <Button
-                        variant={employee.active ? 'red' : 'green'}
-                        onClick={() => toggleActive(employee)}
-                      >
-                        {t(
-                          employee.active
-                            ? 'employees.actions.deactivate'
-                            : 'employees.actions.reactivate',
-                        )}
-                      </Button>
-                      <Button
-                        variant="blue"
-                        icon="key"
-                        onClick={() => setResetEmployee(employee)}
-                      >
-                        {t('employees.actions.resetPassword')}
-                      </Button>
-                    </td>
-                  </tr>
-                ))
+                employees.map((employee) => {
+                  const fullName = `${employee.firstName} ${employee.lastName}`;
+                  const resources = resourcesFor(employee.id);
+                  return (
+                    <tr key={employee.id} className="table-row">
+                      <td>
+                        <div className="employee-cell">
+                          <Avatar
+                            initials={initialsOf(employee)}
+                            label={fullName}
+                            size="sm"
+                            seed={fullName}
+                          />
+                          <div className="employee-cell-text">
+                            <span className="employee-cell-name">{fullName}</span>
+                            <span className="employee-cell-email">{employee.email}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{employee.department ?? NONE}</td>
+                      <td>
+                        <ResourceCell group={resources.parking} labels={spaceLabels} />
+                      </td>
+                      <td>
+                        <ResourceCell group={resources.desk} labels={deskLabels} />
+                      </td>
+                      <td>{t(`employees.role.${employee.role}`)}</td>
+                      <td>
+                        <span className={`pill ${employee.active ? 'pill-green' : 'pill-gray'}`}>
+                          {t(
+                            employee.active
+                              ? 'employees.status.active'
+                              : 'employees.status.inactive',
+                          )}
+                        </span>
+                      </td>
+                      <td className="table-actions">
+                        <Button
+                          variant="white"
+                          icon="pencil"
+                          aria-label={t('employees.actions.edit')}
+                          onClick={() => openEdit(employee)}
+                        >
+                          {t('employees.actions.edit')}
+                        </Button>
+                        <Button
+                          variant={employee.active ? 'red' : 'green'}
+                          onClick={() => toggleActive(employee)}
+                        >
+                          {t(
+                            employee.active
+                              ? 'employees.actions.deactivate'
+                              : 'employees.actions.reactivate',
+                          )}
+                        </Button>
+                        <Button
+                          variant="blue"
+                          icon="key"
+                          onClick={() => setResetEmployee(employee)}
+                        >
+                          {t('employees.actions.resetPassword')}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
+          <Legend items={legendItems} />
         </div>
       ) : null}
 

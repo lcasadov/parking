@@ -1760,3 +1760,74 @@ body.theme-dark .segmented button.active {
   height: 14px;
   border-radius: var(--radius-sm);
 }
+
+/* ---- WP1: modal de empleado (pestañas plaza/puesto) y tabla de empleados ---- */
+.text-muted {
+  color: var(--text-muted);
+}
+.green-icon {
+  color: var(--green);
+}
+.section-title-sm {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+.section-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.account-security {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-soft);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-top: 12px;
+}
+.account-security-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.account-security-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text);
+}
+.account-security-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.employee-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.employee-cell-text {
+  display: flex;
+  flex-direction: column;
+}
+.employee-cell-name {
+  font-weight: 500;
+  color: var(--text);
+}
+.employee-cell-email {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.fixed-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fixed-cell-label {
+  font-weight: 500;
+  color: var(--green-darker);
+}

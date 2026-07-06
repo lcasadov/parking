@@ -30,6 +30,14 @@ describe('EmployeesPage', () => {
     expect(screen.getByRole('button', { name: /dar de baja|deactivate/i })).toBeInTheDocument();
   });
 
+  it('should_render_fixed_resource_columns_with_space_label', async () => {
+    renderWithProviders(<EmployeesPage />);
+
+    // Alice (id 10) tiene la plaza P-01 en las asignaciones fijas por defecto.
+    const aliceRow = (await screen.findByText('Alice Andersson')).closest('tr') as HTMLElement;
+    expect(within(aliceRow).getByText('P-01')).toBeInTheDocument();
+  });
+
   it('should_request_with_q_and_filter_when_searching', async () => {
     let receivedQ: string | null = null;
     server.use(
