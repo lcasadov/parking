@@ -207,6 +207,8 @@ export const es = {
     title: 'Plazas',
     navLabel: 'Plazas',
     new: 'Nueva plaza',
+    searchLabel: 'Buscar plaza',
+    searchPlaceholder: 'Buscar plaza…',
     filterLabel: 'Filtrar por estado',
     filter: {
       all: 'Todas',
@@ -224,9 +226,14 @@ export const es = {
     },
     actions: {
       edit: 'Editar',
+      activate: 'Activar',
+      deactivate: 'Desactivar',
     },
     empty: 'No hay plazas que mostrar.',
     loadError: 'No se pudieron cargar las plazas.',
+    errors: {
+      toggle: 'No se pudo cambiar el estado de la plaza.',
+    },
     pagination: {
       previous: 'Anterior',
       next: 'Siguiente',
@@ -244,7 +251,12 @@ export const es = {
       createTitle: 'Nueva plaza',
       editTitle: 'Editar plaza',
       label: 'Etiqueta de la plaza',
+      labelHint: 'Debe ser único (p. ej. P-09).',
+      statusLabel: 'Estado',
       active: 'Plaza activa',
+      activeHint: 'Solo las plazas activas son reservables.',
+      holderInfo:
+        'La asignación de un titular fijo y de días se hace después, desde la ficha del empleado.',
       save: 'Guardar',
       cancel: 'Cancelar',
       required: 'Este campo es obligatorio',
@@ -256,6 +268,8 @@ export const es = {
     title: 'Puestos',
     navLabel: 'Puestos',
     new: 'Nuevo puesto',
+    searchLabel: 'Buscar puesto',
+    searchPlaceholder: 'Buscar puesto…',
     filterLabel: 'Filtrar por estado',
     filter: {
       all: 'Todos',
@@ -293,7 +307,11 @@ export const es = {
       editTitle: 'Editar puesto',
       number: 'Número del puesto',
       category: 'Categoría',
+      statusLabel: 'Estado',
       active: 'Puesto activo',
+      activeHint: 'Solo los puestos activos son reservables.',
+      holderInfo:
+        'La asignación de un titular fijo y de días se hace después, desde la ficha del empleado.',
       save: 'Guardar',
       cancel: 'Cancelar',
       required: 'Este campo es obligatorio',

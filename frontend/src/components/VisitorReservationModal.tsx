@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { FieldRow } from './FieldRow';
+import { InfoBanner } from './InfoBanner';
 import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { useCreateVisitorReservation } from '../hooks/useVisitorReservations';
@@ -112,52 +114,56 @@ export function VisitorReservationModal({
           ))}
         </select>
 
-        <label className="field-label" htmlFor="visitor-reservation-date">
-          {t('visitors.reservations.create.date')}
-        </label>
-        <input
-          id="visitor-reservation-date"
-          type="date"
-          className="field-input"
-          value={date}
-          min={todayIso()}
-          onChange={(event) => setDate(event.target.value)}
-        />
-
-        <label className="field-label" htmlFor="visitor-reservation-space">
-          {t('visitors.reservations.create.space')}
-        </label>
-        <select
-          id="visitor-reservation-space"
-          className="field-input"
-          value={parkingSpaceId}
-          onChange={(event) =>
-            setParkingSpaceId(event.target.value === '' ? '' : Number(event.target.value))
-          }
-        >
-          <option value="">{t('visitors.reservations.create.selectSpace')}</option>
-          {spaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.label}
-            </option>
-          ))}
-        </select>
-        <p className="hint">{t('visitors.reservations.create.spaceHint')}</p>
+        <FieldRow>
+          <div className="auth-field">
+            <label className="field-label" htmlFor="visitor-reservation-date">
+              {t('visitors.reservations.create.date')}
+            </label>
+            <input
+              id="visitor-reservation-date"
+              type="date"
+              className="field-input"
+              value={date}
+              min={todayIso()}
+              onChange={(event) => setDate(event.target.value)}
+            />
+          </div>
+          <div className="auth-field">
+            <label className="field-label" htmlFor="visitor-reservation-space">
+              {t('visitors.reservations.create.space')}
+            </label>
+            <select
+              id="visitor-reservation-space"
+              className="field-input"
+              value={parkingSpaceId}
+              onChange={(event) =>
+                setParkingSpaceId(event.target.value === '' ? '' : Number(event.target.value))
+              }
+            >
+              <option value="">{t('visitors.reservations.create.selectSpace')}</option>
+              {spaces.map((space) => (
+                <option key={space.id} value={space.id}>
+                  {space.label}
+                </option>
+              ))}
+            </select>
+            <p className="hint">{t('visitors.reservations.create.spaceHint')}</p>
+          </div>
+        </FieldRow>
 
         <label className="field-label" htmlFor="visitor-reservation-notes">
           {t('visitors.reservations.create.notes')}
         </label>
-        <input
+        <textarea
           id="visitor-reservation-notes"
-          type="text"
           className="field-input"
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
         />
 
-        <p className="banner-info" role="note">
+        <InfoBanner variant="blue" icon="info-circle">
           {t('visitors.reservations.create.banner')}
-        </p>
+        </InfoBanner>
 
         {error ? (
           <p className="form-error" role="alert">

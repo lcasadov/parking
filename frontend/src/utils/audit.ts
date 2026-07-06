@@ -26,3 +26,36 @@ export function formatDateTime(iso: string): string {
   }
   return parsed.toLocaleString();
 }
+
+// Clases de pill de auditoria (design-system). Constantes para evitar literales
+// repetidos (S1192).
+const PILL_GREEN = 'pill-green';
+const PILL_RED = 'pill-red';
+const PILL_PINK = 'pill-pink';
+const PILL_BLUE = 'pill-blue';
+const PILL_AMBER = 'pill-amber';
+const PILL_GRAY = 'pill-gray';
+
+// Mapea la accion de auditoria a la variante de color de la pill (mockup 11).
+// Se compara por palabra clave, no por el nombre exacto, para tolerar variantes
+// (APPROVE_REQUEST / REQUEST_APPROVED). El orden importa: RELEASE va antes que
+// CREATE para que CREATE_RELEASE resuelva a rosa.
+export function auditPillClass(action: string): string {
+  const value = action.toUpperCase();
+  if (value.includes('APPROV')) {
+    return PILL_GREEN;
+  }
+  if (value.includes('REJECT')) {
+    return PILL_RED;
+  }
+  if (value.includes('RELEASE')) {
+    return PILL_PINK;
+  }
+  if (value.includes('RESET')) {
+    return PILL_AMBER;
+  }
+  if (value.includes('CREATE') || value.includes('UPDATE') || value.includes('DELETE')) {
+    return PILL_BLUE;
+  }
+  return PILL_GRAY;
+}

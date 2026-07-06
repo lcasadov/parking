@@ -207,6 +207,8 @@ export const en = {
     title: 'Parking spaces',
     navLabel: 'Parking spaces',
     new: 'New space',
+    searchLabel: 'Search space',
+    searchPlaceholder: 'Search space…',
     filterLabel: 'Filter by status',
     filter: {
       all: 'All',
@@ -224,9 +226,14 @@ export const en = {
     },
     actions: {
       edit: 'Edit',
+      activate: 'Activate',
+      deactivate: 'Deactivate',
     },
     empty: 'No parking spaces to show.',
     loadError: 'Could not load parking spaces.',
+    errors: {
+      toggle: 'Could not change the space status.',
+    },
     pagination: {
       previous: 'Previous',
       next: 'Next',
@@ -244,7 +251,12 @@ export const en = {
       createTitle: 'New space',
       editTitle: 'Edit space',
       label: 'Space label',
+      labelHint: 'Must be unique (e.g. P-09).',
+      statusLabel: 'Status',
       active: 'Active space',
+      activeHint: 'Only active spaces are bookable.',
+      holderInfo:
+        'The fixed holder and days are assigned later, from the employee record.',
       save: 'Save',
       cancel: 'Cancel',
       required: 'This field is required',
@@ -256,6 +268,8 @@ export const en = {
     title: 'Desks',
     navLabel: 'Desks',
     new: 'New desk',
+    searchLabel: 'Search desk',
+    searchPlaceholder: 'Search desk…',
     filterLabel: 'Filter by status',
     filter: {
       all: 'All',
@@ -293,7 +307,11 @@ export const en = {
       editTitle: 'Edit desk',
       number: 'Desk number',
       category: 'Category',
+      statusLabel: 'Status',
       active: 'Active desk',
+      activeHint: 'Only active desks are bookable.',
+      holderInfo:
+        'The fixed holder and days are assigned later, from the employee record.',
       save: 'Save',
       cancel: 'Cancel',
       required: 'This field is required',

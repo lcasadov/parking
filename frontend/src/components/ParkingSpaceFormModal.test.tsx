@@ -116,7 +116,7 @@ describe('ParkingSpaceFormModal', () => {
     );
 
     // spaceP01.active === true; el toggle lo desactiva.
-    await user.click(screen.getByRole('checkbox', { name: /plaza activa|active space/i }));
+    await user.click(screen.getByRole('switch', { name: /plaza activa|active space/i }));
     await user.click(screen.getByRole('button', { name: /guardar|save/i }));
 
     await waitFor(() => {

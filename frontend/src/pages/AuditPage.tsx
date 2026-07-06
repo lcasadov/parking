@@ -9,7 +9,7 @@ import { getStatus } from '../api/apiError';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useAuditQuery } from '../hooks/useAudit';
 import type { AuditListParams, AuditLogEntry, PageAuditLogEntry } from '../types/audit';
-import { formatDateTime, isValidWindow, toIsoEnd, toIsoStart } from '../utils/audit';
+import { auditPillClass, formatDateTime, isValidWindow, toIsoEnd, toIsoStart } from '../utils/audit';
 
 const PAGE_SIZE = 20;
 const DASH = '—';
@@ -78,7 +78,7 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
                   <td>{formatDateTime(entry.occurredAt)}</td>
                   <td>{entry.actorEmployeeId ?? t('audit.systemActor')}</td>
                   <td>
-                    <span className="pill pill-blue">{entry.action}</span>
+                    <span className={`pill ${auditPillClass(entry.action)}`}>{entry.action}</span>
                   </td>
                   <td>{entityLabel(entry)}</td>
                   <td>{entry.details ?? DASH}</td>

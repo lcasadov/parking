@@ -297,6 +297,10 @@ body.theme-dark .btn-white {
 .field-input:focus {
   border-color: var(--green-focus);
 }
+textarea.field-input {
+  min-height: 64px;
+  resize: vertical;
+}
 .field-input.danger {
   border-color: var(--red-border);
 }
@@ -819,6 +823,12 @@ body.theme-dark .segmented button.active {
   background: var(--amber-soft);
   color: var(--amber-text);
   border-color: var(--amber-border);
+}
+
+.pill-red {
+  background: var(--red-soft);
+  color: var(--red-text);
+  border-color: var(--red-border);
 }
 
 .pagination {

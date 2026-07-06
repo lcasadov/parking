@@ -51,14 +51,16 @@ export function VisitorsPanel() {
   return (
     <div className="visitors-panel">
       <div className="toolbar">
-        <input
-          type="search"
-          className="field-input"
-          aria-label={t('visitors.searchLabel')}
-          placeholder={t('visitors.searchPlaceholder')}
-          value={q}
-          onChange={(event) => handleSearch(event.target.value)}
-        />
+        <div className="search-box">
+          <i className="ti ti-search" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label={t('visitors.searchLabel')}
+            placeholder={t('visitors.searchPlaceholder')}
+            value={q}
+            onChange={(event) => handleSearch(event.target.value)}
+          />
+        </div>
         <Button variant="green" icon="plus" onClick={openCreate}>
           {t('visitors.newVisitor')}
         </Button>

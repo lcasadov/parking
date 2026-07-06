@@ -75,6 +75,39 @@ describe('ParkingSpacesPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('should_deactivate_space_when_toggling_active', async () => {
+    let sentBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get(SPACES_URL, () => HttpResponse.json(pageOfSpaces([spaceP01]))),
+      http.put(`${SPACES_URL}/:id`, async ({ request, params }) => {
+        sentBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...spaceP01, ...sentBody, id: Number(params.id) });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ParkingSpacesPage />);
+    const row = (await screen.findByText('P-01')).closest('tr') as HTMLElement;
+
+    await user.click(within(row).getByRole('button', { name: /desactivar|deactivate/i }));
+
+    await waitFor(() => expect(sentBody).not.toBeNull());
+    expect(sentBody).toMatchObject({ label: 'P-01', active: false });
+  });
+
+  it('should_filter_visible_rows_when_typing_in_search_box', async () => {
+    server.use(http.get(SPACES_URL, () => HttpResponse.json(pageOfSpaces([spaceP01, spaceP02]))));
+    const user = userEvent.setup();
+    renderWithProviders(<ParkingSpacesPage />);
+    await screen.findByText('P-01');
+
+    await user.type(screen.getByRole('searchbox'), 'P-02');
+
+    await waitFor(() => {
+      expect(screen.queryByText('P-01')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('P-02')).toBeInTheDocument();
+  });
+
   it('should_change_page_when_clicking_next_on_multipage_result', async () => {
     let requestedPage: string | null = null;
     server.use(
