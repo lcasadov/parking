@@ -22,3 +22,4 @@
 ## Feedback
 
 - [feedback_autonomous_execution](feedback_autonomous_execution.md) — tras aprobar el plan multi-change, encadenar changes sin pausas salvo bloqueo real; PR + CI-gate por change; agentes en worktree aislado.
+- [feedback_mockups_plaza_puesto](feedback_mockups_plaza_puesto.md) — los mockups solo dibujan "plaza"; implementar también "puesto" en modales/pantallas (resource_type PARKING|DESK).
