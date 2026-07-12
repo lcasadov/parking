@@ -136,6 +136,10 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...deskStandard, ...body, id: Number(params.id) });
   }),
+  http.patch(`${BASE}/desks/:id/activation`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...deskStandard, ...body, id: Number(params.id) });
+  }),
 
   // ---- Floor plan (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/floor-plan`, ({ request }) => {
