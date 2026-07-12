@@ -1,6 +1,13 @@
 # Tasks — hexagonal-persistence
 
 > Ejecución por agregado (D7). Tras CADA agregado: `mvn verify` (unitarios + IT Testcontainers) en verde antes de pasar al siguiente. No mergear a `develop` hasta validación completa.
+>
+> **ALCANCE ACOTADO (decidido 2026-07-12):** tras validar el coste/riesgo real con la plantilla
+> `request`, se acota la opción B a los agregados con **dominio rico + invariantes de concurrencia
+> que poseen su persistencia**: `request` ✅, `release`, `fixedassignment`. Los módulos CRUD
+> (`desk`, `parkingspace`, `employee`, `visitor`, `auditlog`, `loginlog`, `emailoutbox`) se dejan
+> como Spring pragmático (entidad JPA = dominio) — best practice para CRUD. Grupos 5–10 quedan
+> **fuera de alcance** en este change.
 
 ## 1. Andamiaje transversal
 
@@ -18,10 +25,10 @@
 
 ## 3. Agregado `release`
 
-- [ ] 3.1 Dominio `Release` + `ReleaseRepositoryPort`
-- [ ] 3.2 Infraestructura: `ReleaseEntity` + `ReleaseJpaRepository` + adaptador + mapper
-- [ ] 3.3 Refactor `ReleaseService`; preservar `UX_releases_space_date` → 409
-- [ ] 3.4 `mvn verify` verde; ArchUnit ampliado
+- [x] 3.1 Dominio `Release` + `ReleaseRepositoryPort`
+- [x] 3.2 Infraestructura: `ReleaseEntity` + `ReleaseJpaRepository` + adaptador + mapper
+- [x] 3.3 Refactor `ReleaseService`; preservar `UX_releases_space_date` → 409
+- [x] 3.4 `mvn verify` verde; ArchUnit ampliado
 
 ## 4. Agregado `fixedassignment`
 

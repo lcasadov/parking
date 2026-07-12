@@ -19,8 +19,8 @@ import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.FloorPlanDeskResponse;
 import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
 import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
@@ -60,7 +60,7 @@ class FloorPlanQueryServiceTest {
 
     private DeskRepository deskRepository;
     private FixedAssignmentRepository fixedAssignmentRepository;
-    private ReleaseRepository releaseRepository;
+    private ReleaseJpaRepository releaseRepository;
     private RequestJpaRepository requestRepository;
     private EmployeeRepository employeeRepository;
     private ClockPort clock;
@@ -71,7 +71,7 @@ class FloorPlanQueryServiceTest {
     void setUp() {
         deskRepository = mock(DeskRepository.class);
         fixedAssignmentRepository = mock(FixedAssignmentRepository.class);
-        releaseRepository = mock(ReleaseRepository.class);
+        releaseRepository = mock(ReleaseJpaRepository.class);
         requestRepository = mock(RequestJpaRepository.class);
         employeeRepository = mock(EmployeeRepository.class);
         clock = mock(ClockPort.class);
@@ -177,7 +177,7 @@ class FloorPlanQueryServiceTest {
                 resourceId, ResourceType.DESK, employeeId, dow, ADMIN_ID, NOW);
     }
 
-    private static Release deskRelease(Long resourceId) {
-        return Release.voluntary(resourceId, ResourceType.DESK, OTHER_ID, WITHIN, NOW);
+    private static ReleaseEntity deskRelease(Long resourceId) {
+        return ReleaseEntity.voluntary(resourceId, ResourceType.DESK, OTHER_ID, WITHIN, NOW);
     }
 }

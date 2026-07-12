@@ -22,8 +22,8 @@ import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
 import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
@@ -75,7 +75,7 @@ class AvailabilityServiceTest {
     @Mock
     private FixedAssignmentRepository fixedAssignmentRepository;
     @Mock
-    private ReleaseRepository releaseRepository;
+    private ReleaseJpaRepository releaseRepository;
     @Mock
     private RequestJpaRepository requestRepository;
     @Mock
@@ -424,7 +424,7 @@ class AvailabilityServiceTest {
                 .willReturn(List.of(assignments));
     }
 
-    private void givenReleasesOnDate(Release... releases) {
+    private void givenReleasesOnDate(ReleaseEntity... releases) {
         given(releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, DATE, DATE))
                 .willReturn(List.of(releases));
     }
@@ -457,8 +457,8 @@ class AvailabilityServiceTest {
         return FixedAssignment.create(spaceId, employeeId, dow, 1L, NOW);
     }
 
-    private static Release release(Long spaceId, LocalDate date) {
-        return Release.voluntary(spaceId, EMP_ID, date, NOW);
+    private static ReleaseEntity release(Long spaceId, LocalDate date) {
+        return ReleaseEntity.voluntary(spaceId, EMP_ID, date, NOW);
     }
 
     private static RequestEntity approvedRequest(Long spaceId, Long employeeId, LocalDate date) {

@@ -1,4 +1,4 @@
-package com.aleatica.parking.release;
+package com.aleatica.parking.release.infrastructure;
 
 import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
@@ -8,15 +8,21 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * Adaptador de salida de persistencia de liberaciones (Spring Data JPA).
+ * Repositorio Spring Data JPA de liberaciones (adaptador de salida de infraestructura,
+ * change {@code hexagonal-persistence}).
  *
- * <p>Todas las consultas se derivan del nombre del metodo (parametros vinculados,
- * sin concatenacion), eliminando la inyeccion SQL por construccion (OWASP API /
- * security-design §4). La unicidad recurso+fecha la garantiza el indice unico de la BD
- * ({@code UX_releases_space_date}); {@link #existsByResourceIdAndResourceTypeAndReleaseDate}
- * es la primera capa (UX y mensaje claro), no la red dura frente a concurrencia.</p>
+ * <p>Opera con la entidad JPA {@link ReleaseEntity}. El agregado {@code release} accede a el a
+ * traves de {@link ReleasePersistenceAdapter} (que mapea a/desde el modelo de dominio); los casos
+ * de uso vecinos aun no migrados ({@code availability}, {@code floor-plan}, {@code visitor}) lo
+ * consultan directamente hasta su propia fase de migracion.</p>
+ *
+ * <p>Todas las consultas se derivan del nombre del metodo (parametros vinculados, sin
+ * concatenacion), eliminando la inyeccion SQL por construccion (OWASP API / security-design §4).
+ * La unicidad recurso+fecha la garantiza el indice unico de la BD ({@code UX_releases_space_date});
+ * {@link #existsByResourceIdAndResourceTypeAndReleaseDate} es la primera capa (UX y mensaje claro),
+ * no la red dura frente a concurrencia.</p>
  */
-public interface ReleaseRepository extends JpaRepository<Release, Long> {
+public interface ReleaseJpaRepository extends JpaRepository<ReleaseEntity, Long> {
 
     /**
      * Pagina de las liberaciones de un empleado (listado "mis liberaciones").
@@ -25,7 +31,7 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
      * @param pageable   pagina y orden solicitados
      * @return pagina de liberaciones del empleado
      */
-    Page<Release> findByEmployeeId(Long employeeId, Pageable pageable);
+    Page<ReleaseEntity> findByEmployeeId(Long employeeId, Pageable pageable);
 
     /**
      * Indica si el recurso ya tiene una liberacion para la fecha (soporte de la
@@ -49,7 +55,7 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
      * @param end   fecha final del intervalo (inclusive)
      * @return liberaciones del intervalo (posiblemente vacia)
      */
-    List<Release> findByReleaseDateBetween(LocalDate start, LocalDate end);
+    List<ReleaseEntity> findByReleaseDateBetween(LocalDate start, LocalDate end);
 
     /**
      * Liberaciones de un tipo de recurso cuyo {@code release_date} cae dentro del intervalo
@@ -66,7 +72,7 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
      * @param end          fecha final del intervalo (inclusive)
      * @return liberaciones del intervalo y tipo (posiblemente vacia)
      */
-    List<Release> findByResourceTypeAndReleaseDateBetween(
+    List<ReleaseEntity> findByResourceTypeAndReleaseDateBetween(
             ResourceType resourceType, LocalDate start, LocalDate end);
 
     /**
@@ -81,7 +87,8 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
      * @param end        fecha final del intervalo (inclusive)
      * @return liberaciones propias del intervalo (posiblemente vacia)
      */
-    List<Release> findByEmployeeIdAndReleaseDateBetween(Long employeeId, LocalDate start, LocalDate end);
+    List<ReleaseEntity> findByEmployeeIdAndReleaseDateBetween(
+            Long employeeId, LocalDate start, LocalDate end);
 
     /**
      * Liberaciones de un empleado y de un tipo de recurso cuyo {@code release_date} cae
@@ -94,6 +101,6 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
      * @param end          fecha final del intervalo (inclusive)
      * @return liberaciones propias del intervalo y tipo (posiblemente vacia)
      */
-    List<Release> findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+    List<ReleaseEntity> findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
             Long employeeId, ResourceType resourceType, LocalDate start, LocalDate end);
 }

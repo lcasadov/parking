@@ -2,10 +2,8 @@ package com.aleatica.parking.release.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.aleatica.parking.auth.domain.ClockPort;
@@ -13,19 +11,21 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
-import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.resource.ResourceType;
-import com.aleatica.parking.release.ReleaseType;
+import com.aleatica.parking.release.domain.Release;
+import com.aleatica.parking.release.domain.ReleaseRepositoryPort;
+import com.aleatica.parking.release.domain.ReleaseType;
 import com.aleatica.parking.release.dto.AdministrativeReleaseRequest;
 import com.aleatica.parking.release.dto.ReleaseCreateRequest;
 import com.aleatica.parking.release.dto.ReleaseResponse;
 import com.aleatica.parking.resource.ResourceResolvers;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,13 +34,18 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
- * Tests unitarios de {@link ReleaseService} con repositorios y publicador de eventos
- * mockeados: ventana temporal, resolucion de plaza fija, unicidad recurso+fecha,
- * verificacion de pertenencia (BOLA) en cancelacion y validacion de la liberacion
- * administrativa. No toca la base de datos.
+ * Tests unitarios de {@link ReleaseService} con un <strong>fake in-memory del puerto</strong>
+ * {@link ReleaseRepositoryPort} (no un mock de Spring Data): ventana temporal, resolucion de
+ * plaza fija, unicidad recurso+fecha, verificacion de pertenencia (BOLA) en cancelacion y
+ * validacion de la liberacion administrativa. El servicio opera con el modelo de dominio; el
+ * resto de colaboradores (repositorios de empleado, resolutor de recursos, publicador de eventos)
+ * se mockean. No toca la base de datos.
  */
 @ExtendWith(MockitoExtension.class)
 class ReleaseServiceTest {
@@ -62,8 +67,7 @@ class ReleaseServiceTest {
     private static final Long RELEASE_ID = 42L;
     private static final String REASON = "Ausencia justificada";
 
-    @Mock
-    private ReleaseRepository releaseRepository;
+    private final InMemoryReleaseRepository releaseRepository = new InMemoryReleaseRepository();
 
     @Mock
     private EmployeeRepository employeeRepository;
@@ -76,9 +80,6 @@ class ReleaseServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
-
-    @Captor
-    private ArgumentCaptor<Release> savedCaptor;
 
     @Captor
     private ArgumentCaptor<ReleaseAuditEvent> eventCaptor;
@@ -98,21 +99,19 @@ class ReleaseServiceTest {
         // Arrange: una sola asignacion fija activa ese dia -> plaza resuelta implicitamente
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
-        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(false);
-        given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
         ReleaseResponse result =
                 newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null));
 
-        // Assert: VOLUNTARY, titular = ejecutor, reason nulo, plaza resuelta
+        // Assert: VOLUNTARY, titular = ejecutor, reason nulo, plaza resuelta, marca de tiempo
         assertThat(result.type()).isEqualTo(ReleaseType.VOLUNTARY);
         assertThat(result.employeeId()).isEqualTo(EMP_ID);
         assertThat(result.releasedById()).isEqualTo(EMP_ID);
         assertThat(result.reason()).isNull();
         assertThat(result.parkingSpaceId()).isEqualTo(SPACE_ID);
-        verify(releaseRepository).saveAndFlush(savedCaptor.capture());
-        assertThat(savedCaptor.getValue().getCreatedAt()).isEqualTo(NOW);
+        assertThat(result.createdAt()).isEqualTo(NOW);
+        assertThat(releaseRepository.saves()).isEqualTo(1);
         verifyEventKind(ReleaseAuditEvent.Kind.VOLUNTARY_RELEASED);
     }
 
@@ -121,8 +120,6 @@ class ReleaseServiceTest {
         // Arrange (frontera inferior inclusive: hoy cuenta como futuro inmediato)
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, TODAY.getDayOfWeek().getValue(), assignment(SPACE_ID));
-        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, TODAY)).willReturn(false);
-        given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act / Assert
         assertThat(newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(TODAY, null, null)).type())
@@ -134,10 +131,6 @@ class ReleaseServiceTest {
         // Arrange: dos asignaciones ese dia; se libera la explicita
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID), assignment(OTHER_SPACE_ID));
-        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
-                OTHER_SPACE_ID, ResourceType.PARKING, FUTURE))
-                .willReturn(false);
-        given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
         ReleaseResponse result =
@@ -155,7 +148,7 @@ class ReleaseServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(PAST, null, null)))
                 .isInstanceOf(ReleaseDateInPastException.class);
-        verify(releaseRepository, never()).saveAndFlush(any());
+        assertThat(releaseRepository.saves()).isZero();
     }
 
     @Test
@@ -167,7 +160,7 @@ class ReleaseServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null)))
                 .isInstanceOf(NoFixedAssignmentException.class);
-        verify(releaseRepository, never()).saveAndFlush(any());
+        assertThat(releaseRepository.saves()).isZero();
     }
 
     @Test
@@ -182,7 +175,7 @@ class ReleaseServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null)))
                 .isInstanceOf(NoFixedAssignmentException.class);
-        verify(releaseRepository, never()).saveAndFlush(any());
+        assertThat(releaseRepository.saves()).isZero();
     }
 
     @Test
@@ -195,7 +188,7 @@ class ReleaseServiceTest {
         assertThatThrownBy(() -> newService()
                 .createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, OTHER_SPACE_ID, null)))
                 .isInstanceOf(NoFixedAssignmentException.class);
-        verify(releaseRepository, never()).saveAndFlush(any());
+        assertThat(releaseRepository.saves()).isZero();
     }
 
     @Test
@@ -203,12 +196,12 @@ class ReleaseServiceTest {
         // Arrange: el recurso ya tiene una liberacion para esa fecha (comprobacion previa)
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
-        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(true);
+        releaseRepository.seed(releaseWithId(RELEASE_ID, SPACE_ID, EMP_ID, FUTURE));
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null)))
                 .isInstanceOf(ResourceAlreadyReleasedException.class);
-        verify(releaseRepository, never()).saveAndFlush(any());
+        assertThat(releaseRepository.saves()).isZero();
     }
 
     @Test
@@ -230,8 +223,6 @@ class ReleaseServiceTest {
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
         given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
-        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(false);
-        given(releaseRepository.saveAndFlush(any(Release.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
         ReleaseResponse result = newService().createAdministrativeRelease(
@@ -255,7 +246,7 @@ class ReleaseServiceTest {
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
                 ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, FUTURE, REASON, null)))
                 .isInstanceOf(EntityNotFoundException.class);
-        verify(releaseRepository, never()).saveAndFlush(any());
+        assertThat(releaseRepository.saves()).isZero();
     }
 
     @Test
@@ -292,7 +283,7 @@ class ReleaseServiceTest {
         given(employeeRepository.existsById(EMP_ID)).willReturn(true);
         given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW, assignment(SPACE_ID));
-        given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(true);
+        releaseRepository.seed(releaseWithId(RELEASE_ID, SPACE_ID, EMP_ID, FUTURE));
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
@@ -309,7 +300,7 @@ class ReleaseServiceTest {
         assertThatThrownBy(() -> newService().createAdministrativeRelease(
                 ADMIN_LOGIN, new AdministrativeReleaseRequest(EMP_ID, SPACE_ID, PAST, REASON, null)))
                 .isInstanceOf(ReleaseDateInPastException.class);
-        verify(releaseRepository, never()).saveAndFlush(any());
+        assertThat(releaseRepository.saves()).isZero();
     }
 
     // ---- Cancelacion: BOLA + fecha ----
@@ -317,83 +308,80 @@ class ReleaseServiceTest {
     @Test
     void shouldCancelRelease_whenFutureAndOwn() {
         // Arrange
-        Release future = Release.voluntary(SPACE_ID, EMP_ID, FUTURE, NOW);
-        given(releaseRepository.findById(RELEASE_ID)).willReturn(Optional.of(future));
+        releaseRepository.seed(releaseWithId(RELEASE_ID, SPACE_ID, EMP_ID, FUTURE));
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act
         newService().cancelRelease(RELEASE_ID, EMP_LOGIN);
 
         // Assert: borrado fisico + evento de cancelacion
-        verify(releaseRepository).delete(future);
+        assertThat(releaseRepository.wasDeleted(RELEASE_ID)).isTrue();
         verifyEventKind(ReleaseAuditEvent.Kind.CANCELLED);
     }
 
     @Test
     void shouldRejectWith403_whenCancellingReleaseOfAnotherEmployee() {
         // Arrange: la liberacion es del empleado 15; el solicitante resuelve a 99 (BOLA)
-        given(releaseRepository.findById(RELEASE_ID))
-                .willReturn(Optional.of(Release.voluntary(SPACE_ID, EMP_ID, FUTURE, NOW)));
+        releaseRepository.seed(releaseWithId(RELEASE_ID, SPACE_ID, EMP_ID, FUTURE));
         givenActor(OTHER_LOGIN, OTHER_ID);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().cancelRelease(RELEASE_ID, OTHER_LOGIN))
                 .isInstanceOf(AccessDeniedException.class);
-        verify(releaseRepository, never()).delete(any());
+        assertThat(releaseRepository.wasDeleted(RELEASE_ID)).isFalse();
     }
 
     @Test
     void shouldRejectWith409_whenCancellingPastRelease() {
         // Arrange: liberacion propia pero de fecha pasada
-        given(releaseRepository.findById(RELEASE_ID))
-                .willReturn(Optional.of(Release.voluntary(SPACE_ID, EMP_ID, PAST, NOW)));
+        releaseRepository.seed(releaseWithId(RELEASE_ID, SPACE_ID, EMP_ID, PAST));
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().cancelRelease(RELEASE_ID, EMP_LOGIN))
                 .isInstanceOf(PastReleaseCancellationException.class);
-        verify(releaseRepository, never()).delete(any());
+        assertThat(releaseRepository.wasDeleted(RELEASE_ID)).isFalse();
     }
 
     @Test
     void shouldThrowNotFound_whenCancellingUnknownRelease() {
-        // Arrange
-        given(releaseRepository.findById(RELEASE_ID)).willReturn(Optional.empty());
+        // Arrange (store vacio)
 
         // Act / Assert
         assertThatThrownBy(() -> newService().cancelRelease(RELEASE_ID, EMP_LOGIN))
                 .isInstanceOf(EntityNotFoundException.class);
-        verify(releaseRepository, never()).delete(any());
+        assertThat(releaseRepository.wasDeleted(RELEASE_ID)).isFalse();
     }
 
     @Test
     void shouldCancelTodayRelease_whenReleaseDateIsToday() {
         // Arrange (frontera: hoy no es pasado, se puede cancelar)
-        Release todayRelease = Release.voluntary(SPACE_ID, EMP_ID, TODAY, NOW);
-        given(releaseRepository.findById(RELEASE_ID)).willReturn(Optional.of(todayRelease));
+        releaseRepository.seed(releaseWithId(RELEASE_ID, SPACE_ID, EMP_ID, TODAY));
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act
         newService().cancelRelease(RELEASE_ID, EMP_LOGIN);
 
         // Assert
-        verify(releaseRepository).delete(todayRelease);
+        assertThat(releaseRepository.wasDeleted(RELEASE_ID)).isTrue();
     }
 
     // ---- Listado propio ----
 
     @Test
     void shouldListOnlyOwnReleases_whenEmployeeRequestsMine() {
-        // Arrange
+        // Arrange: dos liberaciones propias y una ajena en el store
         givenActor(EMP_LOGIN, EMP_ID);
-        given(releaseRepository.findByEmployeeId(org.mockito.ArgumentMatchers.eq(EMP_ID), any()))
-                .willReturn(org.springframework.data.domain.Page.empty());
+        releaseRepository.seed(releaseWithId(1L, SPACE_ID, EMP_ID, FUTURE));
+        releaseRepository.seed(releaseWithId(2L, OTHER_SPACE_ID, EMP_ID, TODAY));
+        releaseRepository.seed(releaseWithId(3L, SPACE_ID, OTHER_ID, FUTURE));
 
         // Act
-        newService().listMyReleases(EMP_LOGIN, org.springframework.data.domain.Pageable.unpaged());
+        var page = newService().listMyReleases(EMP_LOGIN, Pageable.unpaged());
 
         // Assert: la consulta se restringe al empleado de la sesion (BOLA implicita)
-        verify(releaseRepository).findByEmployeeId(org.mockito.ArgumentMatchers.eq(EMP_ID), any());
+        assertThat(page.content()).extracting(ReleaseResponse::employeeId).containsOnly(EMP_ID);
+        assertThat(page.content()).hasSize(2);
     }
 
     // ---- Helpers ----
@@ -415,8 +403,80 @@ class ReleaseServiceTest {
         given(employeeRepository.findByLogin(login)).willReturn(Optional.of(actor));
     }
 
+    private static Release releaseWithId(Long id, Long resourceId, Long employeeId, LocalDate date) {
+        return Release.restore(
+                id, resourceId, ResourceType.PARKING, employeeId, date, ReleaseType.VOLUNTARY,
+                null, employeeId, NOW);
+    }
+
     private void verifyEventKind(ReleaseAuditEvent.Kind kind) {
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().kind()).isEqualTo(kind);
+    }
+
+    /**
+     * Fake in-memory del puerto de persistencia de liberaciones: sustituye a un mock de Spring
+     * Data en los tests unitarios del servicio. {@link #seed(Release)} precarga estado sin contar
+     * como escritura; {@link #saveAndFlush} asigna id (si falta) y cuenta la invocacion para
+     * verificar los caminos que NO deben persistir; {@link #delete} registra el borrado y
+     * {@link #existsByResourceIdAndResourceTypeAndReleaseDate} deriva de las filas del store.
+     */
+    private static final class InMemoryReleaseRepository implements ReleaseRepositoryPort {
+
+        private final Map<Long, Release> store = new HashMap<>();
+        private final List<Long> deletedIds = new ArrayList<>();
+        private long sequence = 1000L;
+        private int saves;
+
+        void seed(Release release) {
+            store.put(release.getId(), release);
+        }
+
+        int saves() {
+            return saves;
+        }
+
+        boolean wasDeleted(Long id) {
+            return deletedIds.contains(id);
+        }
+
+        @Override
+        public Optional<Release> findById(Long id) {
+            return Optional.ofNullable(store.get(id));
+        }
+
+        @Override
+        public Release saveAndFlush(Release release) {
+            saves++;
+            Long id = release.getId() != null ? release.getId() : ++sequence;
+            Release stored = Release.restore(
+                    id, release.getResourceId(), release.getResourceType(), release.getEmployeeId(),
+                    release.getReleaseDate(), release.getType(), release.getReason(),
+                    release.getReleasedById(), release.getCreatedAt());
+            store.put(id, stored);
+            return stored;
+        }
+
+        @Override
+        public void delete(Release release) {
+            deletedIds.add(release.getId());
+            store.remove(release.getId());
+        }
+
+        @Override
+        public boolean existsByResourceIdAndResourceTypeAndReleaseDate(
+                Long resourceId, ResourceType resourceType, LocalDate releaseDate) {
+            return store.values().stream().anyMatch(r ->
+                    resourceId.equals(r.getResourceId())
+                            && resourceType == r.getResourceType()
+                            && releaseDate.equals(r.getReleaseDate()));
+        }
+
+        @Override
+        public Page<Release> findByEmployeeId(Long employeeId, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> employeeId.equals(r.getEmployeeId()))
+                    .toList());
+        }
     }
 }

@@ -2,6 +2,8 @@ package com.aleatica.parking.release;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.aleatica.parking.release.domain.Release;
+import com.aleatica.parking.release.domain.ReleaseType;
 import com.aleatica.parking.resource.ResourceType;
 import java.lang.reflect.Field;
 import java.time.Instant;

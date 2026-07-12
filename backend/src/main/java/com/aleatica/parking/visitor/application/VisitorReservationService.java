@@ -7,7 +7,7 @@ import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
-import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.resource.ResourceType;
@@ -61,7 +61,7 @@ public class VisitorReservationService {
     private final ParkingSpaceRepository parkingSpaceRepository;
     private final FixedAssignmentRepository fixedAssignmentRepository;
     private final RequestJpaRepository requestRepository;
-    private final ReleaseRepository releaseRepository;
+    private final ReleaseJpaRepository releaseRepository;
     private final EmployeeRepository employeeRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
@@ -83,7 +83,7 @@ public class VisitorReservationService {
             ParkingSpaceRepository parkingSpaceRepository,
             FixedAssignmentRepository fixedAssignmentRepository,
             RequestJpaRepository requestRepository,
-            ReleaseRepository releaseRepository,
+            ReleaseJpaRepository releaseRepository,
             EmployeeRepository employeeRepository,
             ApplicationEventPublisher eventPublisher,
             ClockPort clock) {

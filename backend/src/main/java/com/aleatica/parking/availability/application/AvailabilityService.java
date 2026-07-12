@@ -17,8 +17,8 @@ import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
 import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
@@ -73,7 +73,7 @@ public class AvailabilityService {
     private final ParkingSpaceRepository parkingSpaceRepository;
     private final DeskRepository deskRepository;
     private final FixedAssignmentRepository fixedAssignmentRepository;
-    private final ReleaseRepository releaseRepository;
+    private final ReleaseJpaRepository releaseRepository;
     private final RequestJpaRepository requestRepository;
     private final VisitorReservationRepository visitorReservationRepository;
     private final EmployeeRepository employeeRepository;
@@ -93,7 +93,7 @@ public class AvailabilityService {
             ParkingSpaceRepository parkingSpaceRepository,
             DeskRepository deskRepository,
             FixedAssignmentRepository fixedAssignmentRepository,
-            ReleaseRepository releaseRepository,
+            ReleaseJpaRepository releaseRepository,
             RequestJpaRepository requestRepository,
             VisitorReservationRepository visitorReservationRepository,
             EmployeeRepository employeeRepository,
@@ -175,7 +175,7 @@ public class AvailabilityService {
         Set<Long> fixedAssigned = activeFixedResourceIdsForDay(resourceIds, resourceType, dow);
         Set<Long> released = spaceIds(
                 releaseRepository.findByResourceTypeAndReleaseDateBetween(resourceType, date, date),
-                Release::getResourceId);
+                ReleaseEntity::getResourceId);
         Set<Long> approved = spaceIds(
                 requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
                         RequestStatus.APPROVED, resourceType, date, date),
@@ -365,7 +365,7 @@ public class AvailabilityService {
         List<RequestEntity> myRequests = requestRepository
                 .findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
                         employeeId, ResourceType.PARKING, weekStart, weekEnd);
-        List<Release> myReleases = releaseRepository
+        List<ReleaseEntity> myReleases = releaseRepository
                 .findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
                         employeeId, ResourceType.PARKING, weekStart, weekEnd);
 

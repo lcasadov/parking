@@ -10,8 +10,8 @@ import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.FloorPlanDeskResponse;
 import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
 import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
@@ -53,7 +53,7 @@ public class FloorPlanQueryService {
 
     private final DeskRepository deskRepository;
     private final FixedAssignmentRepository fixedAssignmentRepository;
-    private final ReleaseRepository releaseRepository;
+    private final ReleaseJpaRepository releaseRepository;
     private final RequestJpaRepository requestRepository;
     private final EmployeeRepository employeeRepository;
     private final ClockPort clock;
@@ -69,7 +69,7 @@ public class FloorPlanQueryService {
     public FloorPlanQueryService(
             DeskRepository deskRepository,
             FixedAssignmentRepository fixedAssignmentRepository,
-            ReleaseRepository releaseRepository,
+            ReleaseJpaRepository releaseRepository,
             RequestJpaRepository requestRepository,
             EmployeeRepository employeeRepository,
             ClockPort clock) {
@@ -105,7 +105,7 @@ public class FloorPlanQueryService {
         Map<Long, Long> fixedByDesk = fixedHoldersForDay(deskIds, dow);
         Set<Long> releasedDesks = releaseRepository
                 .findByResourceTypeAndReleaseDateBetween(ResourceType.DESK, date, date).stream()
-                .map(Release::getResourceId)
+                .map(ReleaseEntity::getResourceId)
                 .collect(Collectors.toSet());
 
         List<FloorPlanDeskResponse> items = desks.stream()

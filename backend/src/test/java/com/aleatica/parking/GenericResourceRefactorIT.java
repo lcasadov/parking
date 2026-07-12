@@ -6,8 +6,8 @@ import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
 import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpaceResourceResolver;
@@ -49,7 +49,7 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
     private RequestJpaRepository requestRepository;
 
     @Autowired
-    private ReleaseRepository releaseRepository;
+    private ReleaseJpaRepository releaseRepository;
 
     @Autowired
     private AvailabilityService availabilityService;
@@ -116,7 +116,7 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
         fixedAssignmentRepository.saveAndFlush(
                 FixedAssignment.create(spaceReleased, employeeReleased, DATE_DOW, seedAdminId(), Instant.now()));
         releaseRepository.saveAndFlush(
-                Release.voluntary(spaceReleased, employeeReleased, DATE, Instant.now()));
+                ReleaseEntity.voluntary(spaceReleased, employeeReleased, DATE, Instant.now()));
 
         // Act
         List<Long> available = availabilityService.availabilityForDate(DATE).availableResources().stream()

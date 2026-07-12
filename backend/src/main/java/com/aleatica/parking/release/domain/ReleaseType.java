@@ -1,10 +1,12 @@
-package com.aleatica.parking.release;
+package com.aleatica.parking.release.domain;
 
 /**
  * Tipo de liberacion de un recurso con asignacion fija (schema {@code ReleaseType}
  * de la API; CHECK {@code CK_releases_type} de {@code data-model.md §3.4}).
  *
- * <p>El valor se persiste por su nombre ({@code @Enumerated(EnumType.STRING)}),
+ * <p>Pertenece al dominio del agregado {@code release} (arquitectura hexagonal, change
+ * {@code hexagonal-persistence}): es un value type libre de framework. El valor se persiste
+ * por su nombre ({@code @Enumerated(EnumType.STRING)} en la entidad de infraestructura),
  * identico al catalogo del CHECK de la BD.</p>
  */
 public enum ReleaseType {

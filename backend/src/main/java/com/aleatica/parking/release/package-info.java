@@ -1,7 +1,9 @@
 /**
- * Modulo de liberaciones: la entidad de persistencia
- * {@link com.aleatica.parking.release.Release}, su repositorio JPA, los casos de uso
- * ({@link com.aleatica.parking.release.application.ReleaseService}) y el adaptador web
+ * Modulo de liberaciones (arquitectura hexagonal, change {@code hexagonal-persistence}): el
+ * modelo de dominio {@link com.aleatica.parking.release.domain.Release} y su puerto de salida
+ * {@link com.aleatica.parking.release.domain.ReleaseRepositoryPort}, el adaptador de persistencia
+ * ({@code release.infrastructure}: entidad JPA, repositorio Spring Data, mapper y adaptador), los
+ * casos de uso ({@link com.aleatica.parking.release.application.ReleaseService}) y el adaptador web
  * ({@link com.aleatica.parking.release.ReleaseController}).
  *
  * <p>Una liberacion marca un recurso con asignacion fija como disponible para una fecha

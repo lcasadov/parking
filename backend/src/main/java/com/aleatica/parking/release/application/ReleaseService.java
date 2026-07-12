@@ -6,8 +6,8 @@ import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.fixedassignment.FixedAssignment;
 import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.release.domain.Release;
+import com.aleatica.parking.release.domain.ReleaseRepositoryPort;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.release.dto.AdministrativeReleaseRequest;
@@ -59,7 +59,7 @@ public class ReleaseService {
     private static final String MSG_PAST_CANCELLATION =
             "No se pueden anular liberaciones de fechas pasadas";
 
-    private final ReleaseRepository releaseRepository;
+    private final ReleaseRepositoryPort releaseRepository;
     private final EmployeeRepository employeeRepository;
     private final ResourceResolvers resourceResolvers;
     private final FixedAssignmentRepository fixedAssignmentRepository;
@@ -76,7 +76,7 @@ public class ReleaseService {
      * @param clock                     reloj inyectable para la ventana y las marcas de tiempo
      */
     public ReleaseService(
-            ReleaseRepository releaseRepository,
+            ReleaseRepositoryPort releaseRepository,
             EmployeeRepository employeeRepository,
             ResourceResolvers resourceResolvers,
             FixedAssignmentRepository fixedAssignmentRepository,
