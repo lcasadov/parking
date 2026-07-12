@@ -5,7 +5,7 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { createDesk, listDesks, updateDesk } from '../api/desksApi';
+import { createDesk, listDesks, setDeskActivation, updateDesk } from '../api/desksApi';
 import type { Desk, DeskCreate, DeskListParams, PageDesk } from '../types/desk';
 
 // Clave raíz de la caché de puestos (S1192: sin literales repetidos).
@@ -48,6 +48,19 @@ export function useUpdateDesk(): UseMutationResult<Desk, unknown, UpdateDeskVars
   const invalidate = useInvalidateDesks();
   return useMutation({
     mutationFn: ({ id, body }: UpdateDeskVars) => updateDesk(id, body),
+    onSuccess: invalidate,
+  });
+}
+
+export interface SetDeskActivationVars {
+  id: number;
+  active: boolean;
+}
+
+export function useSetDeskActivation(): UseMutationResult<Desk, unknown, SetDeskActivationVars> {
+  const invalidate = useInvalidateDesks();
+  return useMutation({
+    mutationFn: ({ id, active }: SetDeskActivationVars) => setDeskActivation(id, active),
     onSuccess: invalidate,
   });
 }

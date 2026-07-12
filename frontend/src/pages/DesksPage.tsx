@@ -6,7 +6,7 @@ import { DeskFormModal } from '../components/DeskFormModal';
 import { Legend } from '../components/Legend';
 import { Spinner } from '../components/Spinner';
 import { emitApiErrorToast } from '../api/events';
-import { useDesksQuery, useUpdateDesk } from '../hooks/useDesks';
+import { useDesksQuery, useSetDeskActivation } from '../hooks/useDesks';
 import type { Desk } from '../types/desk';
 
 const PAGE_SIZE = 20;
@@ -40,7 +40,7 @@ export function DesksPage() {
     size: PAGE_SIZE,
     active: filterToActive(filter),
   });
-  const updateMutation = useUpdateDesk();
+  const activationMutation = useSetDeskActivation();
 
   function handleFilter(value: ActiveFilter): void {
     setFilter(value);
@@ -63,17 +63,10 @@ export function DesksPage() {
   }
 
   function toggleActivation(desk: Desk): void {
-    updateMutation.mutate(
-      {
-        id: desk.id,
-        body: {
-          number: desk.number,
-          category: desk.category,
-          coordX: desk.coordX,
-          coordY: desk.coordY,
-          active: !desk.active,
-        },
-      },
+    // La activación usa su endpoint dedicado (PATCH /desks/{id}/activation); el de
+    // actualización (PUT) NO modifica `active` (bug #83).
+    activationMutation.mutate(
+      { id: desk.id, active: !desk.active },
       { onError: () => emitApiErrorToast('desks.errors.toggle') },
     );
   }
@@ -178,7 +171,7 @@ export function DesksPage() {
                       <Button
                         variant={desk.active ? 'red' : 'green'}
                         icon={desk.active ? 'circle-off' : 'circle-check'}
-                        disabled={updateMutation.isPending}
+                        disabled={activationMutation.isPending}
                         onClick={() => toggleActivation(desk)}
                       >
                         {t(desk.active ? 'desks.actions.deactivate' : 'desks.actions.activate')}

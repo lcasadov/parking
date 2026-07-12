@@ -39,3 +39,10 @@ export async function updateDesk(id: number, body: DeskCreate): Promise<Desk> {
   const { data } = await apiClient.put<Desk>(`${DESKS}/${id}`, body);
   return data;
 }
+
+// Activa/desactiva un puesto. El endpoint de actualización (PUT) NO modifica el
+// estado; la activación tiene su endpoint dedicado (bug #83).
+export async function setDeskActivation(id: number, active: boolean): Promise<Desk> {
+  const { data } = await apiClient.patch<Desk>(`${DESKS}/${id}/activation`, { active });
+  return data;
+}

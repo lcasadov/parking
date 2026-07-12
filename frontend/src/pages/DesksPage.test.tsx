@@ -65,7 +65,7 @@ describe('DesksPage', () => {
     let sentBody: Record<string, unknown> | null = null;
     server.use(
       http.get(DESKS_URL, () => HttpResponse.json(pageOfDesks([deskStandard]))),
-      http.put(`${DESKS_URL}/:id`, async ({ request, params }) => {
+      http.patch(`${DESKS_URL}/:id/activation`, async ({ request, params }) => {
         sentBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ ...deskStandard, ...sentBody, id: Number(params.id) });
       }),
@@ -77,14 +77,14 @@ describe('DesksPage', () => {
     await user.click(within(row).getByRole('button', { name: /desactivar|deactivate/i }));
 
     await waitFor(() => expect(sentBody).not.toBeNull());
-    expect(sentBody).toMatchObject({ active: false, number: 1 });
+    expect(sentBody).toMatchObject({ active: false });
   });
 
   it('should_activate_desk_when_toggling_inactive', async () => {
     let sentBody: Record<string, unknown> | null = null;
     server.use(
       http.get(DESKS_URL, () => HttpResponse.json(pageOfDesks([deskInactive]))),
-      http.put(`${DESKS_URL}/:id`, async ({ request, params }) => {
+      http.patch(`${DESKS_URL}/:id/activation`, async ({ request, params }) => {
         sentBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ ...deskInactive, ...sentBody, id: Number(params.id) });
       }),
