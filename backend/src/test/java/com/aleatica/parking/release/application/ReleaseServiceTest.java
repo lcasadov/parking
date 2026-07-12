@@ -9,8 +9,8 @@ import static org.mockito.Mockito.verify;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.release.domain.Release;
 import com.aleatica.parking.release.domain.ReleaseRepositoryPort;
 import com.aleatica.parking.release.domain.ReleaseType;
@@ -76,7 +76,7 @@ class ReleaseServiceTest {
     private ResourceResolvers resourceResolvers;
 
     @Mock
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -169,8 +169,8 @@ class ReleaseServiceTest {
         // concreta no se llega a leer: la ambiguedad se detecta por el numero de filas)
         givenActor(EMP_LOGIN, EMP_ID);
         givenAssignmentsFor(EMP_ID, FUTURE_DOW,
-                mock(com.aleatica.parking.fixedassignment.FixedAssignment.class),
-                mock(com.aleatica.parking.fixedassignment.FixedAssignment.class));
+                mock(FixedAssignmentEntity.class),
+                mock(FixedAssignmentEntity.class));
 
         // Act / Assert
         assertThatThrownBy(() -> newService().createRelease(EMP_LOGIN, new ReleaseCreateRequest(FUTURE, null, null)))
@@ -386,13 +386,13 @@ class ReleaseServiceTest {
 
     // ---- Helpers ----
 
-    private FixedAssignment assignment(Long resourceId) {
-        FixedAssignment assignment = mock(FixedAssignment.class);
+    private FixedAssignmentEntity assignment(Long resourceId) {
+        FixedAssignmentEntity assignment = mock(FixedAssignmentEntity.class);
         given(assignment.getResourceId()).willReturn(resourceId);
         return assignment;
     }
 
-    private void givenAssignmentsFor(Long employeeId, int dayOfWeek, FixedAssignment... assignments) {
+    private void givenAssignmentsFor(Long employeeId, int dayOfWeek, FixedAssignmentEntity... assignments) {
         given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(employeeId, ResourceType.PARKING, dayOfWeek))
                 .willReturn(List.of(assignments));
     }

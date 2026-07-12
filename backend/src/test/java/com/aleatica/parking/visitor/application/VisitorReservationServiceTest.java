@@ -12,7 +12,7 @@ import static org.mockito.Mockito.verify;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
@@ -62,7 +62,7 @@ class VisitorReservationServiceTest {
     @Mock
     private ParkingSpaceRepository parkingSpaceRepository;
     @Mock
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
     @Mock
     private RequestJpaRepository requestRepository;
     @Mock

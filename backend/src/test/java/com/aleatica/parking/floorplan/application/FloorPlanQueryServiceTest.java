@@ -14,8 +14,8 @@ import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.FloorPlanDeskResponse;
 import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
@@ -59,7 +59,7 @@ class FloorPlanQueryServiceTest {
     private static final int WITHIN_DOW = WITHIN.getDayOfWeek().getValue();
 
     private DeskRepository deskRepository;
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
     private ReleaseJpaRepository releaseRepository;
     private RequestJpaRepository requestRepository;
     private EmployeeRepository employeeRepository;
@@ -70,7 +70,7 @@ class FloorPlanQueryServiceTest {
     @BeforeEach
     void setUp() {
         deskRepository = mock(DeskRepository.class);
-        fixedAssignmentRepository = mock(FixedAssignmentRepository.class);
+        fixedAssignmentRepository = mock(FixedAssignmentJpaRepository.class);
         releaseRepository = mock(ReleaseJpaRepository.class);
         requestRepository = mock(RequestJpaRepository.class);
         employeeRepository = mock(EmployeeRepository.class);
@@ -172,8 +172,8 @@ class FloorPlanQueryServiceTest {
         return RequestEntity.create(employeeId, ResourceType.DESK, WITHIN, NOW);
     }
 
-    private static FixedAssignment deskFixed(Long resourceId, Long employeeId, int dow) {
-        return FixedAssignment.create(
+    private static FixedAssignmentEntity deskFixed(Long resourceId, Long employeeId, int dow) {
+        return FixedAssignmentEntity.create(
                 resourceId, ResourceType.DESK, employeeId, dow, ADMIN_ID, NOW);
     }
 

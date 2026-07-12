@@ -32,10 +32,10 @@
 
 ## 4. Agregado `fixedassignment`
 
-- [ ] 4.1 Dominio `FixedAssignment` + `FixedAssignmentRepositoryPort`
-- [ ] 4.2 Infraestructura: entidad + JpaRepository + adaptador + mapper
-- [ ] 4.3 Refactor `FixedAssignmentService` (set semanal por empleado)
-- [ ] 4.4 `mvn verify` verde; ArchUnit ampliado
+- [x] 4.1 Dominio `FixedAssignment` + `FixedAssignmentRepositoryPort`
+- [x] 4.2 Infraestructura: entidad + JpaRepository + adaptador + mapper
+- [x] 4.3 Refactor `FixedAssignmentService` (set semanal por empleado)
+- [x] 4.4 `mvn verify` verde; ArchUnit ampliado
 
 ## 5. Agregado `desk`
 

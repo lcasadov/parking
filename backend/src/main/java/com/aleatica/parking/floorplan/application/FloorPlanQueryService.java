@@ -5,8 +5,8 @@ import com.aleatica.parking.desk.Desk;
 import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.FloorPlanDeskResponse;
 import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
@@ -52,7 +52,7 @@ public class FloorPlanQueryService {
             "La fecha consultada debe estar entre hoy y hoy+14 dias";
 
     private final DeskRepository deskRepository;
-    private final FixedAssignmentRepository fixedAssignmentRepository;
+    private final FixedAssignmentJpaRepository fixedAssignmentRepository;
     private final ReleaseJpaRepository releaseRepository;
     private final RequestJpaRepository requestRepository;
     private final EmployeeRepository employeeRepository;
@@ -68,7 +68,7 @@ public class FloorPlanQueryService {
      */
     public FloorPlanQueryService(
             DeskRepository deskRepository,
-            FixedAssignmentRepository fixedAssignmentRepository,
+            FixedAssignmentJpaRepository fixedAssignmentRepository,
             ReleaseJpaRepository releaseRepository,
             RequestJpaRepository requestRepository,
             EmployeeRepository employeeRepository,
@@ -165,7 +165,7 @@ public class FloorPlanQueryService {
                 .findByResourceIdInAndResourceTypeAndActiveTrue(deskIds, ResourceType.DESK).stream()
                 .filter(fa -> fa.getDayOfWeek() == dow)
                 .collect(Collectors.toMap(
-                        FixedAssignment::getResourceId, FixedAssignment::getEmployeeId, (a, b) -> a));
+                        FixedAssignmentEntity::getResourceId, FixedAssignmentEntity::getEmployeeId, (a, b) -> a));
     }
 
     private void requireWithinWindow(LocalDate date) {

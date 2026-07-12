@@ -18,8 +18,8 @@ import com.aleatica.parking.availability.dto.MyWeekResponse;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.infrastructure.ReleaseEntity;
@@ -73,7 +73,7 @@ class AvailabilityServiceTest {
     @Mock
     private com.aleatica.parking.desk.DeskRepository deskRepository;
     @Mock
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
     @Mock
     private ReleaseJpaRepository releaseRepository;
     @Mock
@@ -418,7 +418,7 @@ class AvailabilityServiceTest {
                 .willReturn(List.of());
     }
 
-    private void givenFixedAssignments(FixedAssignment... assignments) {
+    private void givenFixedAssignments(FixedAssignmentEntity... assignments) {
         given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
                 anyCollection(), eq(ResourceType.PARKING)))
                 .willReturn(List.of(assignments));
@@ -453,8 +453,8 @@ class AvailabilityServiceTest {
         return space;
     }
 
-    private static FixedAssignment assignment(Long spaceId, Long employeeId, int dow) {
-        return FixedAssignment.create(spaceId, employeeId, dow, 1L, NOW);
+    private static FixedAssignmentEntity assignment(Long spaceId, Long employeeId, int dow) {
+        return FixedAssignmentEntity.create(spaceId, employeeId, dow, 1L, NOW);
     }
 
     private static ReleaseEntity release(Long spaceId, LocalDate date) {

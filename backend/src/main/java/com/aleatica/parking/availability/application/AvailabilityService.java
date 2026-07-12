@@ -13,8 +13,8 @@ import com.aleatica.parking.availability.dto.MyWeekResponse;
 import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.infrastructure.ReleaseEntity;
@@ -72,7 +72,7 @@ public class AvailabilityService {
 
     private final ParkingSpaceRepository parkingSpaceRepository;
     private final DeskRepository deskRepository;
-    private final FixedAssignmentRepository fixedAssignmentRepository;
+    private final FixedAssignmentJpaRepository fixedAssignmentRepository;
     private final ReleaseJpaRepository releaseRepository;
     private final RequestJpaRepository requestRepository;
     private final VisitorReservationRepository visitorReservationRepository;
@@ -92,7 +92,7 @@ public class AvailabilityService {
     public AvailabilityService(
             ParkingSpaceRepository parkingSpaceRepository,
             DeskRepository deskRepository,
-            FixedAssignmentRepository fixedAssignmentRepository,
+            FixedAssignmentJpaRepository fixedAssignmentRepository,
             ReleaseJpaRepository releaseRepository,
             RequestJpaRepository requestRepository,
             VisitorReservationRepository visitorReservationRepository,
@@ -283,8 +283,8 @@ public class AvailabilityService {
         List<ParkingSpace> spaces = parkingSpaceRepository.findByActiveTrueOrderByIdAsc();
         List<Long> spaceIds = spaces.stream().map(ParkingSpace::getId).toList();
 
-        List<FixedAssignment> fixed = activeFixed(spaceIds, ResourceType.PARKING);
-        Map<SpaceDow, FixedAssignment> fixedBySpaceDow = fixed.stream()
+        List<FixedAssignmentEntity> fixed = activeFixed(spaceIds, ResourceType.PARKING);
+        Map<SpaceDow, FixedAssignmentEntity> fixedBySpaceDow = fixed.stream()
                 .collect(Collectors.toMap(
                         fa -> new SpaceDow(fa.getResourceId(), fa.getDayOfWeek()),
                         Function.identity(), (a, b) -> a));
@@ -307,7 +307,7 @@ public class AvailabilityService {
     }
 
     private CalendarRowResponse row(
-            ParkingSpace space, List<LocalDate> days, Map<SpaceDow, FixedAssignment> fixedBySpaceDow,
+            ParkingSpace space, List<LocalDate> days, Map<SpaceDow, FixedAssignmentEntity> fixedBySpaceDow,
             Set<SpaceDate> releasedKeys, Map<SpaceDate, RequestEntity> approvedBySpaceDate,
             Map<Long, String> names) {
         List<CalendarCellResponse> cells = days.stream()
@@ -317,7 +317,7 @@ public class AvailabilityService {
     }
 
     private CalendarCellResponse cell(
-            Long spaceId, LocalDate day, Map<SpaceDow, FixedAssignment> fixedBySpaceDow,
+            Long spaceId, LocalDate day, Map<SpaceDow, FixedAssignmentEntity> fixedBySpaceDow,
             Set<SpaceDate> releasedKeys, Map<SpaceDate, RequestEntity> approvedBySpaceDate,
             Map<Long, String> names) {
         SpaceDate spaceDate = new SpaceDate(spaceId, day);
@@ -326,7 +326,7 @@ public class AvailabilityService {
             return new CalendarCellResponse(day, CalendarCellState.REQUEST_APPROVED,
                     approved.getEmployeeId(), names.get(approved.getEmployeeId()), approved.getId());
         }
-        FixedAssignment assignment = fixedBySpaceDow.get(new SpaceDow(spaceId, day.getDayOfWeek().getValue()));
+        FixedAssignmentEntity assignment = fixedBySpaceDow.get(new SpaceDow(spaceId, day.getDayOfWeek().getValue()));
         if (assignment != null) {
             CalendarCellState state = releasedKeys.contains(spaceDate)
                     ? CalendarCellState.RELEASED : CalendarCellState.ASSIGNED;
@@ -359,7 +359,7 @@ public class AvailabilityService {
         // "Mi Semana" es una vista de PARKING (plazas): se filtra por tipo para que un recurso
         // DESK del empleado con el mismo resource_id que una plaza no contamine la vista. La
         // vista de puestos se aborda en floor-plan.
-        List<FixedAssignment> myFixed = fixedAssignmentRepository
+        List<FixedAssignmentEntity> myFixed = fixedAssignmentRepository
                 .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
                         employeeId, ResourceType.PARKING);
         List<RequestEntity> myRequests = requestRepository
@@ -369,8 +369,8 @@ public class AvailabilityService {
                 .findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
                         employeeId, ResourceType.PARKING, weekStart, weekEnd);
 
-        Map<Integer, FixedAssignment> fixedByDow = myFixed.stream()
-                .collect(Collectors.toMap(FixedAssignment::getDayOfWeek, Function.identity(), (a, b) -> a));
+        Map<Integer, FixedAssignmentEntity> fixedByDow = myFixed.stream()
+                .collect(Collectors.toMap(FixedAssignmentEntity::getDayOfWeek, Function.identity(), (a, b) -> a));
         Map<LocalDate, RequestEntity> approvedByDate = requestsByDate(myRequests, RequestStatus.APPROVED);
         Map<LocalDate, RequestEntity> pendingByDate = requestsByDate(myRequests, RequestStatus.PENDING);
         Set<SpaceDate> releasedKeys = myReleases.stream()
@@ -385,14 +385,14 @@ public class AvailabilityService {
     }
 
     private MyWeekDayResponse myWeekDay(
-            LocalDate day, Map<Integer, FixedAssignment> fixedByDow, Map<LocalDate, RequestEntity> approvedByDate,
+            LocalDate day, Map<Integer, FixedAssignmentEntity> fixedByDow, Map<LocalDate, RequestEntity> approvedByDate,
             Map<LocalDate, RequestEntity> pendingByDate, Set<SpaceDate> releasedKeys, Map<Long, String> labels) {
         RequestEntity approved = approvedByDate.get(day);
         if (approved != null) {
             return new MyWeekDayResponse(day, MyWeekDayState.ASSIGNED,
                     labels.get(approved.getResourceId()), RequestStatus.APPROVED);
         }
-        FixedAssignment assignment = fixedByDow.get(day.getDayOfWeek().getValue());
+        FixedAssignmentEntity assignment = fixedByDow.get(day.getDayOfWeek().getValue());
         if (assignment != null) {
             boolean released = releasedKeys.contains(new SpaceDate(assignment.getResourceId(), day));
             MyWeekDayState state = released ? MyWeekDayState.RELEASED : MyWeekDayState.ASSIGNED;
@@ -412,11 +412,11 @@ public class AvailabilityService {
             List<Long> resourceIds, ResourceType resourceType, int dow) {
         return activeFixed(resourceIds, resourceType).stream()
                 .filter(fa -> fa.getDayOfWeek() == dow)
-                .map(FixedAssignment::getResourceId)
+                .map(FixedAssignmentEntity::getResourceId)
                 .collect(Collectors.toSet());
     }
 
-    private List<FixedAssignment> activeFixed(List<Long> resourceIds, ResourceType resourceType) {
+    private List<FixedAssignmentEntity> activeFixed(List<Long> resourceIds, ResourceType resourceType) {
         if (resourceIds.isEmpty()) {
             return List.of();
         }
@@ -425,8 +425,8 @@ public class AvailabilityService {
     }
 
     private Map<Long, String> employeeNames(
-            List<FixedAssignment> fixed, Collection<RequestEntity> approved) {
-        Set<Long> ids = fixed.stream().map(FixedAssignment::getEmployeeId)
+            List<FixedAssignmentEntity> fixed, Collection<RequestEntity> approved) {
+        Set<Long> ids = fixed.stream().map(FixedAssignmentEntity::getEmployeeId)
                 .collect(Collectors.toCollection(HashSet::new));
         approved.forEach(r -> ids.add(r.getEmployeeId()));
         if (ids.isEmpty()) {
@@ -437,8 +437,8 @@ public class AvailabilityService {
     }
 
     private Map<Long, String> spaceLabels(
-            Map<Integer, FixedAssignment> fixedByDow, Map<LocalDate, RequestEntity> approvedByDate) {
-        Set<Long> ids = fixedByDow.values().stream().map(FixedAssignment::getResourceId)
+            Map<Integer, FixedAssignmentEntity> fixedByDow, Map<LocalDate, RequestEntity> approvedByDate) {
+        Set<Long> ids = fixedByDow.values().stream().map(FixedAssignmentEntity::getResourceId)
                 .collect(Collectors.toCollection(HashSet::new));
         approvedByDate.values().forEach(r -> ids.add(r.getResourceId()));
         if (ids.isEmpty()) {

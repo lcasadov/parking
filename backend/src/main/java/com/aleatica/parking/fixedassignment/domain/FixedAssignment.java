@@ -1,87 +1,51 @@
-package com.aleatica.parking.fixedassignment;
+package com.aleatica.parking.fixedassignment.domain;
 
 import com.aleatica.parking.resource.ResourceType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /**
- * Entidad de persistencia de una asignacion fija (tabla {@code dbo.fixed_assignments}).
+ * Modelo de dominio de una asignacion fija (arquitectura hexagonal, change
+ * {@code hexagonal-persistence}).
  *
- * <p>Vinculo indefinido entre un empleado y una plaza de parking para un dia de la
- * semana ({@code day_of_week} 1-7), vigente hasta que el {@code ADMIN} lo revoca. La
- * revocacion es <em>logica</em> ({@code active=false} + {@code revoked_at}/
- * {@code revoked_by_id}), nunca fisica, para preservar el historico (auditoria).</p>
+ * <p>Es el nucleo de negocio del agregado {@code fixedassignment}: <strong>libre de
+ * framework</strong> (sin JPA, sin Spring, sin Hibernate). Vinculo indefinido entre un
+ * empleado y un recurso (plaza o puesto) para un dia de la semana ({@code dayOfWeek} 1-7),
+ * vigente hasta que el {@code ADMIN} lo revoca. La revocacion es <em>logica</em>
+ * ({@link #revoke(Long, Instant)}: {@code active=false} + {@code revokedAt}/
+ * {@code revokedById}), nunca fisica, para preservar el historico (auditoria). La
+ * persistencia la resuelve un adaptador de infraestructura que mapea este modelo a/desde una
+ * entidad JPA ({@code FixedAssignmentEntity}) a traves de {@code FixedAssignmentMapper}.</p>
  *
- * <p>Es un adaptador de salida: nunca se expone en la capa web (S4684); el
- * controlador trabaja con DTOs. Las referencias a otras tablas se guardan como
- * identificadores ({@code Long}) en lugar de {@code @ManyToOne}, evitando por diseno
- * cualquier consulta N+1 y manteniendo el agregado desacoplado.</p>
- *
- * <p>Tras el refactor a recurso generico la referencia reservable es
- * {@code resource_id} + {@code resource_type} ({@link ResourceType}); en el nucleo de
- * parking el tipo es siempre {@link ResourceType#PARKING} y {@code resource_id} apunta
- * a la {@code ParkingSpace}. El DTO de salida sigue exponiendo {@code parkingSpaceId}
- * (contrato invariable).</p>
+ * <p>La referencia reservable es {@code resourceId} + {@code resourceType}
+ * ({@link ResourceType}); en el nucleo de parking el tipo es siempre
+ * {@link ResourceType#PARKING} y {@code resourceId} apunta a la {@code ParkingSpace}. Las
+ * referencias a otras tablas se guardan como identificadores ({@code Long}), manteniendo el
+ * agregado desacoplado.</p>
  */
-@Entity
-@Table(name = "fixed_assignments")
 public class FixedAssignment {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "resource_id", nullable = false)
     private Long resourceId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "resource_type", nullable = false, length = 10)
     private ResourceType resourceType;
-
-    @Column(name = "employee_id", nullable = false)
     private Long employeeId;
-
-    @JdbcTypeCode(SqlTypes.TINYINT)
-    @Column(name = "day_of_week", nullable = false)
     private Integer dayOfWeek;
-
-    @Column(name = "active", nullable = false)
     private boolean active = true;
-
-    @Column(name = "created_by_id", nullable = false)
     private Long createdById;
-
-    @JdbcTypeCode(SqlTypes.TIMESTAMP)
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
-
-    @Column(name = "revoked_by_id")
     private Long revokedById;
-
-    @JdbcTypeCode(SqlTypes.TIMESTAMP)
-    @Column(name = "revoked_at")
     private Instant revokedAt;
 
-    /** Constructor sin argumentos requerido por JPA. */
-    protected FixedAssignment() {
-        // JPA
+    /** Constructor privado; las instancias se obtienen por las factorias estaticas. */
+    private FixedAssignment() {
+        // factorias
     }
 
     /**
-     * Da de alta una nueva asignacion fija activa.
+     * Da de alta una nueva asignacion fija activa de tipo {@code PARKING} (plaza).
      *
-     * <p>Nace con {@code active = true}; {@code created_at} lo fija el reloj
-     * inyectable ({@code ClockPort}) para tests deterministas.</p>
+     * <p>Nace con {@code active = true}; {@code createdAt} lo fija el reloj inyectable
+     * ({@code ClockPort}) para tests deterministas.</p>
      *
      * @param resourceId  recurso asignado (plaza en el nucleo de parking)
      * @param employeeId  empleado titular
@@ -99,7 +63,7 @@ public class FixedAssignment {
      * Da de alta una nueva asignacion fija activa para un tipo de recurso concreto
      * ({@code PARKING} plaza / {@code DESK} puesto).
      *
-     * <p>Nace con {@code active = true}; {@code created_at} lo fija el reloj inyectable
+     * <p>Nace con {@code active = true}; {@code createdAt} lo fija el reloj inyectable
      * ({@code ClockPort}) para tests deterministas.</p>
      *
      * @param resourceId   recurso asignado (plaza o puesto segun {@code resourceType})
@@ -125,8 +89,42 @@ public class FixedAssignment {
     }
 
     /**
-     * Revoca logicamente la asignacion: {@code active=false}, con marca de tiempo y
-     * autor de la revocacion. No borra la fila (historico intacto).
+     * Reconstituye una asignacion fija a partir de su estado persistido (uso exclusivo del
+     * mapper de infraestructura {@code FixedAssignmentMapper}; no aplica reglas de negocio).
+     *
+     * @param id           identificador
+     * @param resourceId   recurso asignado
+     * @param resourceType tipo del recurso
+     * @param employeeId   empleado titular
+     * @param dayOfWeek    dia de la semana (1-7)
+     * @param active       si la asignacion esta vigente
+     * @param createdById  empleado (ADMIN) que la creo
+     * @param createdAt    instante de alta (UTC)
+     * @param revokedById  empleado (ADMIN) que la revoco; {@code null} si vigente
+     * @param revokedAt    instante de revocacion (UTC); {@code null} si vigente
+     * @return la asignacion reconstituida
+     */
+    public static FixedAssignment restore(
+            Long id, Long resourceId, ResourceType resourceType, Long employeeId, Integer dayOfWeek,
+            boolean active, Long createdById, Instant createdAt, Long revokedById,
+            Instant revokedAt) {
+        FixedAssignment assignment = new FixedAssignment();
+        assignment.id = id;
+        assignment.resourceId = resourceId;
+        assignment.resourceType = resourceType;
+        assignment.employeeId = employeeId;
+        assignment.dayOfWeek = dayOfWeek;
+        assignment.active = active;
+        assignment.createdById = createdById;
+        assignment.createdAt = createdAt;
+        assignment.revokedById = revokedById;
+        assignment.revokedAt = revokedAt;
+        return assignment;
+    }
+
+    /**
+     * Revoca logicamente la asignacion: {@code active=false}, con marca de tiempo y autor de
+     * la revocacion. No borra la fila (historico intacto).
      *
      * @param revokedById empleado (ADMIN) que revoca
      * @param now         instante de revocacion (UTC)

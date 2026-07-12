@@ -78,7 +78,28 @@ class HexagonalArchitectureTest {
         rule.check(PRODUCTION_CLASSES);
     }
 
-    // NOTA: al migrar cada agregado adicional (fixedassignment, desk,
+    // ---- fixedassignment (migrado) ----
+
+    @Test
+    void fixedassignment_domain_is_free_of_persistence_framework() {
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("..fixedassignment.domain..")
+                .should().dependOnClassesThat().resideInAnyPackage(PERSISTENCE_FRAMEWORK);
+        rule.check(PRODUCTION_CLASSES);
+    }
+
+    @Test
+    void fixedassignment_application_does_not_depend_on_spring_data_or_jpa_entities() {
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("..fixedassignment.application..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "org.springframework.data.repository..",
+                        "org.springframework.data.jpa..",
+                        "..fixedassignment.infrastructure..");
+        rule.check(PRODUCTION_CLASSES);
+    }
+
+    // NOTA: al migrar cada agregado adicional (desk,
     // parkingspace, employee, visitor, auditlog, loginlog, emailoutbox) se añaden
     // aquí sus dos reglas equivalentes. Al completar los 11, sustituir por una
     // regla global sobre "..domain.." y "..application..".
