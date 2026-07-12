@@ -5,7 +5,7 @@
 > **Consumers:** `database-optimizer`, `backend-architect`.
 > **Authority of names:** the README section *"Nomenclatura del código (ES → EN)"*. All tables, columns, enums and JPA classes use **English** identifiers. Business prose stays Spanish in the README; SQL is English/snake_case.
 >
-> **Scope note:** this model covers the **parking core (MVP, Phase 1)**: the 9 live entities plus Spring Session. **Office desks (`desks`) and the floor plan are out of scope here** — they arrive in the later `generic-resource-refactor` + `desks` increments, which generalize `parking_space_id` into a polymorphic `resource_id`. Until then every reservable FK points to `parking_spaces`.
+> **Scope note:** this model is re-synchronized with the **post-V12/V13/V15 schema**. It covers the parking core (Phase 1: the 9 live entities plus Spring Session) **and** the later increments that generalize the reservable reference: `generic-resource-refactor` (**V12**) turns `parking_space_id` into a polymorphic `resource_id BIGINT` + `resource_type VARCHAR(10)` on `fixed_assignments`, `requests` and `releases`; `desks` (**V13**) adds the second resource table and drops the single-table FKs; `floor-plan` (**V15**) adds the desk-pending filtered index. Office desks (`desks`) and the floor plan are therefore **in scope** here. `visitor_reservations` is the one reservable table **not** generalized — it still points to `parking_spaces` directly.
 
 ---
 
@@ -47,33 +47,41 @@
 │fixed_assign.. │ │ requests  │ │ releases │ │ visitors  │ │ login_log │
 │(FixedAssign.) │ │ (Request) │ │ (Release)│ │ (Visitor) │ │ (LoginLog)│
 └──────┬────────┘ └─────┬─────┘ └────┬─────┘ └─────┬─────┘ └───────────┘
-       │ N              │ 0..1       │ N           │ 1
-       ▼                ▼            ▼             ▼ N
-┌────────────────────────────────────────┐ ┌──────────────────────┐
-│            parking_spaces               │ │ visitor_reservations │
-│          (ParkingSpace, live)           │◄┤(VisitorReservation)  │
-└─────────────────────────────────────────┘ └──────────────────────┘
+   resource_id +   resource_id +  resource_id +    │ 1
+   resource_type   resource_type  resource_type    ▼ N
+   (polymorphic, no FK — ResourceResolverPort)  ┌──────────────────────┐
+        │               │            │          │ visitor_reservations │
+        └───────┬───────┴─────┬──────┘          │ (VisitorReservation) │
+                ▼             ▼                  └──────────┬───────────┘
+   ┌────────────────────┐ ┌────────────────────┐           │ N
+   │   parking_spaces   │ │       desks        │           ▼
+   │ (ParkingSpace)     │ │      (Desk)        │  parking_space_id (real FK)
+   │ resource_type=     │ │ resource_type=     │──────────►│
+   │   PARKING          │ │   DESK             │      parking_spaces
+   └────────────────────┘ └────────────────────┘
+      both implement BookableResource (domain interface)
 
-           ┌───────────┐         ┌──────────────────────────────┐
-           │ audit_log │         │ SPRING_SESSION /             │
-           │(AuditLog) │         │ SPRING_SESSION_ATTRIBUTES    │
-           └───────────┘         │ (framework-managed)          │
-                                 └──────────────────────────────┘
+  ┌───────────┐   ┌───────────────┐   ┌──────────────────────────────┐
+  │ audit_log │   │ email_outbox  │   │ SPRING_SESSION /             │
+  │(AuditLog) │   │ (EmailOutbox) │   │ SPRING_SESSION_ATTRIBUTES    │
+  └───────────┘   │ (no FK)       │   │ (framework-managed)          │
+                  └───────────────┘   └──────────────────────────────┘
 ```
 
 **Cardinalities**
 - `employees 1 — N fixed_assignments` (titular), and `1 — N` again as `created_by` / `revoked_by`.
-- `parking_spaces 1 — N fixed_assignments`.
-- `employees 1 — N requests`; `parking_spaces 0..1 — N requests` (`parking_space_id` is NULL while `PENDING`).
-- `employees 1 — N releases`; `parking_spaces 1 — N releases`.
-- `employees 1 — N visitors` (creator); `visitors 1 — N visitor_reservations`; `parking_spaces 1 — N visitor_reservations`.
+- `fixed_assignments`, `requests` and `releases` reference a **reservable resource** via `resource_id` + `resource_type` (polymorphic, no FK): the resource is a `parking_spaces` row (`PARKING`) or a `desks` row (`DESK`). Both `ParkingSpace` and `Desk` implement the `BookableResource` domain interface.
+- `employees 1 — N requests`; `resource 0..1 — N requests` (`resource_id` is NULL while a generic `PENDING` request has no assigned resource; a desk requested from the floor plan sets it at creation).
+- `employees 1 — N releases`; `resource 1 — N releases`.
+- `employees 1 — N visitors` (creator); `visitors 1 — N visitor_reservations`; `parking_spaces 1 — N visitor_reservations` (**real FK** — this table was not generalized).
 - `employees 0..1 — N login_log` / `audit_log` (actor may be unknown/anonymous).
+- `email_outbox` is standalone (no FK; `recipient` is a literal email address).
 
 ---
 
 ## 3. Tables
 
-> All `CREATE TABLE` and unique/filtered indexes below belong to migration **`V1__initial_schema.sql`** (section 7). Performance indexes (section 5) belong to **`V3`**.
+> The schema is **not** a single migration: each table ships in its own migration (see section 7). Spring Session is `V1`, the audit tables `V2`, `employees` `V4`, `parking_spaces` `V6`, `fixed_assignments` `V7`, `requests` `V8`, `releases` `V9`, `visitors`/`visitor_reservations` `V10`, `email_outbox` `V11`. The generic-resource refactor (`V12`), `desks` (`V13`) and the floor-plan desk index (`V15`) then evolve the reservable columns. **The DDL below is shown in its post-V12/V13/V15 form** (i.e. `resource_id` + `resource_type` on the three generalized tables); each table's supporting/performance indexes live inside its own migration, not in a separate performance-index migration.
 
 ### 3.1 `employees`
 **Purpose:** corporate people with access to parking. Holds local credentials (Phase 1 / fallback) and role.
@@ -136,21 +144,25 @@ GO
 
 **Notes**
 - `label` is unique and human-facing. Inactive spaces are never available for any date.
-- Future `desks` will be a sibling table; the `generic-resource-refactor` introduces a shared `resource_id` abstraction.
+- `desks` (§3.2b) is the sibling reservable table; since `generic-resource-refactor` (V12) both are addressed polymorphically through `resource_id` + `resource_type`. `ParkingSpace` implements the `BookableResource` domain interface with `resource_type = PARKING`.
 
 ### 3.2b `desks` (capability `init-desks`)
-**Purpose:** office desks as the second reservable resource type (`ResourceType.DESK`). Sibling table of `parking_spaces` (not single-table inheritance): the `generic-resource-refactor` already supplies the `resource_type` discriminator, so a separate table keeps the desk-only columns (`number`, `category`, `coord_x`, `coord_y`) without nullable columns on `parking_spaces`. Backfilled in migration **`V13__desks.sql`**; the 65 dev desks are seeded only in DES/tests via `db/seed/dev/V14__seed_dev_desks.sql`.
+**Purpose:** office desks as the second reservable resource type (`ResourceType.DESK`). Sibling table of `parking_spaces` (not single-table inheritance): the `generic-resource-refactor` already supplies the `resource_type` discriminator, so a separate table keeps the desk-only columns (`number`, `category`, `coord_x`, `coord_y`) without nullable columns on `parking_spaces`. Created in migration **`V13__desks.sql`** (which also drops the three polymorphic FKs to `parking_spaces`); the 65 dev desks are seeded only under the `des` profile via `db/seed/dev/V14__seed_dev_desks.sql` (neutral coords), then positioned by `V16` (grid) and `V18` (real mockup coordinates).
 
 ```sql
 CREATE TABLE dbo.desks (
     id          BIGINT IDENTITY(1,1) NOT NULL,
-    number      INT NOT NULL,                              -- CHECK 1-65
-    category    VARCHAR(15) NOT NULL DEFAULT 'STANDARD',   -- CHECK IN ('STANDARD','EXECUTIVE')
-    coord_x     DECIMAL(5,2) NOT NULL DEFAULT 50,          -- CHECK 0-100 (percent of plan width)
-    coord_y     DECIMAL(5,2) NOT NULL DEFAULT 50,          -- CHECK 0-100 (percent of plan height)
-    active      BIT NOT NULL DEFAULT 1,
-    created_at  DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT PK_desks PRIMARY KEY (id)
+    number      INT NOT NULL,
+    category    VARCHAR(15) NOT NULL CONSTRAINT DF_desks_category DEFAULT 'STANDARD',
+    coord_x     DECIMAL(5,2) NOT NULL CONSTRAINT DF_desks_coord_x DEFAULT 50,   -- percent of plan width
+    coord_y     DECIMAL(5,2) NOT NULL CONSTRAINT DF_desks_coord_y DEFAULT 50,   -- percent of plan height
+    active      BIT NOT NULL CONSTRAINT DF_desks_active DEFAULT 1,
+    created_at  DATETIME2(3) NOT NULL CONSTRAINT DF_desks_created_at DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_desks PRIMARY KEY (id),
+    CONSTRAINT CK_desks_number   CHECK (number BETWEEN 1 AND 65),
+    CONSTRAINT CK_desks_category CHECK (category IN ('STANDARD','EXECUTIVE')),
+    CONSTRAINT CK_desks_coord_x  CHECK (coord_x BETWEEN 0 AND 100),
+    CONSTRAINT CK_desks_coord_y  CHECK (coord_y BETWEEN 0 AND 100)
 );
 GO
 CREATE UNIQUE INDEX UX_desks_number ON dbo.desks(number);
@@ -168,10 +180,13 @@ GO
 ### 3.3 `fixed_assignments`
 **Purpose:** indefinite link between an employee and a parking space for a given weekday. Logically revoked, never deleted.
 
+Created as `parking_space_id` in **`V7`**; generalized to `resource_id` + `resource_type` in **`V12`** (FK dropped for good in **`V13`**). Post-refactor form:
+
 ```sql
 CREATE TABLE dbo.fixed_assignments (
     id                BIGINT IDENTITY(1,1) NOT NULL,
-    parking_space_id  BIGINT NOT NULL,
+    resource_id       BIGINT NOT NULL,                 -- V12: was parking_space_id
+    resource_type     VARCHAR(10) NOT NULL CONSTRAINT DF_fixed_assignments_resource_type DEFAULT 'PARKING',
     employee_id       BIGINT NOT NULL,
     day_of_week       TINYINT NOT NULL,
     active            BIT NOT NULL CONSTRAINT DF_fixed_assignments_active DEFAULT 1,
@@ -180,32 +195,41 @@ CREATE TABLE dbo.fixed_assignments (
     revoked_by_id     BIGINT NULL,
     revoked_at        DATETIME2(3) NULL,
     CONSTRAINT PK_fixed_assignments PRIMARY KEY (id),
-    CONSTRAINT CK_fixed_assignments_day_of_week CHECK (day_of_week BETWEEN 1 AND 7),
-    CONSTRAINT FK_fixed_assignments_parking_spaces FOREIGN KEY (parking_space_id) REFERENCES dbo.parking_spaces(id),
-    CONSTRAINT FK_fixed_assignments_employee       FOREIGN KEY (employee_id)      REFERENCES dbo.employees(id),
-    CONSTRAINT FK_fixed_assignments_created_by     FOREIGN KEY (created_by_id)    REFERENCES dbo.employees(id),
-    CONSTRAINT FK_fixed_assignments_revoked_by     FOREIGN KEY (revoked_by_id)    REFERENCES dbo.employees(id)
+    CONSTRAINT CK_fixed_assignments_day_of_week   CHECK (day_of_week BETWEEN 1 AND 7),
+    CONSTRAINT CK_fixed_assignments_resource_type CHECK (resource_type IN ('PARKING','DESK')),
+    -- No FK on resource_id: it is a polymorphic reference (parking_spaces or desks).
+    -- V12 re-added FK_fixed_assignments_parking_spaces; V13 dropped it permanently.
+    CONSTRAINT FK_fixed_assignments_employee   FOREIGN KEY (employee_id)   REFERENCES dbo.employees(id),
+    CONSTRAINT FK_fixed_assignments_created_by FOREIGN KEY (created_by_id) REFERENCES dbo.employees(id),
+    CONSTRAINT FK_fixed_assignments_revoked_by FOREIGN KEY (revoked_by_id) REFERENCES dbo.employees(id)
 );
 GO
 CREATE UNIQUE INDEX UX_fixed_assignments_space_day_active
-    ON dbo.fixed_assignments(parking_space_id, day_of_week) WHERE active = 1;
+    ON dbo.fixed_assignments(resource_id, resource_type, day_of_week) WHERE active = 1;
 GO
 CREATE UNIQUE INDEX UX_fixed_assignments_employee_day_active
-    ON dbo.fixed_assignments(employee_id, day_of_week) WHERE active = 1;
+    ON dbo.fixed_assignments(employee_id, resource_type, day_of_week) WHERE active = 1;
+GO
+CREATE INDEX IX_fixed_assignments_employee_id_active
+    ON dbo.fixed_assignments(employee_id, active);
 GO
 ```
 
 **Notes**
 - `day_of_week` is **1-7** (1=Monday … 7=Sunday), enforced by CHECK.
-- Revocation = `active=0` + `revoked_at` + `revoked_by_id`. The two filtered unique indexes guarantee that, **among active rows only**, a space and an employee are each used at most once per weekday — past/revoked history is unaffected.
+- **Polymorphic reference (V12/V13):** `resource_id` + `resource_type` replaced `parking_space_id`. There is **no** foreign key on `resource_id`: it can point to `parking_spaces` (`PARKING`) or `desks` (`DESK`), and a single-table FK cannot express that. Referential integrity of the resource is enforced in the application layer via `ResourceResolverPort#exists(type, id)`. The named filtered indexes keep their original names (so the DataIntegrityViolation → 409 translation in `GlobalExceptionHandler` is unaffected) and now key on `resource_type` too — for the `PARKING`-only core the behaviour is identical.
+- Revocation = `active=0` + `revoked_at` + `revoked_by_id`. The two filtered unique indexes guarantee that, **among active rows only**, a resource and an employee are each used at most once per weekday **per resource type** — past/revoked history is unaffected. An employee may hold a `PARKING` and a `DESK` fixed assignment on the same weekday (the employee index keys on `resource_type`).
 
 ### 3.4 `releases`
 **Purpose:** marks a fixed-assigned space as available for one concrete date. Voluntary (by owner) or administrative (by admin).
 
+Created as `parking_space_id` in **`V9`**; generalized to `resource_id` + `resource_type` in **`V12`** (FK dropped for good in **`V13`**). Post-refactor form:
+
 ```sql
 CREATE TABLE dbo.releases (
     id                BIGINT IDENTITY(1,1) NOT NULL,
-    parking_space_id  BIGINT NOT NULL,
+    resource_id       BIGINT NOT NULL,                 -- V12: was parking_space_id
+    resource_type     VARCHAR(10) NOT NULL CONSTRAINT DF_releases_resource_type DEFAULT 'PARKING',
     employee_id       BIGINT NOT NULL,
     release_date      DATE NOT NULL,
     type              VARCHAR(15) NOT NULL,
@@ -213,21 +237,32 @@ CREATE TABLE dbo.releases (
     released_by_id    BIGINT NOT NULL,
     created_at        DATETIME2(3) NOT NULL CONSTRAINT DF_releases_created_at DEFAULT SYSUTCDATETIME(),
     CONSTRAINT PK_releases PRIMARY KEY (id),
-    CONSTRAINT CK_releases_type CHECK (type IN ('VOLUNTARY','ADMINISTRATIVE')),
-    CONSTRAINT FK_releases_parking_spaces FOREIGN KEY (parking_space_id) REFERENCES dbo.parking_spaces(id),
-    CONSTRAINT FK_releases_employee       FOREIGN KEY (employee_id)      REFERENCES dbo.employees(id),
-    CONSTRAINT FK_releases_released_by     FOREIGN KEY (released_by_id)   REFERENCES dbo.employees(id)
+    CONSTRAINT CK_releases_type          CHECK (type IN ('VOLUNTARY','ADMINISTRATIVE')),
+    CONSTRAINT CK_releases_resource_type CHECK (resource_type IN ('PARKING','DESK')),
+    -- No FK on resource_id: polymorphic reference; V12 re-added FK_releases_parking_spaces, V13 dropped it.
+    CONSTRAINT FK_releases_employee    FOREIGN KEY (employee_id)    REFERENCES dbo.employees(id),
+    CONSTRAINT FK_releases_released_by FOREIGN KEY (released_by_id) REFERENCES dbo.employees(id)
 );
+GO
+-- Simple (non-filtered) unique index: cancellation is a physical delete, so a cancelled
+-- row never blocks a new release of the same resource/date. Also serves the availability lookup.
+CREATE UNIQUE INDEX UX_releases_space_date
+    ON dbo.releases(resource_id, resource_type, release_date);
+GO
+CREATE INDEX IX_releases_employee_id ON dbo.releases(employee_id);
 GO
 ```
 
 **Notes**
-- `employee_id` = the fixed-assignment owner whose space is freed; `released_by_id` = who performed the release (the owner for `VOLUNTARY`, an admin for `ADMINISTRATIVE`).
+- `employee_id` = the fixed-assignment owner whose resource is freed; `released_by_id` = who performed the release (the owner for `VOLUNTARY`, an admin for `ADMINISTRATIVE`).
 - `reason` is required by business rule for `ADMINISTRATIVE` (enforced in the service layer, not by the schema, since `VOLUNTARY` allows NULL).
-- A release row makes the space available for `release_date` in the availability calculation.
+- **Polymorphic reference (V12/V13):** same as `fixed_assignments` — no FK on `resource_id`; integrity via `ResourceResolverPort`. `UX_releases_space_date` is a plain `UNIQUE` index (not filtered) keyed on `(resource_id, resource_type, release_date)`; a concurrent second release on the same resource/date violates it → `DataIntegrityViolation` → 409.
+- A release row makes the resource available for `release_date` in the availability calculation.
 
 ### 3.5 `requests`
 **Purpose:** an employee's point-in-time request for a parking space on a concrete date, with approve/reject lifecycle.
+
+Created with `parking_space_id` in **`V8`**; generalized to `resource_id` + `resource_type` in **`V12`** (FK dropped for good in **`V13`**); the desk-pending filtered index added in **`V15`**. Post-refactor form:
 
 ```sql
 CREATE TABLE dbo.requests (
@@ -235,7 +270,8 @@ CREATE TABLE dbo.requests (
     employee_id           BIGINT NOT NULL,
     requested_date        DATE NOT NULL,
     status                VARCHAR(10) NOT NULL CONSTRAINT DF_requests_status DEFAULT 'PENDING',
-    parking_space_id      BIGINT NULL,
+    resource_id           BIGINT NULL,                 -- V12: was parking_space_id (NULL while PENDING)
+    resource_type         VARCHAR(10) NOT NULL CONSTRAINT DF_requests_resource_type DEFAULT 'PARKING',
     approval_note         NVARCHAR(500) NULL,
     rejection_reason_code VARCHAR(40) NULL,
     rejection_reason      NVARCHAR(500) NULL,
@@ -243,25 +279,40 @@ CREATE TABLE dbo.requests (
     resolved_at           DATETIME2(3) NULL,
     created_at            DATETIME2(3) NOT NULL CONSTRAINT DF_requests_created_at DEFAULT SYSUTCDATETIME(),
     CONSTRAINT PK_requests PRIMARY KEY (id),
-    CONSTRAINT CK_requests_status CHECK (status IN ('PENDING','APPROVED','REJECTED','CANCELLED')),
+    CONSTRAINT CK_requests_status        CHECK (status IN ('PENDING','APPROVED','REJECTED','CANCELLED')),
+    CONSTRAINT CK_requests_resource_type CHECK (resource_type IN ('PARKING','DESK')),
     CONSTRAINT CK_requests_rejection_reason_code
         CHECK (rejection_reason_code IS NULL OR rejection_reason_code IN ('NO_AVAILABILITY','OUTSIDE_POLICY','OTHER')),
-    CONSTRAINT FK_requests_employee       FOREIGN KEY (employee_id)      REFERENCES dbo.employees(id),
-    CONSTRAINT FK_requests_parking_spaces FOREIGN KEY (parking_space_id) REFERENCES dbo.parking_spaces(id),
-    CONSTRAINT FK_requests_resolved_by     FOREIGN KEY (resolved_by_id)   REFERENCES dbo.employees(id)
+    -- No FK on resource_id: polymorphic reference; V12 re-added FK_requests_parking_spaces, V13 dropped it.
+    CONSTRAINT FK_requests_employee    FOREIGN KEY (employee_id)    REFERENCES dbo.employees(id),
+    CONSTRAINT FK_requests_resolved_by FOREIGN KEY (resolved_by_id) REFERENCES dbo.employees(id)
 );
 GO
+-- One PENDING request per employee, resource type and date.
 CREATE UNIQUE INDEX UX_requests_employee_date_pending
-    ON dbo.requests(employee_id, requested_date) WHERE status = 'PENDING';
+    ON dbo.requests(employee_id, resource_type, requested_date) WHERE status = 'PENDING';
+GO
+-- A resource can be APPROVED at most once per date (concurrency net between admins).
+CREATE UNIQUE INDEX UX_requests_space_date_approved
+    ON dbo.requests(resource_id, resource_type, requested_date) WHERE status = 'APPROVED';
+GO
+-- V15 (floor-plan): a desk requested from the plan fixes the desk at creation
+-- (resource_id set, PENDING) so a second employee clicking the same desk/date gets a 409.
+CREATE UNIQUE INDEX UX_requests_desk_date_pending
+    ON dbo.requests(resource_id, requested_date)
+    WHERE status = 'PENDING' AND resource_type = 'DESK' AND resource_id IS NOT NULL;
+GO
+-- Support indexes (created in V8).
+CREATE INDEX IX_requests_status_created_at        ON dbo.requests(status, created_at);
+CREATE INDEX IX_requests_employee_id_requested_date ON dbo.requests(employee_id, requested_date);
 GO
 ```
 
 **Notes**
-- State machine: `PENDING` (`parking_space_id = NULL`) → `APPROVED` (space + `resolved_by_id` + `resolved_at` [+ optional `approval_note`]) | `REJECTED` (`rejection_reason_code` + resolver, optional free `rejection_reason`) | `CANCELLED` (by the employee while PENDING).
+- State machine: `PENDING` (`resource_id = NULL`, `resource_type = 'PARKING'`) → `APPROVED` (resource + `resolved_by_id` + `resolved_at` [+ optional `approval_note`]) | `REJECTED` (`rejection_reason_code` + resolver, optional free `rejection_reason`) | `CANCELLED` (by the employee while PENDING). Exception: a desk requested from the interactive floor plan is born with `resource_id` already set (`resource_type = 'DESK'`), so the clicked desk is held immediately — see `UX_requests_desk_date_pending` (V15).
 - `approval_note` (added per UI): free note from the admin that travels in the approval email (mockup `05-modal-aprobar-solicitud`).
 - **Rejection reason catalog** (added per UI): `rejection_reason_code` is a fixed catalog (`NO_AVAILABILITY`, `OUTSIDE_POLICY`, `OTHER`) shown translated in the UI; `rejection_reason` carries the free-text comment, **required when the code is `OTHER`** (≥ 5 chars) and optional otherwise. A rejection must always carry a code. ⚠️ The exact catalog values are a starting set, pendiente de confirmar con negocio.
-- The filtered unique index enforces **one `PENDING` request per employee per date**; rejected/cancelled rows do not block new requests.
-- Scope note: in this parking-only core a request targets a parking space. When `desks` arrive, a `resource_type` discriminator joins this uniqueness key (employee + date + resource type).
+- **Polymorphic reference (V12/V13):** no FK on `resource_id`; integrity via `ResourceResolverPort`. `UX_requests_employee_date_pending` now enforces **one `PENDING` request per employee, resource type and date**; `UX_requests_space_date_approved` enforces **one `APPROVED` request per resource and date**. Rejected/cancelled rows do not block new requests.
 
 ### 3.6 `visitors`
 **Purpose:** reusable card for an external (non-employee) person. Has no app access.
@@ -306,10 +357,18 @@ CREATE TABLE dbo.visitor_reservations (
     CONSTRAINT FK_visitor_reservations_created_by     FOREIGN KEY (created_by_id)    REFERENCES dbo.employees(id)
 );
 GO
+-- Plain UNIQUE index (V10): one visitor reservation per space and date; also serves the
+-- availability lookup (parking_space_id, reservation_date). Cancellation is a physical delete.
+CREATE UNIQUE INDEX UX_visitor_reservations_space_date
+    ON dbo.visitor_reservations(parking_space_id, reservation_date);
+GO
+CREATE INDEX IX_visitor_reservations_visitor_id
+    ON dbo.visitor_reservations(visitor_id);
+GO
 ```
 
 **Notes**
-- A reservation makes the space **unavailable** for `reservation_date` in the availability calculation. Visitor reservations apply to parking only (never desks).
+- A reservation makes the space **unavailable** for `reservation_date` in the availability calculation. Visitor reservations apply to parking only (never desks): this table was **not** generalized by V12 — it still references `parking_spaces` directly with a real FK.
 
 ### 3.8 `audit_log`
 **Purpose:** functional audit trail of admin/employee actions, populated by a Spring AOP aspect.
@@ -401,66 +460,83 @@ GO
 
 ## 4. Critical constraints (filtered indexes)
 
-These partial-uniqueness indexes are created in `V1` (shown inline above; consolidated here). English names per the nomenclature authority:
+These partial-uniqueness indexes are consolidated here in their **post-V12/V13/V15 form** (each is created inside its table's migration, then rebuilt on `resource_id`/`resource_type` by V12; V15 adds the desk-pending one). English names per the nomenclature authority — the names are preserved verbatim across V12/V13 so the DataIntegrityViolation → 409 mapping in `GlobalExceptionHandler` keeps working:
 
 ```sql
--- A space cannot be fixed-assigned to two employees on the same weekday (active rows only)
+-- A resource cannot be fixed-assigned to two employees on the same weekday (active rows only)   [V7 → V12]
 CREATE UNIQUE INDEX UX_fixed_assignments_space_day_active
-    ON dbo.fixed_assignments(parking_space_id, day_of_week) WHERE active = 1;
+    ON dbo.fixed_assignments(resource_id, resource_type, day_of_week) WHERE active = 1;
 
--- An employee cannot hold two active fixed assignments on the same weekday
+-- An employee cannot hold two active fixed assignments of the same type on the same weekday      [V7 → V12]
 CREATE UNIQUE INDEX UX_fixed_assignments_employee_day_active
-    ON dbo.fixed_assignments(employee_id, day_of_week) WHERE active = 1;
+    ON dbo.fixed_assignments(employee_id, resource_type, day_of_week) WHERE active = 1;
 
--- One PENDING request per employee per date
+-- One PENDING request per employee, resource type and date                                       [V8 → V12]
 CREATE UNIQUE INDEX UX_requests_employee_date_pending
-    ON dbo.requests(employee_id, requested_date) WHERE status = 'PENDING';
+    ON dbo.requests(employee_id, resource_type, requested_date) WHERE status = 'PENDING';
 
--- Unique national id among visitors
+-- A resource can be APPROVED at most once per date (concurrency net)                              [V8 → V12]
+CREATE UNIQUE INDEX UX_requests_space_date_approved
+    ON dbo.requests(resource_id, resource_type, requested_date) WHERE status = 'APPROVED';
+
+-- A desk requested from the floor plan is held at creation (one PENDING desk per date)            [V15]
+CREATE UNIQUE INDEX UX_requests_desk_date_pending
+    ON dbo.requests(resource_id, requested_date)
+    WHERE status = 'PENDING' AND resource_type = 'DESK' AND resource_id IS NOT NULL;
+
+-- One release per resource and date (plain UNIQUE — cancellation is a physical delete)            [V9 → V12]
+CREATE UNIQUE INDEX UX_releases_space_date
+    ON dbo.releases(resource_id, resource_type, release_date);
+
+-- One visitor reservation per space and date (plain UNIQUE; parking only, not generalized)        [V10]
+CREATE UNIQUE INDEX UX_visitor_reservations_space_date
+    ON dbo.visitor_reservations(parking_space_id, reservation_date);
+
+-- Unique national id among visitors                                                               [V10]
 CREATE UNIQUE INDEX UX_visitors_national_id ON dbo.visitors(national_id);
 
--- Unique login and email among employees
+-- Unique login and email among employees                                                          [V4]
 CREATE UNIQUE INDEX UX_employees_login ON dbo.employees(login);
 CREATE UNIQUE INDEX UX_employees_email ON dbo.employees(email);
 ```
 
-> **Why filtered, not constraints:** `UNIQUE` constraints would forbid duplicate revoked/closed rows too. Filtered indexes restrict uniqueness to the *active* (`active = 1`) or *open* (`status = 'PENDING'`) subset, which is exactly the business rule. `UX_employees_*`, `UX_visitors_national_id` and `UX_parking_spaces_label` are unfiltered (the columns are `NOT NULL` and globally unique).
+> **Why filtered, not constraints:** `UNIQUE` constraints would forbid duplicate revoked/closed rows too. Filtered indexes restrict uniqueness to the *active* (`active = 1`) or *open* (`status = 'PENDING'`) subset, which is exactly the business rule. `UX_releases_space_date` and `UX_visitor_reservations_space_date` are **plain** `UNIQUE` (unfiltered): cancellation there is a physical delete, so a removed row never blocks a new one. `UX_employees_*`, `UX_visitors_national_id` and `UX_parking_spaces_label` are unfiltered (the columns are `NOT NULL` and globally unique).
 
 ---
 
 ## 5. Performance indexes
 
-Created in `V3__performance_indexes.sql`. Each is justified by the query it serves.
+There is **no** single `V3__performance_indexes.sql`. `V3__infra_indexes.sql` only carries the two audit/login browsing indexes; every other support index lives inside its table's own migration (V7–V10). Each is justified by the query it serves.
 
 ```sql
--- Admin "pending requests" list, FIFO order: WHERE status='PENDING' ORDER BY created_at ASC
+-- Admin "pending requests" list, FIFO order: WHERE status='PENDING' ORDER BY created_at ASC   [V8]
 CREATE INDEX IX_requests_status_created_at
     ON dbo.requests(status, created_at);
 
--- Employee "my requests": WHERE employee_id=? ORDER BY requested_date
+-- Employee "my requests": WHERE employee_id=? ORDER BY requested_date                          [V8]
 CREATE INDEX IX_requests_employee_id_requested_date
     ON dbo.requests(employee_id, requested_date);
 
--- "My active fixed assignments" + availability checks per employee/weekday
+-- "My active fixed assignments" + availability checks per employee/weekday                     [V7]
 CREATE INDEX IX_fixed_assignments_employee_id_active
     ON dbo.fixed_assignments(employee_id, active);
 
--- Availability: is this space released on date F? WHERE parking_space_id=? AND release_date=?
-CREATE INDEX IX_releases_parking_space_id_date
-    ON dbo.releases(parking_space_id, release_date);
+-- Employee "my releases": WHERE employee_id=?                                                   [V9]
+CREATE INDEX IX_releases_employee_id
+    ON dbo.releases(employee_id);
 
--- Availability: is this space reserved for a visitor on date F?
-CREATE INDEX IX_visitor_reservations_parking_space_id_date
-    ON dbo.visitor_reservations(parking_space_id, reservation_date);
+-- A visitor's reservations: WHERE visitor_id=?                                                  [V10]
+CREATE INDEX IX_visitor_reservations_visitor_id
+    ON dbo.visitor_reservations(visitor_id);
 
--- Audit browsing and the retention purge scan (occurred_at < cutoff)
+-- Audit browsing and the retention purge scan (occurred_at < cutoff)                            [V3]
 CREATE INDEX IX_audit_log_occurred_at ON dbo.audit_log(occurred_at);
 
--- Login history browsing and retention purge scan
+-- Login history browsing and retention purge scan                                               [V3]
 CREATE INDEX IX_login_log_occurred_at ON dbo.login_log(occurred_at);
 ```
 
-> The availability query for a date F combines all four conditions (active space, no active fixed assignment for that weekday unless released, no `APPROVED` request, no visitor reservation). `IX_requests_status_created_at` plus the per-space release/reservation indexes cover the hot paths; consider an extra covering index on `requests(parking_space_id, requested_date) INCLUDE(status)` once `database-optimizer` profiles real load (left as a tuning item, not added blindly).
+> **Availability lookups have no dedicated non-unique index.** The "is this resource released / reserved on date F?" queries are served by the plain `UNIQUE` indexes `UX_releases_space_date` (`resource_id, resource_type, release_date`) and `UX_visitor_reservations_space_date` (`parking_space_id, reservation_date`) — a unique index supersedes a separate non-unique one for that access path, which is why the earlier `IX_releases_parking_space_id_date` / `IX_visitor_reservations_parking_space_id_date` were dropped. The availability query for a date F combines all conditions (active resource, no active fixed assignment for that weekday unless released, no `APPROVED` request, and — for parking only — no visitor reservation). Consider an extra covering index on `requests(resource_id, resource_type, requested_date) INCLUDE(status)` once `database-optimizer` profiles real load (left as a tuning item, not added blindly).
 
 ---
 
@@ -485,16 +561,39 @@ All implemented as named `CHECK (column IN (...))` constraints inside the `CREAT
 
 ## 7. Flyway migrations
 
-Location: `backend/src/main/resources/db/migration/`. SQL Server dialect — `GO` is honored as a batch separator by both Flyway and `sqlcmd`.
+Schema migrations live in `backend/src/main/resources/db/migration/`; **dev seeds** live in `backend/src/main/resources/db/seed/dev/` (profile `des` only). SQL Server dialect — `GO` is honored as a batch separator by both Flyway and `sqlcmd`. There is **no** `V1__initial_schema.sql`, `V3__performance_indexes.sql` or `V4__seed_bootstrap_admin.sql`: the schema is split one-table-per-migration and the admin is a dev seed (see below).
+
+**Schema migrations (`db/migration/`):**
 
 | Version | File | Content |
 |---------|------|---------|
-| V1 | `V1__initial_schema.sql` | All live tables (3.1–3.9) + their CHECK constraints + the filtered/unique indexes of section 4. |
-| V2 | `V2__spring_session_schema.sql` | **Verbatim** copy of the official `schema-sqlserver.sql` from `spring-session-jdbc` (Phase-1 sessions live in SQL Server too). |
-| V3 | `V3__performance_indexes.sql` | All indexes of section 5. |
-| V4 | `V4__seed_bootstrap_admin.sql` | Single bootstrap admin for Phase 1. |
+| V1 | `V1__spring_session_schema.sql` | **Verbatim** copy of `schema-sqlserver.sql` from `spring-session-jdbc` 3.3.5 (SQL Server sessions). |
+| V2 | `V2__audit_and_login_log.sql` | `audit_log` + `login_log` (§3.8/§3.9); FKs to `employees` deferred to V4. |
+| V3 | `V3__infra_indexes.sql` | `IX_audit_log_occurred_at` + `IX_login_log_occurred_at` only. |
+| V4 | `V4__employees.sql` | `employees` (§3.1) + its unique indexes; adds the deferred audit/login FKs. |
+| V6 | `V6__parking_spaces.sql` | `parking_spaces` (§3.2) + `UX_parking_spaces_label`. (V5 is a dev seed → gap in `db/migration`.) |
+| V7 | `V7__fixed_assignments.sql` | `fixed_assignments` (§3.3) + its filtered/support indexes (`parking_space_id` form). |
+| V8 | `V8__requests.sql` | `requests` (§3.5) + `UX_requests_employee_date_pending`, `UX_requests_space_date_approved`, support indexes. |
+| V9 | `V9__releases.sql` | `releases` (§3.4) + `UX_releases_space_date` + `IX_releases_employee_id`. |
+| V10 | `V10__visitors.sql` | `visitors` + `visitor_reservations` (§3.6/§3.7) + their unique/support indexes. |
+| V11 | `V11__email_outbox.sql` | `email_outbox` (§3.11) + `IX_email_outbox_status`. |
+| V12 | `V12__generic_resource_refactor.sql` | Generalizes `parking_space_id` → `resource_id` + `resource_type` on `fixed_assignments`, `requests`, `releases`; rebuilds their unique indexes; re-adds then keeps `FK_*_parking_spaces`. |
+| V13 | `V13__desks.sql` | `desks` (§3.2b) + `UX_desks_number`; **drops** the three `FK_*_parking_spaces` (polymorphic `resource_id`). |
+| V15 | `V15__floor_plan_desk_pending_index.sql` | `UX_requests_desk_date_pending` (filtered: PENDING + DESK + `resource_id IS NOT NULL`). (V14 is a dev seed → gap.) |
 
-**V2 — Spring Session (official schema, Spring Session 3.3.x)**
+**Dev seeds (`db/seed/dev/`, profile `des` only — never PRE/PRO):**
+
+| Version | File | Content |
+|---------|------|---------|
+| V5 | `V5__seed_dev_admin.sql` | Idempotent local dev admin (`login=admin`, real BCrypt hash, `password_must_change=0`). |
+| V14 | `V14__seed_dev_desks.sql` | 65 STANDARD desks at neutral (50,50) coords. |
+| V16 | `V16__seed_dev_desk_coords.sql` | Redistributes the 65 desks over a deterministic 9-column grid. |
+| V17 | `V17__seed_dev_employee.sql` | Idempotent local dev employee (`login=empleado`, real BCrypt hash, `password_must_change=0`). |
+| V18 | `V18__seed_dev_desk_real_coords.sql` | Real per-desk `(x%,y%)` coordinates from the authoritative floor-plan mockup. |
+
+> Flyway runs migrations and dev seeds under a single version timeline: in profile `des` both locations are on the classpath, so V5/V14/V16/V17/V18 interleave with the schema versions. In PRE/PRO only `db/migration` is loaded, leaving intentional gaps at V5, V14, (and no V16–V18).
+
+**V1 — Spring Session (official schema, Spring Session 3.3.5)**
 
 ```sql
 CREATE TABLE SPRING_SESSION (
@@ -526,21 +625,23 @@ GO
 ```
 > ⚠️ Verify this against the exact `spring-session-jdbc` version on the classpath and replace with that artifact's `schema-sqlserver.sql` if it differs. Do not hand-evolve it.
 
-**V4 — bootstrap admin** (the only seed authored via Flyway; functional seed data otherwise lives in `database/seed/`)
+**V5 — dev admin seed** (`db/seed/dev/V5__seed_dev_admin.sql`, profile `des` only — **not** a production bootstrap). It is idempotent and carries a **real, already-generated** BCrypt(cost 12) hash, so it is runnable as-is. `password_must_change = 0` (it is a dev account, not the product of a reset). There is a sibling dev-employee seed (`V17`) with the same shape.
 
 ```sql
--- Single bootstrap administrator for Phase 1.
--- password_hash MUST be a real BCrypt(cost 12) hash — see Pendientes (section 10).
-INSERT INTO dbo.employees
-    (first_name, last_name, login, email, password_hash, password_must_change,
-     is_corporate, auth_origin, role, enabled, active, last_password_change_at, created_at)
-VALUES
-    (N'Bootstrap', N'Admin', N'admin', N'admin@aleatica.local',
-     '_[pendiente — generar BCrypt cost 12]_', 1,
-     0, 'LOCAL', 'ADMIN', 1, 1, SYSUTCDATETIME(), SYSUTCDATETIME());
+-- Idempotent local dev administrator (login=admin / password=Admin#Parking2026).
+IF NOT EXISTS (SELECT 1 FROM dbo.employees WHERE login = N'admin')
+BEGIN
+    INSERT INTO dbo.employees
+        (first_name, last_name, login, email, password_hash, password_must_change,
+         is_corporate, auth_origin, role, enabled, active, last_password_change_at, created_at)
+    VALUES
+        (N'Dev', N'Admin', N'admin', N'admin.dev@aleatica.local',
+         '$2a$12$xFfFx12kQw6hOFBT8E3NKe.GZO0pR5ncDvi3w/xKNdEIED66N4a/i', 0,
+         0, 'LOCAL', 'ADMIN', 1, 1, SYSUTCDATETIME(), SYSUTCDATETIME());
+END;
 GO
 ```
-> This file is **not executable as-is**: the `password_hash` placeholder must be replaced by a generated BCrypt hash before running. `password_must_change = 1` forces a change on first login.
+> This seed loads only under the `des` profile (`db/seed/dev` is not on the PRE/PRO classpath). A production bootstrap admin, if needed, is a separate operational concern — it is **not** shipped as a migration here.
 
 ---
 
@@ -549,17 +650,22 @@ GO
 | Table | JPA Entity | Repository |
 |-------|------------|------------|
 | `employees` | `Employee` | `EmployeeRepository` |
-| `parking_spaces` | `ParkingSpace` | `ParkingSpaceRepository` |
+| `parking_spaces` | `ParkingSpace` (implements `BookableResource`) | `ParkingSpaceRepository` |
+| `desks` | `Desk` (implements `BookableResource`) | `DeskRepository` |
 | `fixed_assignments` | `FixedAssignment` | `FixedAssignmentRepository` |
 | `releases` | `Release` | `ReleaseRepository` |
 | `requests` | `Request` | `RequestRepository` |
 | `visitors` | `Visitor` | `VisitorRepository` |
 | `visitor_reservations` | `VisitorReservation` | `VisitorReservationRepository` |
+| `email_outbox` | `EmailOutbox` | `EmailOutboxRepository` |
 | `audit_log` | `AuditLog` | `AuditLogRepository` |
 | `login_log` | `LoginLog` | `LoginLogRepository` |
 | `SPRING_SESSION` / `SPRING_SESSION_ATTRIBUTES` | — (framework-managed, no JPA entity) | — |
+| — (no table) | `BookableResource` (domain interface) | — |
 
 **Mapping notes**
+- `BookableResource` (`com.aleatica.parking.resource`) is a **non-persistent** domain interface — the polymorphic reservable abstraction over `resource_id` + `resource_type`. Materialized by `ParkingSpace` (`ResourceType.PARKING`) and `Desk` (`ResourceType.DESK`); resource existence per type is checked via `ResourceResolverPort`. `FixedAssignment`, `Request` and `Release` map `resource_id`/`resource_type` as plain columns (a `Long` id + a `@Enumerated(STRING) ResourceType`), not a JPA relationship, so there is no ORM-level FK.
+- `Desk` uses its stable business key `number` for `equals`/`hashCode`; `coord_x`/`coord_y` map to `BigDecimal`.
 - Enums map to `@Enumerated(EnumType.STRING)` with Java enums `Role`, `AuthOrigin`, `RequestStatus`, `ReleaseType`, `LoginResult`, `LoginPhase` — values identical to the CHECK lists.
 - `Release` is a valid Java identifier (not a reserved word); no escaping needed.
 - Disable Hibernate DDL auto (`spring.jpa.hibernate.ddl-auto=validate`); Flyway owns the schema. `validate` will catch entity/DDL drift at startup.
@@ -569,7 +675,7 @@ GO
 
 ## 9. Retention policy (purge job)
 
-A daily `@Scheduled` job deletes historical rows older than `parking.retention.years` (default 2). Live entities (`employees`, `parking_spaces`, active `fixed_assignments`, `visitors`) are **never purged**.
+A daily `@Scheduled` job deletes historical rows older than `parking.retention.years` (default 2). Live entities (`employees`, `parking_spaces`, `desks`, active `fixed_assignments`, `visitors`) are **never purged**.
 
 | Table | Purge criterion | Frequency |
 |-------|-----------------|-----------|
@@ -597,11 +703,14 @@ For date-based tables use `DECLARE @cutoffDate DATE = DATEADD(YEAR, -2, CAST(SYS
 
 ## 10. Pendientes
 
-1. **BCrypt hash** for the bootstrap admin in `V4` (cost 12) — the migration is not runnable until provided.
-2. **Bootstrap admin contact data:** real `email` (placeholder `admin@aleatica.local`) — confirm with the customer.
-3. ✅ **`spring-session-jdbc` version resolved:** governed by the Spring Boot 3.3 BOM → **Spring Session 3.3.x**. Copy the verbatim `schema-sqlserver.sql` from that exact artifact for `V2` (the included script targets Spring Session 3.x; confirm byte-for-byte against the resolved 3.3.x jar).
-4. **`requests` resource discriminator:** the `PENDING`-uniqueness key is `(employee_id, requested_date)` for the parking-only core. When `desks` land, decide whether to add `resource_type` to the table and to `UX_requests_employee_date_pending`.
-5. **`email` nullability:** assumed `NOT NULL` and unique. Confirm whether non-corporate employees may lack an email (would require a filtered unique index `WHERE email IS NOT NULL`).
-6. **Covering index for availability** (`requests(parking_space_id, requested_date) INCLUDE(status)`) — deferred to `database-optimizer` after profiling real load.
-7. **`license_plate` uniqueness/format:** currently free `NVARCHAR(15)`, no uniqueness — confirm if a plate must be unique per employee.
-8. **Seed placement policy:** bootstrap admin is delivered as Flyway `V4`; confirm this over `database/seed/` (the document contract separates schema from seed, but section 7 of the brief requested the admin as a migration).
+1. ✅ **Dev admin seed resolved:** the local admin is `db/seed/dev/V5__seed_dev_admin.sql` — a **runnable** idempotent seed with a real BCrypt(cost 12) hash and `password_must_change = 0`, loaded only under the `des` profile. There is **no** production bootstrap admin migration; provisioning the real production admin is an operational task (out of this schema's scope).
+2. ✅ **`spring-session-jdbc` version resolved:** governed by the Spring Boot 3.3.5 BOM → **Spring Session 3.3.5**. `V1__spring_session_schema.sql` is a verbatim copy of that artifact's `schema-sqlserver.sql`; re-copy from the jar if the version changes.
+3. ✅ **`requests` resource discriminator resolved:** V12 added `resource_type` and rebuilt `UX_requests_employee_date_pending` as `(employee_id, resource_type, requested_date)`; V15 added `UX_requests_desk_date_pending` for floor-plan desk holds.
+4. **`email` nullability:** assumed `NOT NULL` and unique. Confirm whether non-corporate employees may lack an email (would require a filtered unique index `WHERE email IS NOT NULL`).
+5. **Covering index for availability** (`requests(resource_id, resource_type, requested_date) INCLUDE(status)`) — deferred to `database-optimizer` after profiling real load.
+6. **`license_plate` uniqueness/format:** currently free `NVARCHAR(15)`, no uniqueness — confirm if a plate must be unique per employee.
+7. **Production seed policy:** dev accounts (`V5` admin, `V17` employee) and dev desks (`V14`/`V16`/`V18`) live in `db/seed/dev` and load only under the `des` profile; confirm how PRE/PRO get their initial admin and reservable inventory (currently expected via the ADMIN CRUD on an empty schema).
+
+---
+
+> **Re-sync note:** this document was re-synchronized with the **actual schema post-V12 (generic-resource-refactor) / V13 (desks) / V15 (floor-plan desk index)**. The three generalized tables (`fixed_assignments`, `requests`, `releases`) carry `resource_id` + `resource_type` (no FK; polymorphic integrity via `ResourceResolverPort`); `desks`, `email_outbox` and the `BookableResource` domain interface are included; the migration/seed inventory matches `db/migration/*` and `db/seed/dev/*`.

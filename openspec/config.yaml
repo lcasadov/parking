@@ -49,6 +49,8 @@ capabilities:
   - generic-resource-refactor
   - desks
   - floor-plan
+  # --- Shell de aplicación (layout, navegación, sesión) ---
+  - app-shell
 
 business_rules:
   source: README.md   # sección "Reglas de negocio" (descriptivas; NO hay catálogo RN-xx)

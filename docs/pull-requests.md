@@ -2,7 +2,7 @@
 
 > **Fuente de verdad** del proceso de PR del proyecto **parking** (ALEATICA).
 > Alineado con `CLAUDE.md` (Phase 5), `docs/TESTING-STRATEGY.md` (umbrales) y `docs/SONAR-STANDARDS.md` (calidad).
-> El **orquestador** (sesión Claude) crea ramas y PRs con el usuario **`lcasadov`**; la **revisión y el merge** los hace **`lcasadov`** (proyecto en solitario). Al coincidir autor y revisor, la *branch protection* no debe exigir aprobación de un tercero (ver §5).
+> El **orquestador** (sesión Claude) crea ramas y PRs con el usuario **`lcasadov`**; la **revisión y el merge** los hace **`lcasadov`** (proyecto en solitario). La puerta humana es la **revisión + squash-merge manual** de `lcasadov` (1 revisión), no una "approval" formal de un tercero — GitHub no permite auto-aprobar (ver §5).
 > Variables (`GITHUB_ORG`, `GITHUB_REPO`, `BASE_BRANCH`, `REPO_ROOT`) en `docs/PROJECT.md` → Anexo A.
 
 ---
@@ -152,14 +152,14 @@ gh issue comment "$ISSUE_ID" --repo "$ORG/$REPO" --body "PR creada: $PR_URL"
 
 | Policy | Valor | Motivo |
 |---|---|---|
-| Aprobaciones requeridas | **0** (proyecto en solitario) | `lcasadov` es autor y revisor; GitHub no permite auto-aprobar, así que la puerta humana es la **revisión + merge manual** de `lcasadov`, no una "approval". |
+| Revisión requerida | **1 revisión manual** de `lcasadov` | `lcasadov` es autor y revisor; GitHub no permite auto-aprobar formalmente, así que la puerta humana es la **revisión + squash-merge manual** de `lcasadov`, equivalente a 1 aprobación. |
 | Issue vinculado (`Closes #<ID>`) | requerido | trazabilidad con Projects |
 | Conversaciones resueltas | requerido | sin comentarios pendientes |
 | Estrategia de merge | **squash only** | historial limpio |
-| Status checks | **GitHub Actions CI** | CI debe pasar (la verdadera puerta bloqueante) |
+| Status checks | **GitHub Actions CI** (`ci.yml`) | CI debe pasar (la verdadera puerta bloqueante) |
 | Borrado de rama tras merge | sí | higiene |
 
-> Cuando se amplíe el equipo, subir "Aprobaciones requeridas" a **1** (de un tercero distinto del autor).
+> Cuando se amplíe el equipo, formalizar la "1 revisión" como **aprobación requerida de un tercero** distinto del autor en la *branch protection*.
 
 **Protocolo de `lcasadov`:** verificar CI verde → revisar diff (foco en lógica, seguridad, RBAC) → ejecutar local si afecta a flujos críticos (auth/SSO, disponibilidad) → **squash merge**.
 
@@ -175,28 +175,34 @@ flowchart LR
     C2 -->|No| X2[❌]
     C2 -->|Sí| C3{Cobertura ≥80/75?}
     C3 -->|No| X3[❌]
-    C3 -->|Sí| C4{Sonar Quality Gate?}
+    C3 -->|Sí| C4{Lint?}
     C4 -->|No| X4[❌]
-    C4 -->|Sí| C5{0 CVE alto/crítico?}
+    C4 -->|Sí| C5{Issue vinculado?}
     C5 -->|No| X5[❌]
-    C5 -->|Sí| C6{Issue vinculado?}
-    C6 -->|No| X6[❌]
-    C6 -->|Sí| C7{1 aprobación + comentarios resueltos?}
-    C7 -->|No| W[⏳]
-    C7 -->|Sí| M([✅ Merge])
+    C5 -->|Sí| C6{1 revisión + comentarios resueltos?}
+    C6 -->|No| W[⏳]
+    C6 -->|Sí| M([✅ Merge])
 ```
+
+**Criterios bloqueantes hoy (verificados por `ci.yml`):**
 
 | # | Criterio | Tipo | Umbral |
 |---|---|---|---|
-| 1 | Build sin errores | Auto (CI) | 100% |
-| 2 | Tests unitarios | Auto (CI) | 100% passing |
+| 1 | Build sin errores (backend `mvn clean verify` · frontend `npm run build`) | Auto (CI) | 100% |
+| 2 | Tests unitarios (JUnit / Vitest) | Auto (CI) | 100% passing |
 | 3 | Cobertura | Auto (JaCoCo/Vitest) | ≥80% líneas · ≥75% ramas · 100% flujos críticos |
-| 4 | SonarCloud Quality Gate | Auto (CI) | passed |
-| 5 | OWASP Dependency-Check / `npm audit` | Auto (CI) | 0 CVE high/critical |
-| 6 | Lint | Auto (Checkstyle/ESLint) | 0 errores |
-| 7 | Issue vinculado | Auto (branch protection) | requerido |
-| 8 | 1 aprobación | Manual (reviewer) | aprobado |
-| 9 | Security sign-off (si hay cambios de acceso/datos) | Manual (`security-auditor`) | OK |
+| 4 | Lint frontend (ESLint) | Auto (CI) | 0 errores |
+| 5 | Issue vinculado | Manual (convención `Closes #<ID>`) | requerido |
+| 6 | 1 revisión + comentarios resueltos | Manual (`lcasadov`) | revisado |
+| 7 | Security sign-off (si hay cambios de acceso/datos) | Manual (`security-auditor`) | OK |
+
+**Criterios aspiracionales (NO implementados aún en CI — no bloquean el merge):**
+
+| Criterio | Estado | Nota |
+|---|---|---|
+| SonarCloud Quality Gate | ⏳ Pendiente | `ci.yml` ejecuta `sonar:sonar` de forma condicional (solo si existe `SONAR_TOKEN`) y **sin** `-Dsonar.qualitygate.wait=true`, por lo que **no bloquea** el build. |
+| OWASP Dependency-Check / `npm audit` | ⏳ Pendiente | No hay ningún step en `ci.yml` que analice CVEs de dependencias. |
+| E2E (Playwright) | ⏳ Pendiente | La suite existe pero corre **en local bajo demanda**, no en CI (ver §7 y `frontend/e2e/README.md`). |
 
 **Excepción:** cobertura < umbral en la primera PR de un módulo nuevo → requiere aprobación explícita del reviewer con justificación.
 
@@ -204,92 +210,78 @@ flowchart LR
 
 ## 7. CI con GitHub Actions (stack parking)
 
-### Backend — `.github/workflows/backend-ci.yml`
+El pipeline real es **un único workflow**: `.github/workflows/ci.yml`. No existen `backend-ci.yml` ni `frontend-ci.yml`. Se dispara en `push` y `pull_request` sobre `main` y `develop` (sin filtros `paths`: ambos jobs corren en cada evento) y define **dos jobs paralelos** — `backend` y `frontend`.
+
+### Job `backend` — build, test, coverage, sonar
 ```yaml
-name: Backend CI
-on:
-  pull_request:
-    branches: [develop]
-    paths: ['backend/**']
-jobs:
-  build_and_test:
-    runs-on: ubuntu-latest
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env: { ACCEPT_EULA: 'Y', MSSQL_SA_PASSWORD: 'Your_strong_Passw0rd' }
-        ports: ['1433:1433']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: '21', cache: maven }
-      - name: Build + Test + JaCoCo
-        run: mvn -f backend/pom.xml -P ci clean verify   # umbral 80% líneas / 75% ramas
-  quality:
-    needs: build_and_test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: SonarCloud
-        run: mvn -f backend/pom.xml sonar:sonar
-        env: { SONAR_TOKEN: '${{ secrets.SONAR_TOKEN }}' }
-      - name: OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with: { project: parking-api, path: backend, format: HTML, args: '--failOnCVSS 7' }
+runs-on: ubuntu-latest
+defaults:
+  run:
+    working-directory: backend
+steps:
+  - name: Checkout                       # fetch-depth: 0 (Sonar necesita el historial), persist-credentials: false
+    uses: actions/checkout@v4
+  - name: Set up JDK 21                  # temurin, cache: maven
+    uses: actions/setup-java@v4
+  - name: Cache SonarCloud packages      # ~/.sonar/cache
+    uses: actions/cache@v4
+  - name: Build, test and coverage       # Testcontainers levanta SQL Server 2022 vía el socket Docker del runner
+    run: mvn -B clean verify
+  - name: SonarCloud analysis            # SOLO si env.SONAR_TOKEN != '' — condicional, no bloqueante
+    if: ${{ env.SONAR_TOKEN != '' }}
+    run: >
+      mvn -B sonar:sonar
+      -Dsonar.host.url=https://sonarcloud.io
+      -Dsonar.projectKey=lcasadov_parking
+      -Dsonar.organization=lcasadov
+  - name: Upload JaCoCo report           # if: always() → artifact backend/target/site/jacoco/
+    uses: actions/upload-artifact@v4
 ```
 
-### Frontend — `.github/workflows/frontend-ci.yml`
+> **SQL Server**: no se usa `services:`; SQL Server 2022 lo levanta **Testcontainers** durante `mvn clean verify` usando el socket Docker del runner Ubuntu.
+> **SonarCloud**: el step es condicional a que exista `SONAR_TOKEN` y corre `sonar:sonar` **sin** `-Dsonar.qualitygate.wait=true`. Es decir, **publica** el análisis pero **no bloquea** el build por el Quality Gate (ver §6, criterios aspiracionales).
+
+### Job `frontend` — lint, build, test, coverage
 ```yaml
-name: Frontend CI
-on:
-  pull_request:
-    branches: [develop]
-    paths: ['frontend/**']
-jobs:
-  build_and_test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: npm, cache-dependency-path: frontend/package-lock.json }
-      - run: npm ci
-        working-directory: frontend
-      - run: npm run lint
-        working-directory: frontend
-      - run: npm run test:coverage      # Vitest, umbral 80/75
-        working-directory: frontend
-      - run: npm run build
-        working-directory: frontend
-  e2e:
-    needs: build_and_test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci && npx playwright install --with-deps
-        working-directory: frontend
-      - run: npm run e2e                 # Playwright
-        working-directory: frontend
-  quality:
-    needs: build_and_test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci
-        working-directory: frontend
-      - run: npm audit --audit-level=high
-        working-directory: frontend
+runs-on: ubuntu-latest
+defaults:
+  run:
+    working-directory: frontend
+steps:
+  - name: Checkout                       # persist-credentials: false
+    uses: actions/checkout@v4
+  - name: Set up Node 22                 # node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json
+    uses: actions/setup-node@v4
+  - name: Install dependencies
+    run: npm ci
+  - name: Lint
+    run: npm run lint
+  - name: Build
+    run: npm run build
+  - name: Test with coverage
+    run: npm run test:coverage
+  - name: Upload coverage report         # if: always() → artifact frontend/coverage/
+    uses: actions/upload-artifact@v4
 ```
+
+> **Node 22** (no 20): coherente con `frontend/package.json` (`engines.node >= 22`).
 
 ### Resumen de gates
-| Gate | Workflow | Umbral | Si falla |
+| Gate | En `ci.yml` | Estado | Si falla |
 |---|---|---|---|
-| Build | CI | 0 errores | bloquea PR |
-| Tests unitarios | CI | 100% | bloquea PR |
-| Cobertura líneas/ramas | CI | ≥80% / ≥75% | bloquea PR |
-| SonarCloud Quality Gate | CI | passed | bloquea PR |
-| OWASP CVSS / npm audit | CI | < 7.0 / 0 high | bloquea PR |
-| E2E Playwright | CI | 100% | bloquea release |
+| Build backend (`mvn clean verify`) | ✅ job `backend` | bloqueante | falla el check → bloquea PR |
+| Tests backend + cobertura JaCoCo | ✅ job `backend` (dentro de `verify`) | bloqueante | bloquea PR |
+| Lint frontend (`npm run lint`) | ✅ job `frontend` | bloqueante | bloquea PR |
+| Build frontend (`npm run build`) | ✅ job `frontend` | bloqueante | bloquea PR |
+| Tests frontend + cobertura (`npm run test:coverage`) | ✅ job `frontend` | bloqueante | bloquea PR |
+| SonarCloud Quality Gate | ⚠️ análisis condicional a `SONAR_TOKEN`, sin `qualitygate.wait` | **no bloqueante** | no bloquea (pendiente) |
+| OWASP Dependency-Check / `npm audit` | ❌ no existe | **pendiente** | — |
+| E2E Playwright | ❌ no en CI (ejecución local bajo demanda) | **pendiente** | — |
 
+> **E2E**: la suite Playwright (`frontend/e2e/`) valida login, solicitud/aprobación y plano móvil contra el **stack real** (SQL Server + backend `des`). No está cableada en CI porque los runners no garantizan ese stack completo; se ejecuta **en local bajo demanda** (ver `frontend/e2e/README.md`).
+>
+> **Pendientes de CI** (aspiracional, aún no implementado): bloqueo por Sonar Quality Gate (`-Dsonar.qualitygate.wait=true`), análisis de CVEs de dependencias (OWASP Dependency-Check / `npm audit`), y job E2E en pipeline.
+>
 > CI/CD migrará de GitHub Actions a Azure Pipelines al cerrar el arranque (`PROJECT.md`). SonarCloud se mantiene en ambos.
 
 ---

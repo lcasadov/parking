@@ -33,7 +33,7 @@
 
 parking es una aplicación web corporativa que gestiona **recursos reservables** (plazas de parking y puestos de oficina) mediante asignación fija por día de la semana, solicitud puntual con aprobación, liberación y reservas de visitante. Sirve a dos perfiles —`ADMIN` y `EMPLOYEE`— desde web de escritorio y móvil.
 
-El alcance de este documento es el **diseño de alto nivel**: estilo arquitectónico, contenedores, módulos, flujos críticos y despliegue. El detalle de datos vive en `docs/data-model.md` y el detalle funcional en el `README.md`. Cubre las dos fases de autenticación (Fase 1 login local, Fase 2 SSO ALEATICA) y el alcance ampliado de puestos/plano.
+El alcance de este documento es el **diseño de alto nivel**: estilo arquitectónico, contenedores, módulos, flujos críticos y despliegue. El detalle de datos vive en `docs/data-model.md` y el detalle funcional en el `README.md`. Cubre las dos fases de autenticación —**Fase 1 login local (implementada)** y **Fase 2 SSO ALEATICA (diseño pendiente, aún no implementado)**— y el alcance ampliado de puestos/plano.
 
 ---
 
@@ -97,7 +97,8 @@ Cada hexágono se compone de:
 flowchart LR
     subgraph driving["Adaptadores de entrada (driving)"]
         rest["REST Controllers<br/>(Spring MVC)"]
-        sec["Security Filter / SSO Callback"]
+        sec["Security Filter (SecurityConfig)"]
+        sso["SSO Callback / Single Logout<br/>(Fase 2 · pendiente)"]
         sched["Scheduler (@Scheduled)"]
     end
 
@@ -105,7 +106,7 @@ flowchart LR
         direction TB
         inports["Puertos de entrada<br/>(Use Cases)<br/>RequestUseCase · AuthorizeUseCase · …"]
         domain["Modelo + reglas de dominio<br/>máquina de estados · AvailabilityPolicy<br/>ventana 14d · política de contraseña"]
-        outports["Puertos de salida<br/>RepositoryPort · MailPort · AuditPort<br/>ClockPort · JwtPort · SessionPort"]
+        outports["Puertos de salida<br/>RepositoryPort · MailPort · AuditPort<br/>ClockPort · SessionPort · JwtPort <i>(Fase 2)</i>"]
         inports --> domain --> outports
     end
 
@@ -122,6 +123,7 @@ flowchart LR
 
     rest --> inports
     sec --> inports
+    sso -.-> inports
     sched --> inports
     outports --> jpa --> db
     outports --> mail --> smtp
@@ -134,7 +136,7 @@ flowchart LR
 
 | Elemento hexagonal | Tipo | Ejemplos en Parking |
 |--------------------|------|---------------------|
-| Adaptador de entrada | driving | REST Controllers, `SsoCallback` / `SingleLogout`, `SecurityFilterChain`, `Scheduler` |
+| Adaptador de entrada | driving | REST Controllers, `SecurityFilterChain` (`SecurityConfig`), `Scheduler`; `SsoCallback` / `SingleLogout` _(Fase 2 · pendiente)_ |
 | Puerto de entrada | use case | `EmployeeUseCase`, `RequestUseCase`, `AssignmentUseCase`, `ReleaseUseCase`, `AvailabilityUseCase`, `VisitorUseCase`, `AuthorizeUseCase` |
 | Núcleo de dominio | dominio | `Request` + `RequestStatus` (máquina de estados), `AvailabilityPolicy`, reglas de `FixedAssignment`, política de contraseña, unicidades |
 | Puerto de salida | driven | `*RepositoryPort`, `MailPort`, `AuditPort`, `ClockPort`, `JwtPort`, `SessionPort` |
@@ -202,17 +204,18 @@ Esta vista refleja la arquitectura hexagonal de la sección 3: una franja de **i
 ```mermaid
 flowchart TB
     subgraph inbound["INFRAESTRUCTURA · Adaptadores de entrada (driving)"]
-        controllers["REST Controllers<br/>Auth · Employee · ParkingSpace · Request · FixedAssignment ·<br/>Release · Availability · Visitor · Desk/FloorPlan · Export"]
-        ssoAdapter["SsoCallback / SingleLogout (Fase 2)"]
-        secAdapter["SecurityFilterChain<br/>sesión + RBAC"]
+        controllers["REST Controllers<br/>Auth · Employee · ParkingSpace · Request · FixedAssignment ·<br/>Release · Availability · Calendar · Visitor · VisitorReservation ·<br/>Desk · FloorPlan · Audit · Export · Health"]
+        ssoAdapter["SsoCallback / SingleLogout<br/><i>(Fase 2 · pendiente)</i>"]
+        secAdapter["SecurityFilterChain (SecurityConfig)<br/>sesión + RBAC"]
         schedAdapter["Scheduler @Scheduled<br/>purga retención + reintento mail"]
+        errAdapter["GlobalExceptionHandler<br/>ApiError · violación de índice → 409"]
     end
 
     subgraph core["DOMINIO · núcleo por módulo (sin framework)"]
         direction TB
         usecases["Puertos de entrada · Use Cases<br/>EmployeeUseCase · RequestUseCase · AssignmentUseCase ·<br/>ReleaseUseCase · AvailabilityUseCase · VisitorUseCase · AuthorizeUseCase"]
-        domainModel["Modelo + reglas de dominio<br/>máquina de estados de Request · AvailabilityPolicy ·<br/>ventana de solicitud · política de contraseña · unicidades"]
-        outports["Puertos de salida<br/>RepositoryPort · MailPort · AuditPort · ClockPort · JwtPort · SessionPort"]
+        domainModel["Modelo + reglas de dominio<br/>máquina de estados de Request · AvailabilityPolicy ·<br/>ventana de solicitud · política de contraseña · unicidades ·<br/>BookableResource / ResourceType (recurso genérico)"]
+        outports["Puertos de salida<br/>RepositoryPort · MailPort · AuditPort · ClockPort ·<br/>SessionPort · ResourceResolverPort · JwtPort <i>(Fase 2)</i>"]
         usecases --> domainModel --> outports
     end
 
@@ -220,48 +223,59 @@ flowchart TB
         jpaAdapters["JPA Repository Adapters<br/>(Spring Data + Hibernate 6.5)"]
         mailAdapter["Mail Adapter<br/>(Spring Mail + Thymeleaf)"]
         auditAdapter["Audit Adapter<br/>(@Aspect AuditLogAspect)"]
-        jwtAdapter["JWT Adapter (jjwt, Fase 2)"]
-        sessionAdapter["Session Adapter<br/>(Spring Session JDBC)"]
+        concAdapter["ConcurrencyRetry<br/>reintento aplicativo ante colisión de índice"]
+        jwtAdapter["JWT Adapter (jjwt)<br/><i>(Fase 2 · pendiente)</i>"]
+        sessionAdapter["Session Adapter<br/>(Spring Session JDBC · SessionConfig)"]
     end
 
     db[("SQL Server 2022")]
     smtp["SMTP / Ethereal"]
 
     controllers --> usecases
-    ssoAdapter --> usecases
+    ssoAdapter -.-> usecases
     secAdapter --> usecases
     schedAdapter --> usecases
+    controllers --> errAdapter
     outports --> jpaAdapters --> db
     outports --> mailAdapter --> smtp
     outports --> auditAdapter --> db
-    outports --> jwtAdapter
+    outports --> concAdapter --> db
+    outports -.-> jwtAdapter
     outports --> sessionAdapter --> db
 ```
 
-> **Cómo leerlo:** los adaptadores de entrada solo invocan **puertos de entrada**; el dominio solo invoca **puertos de salida** (interfaces), cuyas implementaciones son los adaptadores de salida. Ningún `Controller` contiene lógica de negocio y ningún componente de dominio importa Spring/Hibernate. `AvailabilityUseCase` es reutilizado por `RequestUseCase` (al crear/aprobar) y por el `AvailabilityController` (calendario y vista del plano). Las notificaciones por email no son una llamada directa: el dominio emite la intención y el `Mail Adapter` la materializa `AFTER_COMMIT`.
+> **Módulos de infraestructura transversal** (no mostrados como puertos porque son plomería, no dominio): `config/` (`SecurityConfig`, `SessionConfig`, `OpenApiConfig`), `exception/` (`GlobalExceptionHandler` + `ApiError`: traduce la violación de índice único a `409 Conflict`), `concurrency/` (`ConcurrencyRetry`: reintento aplicativo acotado cuando SQL Server elige la inserción concurrente como víctima de deadlock), `health/` (`HealthController`, `GET /api/v1/health`) y `resource/` (`BookableResource` / `ResourceResolverPort` / `ResourceType`, núcleo del `generic-resource-refactor` que unifica plazas y puestos).
+
+> **Cómo leerlo:** los adaptadores de entrada solo invocan **puertos de entrada**; el dominio solo invoca **puertos de salida** (interfaces), cuyas implementaciones son los adaptadores de salida. Ningún `Controller` contiene lógica de negocio y ningún componente de dominio importa Spring/Hibernate. `AvailabilityUseCase` es reutilizado por `RequestUseCase` (al crear/aprobar), por el `AvailabilityController` (disponibilidad y vista del plano) y por el `CalendarController` (vistas de calendario `/calendar/admin` y `/my-week`). Las notificaciones por email no son una llamada directa: el dominio emite la intención y el `Mail Adapter` la materializa `AFTER_COMMIT`.
 
 ---
 
 ## 7. Vista de módulos (monolito modular)
 
-Los módulos del backend se corresponden 1:1 con el **roadmap funcional** del README, lo que mantiene la trazabilidad entre arquitectura, specs y entrega:
+Los módulos del backend siguen el **roadmap funcional** del README (con nombres de paquete Java reales bajo `com.aleatica.parking`), lo que mantiene la trazabilidad entre arquitectura, specs y entrega. La columna «Paquete» refleja el nombre real en el código; el roadmap del README usa etiquetas funcionales que no siempre coinciden 1:1:
 
-| Módulo | Responsabilidad | Entidades principales |
-|--------|-----------------|-----------------------|
-| `auth` | Login local (Fase 1), SSO callback + SLO (Fase 2), sesión, lockout, política de contraseña | `Employee` (credenciales), `login_log` |
-| `employees` | CRUD de empleados, RBAC, reset de contraseña | `Employee` |
-| `parking` | CRUD de plazas | `ParkingSpace` |
-| `assignments` | Asignación fija por día de semana, revocación lógica | `FixedAssignment` |
-| `requests` | Solicitud puntual, aprobación/rechazo, cancelación | `Request` |
-| `releases` | Liberación voluntaria y administrativa | `Release` |
-| `availability` | Cálculo de disponibilidad y vistas de calendario | (consulta todas) |
-| `visitors` | Fichas de visitante y reservas de plaza | `Visitor`, `VisitorReservation` |
-| `desks` / `floor-plan` | Puestos, categorías, coordenadas, plano y editor (alcance ampliado) | `Desk` |
-| `notifications` | Emails transaccionales por evento | (plantillas) |
-| `audit` | Auditoría transversal y consulta | `AuditLog` |
+| Paquete (real) | Responsabilidad | Entidades principales |
+|----------------|-----------------|-----------------------|
+| `auth` | Login local (Fase 1: `login`/`logout`/`me`/`change-password`), sesión, lockout, política de contraseña. SSO callback + SLO **(Fase 2 · pendiente, no implementado)** | `Employee` (credenciales), `login_log` |
+| `employee` | CRUD de empleados, RBAC, reset de contraseña | `Employee` |
+| `parkingspace` | CRUD de plazas | `ParkingSpace` |
+| `fixedassignment` | Asignación fija por día de semana, revocación lógica | `FixedAssignment` |
+| `request` | Solicitud puntual, aprobación/rechazo, cancelación | `Request` |
+| `release` | Liberación voluntaria y administrativa | `Release` |
+| `availability` | Cálculo de disponibilidad (`AvailabilityController`) y vistas de calendario (`CalendarController`: `/calendar/admin`, `/my-week`) | (consulta todas) |
+| `visitor` | Fichas de visitante (`VisitorController`) y reservas de plaza (`VisitorReservationController`) | `Visitor`, `VisitorReservation` |
+| `desk` | Puestos, categorías, coordenadas (alcance ampliado) | `Desk` |
+| `floorplan` | Plano interactivo y editor de coordenadas (paquete distinto de `desk`) | (coords sobre `Desk`) |
+| `notification` | Emails transaccionales por evento | (plantillas / outbox) |
+| `audit` | Auditoría transversal y consulta (`/audit`, `/login-logs`) | `AuditLog`, `login_log` |
 | `export` | Exportación CSV/XLSX | (histórico) |
+| `resource` | Núcleo del `generic-resource-refactor`: `BookableResource`, `ResourceResolverPort`, `ResourceType` (abstrae plaza/puesto) | `BookableResource` |
+| `concurrency` | `ConcurrencyRetry`: reintento aplicativo acotado ante colisión de índice único filtrado (víctima de deadlock) | — |
+| `exception` | `GlobalExceptionHandler` + `ApiError`: traducción de violación de índice a `409` y respuesta de error homogénea | — |
+| `config` | `SecurityConfig`, `SessionConfig`, `OpenApiConfig` (plomería de framework) | — |
+| `health` | `HealthController`, `GET /api/v1/health` | — |
 
-Cada módulo es un **hexágono** (sección 3.2): expone su lógica por puertos de entrada y declara sus dependencias como puertos de salida. Las dependencias entre módulos de la tabla se resuelven puerto-a-puerto (p. ej. `requests` consume el puerto de entrada de `availability`, no su implementación).
+Cada módulo funcional es un **hexágono** (sección 3.2): expone su lógica por puertos de entrada y declara sus dependencias como puertos de salida. Las dependencias entre módulos de la tabla se resuelven puerto-a-puerto (p. ej. `request` consume el puerto de entrada de `availability`, no su implementación). Los paquetes `concurrency`, `exception`, `config`, `health` y (en parte) `resource` son **infraestructura transversal**, no hexágonos funcionales.
 
 El alcance ampliado introduce primero un `generic-resource-refactor` que generaliza `ParkingSpace`/`Desk` bajo `BookableResource` (`resource_id`) antes de añadir `desks` y `floor-plan` (ver roadmap del README).
 
@@ -293,7 +307,9 @@ sequenceDiagram
     end
 ```
 
-### 8.2 SSO ALEATICA (Fase 2) — `/ssocallback`
+### 8.2 SSO ALEATICA (Fase 2 · pendiente) — `/ssocallback`
+
+> ⚠️ **No implementado.** Este flujo describe el diseño previsto de la Fase 2 (ver `openspec/changes/init-auth-sso/`). Nada de lo aquí descrito —`/ssocallback`, `id_token`, `client_sid`, `slo_token`, `JwtPort`, Single Logout— existe todavía en el código: `AuthController` solo expone `login` / `logout` / `me` / `change-password` (Fase 1). Se conserva como referencia de la fase futura.
 
 ```mermaid
 sequenceDiagram
@@ -362,7 +378,7 @@ sequenceDiagram
     end
 ```
 
-> La **concurrencia** (dos admins aprobando la misma plaza/fecha a la vez) se resuelve en la BD: el conjunto de *filtered indexes* y la validación de disponibilidad dentro de la transacción convierten la colisión en un `409 Conflict` determinista, sin bloqueo pesimista aplicativo.
+> La **concurrencia** (dos admins aprobando la misma plaza/fecha a la vez) se resuelve en la BD: el conjunto de *filtered indexes* (p. ej. `UX_requests_space_date_approved`) y la validación de disponibilidad dentro de la transacción convierten la colisión en un `409 Conflict` determinista, **sin bloqueo pesimista aplicativo**. Para el caso en que SQL Server resuelve la carrera eligiendo una inserción como víctima de deadlock (1205), el adaptador web aplica un **reintento acotado** (`concurrency/ConcurrencyRetry`) fuera de la transacción, que tras el commit del ganador produce el mismo `409` en vez de un `500`.
 
 ---
 
@@ -428,10 +444,11 @@ Evidencia tomada de los mockups (`docs/mockups/`) y del README:
 
 ## 11. Seguridad
 
-- **Autenticación:** Fase 1 login local con BCrypt (coste 12), bloqueo tras 5 intentos/15 min, política de contraseña y cambio obligatorio tras reset. Fase 2 delega la autenticación en la landing y solo **autoriza** validando el JWT y consultando `employees`.
-- **Sesión:** server-side vía **Spring Session JDBC** sobre SQL Server; cookie `parking_SESSION` con `HttpOnly`, `Secure`, `SameSite=Lax`. Permite **Single Logout** localizando la sesión por `client_sid`.
-- **Autorización:** RBAC `ADMIN`/`EMPLOYEE` en la cadena de filtros; el rol procede **siempre** de `Employee.role`, nunca del claim `roles` del JWT.
-- **Validación JWT (Fase 2):** firma + `iss`/`aud`/`exp`. La clave de firma la provee ALEATICA (pendiente).
+- **Autenticación (Fase 1 · implementado):** login local con BCrypt (coste 12), bloqueo tras 5 intentos/15 min, política de contraseña y cambio obligatorio tras reset. `AuthController` expone `login` / `logout` / `me` / `change-password`.
+- **Autenticación (Fase 2 · pendiente, no implementado):** delegaría la autenticación en la landing ALEATICA y solo **autorizaría** validando el JWT (`/ssocallback`) y consultando `employees`. Aún no existe en el código.
+- **Sesión:** server-side vía **Spring Session JDBC** sobre SQL Server; cookie `parking_SESSION` con `HttpOnly`, `Secure`, `SameSite=Lax`. El **Single Logout** localizando la sesión por `client_sid` es diseño de **Fase 2 (pendiente)**; en Fase 1 el logout invalida la sesión local.
+- **Autorización:** RBAC `ADMIN`/`EMPLOYEE` en la cadena de filtros (`SecurityConfig`); el rol procede **siempre** de `Employee.role`, nunca del claim `roles` del JWT.
+- **Validación JWT (Fase 2 · pendiente):** firma + `iss`/`aud`/`exp`. La clave de firma la provee ALEATICA (bloqueante externo). No implementado.
 - **CORS:** en **producción no es necesario** (SPA y API en el mismo origen, servidas por Tomcat). Solo aplica en **desarrollo** (SPA en `:5173`), con orígenes permitidos por configuración (`parking.cors.*`) y `withCredentials`.
 - **Trazabilidad:** todo intento de login en `login_log`; toda acción funcional sensible en `audit_log`.
 - **RGPD:** retención 2 años de históricos y derechos gestionados vía admin (PROJECT.md).
@@ -441,7 +458,25 @@ Evidencia tomada de los mockups (`docs/mockups/`) y del README:
 ## 12. Datos y persistencia
 
 - **ORM:** Spring Data JPA + Hibernate 6.5; `ddl-auto=validate` (el esquema lo gobierna Flyway, ver `data-model.md`).
-- **Migraciones:** Flyway 10 (`V1` esquema, `V2` Spring Session, `V3` índices de rendimiento, `V4` admin bootstrap).
+- **Migraciones:** Flyway 10, una tabla por migración (ruta `db/migration/`):
+
+  | Versión | Contenido |
+  |---------|-----------|
+  | `V1` | Esquema de **Spring Session** (`SPRING_SESSION` / `SPRING_SESSION_ATTRIBUTES`) |
+  | `V2` | `audit_log` + `login_log` |
+  | `V3` | Índices de infraestructura |
+  | `V4` | `employees` |
+  | `V6` | `parking_spaces` |
+  | `V7` | `fixed_assignments` |
+  | `V8` | `requests` (+ *filtered indexes* `UX_requests_employee_date_pending`, `UX_requests_space_date_approved`) |
+  | `V9` | `releases` |
+  | `V10` | `visitors` / `visitor_reservations` |
+  | `V11` | `email_outbox` |
+  | `V12` | `generic_resource_refactor` (`BookableResource`) |
+  | `V13` | `desks` |
+  | `V15` | Índice filtrado de puestos en el plano |
+
+  El **admin** no es una migración de esquema: es un **seed de desarrollo** (`db/seed/dev/V5__seed_dev_admin.sql`), aplicado solo en entornos de desarrollo, no en PRO.
 - **Integridad y concurrencia:** *filtered unique indexes* para unicidades parciales (asignación activa por día, una solicitud `PENDING` por empleado/fecha, `login`/`email`/`national_id` únicos).
 - **Revocación lógica:** nunca se borran filas vivas; se marcan `active = false`.
 - **Retención:** job `@Scheduled` diario con `DELETE TOP (1000)` en bucle para `audit_log`, `login_log`, `requests` cerradas, `releases`, `visitor_reservations` con antigüedad > 2 años.
@@ -472,7 +507,7 @@ Evidencia tomada de los mockups (`docs/mockups/`) y del README:
 | ADR-08 | Arquitectura hexagonal (puertos y adaptadores) por módulo | Capas tradicionales controller→service→repository | Aísla el dominio de la infraestructura: reglas testeables sin BD, doble auth (Fase 1/2) como adaptadores sobre un mismo use case, persistencia reemplazable. |
 | ADR-02 | Sesión server-side por cookie (Spring Session JDBC) | JWT de sesión stateless | Necesidad de invalidación remota (Single Logout Fase 2) y revocación inmediata. |
 | ADR-03 | SPA React desacoplada | Renderizado servidor (Thymeleaf) | Plano interactivo, móvil y modales ricos vistos en mockups. |
-| ADR-04 | Unicidad/concurrencia en BD (*filtered indexes*) | Bloqueo pesimista aplicativo | Colisión determinista a `409` sin contención; más simple y robusto. |
+| ADR-04 | Unicidad/concurrencia por *filtered index* en BD + **reintento aplicativo acotado** (`concurrency/ConcurrencyRetry`) | Bloqueo pesimista aplicativo (`SELECT ... FOR UPDATE`) | El índice único filtrado (p. ej. `UX_requests_space_date_approved`, V8) garantiza la unicidad y convierte la colisión en `409` determinista. No se usa bloqueo pesimista; sí un reintento acotado fuera de transacción para el caso en que SQL Server elija una inserción concurrente como víctima de deadlock (1205), traduciéndola también a `409` en vez de a un `500`. Más simple y robusto que el locking pesimista. |
 | ADR-05 | Esquema gobernado por Flyway (`ddl-auto=validate`) | Generación por Hibernate | Migraciones versionadas y reproducibles; evita drift. |
 | ADR-06 | Email por evento `AFTER_COMMIT` + reintento | Envío dentro de la transacción | El correo nunca debe revertir la operación funcional. |
 | ADR-07 | Empaquetado WAR sobre Tomcat 10.1 externo | JAR ejecutable embebido | Estándar de despliegue corporativo (restricción PROJECT.md). |

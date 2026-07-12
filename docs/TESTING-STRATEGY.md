@@ -11,16 +11,22 @@
 
 ## 1. Umbrales del Quality Gate
 
-| Métrica | Umbral | Bloquea merge |
-|---------|--------|---------------|
-| Cobertura de líneas | ≥ 80 % | Sí |
-| Cobertura de ramas (branches) | ≥ 75 % | Sí |
-| Cobertura en **flujos críticos** | 100 % | Sí |
-| Duplicación | ≤ 3 % | Sí |
-| Tests sin aserción (S2699) | 0 | Sí |
-| `Thread.sleep()` en tests (S2925) | 0 | Sí |
+| Métrica | Umbral | ¿Gate cableado hoy? |
+|---------|--------|---------------------|
+| Cobertura de líneas | ≥ 80 % | **Sí** — JaCoCo `check` en `mvn verify` (backend); umbral Vitest en `npm run test:coverage` (frontend). Ambos corren en CI y **rompen el build**. |
+| Cobertura de ramas (branches) | ≥ 75 % | **Sí** — mismo mecanismo (JaCoCo `BRANCH` / Vitest `branches`). |
+| Cobertura en **flujos críticos** | 100 % | **No (aspiracional)**. JaCoCo solo verifica el ratio **global de BUNDLE** (0.80/0.75); no existe una regla por paquete/flujo que exija 100 %. Es un objetivo de diseño, no un gate automático. |
+| Duplicación | ≤ 3 % | **No bloqueante en el repo hoy**. Lo mide SonarCloud, que corre **condicionado a `SONAR_TOKEN`** y **sin `sonar.qualitygate.wait=true`**: el análisis no espera al veredicto ni falla el job. |
+| Tests sin aserción (S2699) | 0 | **No bloqueante en CI**. Regla de SonarCloud (misma condición que arriba); se aplica "mientras se escribe" (ver `SONAR-STANDARDS.md`), no como gate que rompa el pipeline. |
+| `Thread.sleep()` en tests (S2925) | 0 | **No bloqueante en CI**. Ídem S2699. |
 
-**Flujos críticos de parking (cobertura 100 %)** — se corrige aquí la lista heredada de plantilla (que mencionaba "AARR/AESIA/triaje", de otro proyecto):
+> **Qué gate impone qué (estado real del pipeline, `.github/workflows/ci.yml`):**
+> - **Cobertura backend** → la impone `mvn -B clean verify` vía la ejecución `check` de JaCoCo a nivel **BUNDLE** (global): `LINE ≥ 0.80`, `BRANCH ≥ 0.75`. Si no se alcanza, el job `backend` falla.
+> - **Cobertura frontend** → la impone `npm run test:coverage` vía los `thresholds` de Vitest (`lines 80`, `branches 75`, `functions 80`, `statements 80`). Si no se alcanza, el job `frontend` falla.
+> - **SonarCloud** → corre **solo si `SONAR_TOKEN` está presente** y con `mvn sonar:sonar` **sin** `qualitygate.wait`. Por tanto, hoy **no bloquea el merge**: su Quality Gate es informativo/aspiracional, dependiente de configuración externa (proyecto en sonarcloud.io). El **frontend no se analiza con Sonar** en absoluto (no hay paso Sonar en el job `frontend`).
+> - **Umbrales numéricos (0.80/0.75/80)**: coinciden con `backend/pom.xml` y `frontend/vite.config.ts`. Esos sí son gates reales.
+
+**Flujos críticos de parking (objetivo de cobertura 100 %)** — meta de diseño, no gate automático (ver tabla). Se corrige aquí la lista heredada de plantilla (que mencionaba "AARR/AESIA/triaje", de otro proyecto):
 1. **Autenticación** 🟢: verificación BCrypt, bloqueo por 5 intentos/15 min, política de contraseña, cambio obligatorio tras reset.
 2. **Autorización**: RBAC `ADMIN`/`EMPLOYEE` por endpoint, y 🔵 algoritmo de `/ssocallback` (validación JWT + acceso por `login`, rol desde `Employee.role`).
 3. **Disponibilidad y concurrencia**: cálculo de disponibilidad y aprobación con colisión → `409` (filtered indexes).
@@ -207,21 +213,24 @@ Reporte HTML: `target/site/jacoco/index.html`. XML para SonarCloud: `target/site
 }
 ```
 
-**`vitest.config.ts`:**
+**`vite.config.ts`** (la config de Vitest vive dentro del `vite.config.ts`, no en un fichero `vitest.config.ts` aparte):
 
 ```ts
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
   test: {
+    // Excluir los e2e de Playwright para que `npm test` no los ejecute como Vitest.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.ts',
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],   // lcov para SonarCloud
+      reporter: ['text', 'html', 'lcov'],   // lcov para SonarCloud (frontend no analizado hoy)
       thresholds: { lines: 80, branches: 75, functions: 80, statements: 80 },
       exclude: ['**/*.config.*', 'src/main.tsx', 'src/**/*.d.ts', 'src/i18n/**'],
     },
@@ -274,16 +283,33 @@ Reporte HTML: `coverage/index.html`. `lcov.info` para SonarCloud.
 |-------|-------------|---------|------|
 | Unitario | JUnit5+Mockito / Vitest+RTL | Dominio, use cases, componentes/hooks | ~70 % |
 | Integración (slice) | `@WebMvcTest`, `@DataJpaTest` + Testcontainers / RTL con API mock | Adaptadores, repos, controllers | ~25 % |
-| E2E | **Playwright** | Journeys admin/empleado (multinavegador, incl. móvil) | ~5 % |
+| E2E | **Playwright** | Journeys admin/empleado (escritorio + móvil, motor Chromium) | ~5 % |
+
+> **E2E fuera de CI (importante).** La suite Playwright (`frontend/e2e/`) **NO está cableada en `.github/workflows/ci.yml`** — no hay job de Playwright. Es **ejecución local bajo demanda** (`npx playwright test`), porque requiere el stack real completo (SQL Server en Docker + backend Spring Boot perfil `des` + dev server Vite), que los runners no garantizan (ver `frontend/e2e/README.md`). Por tanto este ~5 % de la pirámide **no aporta cobertura en el pipeline**; los gates de CI se sostienen sobre los niveles Unitario e Integración.
+>
+> **Navegadores E2E (config real, `playwright.config.ts`).** Solo se definen dos proyectos, **ambos sobre motor Chromium**: `chromium` (device *Desktop Chrome*) y `mobile` (device *Pixel 5*). **No hay proyectos Firefox ni WebKit**; la suite no es multimotor.
 
 Mocks del WS SSO 🔵 y del SMTP en los tests de integración.
 
 ---
 
-## 5. Pendientes / inconsistencias a reconciliar
+## 5. Fechas deterministas en aserciones (evitar "time-bombs")
+
+**Regla:** cuando el dato bajo prueba incluye timestamps generados en tiempo de ejecución (p. ej. `createdAt = hoy`, `occurredAt = ahora`), **nunca** ancles la aserción a una fecha relativa a hoy. Usa **fechas fijas de un año pasado o futuro** que jamás puedan colisionar con el timestamp del sistema.
+
+**Por qué.** Una aserción `doesNotContain("<fecha-de-hoy>")` o `contains("<fecha-de-hoy>")` es una bomba de relojería: pasa hoy y falla otro día. **Incidente real:** el test `ExportIT` aseveraba `doesNotContain("2026-07-12")` sobre un CSV que incluye la columna `createdAt` (= hoy). El 2026-07-12 el `createdAt` de la fila coincidió con la fecha buscada y el test rompió. Se corrigió usando fechas de un año pasado fijo (`2020-03-10`, `2020-03-11`, y `doesNotContain("2020-03-12")`), que nunca coinciden con el `createdAt` de ejecución.
+
+**Cómo aplicar:**
+- Datos de negocio bajo prueba (fechas de solicitud, reservas, etc.) → **fechas literales fijas** lejanas de hoy (`LocalDate.parse("2020-03-10")`, fixtures con `'2020-01-01'`), no `LocalDate.now()±n`.
+- Si la lógica **sí** depende de "hoy" (ventana 14 días, `fecha ≥ hoy`), inyecta el reloj con un `ClockPort` fijado a una fecha determinista (ver §2.2), no el reloj del sistema.
+- Aserciones sobre timestamps autogenerados (`createdAt`/`occurredAt`) → afírmalo por presencia de columna/formato, no por el valor exacto del día de ejecución.
+
+---
+
+## 6. Pendientes / inconsistencias a reconciliar
 
 1. **`SONAR-STANDARDS.md`** ✅ ya alineado: Java 21, design system propio (no MUI), flujos críticos de parking (§1) y nombres de test en inglés `should..._when...()`.
 2. **El prompt mencionaba "reservas de pistas de pádel"**: tratado como resto de plantilla; todo se aplica al dominio **parking**.
 3. **UI del frontend**: ✅ **design system propio** (CSS propio + variables + Tabler Icons, fiel a los mockups QRIA; **sin** librería de componentes tipo MUI). Build tool: **Vite** (implícito en Vitest). Los tests de componentes seleccionan por rol/label accesible.
-4. **E2E**: ✅ **Playwright** (decidido). Multinavegador (Chromium/Firefox/WebKit), auto-waits, trazas/vídeo.
+4. **E2E**: ✅ **Playwright** (decidido). Dos proyectos sobre **motor Chromium** (`chromium` = Desktop Chrome, `mobile` = Pixel 5); **sin Firefox ni WebKit**. Auto-waits, trazas/vídeo solo en fallo. **No cableado en CI** — ejecución local bajo demanda (ver §4 y `frontend/e2e/README.md`).
 5. **No existe código aún**: estas configuraciones se crean en el arranque (changes `bootstrap-mvp` / `frontend-bootstrap` del roadmap) y los nombres de clases/componentes se ajustarán a la implementación real.

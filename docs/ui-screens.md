@@ -20,10 +20,11 @@ Detalle de la estrategia responsive (breakpoint `≤768px`, viewport, degradaci�
 
 ## Estructura común (shell de administración)
 
-Presente en todas las pantallas de escritorio del Panel de Administración (`shell.js`).
+Presente en todas las pantallas del Panel de Administración. Fuente de verdad del shell implementado: `frontend/src/layouts/AdminLayout.tsx` + `frontend/src/components/AppHeader.tsx` (los mockups de puestos traían un sidebar inline propio ya reemplazado).
 
-- **Header**: logo + marca "parking · ALEATICA", título de la página, avatar de usuario.
-- **Sidebar** (`shell.js`, unificado): Inicio · Asignación semanal · Solicitudes (badge de pendientes) · Empleados · Plazas · Puestos · Plano · Visitantes · Auditoría · Administración. En móvil colapsa a barra superior con scroll horizontal.
+- **Header** (`AppHeader`): logo cónico + marca "parking · ALEATICA", título de la página, botón "Exportar mis datos" (RGPD) y un **menú de usuario**. El avatar es el disparador de un **Popover** (`role="dialog"`) que contiene: identidad del usuario (nombre · rol · login), conmutador de **idioma** (ES/EN), conmutador de **tema** (claro/oscuro) y **Cerrar sesión**. No es «logo + título + avatar» a secas: idioma, tema y logout viven dentro de ese popover (ver [Preferencias](#22-preferencias-idioma-y-tema)).
+- **Sidebar** (`AdminLayout`, orden real): **Asignación semanal** · **Disponibilidad** · **Empleados** · **Plazas** · **Puestos** · **Plano** · **Solicitudes** (badge rojo de pendientes) · **Liberaciones** · **Visitantes** · **Auditoría** · **Accesos**. No existe «Inicio» (la ruta índice redirige a Empleados) ni un item «Administración». En móvil colapsa a barra superior con scroll horizontal.
+- **Sidebar del Portal del Empleado** (`EmployeeLayout`, orden real): **Mi semana** · **Plano** · **Mis solicitudes** · **Mis asignaciones fijas** · **Mis liberaciones**.
 
 ---
 
@@ -274,14 +275,16 @@ Presente en todas las pantallas de escritorio del Panel de Administración (`she
 - **Estados:** ⚠️ Pendiente de confirmar: error si la plaza ya está ocupada (`409`).
 - **Navegación:** se abre desde [Visitantes y reservas](#17-visitantes-y-reservas).
 
-## 19. Auditoría y accesos
+## 19. Auditoría (acciones)
 
-- **Mockup de referencia:** `docs/mockups/11-auditoria.html` *(creado)*
-- **Propósito:** consulta del registro de auditoría funcional y de los intentos de login (`README` → auditoría; `data-model.md` → `audit_log`/`login_log`).
-- **Componentes:** pestañas "Auditoría de acciones" / "Accesos (login)"; buscador; "Rango de fechas"; "Exportar"; tabla Fecha · Actor · Acción (pill) · Entidad · Detalle; nota de retención 2 años.
-- **Datos mostrados:** `AuditLog` (`occurred_at`, actor, `action`, `entity_type`/`entity_id`, `details`). La pestaña "Accesos" mostraría `LoginLog`.
+- **Mockup de referencia:** `docs/mockups/11-auditoria.html` *(creado)* · **Ruta implementada:** `/admin/audit` (`AuditPage`).
+- **Propósito:** consulta del registro de auditoría funcional (`README` → auditoría; `data-model.md` → `audit_log`).
+- **Componentes:** buscador; "Rango de fechas"; "Exportar"; tabla Fecha · Actor · Acción (pill) · Entidad · Detalle; nota de retención 2 años.
+- **Datos mostrados:** `AuditLog` (`occurred_at`, actor, `action`, `entity_type`/`entity_id`, `details`).
 - **Estados:** ⚠️ Pendiente de confirmar: carga/vacío/error.
 - **Navegación:** sidebar "Auditoría". "Exportar" → fichero CSV/XLSX.
+
+> **Nota de implementación:** el mockup `11-auditoria.html` presentaba Auditoría y Accesos como **dos pestañas** de una misma pantalla. En el frontend real son **dos rutas independientes** del sidebar: Auditoría (`/admin/audit`, esta pantalla) y **Accesos** (`/admin/login-logs`, ver [Accesos / logs de login](#31-accesos--logs-de-login)).
 
 ## 20. Liberar mi plaza (móvil)
 
@@ -326,6 +329,74 @@ Presente en todas las pantallas de escritorio del Panel de Administración (`she
 - **Datos mostrados:** ninguno sensible; solo el aviso.
 - **Estados:** se dispara ante cualquier `401` tras estar autenticado.
 - **Navegación:** "Volver a iniciar sesión" → [Login](#13-login-local-fase-1) (Fase 1) o landing ALEATICA (Fase 2).
+
+---
+
+## Pantallas implementadas en el frontend (fuera de los mockups)
+
+> **Alcance de esta sección.** A diferencia del resto del catálogo (construido desde `docs/mockups/`), estas pantallas se documentan desde la **implementación real**: fuente de verdad `frontend/src/pages/*`, `frontend/src/routes/AppRoutes.tsx` y `frontend/src/routes/paths.ts`. Cubren rutas que existen en la aplicación pero que no tenían mockup ni ficha en el catálogo original.
+
+## 25. Gestión de puestos (CRUD)
+
+- **Ruta:** `/admin/desks` (`DesksPage`). Rol: **ADMIN**.
+- **Propósito:** alta, edición y activación/desactivación de los puestos de oficina (`Desk`), distinguiendo categoría `STANDARD`/`EXECUTIVE`.
+- **Componentes:** cabecera con "Nuevo puesto"; toolbar (buscador por número + filtro Todos/Activos/Inactivos); tabla Número · Categoría (`DeskCategoryBadge`, ver [`design-system.md`](design-system.md)) · Estado (pill Activo/Inactivo) · Acciones (Editar, Activar/Desactivar); leyenda; paginación; modal de alta/edición (`DeskFormModal`).
+- **Datos mostrados:** `Desk` (`number`, `category`, `active`). La activación usa endpoint dedicado `PATCH /desks/{id}/activation`.
+- **Navegación:** sidebar "Puestos". "Editar posiciones" sobre el plano vive en [Plano de puestos](#8-plano-de-puestos--vista-admin-titulares-y-estado-del-día).
+
+## 26. Liberación administrativa
+
+- **Ruta:** `/admin/releases` (`AdministrativeReleasesPage`). Rol: **ADMIN**.
+- **Propósito:** que el admin libere administrativamente una plaza fija de un empleado para una fecha (`Release` de tipo administrativo).
+- **Componentes:** cabecera con "Nueva liberación" + texto introductorio; modal (`AdministrativeReleaseModal`) con selectores de empleado, plaza, fecha y **motivo obligatorio**.
+- **Datos mostrados:** empleados y plazas activas (para los selectores); `Release` resultante.
+- **Navegación:** sidebar "Liberaciones".
+
+## 27. Mis liberaciones
+
+- **Ruta:** `/employee/releases` (`MyReleasesPage`). Rol: **EMPLOYEE**.
+- **Propósito:** que el empleado consulte sus liberaciones y **anule** las futuras.
+- **Componentes:** tabla Fecha · Tipo (pill `VOLUNTARY`/administrativa) · Plaza · Acciones (botón "Anular", deshabilitado para fechas pasadas); paginación; modal de confirmación (`CancelReleaseModal`).
+- **Datos mostrados:** `Release` propias (`GET /releases/mine`); anulación vía `DELETE /releases/{id}`.
+- **Navegación:** sidebar "Mis liberaciones".
+
+## 28. Mis asignaciones fijas
+
+- **Ruta:** `/employee/fixed-assignments` (`MyFixedAssignmentsPage`). Rol: **EMPLOYEE**.
+- **Propósito:** que el empleado vea sus plazas fijas y los días asignados, y **libere** un recurso fijo para una fecha presente/futura.
+- **Componentes:** tabla Plaza · Días (chips `DayBadges`) · Acciones (botón "Liberar"); modal de liberación (`ReleaseResourceModal`).
+- **Datos mostrados:** `FixedAssignment` agrupadas del usuario autenticado.
+- **Navegación:** sidebar "Mis asignaciones fijas".
+
+## 29. Mis solicitudes
+
+- **Ruta:** `/employee/requests` (`MyRequestsPage`). Rol: **EMPLOYEE**. Es la ruta índice del portal.
+- **Propósito:** que el empleado consulte sus solicitudes, cree nuevas ([Solicitud unificada](#12-solicitud-unificada-plaza-yo-puesto)) y **cancele** las que estén en `PENDING`.
+- **Componentes:** cabecera con "Exportar" (CSV/XLSX, `ExportMenu`) y "Nueva solicitud"; tabla Fecha · Estado (badge) · Recurso (`ResourceTypePill`, ver [`design-system.md`](design-system.md)) · Plaza · Acciones (botón "Cancelar", solo si `PENDING`); paginación; modales `CreateRequestModal` y `CancelRequestModal`.
+- **Datos mostrados:** `Request` propias (`GET /requests/mine`); cancelación mientras están en `PENDING`.
+- **Navegación:** sidebar "Mis solicitudes".
+
+## 30. Disponibilidad por fecha
+
+- **Ruta:** `/admin/availability` (`AvailabilityPage`). Rol: **ADMIN**.
+- **Propósito:** elegir una fecha y listar las plazas disponibles ese día (`GET /availability`).
+- **Componentes:** selector de fecha; contador de disponibles; tabla Plaza · Id; estados de hint/fecha inválida/carga/error/vacío.
+- **Datos mostrados:** `availableResources` (plazas libres para la fecha).
+- **Navegación:** sidebar "Disponibilidad".
+
+## 31. Accesos / logs de login
+
+- **Ruta:** `/admin/login-logs` (`LoginLogsPage`). Rol: **ADMIN**.
+- **Propósito:** consulta de los intentos de login (`LoginLog`). Es una **ruta propia** del sidebar ("Accesos"), **no** una pestaña dentro de [Auditoría](#19-auditoría-acciones).
+- **Componentes:** nota de retención; filtros (resultado OK/KO, "Desde"/"Hasta"); tabla Fecha · Login · Resultado (pill) · Fase · IP; paginación; error de ventana de fechas inválida.
+- **Datos mostrados:** `LoginLog` (`occurred_at`, `login_attempted`, `result`, `phase`, `ip_address`) vía `GET /login-logs`.
+- **Navegación:** sidebar "Accesos".
+
+## 32. Cambiar contraseña (ruta)
+
+- **Ruta:** `/change-password` (`ChangePasswordPage`). Requiere sesión (cualquier rol).
+- **Propósito y componentes:** idénticos a la ficha de [Cambiar contraseña](#14-cambiar-contraseña) (banner, campos actual/nueva/repetir, checklist de política). Se documenta aquí para fijar que es una **ruta dedicada** (no solo un modal), presentada dentro del `AuthShell`, a la que se llega tras login con `passwordMustChange` o tras un reset.
+- **Navegación:** entrada desde [Login](#13-login-local-fase-1); al guardar → destino según rol.
 
 ---
 
