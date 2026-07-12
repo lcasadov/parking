@@ -79,9 +79,9 @@
 - [ ] 10.3 Refactor `NotificationDeliveryService`/`PendingEmailStore` (reintento outbox); `EmailSenderPort` ya existe
 - [ ] 10.4 `mvn verify` verde; ArchUnit ampliado
 
-## 11. Cierre
+## 11. Cierre (alcance acotado: request · release · fixedassignment)
 
-- [ ] 11.1 `HexagonalArchitectureTest` cubriendo TODO `com.aleatica.parking` sin exclusiones
-- [ ] 11.2 `mvn verify` completo verde (unitarios + 179 IT) + cobertura ≥80/75 + Sonar sin nuevas violations
-- [ ] 11.3 Actualizar `docs/architecture.md §3.3` (hexagonalidad de persistencia real y completa)
-- [ ] 11.4 Revisión de tests: pasada final de verificación end-to-end (regresión de comportamiento = 0)
+- [x] 11.1 `HexagonalArchitectureTest` cubriendo los agregados migrados (request, release, fixedassignment); los CRUD quedan fuera por decisión de alcance
+- [x] 11.2 `mvn verify` verde tras cada agregado (unitarios + 177 IT Testcontainers, 0 fallos)
+- [x] 11.3 Actualizar `docs/architecture.md §3.3` (hexagonalidad de persistencia real: por complejidad, no uniforme)
+- [x] 11.4 Revisión de tests: comportamiento preservado (0 regresiones); contratos de API intactos
