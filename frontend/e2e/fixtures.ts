@@ -1,18 +1,20 @@
 import { test as base } from '@playwright/test';
-import { resetRequests } from './reset-db';
+import { resetToBaseline } from './reset-db';
 
 // =====================================================================
 // Runner e2e con aislamiento por test. Extiende el `test` base con un fixture
-// auto-use que vacia la tabla `requests` ANTES DE CADA test, de modo que cada
-// escenario parte de un baseline limpio de la BD dev compartida (ver reset-db.ts).
+// auto-use que restablece la BD dev al baseline de seeds ANTES DE CADA test, de
+// modo que cada escenario parte de un estado limpio y determinista de la BD dev
+// compartida (ver reset-db.ts).
 //
 // Los specs deben importar `test` y `expect` DESDE AQUI (no de @playwright/test)
 // para heredar el reset automatico.
 // =====================================================================
-export const test = base.extend<{ resetRequestsTable: void }>({
-  resetRequestsTable: [
+export const test = base.extend<{ resetDbBaseline: void }>({
+  resetDbBaseline: [
+    // eslint-disable-next-line no-empty-pattern -- patrón de fixture Playwright sin dependencias
     async ({}, use) => {
-      resetRequests();
+      resetToBaseline();
       await use();
     },
     { auto: true },
