@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 // =====================================================================
 // Puerta 3 — e2e de login REAL (backend Spring Boot + SQL Server + SPA).
@@ -17,6 +18,7 @@ const LABELS = {
   user: 'Usuario',
   password: 'Contraseña',
   signIn: 'Entrar',
+  openMenu: 'Abrir menú de usuario',
   logout: 'Cerrar sesión',
   invalidCredentials: 'Usuario o contraseña incorrectos',
   sessionExpiredTitle: 'Sesión expirada',
@@ -25,7 +27,8 @@ const LABELS = {
 async function submitLogin(page: Page, login: string, password: string): Promise<void> {
   await page.goto('/login');
   await page.getByLabel(LABELS.user).fill(login);
-  await page.getByLabel(LABELS.password).fill(password);
+  // exact: evita casar el boton "Mostrar contraseña" (aria-label contiene "contraseña").
+  await page.getByLabel(LABELS.password, { exact: true }).fill(password);
   await page.getByRole('button', { name: LABELS.signIn }).click();
 }
 
@@ -42,6 +45,8 @@ test('should_login_and_redirect_to_admin_when_valid_credentials', async ({ page,
   // Redireccion al area de administracion (rol ADMIN del seed): /admin
   // redirige por indice a la landing real /admin/employees.
   await expect(page).toHaveURL(/\/admin\/employees$/);
+  // El logout vive dentro del menu de usuario (Popover): abrirlo primero.
+  await page.getByRole('button', { name: LABELS.openMenu }).click();
   await expect(page.getByRole('button', { name: LABELS.logout })).toBeVisible();
 
   // Cookie de sesion emitida por el backend: HttpOnly (inaccesible a XSS),
@@ -90,6 +95,7 @@ test('should_invalidate_session_when_logout', async ({ page, context, request })
   const oldSession = cookiesBefore.find((c) => c.name === SESSION_COOKIE);
   expect(oldSession, 'debe existir sesion activa antes del logout').toBeDefined();
 
+  await page.getByRole('button', { name: LABELS.openMenu }).click();
   await page.getByRole('button', { name: LABELS.logout }).click();
   await expect(page).toHaveURL(/\/login$/);
 

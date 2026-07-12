@@ -23,7 +23,8 @@ const LABELS = {
 export async function loginUI(page: Page, login: string, password: string): Promise<void> {
   await page.goto('/login');
   await page.getByLabel(LABELS.user).fill(login);
-  await page.getByLabel(LABELS.password).fill(password);
+  // exact: evita casar el boton "Mostrar contraseña" (aria-label contiene "contraseña").
+  await page.getByLabel(LABELS.password, { exact: true }).fill(password);
   await page.getByRole('button', { name: LABELS.signIn }).click();
 }
 

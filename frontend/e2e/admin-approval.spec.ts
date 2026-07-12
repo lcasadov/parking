@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { EMPLOYEE, apiLogin, cancelEmployeePending, isoDatePlus, loginAsAdmin } from './helpers';
 
 // =====================================================================
@@ -40,7 +41,7 @@ test('should_approve_and_reject_pending_requests_as_admin', async ({ page }) => 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   // Selecciona la primera plaza real (índice 0 es el placeholder).
-  await dialog.getByLabel('Plaza a asignar').selectOption({ index: 1 });
+  await dialog.getByLabel('Plaza disponible').selectOption({ index: 1 });
   await dialog.getByRole('button', { name: 'Aprobar' }).click();
   await expect(dialog).toBeHidden();
 
