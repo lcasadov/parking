@@ -121,10 +121,13 @@ class ExportIT extends BaseIntegrationTest {
 
     @Test
     void should_export_only_own_requests_when_employee_requests_my_requests() throws Exception {
-        // Arrange: dos solicitudes del empleado y una de otro
-        insertRequest(empId, LocalDate.parse("2026-07-10"));
-        insertRequest(empId, LocalDate.parse("2026-07-11"));
-        insertRequest(otherId, LocalDate.parse("2026-07-12"));
+        // Arrange: dos solicitudes del empleado y una de otro. Fechas de un anyo
+        // pasado fijo: el CSV incluye la columna createdAt (=hoy), asi que usar
+        // fechas que jamas coincidan con un timestamp hace robusto el doesNotContain
+        // en cualquier fecha de ejecucion (antes fallaba al ejecutarse el 2026-07-12).
+        insertRequest(empId, LocalDate.parse("2020-03-10"));
+        insertRequest(empId, LocalDate.parse("2020-03-11"));
+        insertRequest(otherId, LocalDate.parse("2020-03-12"));
         Cookie emp = login(EMP_LOGIN, EMP_PASSWORD);
 
         // Act
@@ -137,8 +140,8 @@ class ExportIT extends BaseIntegrationTest {
         long dataRows = csv.lines().count() - 1; // menos la cabecera
         assertThat(dataRows).isEqualTo(2);
         assertThat(csv)
-                .contains("2026-07-10", "2026-07-11")
-                .doesNotContain("2026-07-12");
+                .contains("2020-03-10", "2020-03-11")
+                .doesNotContain("2020-03-12");
     }
 
     @Test
