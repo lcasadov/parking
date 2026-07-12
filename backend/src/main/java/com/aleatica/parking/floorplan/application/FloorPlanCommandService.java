@@ -9,13 +9,14 @@ import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.DeskRequestResponse;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.DuplicatePendingRequestException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.request.infrastructure.RequestMapper;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
@@ -57,7 +58,7 @@ public class FloorPlanCommandService {
             "El puesto no esta disponible para la fecha solicitada";
 
     private final DeskRepository deskRepository;
-    private final RequestRepository requestRepository;
+    private final RequestJpaRepository requestRepository;
     private final EmployeeRepository employeeRepository;
     private final AvailabilityService availabilityService;
     private final ApplicationEventPublisher eventPublisher;
@@ -73,7 +74,7 @@ public class FloorPlanCommandService {
      */
     public FloorPlanCommandService(
             DeskRepository deskRepository,
-            RequestRepository requestRepository,
+            RequestJpaRepository requestRepository,
             EmployeeRepository employeeRepository,
             AvailabilityService availabilityService,
             ApplicationEventPublisher eventPublisher,
@@ -111,9 +112,10 @@ public class FloorPlanCommandService {
                 employeeId, ResourceType.DESK, date, RequestStatus.PENDING)) {
             throw new DuplicatePendingRequestException(MSG_ALREADY_PENDING);
         }
-        Request saved = requestRepository.saveAndFlush(
-                Request.createForResource(employeeId, ResourceType.DESK, desk.getId(), date, now));
-        eventPublisher.publishEvent(new RequestCreatedEvent(RequestResponse.from(saved)));
+        RequestEntity saved = requestRepository.saveAndFlush(
+                RequestEntity.createForResource(employeeId, ResourceType.DESK, desk.getId(), date, now));
+        eventPublisher.publishEvent(
+                new RequestCreatedEvent(RequestResponse.from(RequestMapper.toDomain(saved))));
         return new DeskRequestResponse(saved.getId(), desk.getId(), FloorPlanDeskState.MINE);
     }
 

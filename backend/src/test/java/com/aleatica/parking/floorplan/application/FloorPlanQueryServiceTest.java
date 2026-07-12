@@ -21,9 +21,9 @@ import com.aleatica.parking.floorplan.dto.FloorPlanDeskResponse;
 import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
 import com.aleatica.parking.release.Release;
 import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
@@ -61,7 +61,7 @@ class FloorPlanQueryServiceTest {
     private DeskRepository deskRepository;
     private FixedAssignmentRepository fixedAssignmentRepository;
     private ReleaseRepository releaseRepository;
-    private RequestRepository requestRepository;
+    private RequestJpaRepository requestRepository;
     private EmployeeRepository employeeRepository;
     private ClockPort clock;
 
@@ -72,7 +72,7 @@ class FloorPlanQueryServiceTest {
         deskRepository = mock(DeskRepository.class);
         fixedAssignmentRepository = mock(FixedAssignmentRepository.class);
         releaseRepository = mock(ReleaseRepository.class);
-        requestRepository = mock(RequestRepository.class);
+        requestRepository = mock(RequestJpaRepository.class);
         employeeRepository = mock(EmployeeRepository.class);
         clock = mock(ClockPort.class);
         given(clock.now()).willReturn(NOW);
@@ -164,12 +164,12 @@ class FloorPlanQueryServiceTest {
         return desk;
     }
 
-    private static Request deskRequest(Long resourceId, Long employeeId) {
-        return Request.createForResource(employeeId, ResourceType.DESK, resourceId, WITHIN, NOW);
+    private static RequestEntity deskRequest(Long resourceId, Long employeeId) {
+        return RequestEntity.createForResource(employeeId, ResourceType.DESK, resourceId, WITHIN, NOW);
     }
 
-    private static Request genericRequest(Long employeeId) {
-        return Request.create(employeeId, ResourceType.DESK, WITHIN, NOW);
+    private static RequestEntity genericRequest(Long employeeId) {
+        return RequestEntity.create(employeeId, ResourceType.DESK, WITHIN, NOW);
     }
 
     private static FixedAssignment deskFixed(Long resourceId, Long employeeId, int dow) {

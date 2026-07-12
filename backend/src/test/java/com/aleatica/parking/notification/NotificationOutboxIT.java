@@ -15,7 +15,7 @@ import com.aleatica.parking.notification.application.EmailDeliveryException;
 import com.aleatica.parking.notification.application.EmailMessage;
 import com.aleatica.parking.notification.application.NotificationDeliveryService;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
 import com.aleatica.parking.support.BaseIntegrationTest;
 import jakarta.servlet.http.Cookie;

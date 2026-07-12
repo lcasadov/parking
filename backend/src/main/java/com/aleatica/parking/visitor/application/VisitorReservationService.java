@@ -8,8 +8,8 @@ import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RequestStatus;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.VisitorRepository;
 import com.aleatica.parking.visitor.VisitorReservation;
@@ -60,7 +60,7 @@ public class VisitorReservationService {
     private final VisitorRepository visitorRepository;
     private final ParkingSpaceRepository parkingSpaceRepository;
     private final FixedAssignmentRepository fixedAssignmentRepository;
-    private final RequestRepository requestRepository;
+    private final RequestJpaRepository requestRepository;
     private final ReleaseRepository releaseRepository;
     private final EmployeeRepository employeeRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -82,7 +82,7 @@ public class VisitorReservationService {
             VisitorRepository visitorRepository,
             ParkingSpaceRepository parkingSpaceRepository,
             FixedAssignmentRepository fixedAssignmentRepository,
-            RequestRepository requestRepository,
+            RequestJpaRepository requestRepository,
             ReleaseRepository releaseRepository,
             EmployeeRepository employeeRepository,
             ApplicationEventPublisher eventPublisher,

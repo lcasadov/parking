@@ -4,17 +4,17 @@
 
 ## 1. Andamiaje transversal
 
-- [ ] 1.1 Añadir dependencia de test `com.tngtech.archunit:archunit-junit5` en `backend/pom.xml` (scope test)
-- [ ] 1.2 Crear `HexagonalArchitectureTest`: `..domain..` sin `jakarta.persistence`/`org.hibernate`/`org.springframework.data`; `..application..` sin `JpaRepository` ni entidades JPA (inicialmente acotado a los paquetes migrados)
-- [ ] 1.3 Definir la convención de paquetes objetivo (`domain`/`application`/`infrastructure`) y documentarla en un `package-info.java` de referencia
+- [x] 1.1 Añadir dependencia de test `com.tngtech.archunit:archunit-junit5` en `backend/pom.xml` (scope test)
+- [x] 1.2 Crear `HexagonalArchitectureTest`: `..domain..` sin `jakarta.persistence`/`org.hibernate`/`org.springframework.data`; `..application..` sin `JpaRepository` ni entidades JPA (inicialmente acotado a los paquetes migrados)
+- [x] 1.3 Definir la convención de paquetes objetivo (`domain`/`application`/`infrastructure`) y documentarla en un `package-info.java` de referencia
 
 ## 2. Agregado `request` (plantilla de referencia — dominio más rico)
 
-- [ ] 2.1 Modelo de dominio `request.domain.Request` (con transiciones de estado) + enums de dominio + `RequestRepositoryPort`
-- [ ] 2.2 Infraestructura: entidad JPA `request.infrastructure.RequestEntity` + `RequestJpaRepository` (Spring Data) + `RequestPersistenceAdapter` (implementa el puerto) + mapper entidad↔dominio
-- [ ] 2.3 Refactor `RequestService` para depender del puerto y operar con dominio; mapeo dominio↔DTO en application; `@Transactional` permanece en el servicio
-- [ ] 2.4 Verificar índice `UX_requests_space_date_approved`/`UX_requests_desk_date_pending` → 409 y `ConcurrencyRetry` intactos
-- [ ] 2.5 Tests unitarios de servicio contra un fake del puerto (sin Testcontainers) + mapper; `mvn verify` verde; ampliar ArchUnit a `request`
+- [x] 2.1 Modelo de dominio `request.domain.Request` (con transiciones de estado) + enums de dominio + `RequestRepositoryPort`
+- [x] 2.2 Infraestructura: entidad JPA `request.infrastructure.RequestEntity` + `RequestJpaRepository` (Spring Data) + `RequestPersistenceAdapter` (implementa el puerto) + mapper entidad↔dominio
+- [x] 2.3 Refactor `RequestService` para depender del puerto y operar con dominio; mapeo dominio↔DTO en application; `@Transactional` permanece en el servicio
+- [x] 2.4 Verificar índice `UX_requests_space_date_approved`/`UX_requests_desk_date_pending` → 409 y `ConcurrencyRetry` intactos
+- [x] 2.5 Tests unitarios de servicio contra un fake del puerto (sin Testcontainers) + mapper; `mvn verify` verde; ampliar ArchUnit a `request`
 
 ## 3. Agregado `release`
 

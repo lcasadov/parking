@@ -1,88 +1,51 @@
-package com.aleatica.parking.request;
+package com.aleatica.parking.request.domain;
 
 import com.aleatica.parking.resource.ResourceType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /**
- * Entidad de persistencia de una solicitud puntual (tabla {@code dbo.requests}).
+ * Modelo de dominio de una solicitud puntual (arquitectura hexagonal, change
+ * {@code hexagonal-persistence}).
  *
- * <p>Solicitud de un empleado para una plaza de parking en una fecha concreta, con
- * ciclo de vida de aprobacion/rechazo gestionado por el {@code ADMIN}. Nace en
- * {@link RequestStatus#PENDING} con {@code resource_id = NULL} y
- * {@code resource_type = PARKING}; el recurso se asigna solo al aprobar. El DTO de
- * salida sigue exponiendo {@code parkingSpaceId} (contrato invariable).</p>
+ * <p>Es el nucleo de negocio del agregado {@code request}: <strong>libre de framework</strong>
+ * (sin JPA, sin Spring, sin Hibernate). Encapsula la maquina de estados de la solicitud, cuyas
+ * transiciones ({@link #approve}, {@link #reject}, {@link #cancel}) garantizan la invariante de
+ * que solo se resuelve desde {@link RequestStatus#PENDING} (la comprobacion de la invariante la
+ * hace el caso de uso via {@link #isPending()} antes de transitar). La persistencia la resuelve
+ * un adaptador de infraestructura que mapea este modelo a/desde una entidad JPA
+ * ({@code RequestEntity}) a traves de {@code RequestMapper}.</p>
  *
- * <p>Es un adaptador de salida: nunca se expone en la capa web (S4684); el
- * controlador trabaja con DTOs. Las referencias a otras tablas se guardan como
- * identificadores ({@code Long}), evitando por diseno consultas N+1 y manteniendo
- * el agregado desacoplado. Las transiciones de estado son metodos de dominio que
- * garantizan la invariante (solo desde {@code PENDING}).</p>
+ * <p>Una solicitud nace en {@link RequestStatus#PENDING} con {@code resourceId = null} y un
+ * {@code resourceType} fijado desde la creacion; el recurso concreto se asigna solo al aprobar
+ * (salvo la solicitud puesto-especifica del plano, que ya nace vinculada). Las referencias a
+ * otras tablas se guardan como identificadores ({@code Long}), manteniendo el agregado
+ * desacoplado.</p>
  */
-@Entity
-@Table(name = "requests")
 public class Request {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "employee_id", nullable = false)
     private Long employeeId;
-
-    @Column(name = "requested_date", nullable = false)
     private LocalDate requestedDate;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 10)
     private RequestStatus status;
-
-    @Column(name = "resource_id")
     private Long resourceId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "resource_type", nullable = false, length = 10)
     private ResourceType resourceType;
-
-    @Column(name = "approval_note", length = 500)
     private String approvalNote;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "rejection_reason_code", length = 40)
     private RejectionReasonCode rejectionReasonCode;
-
-    @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
-
-    @Column(name = "resolved_by_id")
     private Long resolvedById;
-
-    @JdbcTypeCode(SqlTypes.TIMESTAMP)
-    @Column(name = "resolved_at")
     private Instant resolvedAt;
-
-    @JdbcTypeCode(SqlTypes.TIMESTAMP)
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    /** Constructor sin argumentos requerido por JPA. */
-    protected Request() {
-        // JPA
+    /** Constructor privado; las instancias se obtienen por las factorias estaticas. */
+    private Request() {
+        // factorias
     }
 
     /**
-     * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin plaza.
+     * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin plaza,
+     * de tipo {@code PARKING} por defecto.
      *
      * @param employeeId    empleado solicitante
      * @param requestedDate fecha solicitada
@@ -97,8 +60,8 @@ public class Request {
      * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin recurso,
      * para un tipo de recurso concreto ({@code PARKING} plaza / {@code DESK} puesto).
      *
-     * <p>Nace con {@code resource_id = NULL}; el recurso concreto se asigna al aprobar. El
-     * {@code resource_type} se fija desde la creacion para que la unicidad {@code PENDING}
+     * <p>Nace con {@code resourceId = null}; el recurso concreto se asigna al aprobar. El
+     * {@code resourceType} se fija desde la creacion para que la unicidad {@code PENDING}
      * por empleado/tipo/fecha permita a un empleado pedir plaza y puesto la misma fecha.</p>
      *
      * @param employeeId    empleado solicitante
@@ -124,14 +87,6 @@ public class Request {
      * un recurso concreto (solicitud puesto-especifica del plano interactivo, capability
      * {@code floor-plan}).
      *
-     * <p>A diferencia de {@link #create(Long, ResourceType, LocalDate, Instant)}, que nace
-     * con {@code resource_id = NULL} (el recurso se asigna al aprobar), aqui el puesto pinchado
-     * en el plano se fija desde la creacion: la solicitud ocupa ese puesto para la fecha, de
-     * modo que otro empleado que pinche el mismo puesto libre reciba un conflicto y el plano lo
-     * pinte como {@code REQUESTED}. La unicidad puesto/fecha entre pendientes la garantiza el
-     * indice unico filtrado {@code UX_requests_desk_date_pending} (red dura frente a
-     * concurrencia); la comprobacion previa del caso de uso es la primera capa.</p>
-     *
      * @param employeeId    empleado solicitante
      * @param resourceType  tipo del recurso solicitado ({@code DESK} en el plano)
      * @param resourceId    recurso concreto solicitado (puesto pinchado)
@@ -148,6 +103,45 @@ public class Request {
     }
 
     /**
+     * Reconstituye una solicitud a partir de su estado persistido (uso exclusivo del mapper de
+     * infraestructura {@code RequestMapper}; no aplica reglas de transicion).
+     *
+     * @param id                  identificador
+     * @param employeeId          empleado solicitante
+     * @param requestedDate       fecha solicitada
+     * @param status              estado del ciclo de vida
+     * @param resourceId          recurso asignado; {@code null} mientras {@code PENDING}
+     * @param resourceType        tipo de recurso solicitado
+     * @param approvalNote        nota del administrador al aprobar
+     * @param rejectionReasonCode codigo del catalogo de rechazo
+     * @param rejectionReason     texto libre del rechazo
+     * @param resolvedById        empleado (ADMIN) que resolvio
+     * @param resolvedAt          instante de resolucion (UTC)
+     * @param createdAt           instante de creacion (UTC)
+     * @return la solicitud reconstituida
+     */
+    public static Request restore(
+            Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
+            Long resourceId, ResourceType resourceType, String approvalNote,
+            RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
+            Instant resolvedAt, Instant createdAt) {
+        Request request = new Request();
+        request.id = id;
+        request.employeeId = employeeId;
+        request.requestedDate = requestedDate;
+        request.status = status;
+        request.resourceId = resourceId;
+        request.resourceType = resourceType;
+        request.approvalNote = approvalNote;
+        request.rejectionReasonCode = rejectionReasonCode;
+        request.rejectionReason = rejectionReason;
+        request.resolvedById = resolvedById;
+        request.resolvedAt = resolvedAt;
+        request.createdAt = createdAt;
+        return request;
+    }
+
+    /**
      * @return {@code true} si la solicitud esta en estado {@link RequestStatus#PENDING}.
      */
     public boolean isPending() {
@@ -155,7 +149,7 @@ public class Request {
     }
 
     /**
-     * Aprueba la solicitud asignando plaza, resolutor y nota opcional.
+     * Aprueba la solicitud asignando recurso, resolutor y nota opcional.
      *
      * @param resourceId   recurso asignado (plaza en el nucleo de parking)
      * @param resolvedById empleado (ADMIN) que resuelve

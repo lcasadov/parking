@@ -12,9 +12,9 @@ import com.aleatica.parking.floorplan.dto.FloorPlanDeskResponse;
 import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
 import com.aleatica.parking.release.Release;
 import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
@@ -54,7 +54,7 @@ public class FloorPlanQueryService {
     private final DeskRepository deskRepository;
     private final FixedAssignmentRepository fixedAssignmentRepository;
     private final ReleaseRepository releaseRepository;
-    private final RequestRepository requestRepository;
+    private final RequestJpaRepository requestRepository;
     private final EmployeeRepository employeeRepository;
     private final ClockPort clock;
 
@@ -70,7 +70,7 @@ public class FloorPlanQueryService {
             DeskRepository deskRepository,
             FixedAssignmentRepository fixedAssignmentRepository,
             ReleaseRepository releaseRepository,
-            RequestRepository requestRepository,
+            RequestJpaRepository requestRepository,
             EmployeeRepository employeeRepository,
             ClockPort clock) {
         this.deskRepository = deskRepository;
@@ -154,7 +154,7 @@ public class FloorPlanQueryService {
                 .stream()
                 .filter(request -> request.getResourceId() != null)
                 .collect(Collectors.toMap(
-                        Request::getResourceId, Request::getEmployeeId, (a, b) -> a));
+                        RequestEntity::getResourceId, RequestEntity::getEmployeeId, (a, b) -> a));
     }
 
     private Map<Long, Long> fixedHoldersForDay(List<Long> deskIds, int dow) {

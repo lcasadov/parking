@@ -2,10 +2,8 @@ package com.aleatica.parking.request.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.aleatica.parking.auth.domain.ClockPort;
@@ -15,10 +13,10 @@ import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
-import com.aleatica.parking.request.RejectionReasonCode;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RejectionReasonCode;
+import com.aleatica.parking.request.domain.Request;
+import com.aleatica.parking.request.domain.RequestRepositoryPort;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
@@ -28,6 +26,10 @@ import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,13 +38,18 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
- * Tests unitarios de {@link RequestService} con repositorios y publicador de eventos
- * mockeados: ventana temporal, unicidad {@code PENDING}, maquina de estados,
- * verificacion de pertenencia (BOLA), disponibilidad al aprobar y validacion del
- * catalogo de rechazo. No toca la base de datos.
+ * Tests unitarios de {@link RequestService} con un <strong>fake in-memory del puerto</strong>
+ * {@link RequestRepositoryPort} (no un mock de Spring Data): ventana temporal, unicidad
+ * {@code PENDING}, maquina de estados, verificacion de pertenencia (BOLA), disponibilidad al
+ * aprobar y validacion del catalogo de rechazo. El servicio opera con el modelo de dominio; el
+ * resto de colaboradores ({@code AvailabilityService}, repositorios de empleado, publicador de
+ * eventos) se mockean. No toca la base de datos.
  */
 @ExtendWith(MockitoExtension.class)
 class RequestServiceTest {
@@ -64,8 +71,7 @@ class RequestServiceTest {
     private static final Long REQUEST_ID = 42L;
     private static final String VALID_REASON = "Motivo detallado";
 
-    @Mock
-    private RequestRepository requestRepository;
+    private final InMemoryRequestRepository requestRepository = new InMemoryRequestRepository();
 
     @Mock
     private EmployeeRepository employeeRepository;
@@ -78,9 +84,6 @@ class RequestServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
-
-    @Captor
-    private ArgumentCaptor<Request> savedCaptor;
 
     @Captor
     private ArgumentCaptor<Object> eventCaptor;
@@ -99,20 +102,16 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateWithinWindow() {
         // Arrange
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
-                EMP_ID, ResourceType.PARKING,WITHIN, RequestStatus.PENDING)).willReturn(false);
-        given(requestRepository.saveAndFlush(any(Request.class)))
-                .willAnswer(inv -> inv.getArgument(0));
 
         // Act
         RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null));
 
-        // Assert: estado inicial PENDING, sin plaza, con la fecha y el empleado
+        // Assert: estado inicial PENDING, sin plaza, con la fecha, el empleado y la marca de tiempo
         assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
         assertThat(result.parkingSpaceId()).isNull();
         assertThat(result.requestedDate()).isEqualTo(WITHIN);
-        verify(requestRepository).saveAndFlush(savedCaptor.capture());
-        assertThat(savedCaptor.getValue().getCreatedAt()).isEqualTo(NOW);
+        assertThat(result.createdAt()).isEqualTo(NOW);
+        assertThat(requestRepository.saves()).isEqualTo(1);
         verifyEventPublished(RequestCreatedEvent.class);
     }
 
@@ -120,10 +119,6 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateExactlyToday() {
         // Arrange (frontera inferior inclusive)
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
-                EMP_ID, ResourceType.PARKING,TODAY, RequestStatus.PENDING)).willReturn(false);
-        given(requestRepository.saveAndFlush(any(Request.class)))
-                .willAnswer(inv -> inv.getArgument(0));
 
         // Act / Assert
         assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(TODAY, null)).status())
@@ -134,10 +129,6 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateExactlyMaxDay() {
         // Arrange (frontera superior inclusive: hoy+14)
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
-                EMP_ID, ResourceType.PARKING,MAX_DAY, RequestStatus.PENDING)).willReturn(false);
-        given(requestRepository.saveAndFlush(any(Request.class)))
-                .willAnswer(inv -> inv.getArgument(0));
 
         // Act / Assert
         assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(MAX_DAY, null)).status())
@@ -152,7 +143,7 @@ class RequestServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(BEFORE, null)))
                 .isInstanceOf(OutsideRequestWindowException.class);
-        verify(requestRepository, never()).saveAndFlush(any());
+        assertThat(requestRepository.saves()).isZero();
     }
 
     @Test
@@ -163,20 +154,19 @@ class RequestServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(AFTER, null)))
                 .isInstanceOf(OutsideRequestWindowException.class);
-        verify(requestRepository, never()).saveAndFlush(any());
+        assertThat(requestRepository.saves()).isZero();
     }
 
     @Test
     void shouldThrowDuplicatePending_whenRequestForSameDateExists() {
-        // Arrange
+        // Arrange: ya existe una PENDING del empleado para (PARKING, WITHIN)
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
-                EMP_ID, ResourceType.PARKING,WITHIN, RequestStatus.PENDING)).willReturn(true);
+        requestRepository.seed(pendingWithId(500L, EMP_ID, WITHIN));
 
         // Act / Assert
         assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null)))
                 .isInstanceOf(DuplicatePendingRequestException.class);
-        verify(requestRepository, never()).saveAndFlush(any());
+        assertThat(requestRepository.saves()).isZero();
     }
 
     @Test
@@ -194,10 +184,8 @@ class RequestServiceTest {
     @Test
     void shouldCancelRequest_whenOwnerCancelsPending() {
         // Arrange
-        Request pending = pending();
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+        requestRepository.seed(pending());
         givenActor(EMP_LOGIN, EMP_ID);
-        given(requestRepository.save(any(Request.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
         RequestResponse result = newService().cancel(REQUEST_ID, EMP_LOGIN);
@@ -209,13 +197,13 @@ class RequestServiceTest {
     @Test
     void shouldThrowForbidden_whenCancellingOtherEmployeeRequest() {
         // Arrange: la solicitud es del empleado 15; el solicitante resuelve a 99
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending()));
+        requestRepository.seed(pending());
         givenActor(OTHER_LOGIN, OTHER_ID);
 
         // Act / Assert (BOLA)
         assertThatThrownBy(() -> newService().cancel(REQUEST_ID, OTHER_LOGIN))
                 .isInstanceOf(AccessDeniedException.class);
-        verify(requestRepository, never()).save(any());
+        assertThat(requestRepository.saves()).isZero();
     }
 
     @Test
@@ -223,19 +211,18 @@ class RequestServiceTest {
         // Arrange: solicitud ya aprobada (estado terminal)
         Request approved = pending();
         approved.approve(SPACE_ID, ADMIN_ID, null, NOW);
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(approved));
+        requestRepository.seed(approved);
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().cancel(REQUEST_ID, EMP_LOGIN))
                 .isInstanceOf(RequestStateException.class);
-        verify(requestRepository, never()).save(any());
+        assertThat(requestRepository.saves()).isZero();
     }
 
     @Test
     void shouldThrowNotFound_whenCancellingUnknownRequest() {
-        // Arrange
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.empty());
+        // Arrange (store vacio)
 
         // Act / Assert
         assertThatThrownBy(() -> newService().cancel(REQUEST_ID, EMP_LOGIN))
@@ -247,14 +234,11 @@ class RequestServiceTest {
     @Test
     void shouldApproveRequest_whenSpaceAvailable() {
         // Arrange: la disponibilidad consolidada declara la plaza libre para la fecha
-        Request pending = pending();
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+        requestRepository.seed(pending());
         given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         given(availabilityService.isSpaceTakenForDate(SPACE_ID, ResourceType.PARKING, WITHIN))
                 .willReturn(false);
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        given(requestRepository.saveAndFlush(any(Request.class)))
-                .willAnswer(inv -> inv.getArgument(0));
 
         // Act
         RequestResponse result = newService()
@@ -271,15 +255,11 @@ class RequestServiceTest {
     @Test
     void shouldApproveRequest_whenFixedAssignmentIsReleasedForThatDate() {
         // Arrange (issue #43): plaza con asignacion fija liberada esa fecha -> disponible.
-        // La disponibilidad consolidada aplica el release y la declara NO ocupada.
-        Request pending = pending();
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+        requestRepository.seed(pending());
         given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         given(availabilityService.isSpaceTakenForDate(SPACE_ID, ResourceType.PARKING, WITHIN))
                 .willReturn(false);
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        given(requestRepository.saveAndFlush(any(Request.class)))
-                .willAnswer(inv -> inv.getArgument(0));
 
         // Act / Assert: aprobable pese a existir una asignacion fija (por estar liberada)
         assertThat(newService()
@@ -289,10 +269,8 @@ class RequestServiceTest {
 
     @Test
     void shouldThrowUnavailable_whenSpaceReservedByVisitor() {
-        // Arrange (issue #43): la disponibilidad consolidada incluye las reservas de visitante;
-        // aprobar sobre una plaza ya reservada por un visitante debe rechazarse (no doble reserva).
-        Request pending = pending();
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+        // Arrange (issue #43): la disponibilidad consolidada incluye las reservas de visitante.
+        requestRepository.seed(pending());
         given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         given(availabilityService.isSpaceTakenForDate(SPACE_ID, ResourceType.PARKING, WITHIN))
                 .willReturn(true);
@@ -301,14 +279,13 @@ class RequestServiceTest {
         assertThatThrownBy(() -> newService()
                 .approve(REQUEST_ID, new RequestApproveRequest(SPACE_ID, null), ADMIN_LOGIN))
                 .isInstanceOf(SpaceUnavailableException.class);
-        verify(requestRepository, never()).saveAndFlush(any());
+        assertThat(requestRepository.saves()).isZero();
     }
 
     @Test
     void shouldThrowUnavailable_whenSpaceTakenByConsolidatedRule() {
         // Arrange: la plaza esta ocupada segun la regla consolidada (fija sin liberar o APPROVED)
-        Request pending = pending();
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+        requestRepository.seed(pending());
         given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(true);
         given(availabilityService.isSpaceTakenForDate(SPACE_ID, ResourceType.PARKING, WITHIN))
                 .willReturn(true);
@@ -317,13 +294,13 @@ class RequestServiceTest {
         assertThatThrownBy(() -> newService()
                 .approve(REQUEST_ID, new RequestApproveRequest(SPACE_ID, null), ADMIN_LOGIN))
                 .isInstanceOf(SpaceUnavailableException.class);
-        verify(requestRepository, never()).saveAndFlush(any());
+        assertThat(requestRepository.saves()).isZero();
     }
 
     @Test
     void shouldThrowNotFound_whenApprovingWithUnknownSpace() {
         // Arrange
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending()));
+        requestRepository.seed(pending());
         given(resourceResolvers.exists(SPACE_ID, ResourceType.PARKING)).willReturn(false);
 
         // Act / Assert
@@ -337,7 +314,7 @@ class RequestServiceTest {
         // Arrange: solicitud ya cancelada
         Request cancelled = pending();
         cancelled.cancel();
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(cancelled));
+        requestRepository.seed(cancelled);
 
         // Act / Assert
         assertThatThrownBy(() -> newService()
@@ -350,10 +327,8 @@ class RequestServiceTest {
     @Test
     void shouldRejectRequest_whenReasonCodeFromCatalog() {
         // Arrange
-        Request pending = pending();
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+        requestRepository.seed(pending());
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        given(requestRepository.save(any(Request.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
         RequestResponse result = newService().reject(
@@ -369,10 +344,8 @@ class RequestServiceTest {
     @Test
     void shouldRejectRequest_whenOtherWithValidFreeText() {
         // Arrange
-        Request pending = pending();
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+        requestRepository.seed(pending());
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        given(requestRepository.save(any(Request.class))).willAnswer(inv -> inv.getArgument(0));
 
         // Act
         RequestResponse result = newService().reject(
@@ -386,19 +359,19 @@ class RequestServiceTest {
     @Test
     void shouldThrowReasonRequired_whenOtherWithoutFreeText() {
         // Arrange
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending()));
+        requestRepository.seed(pending());
 
         // Act / Assert
         assertThatThrownBy(() -> newService().reject(
                 REQUEST_ID, new RequestRejectRequest(RejectionReasonCode.OTHER, null), ADMIN_LOGIN))
                 .isInstanceOf(RejectionReasonRequiredException.class);
-        verify(requestRepository, never()).save(any());
+        assertThat(requestRepository.saves()).isZero();
     }
 
     @Test
     void shouldThrowReasonRequired_whenOtherWithTooShortFreeText() {
         // Arrange: texto de menos de 5 caracteres
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending()));
+        requestRepository.seed(pending());
 
         // Act / Assert
         assertThatThrownBy(() -> newService().reject(
@@ -411,7 +384,7 @@ class RequestServiceTest {
         // Arrange
         Request approved = pending();
         approved.approve(SPACE_ID, ADMIN_ID, null, NOW);
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(approved));
+        requestRepository.seed(approved);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().reject(
@@ -424,7 +397,7 @@ class RequestServiceTest {
     @Test
     void shouldReturnRequest_whenGettingExisting() {
         // Arrange
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending()));
+        requestRepository.seed(pending());
 
         // Act / Assert
         assertThat(newService().get(REQUEST_ID).employeeId()).isEqualTo(EMP_ID);
@@ -432,8 +405,7 @@ class RequestServiceTest {
 
     @Test
     void shouldThrowNotFound_whenGettingUnknownRequest() {
-        // Arrange
-        given(requestRepository.findById(REQUEST_ID)).willReturn(Optional.empty());
+        // Arrange (store vacio)
 
         // Act / Assert
         assertThatThrownBy(() -> newService().get(REQUEST_ID))
@@ -441,7 +413,13 @@ class RequestServiceTest {
     }
 
     private Request pending() {
-        return Request.create(EMP_ID, WITHIN, NOW);
+        return pendingWithId(REQUEST_ID, EMP_ID, WITHIN);
+    }
+
+    private static Request pendingWithId(Long id, Long employeeId, LocalDate date) {
+        return Request.restore(
+                id, employeeId, date, RequestStatus.PENDING, null, ResourceType.PARKING,
+                null, null, null, null, null, NOW);
     }
 
     private void givenActor(String login, Long id) {
@@ -453,5 +431,86 @@ class RequestServiceTest {
     private void verifyEventPublished(Class<?> eventType) {
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue()).isInstanceOf(eventType);
+    }
+
+    /**
+     * Fake in-memory del puerto de persistencia de solicitudes: sustituye a un mock de Spring
+     * Data en los tests unitarios del servicio. {@link #seed(Request)} precarga estado sin
+     * contar como escritura; {@link #save}/{@link #saveAndFlush} asignan id (si falta) y cuentan
+     * la invocacion para verificar los caminos que NO deben persistir.
+     */
+    private static final class InMemoryRequestRepository implements RequestRepositoryPort {
+
+        private final Map<Long, Request> store = new HashMap<>();
+        private long sequence = 1000L;
+        private int saves;
+
+        void seed(Request request) {
+            store.put(request.getId(), request);
+        }
+
+        int saves() {
+            return saves;
+        }
+
+        @Override
+        public Optional<Request> findById(Long id) {
+            return Optional.ofNullable(store.get(id));
+        }
+
+        @Override
+        public Request save(Request request) {
+            return persist(request);
+        }
+
+        @Override
+        public Request saveAndFlush(Request request) {
+            return persist(request);
+        }
+
+        private Request persist(Request request) {
+            saves++;
+            Long id = request.getId() != null ? request.getId() : ++sequence;
+            Request stored = Request.restore(
+                    id, request.getEmployeeId(), request.getRequestedDate(), request.getStatus(),
+                    request.getResourceId(), request.getResourceType(), request.getApprovalNote(),
+                    request.getRejectionReasonCode(), request.getRejectionReason(),
+                    request.getResolvedById(), request.getResolvedAt(), request.getCreatedAt());
+            store.put(id, stored);
+            return stored;
+        }
+
+        @Override
+        public boolean existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
+                Long employeeId, ResourceType resourceType, LocalDate requestedDate, RequestStatus status) {
+            return store.values().stream().anyMatch(r ->
+                    employeeId.equals(r.getEmployeeId())
+                            && resourceType == r.getResourceType()
+                            && requestedDate.equals(r.getRequestedDate())
+                            && status == r.getStatus());
+        }
+
+        @Override
+        public Page<Request> findByEmployeeId(Long employeeId, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> employeeId.equals(r.getEmployeeId()))
+                    .toList());
+        }
+
+        @Override
+        public Page<Request> findByEmployeeIdAndStatus(
+                Long employeeId, RequestStatus status, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> employeeId.equals(r.getEmployeeId()) && status == r.getStatus())
+                    .toList());
+        }
+
+        @Override
+        public Page<Request> findByStatusOrderByCreatedAtAsc(RequestStatus status, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> status == r.getStatus())
+                    .sorted(Comparator.comparing(Request::getCreatedAt))
+                    .collect(java.util.stream.Collectors.toList()));
+        }
     }
 }

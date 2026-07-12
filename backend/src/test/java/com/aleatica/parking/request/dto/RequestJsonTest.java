@@ -2,8 +2,8 @@ package com.aleatica.parking.request.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.aleatica.parking.request.RejectionReasonCode;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RejectionReasonCode;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;

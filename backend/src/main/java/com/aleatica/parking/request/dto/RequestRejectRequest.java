@@ -1,6 +1,6 @@
 package com.aleatica.parking.request.dto;
 
-import com.aleatica.parking.request.RejectionReasonCode;
+import com.aleatica.parking.request.domain.RejectionReasonCode;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

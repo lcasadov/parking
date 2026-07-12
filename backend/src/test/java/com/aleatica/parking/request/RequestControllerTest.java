@@ -20,6 +20,7 @@ import com.aleatica.parking.request.application.RejectionReasonRequiredException
 import com.aleatica.parking.request.application.RequestService;
 import com.aleatica.parking.request.application.RequestStateException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;

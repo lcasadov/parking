@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.Role;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
 import com.aleatica.parking.support.EmployeeTestFactory;
 import java.time.Instant;
@@ -114,7 +114,7 @@ class EmailContentRendererTest {
 
     private RequestResponse rejectedRequest(String reason) {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.REJECTED,
-                null, null, com.aleatica.parking.request.RejectionReasonCode.NO_AVAILABILITY,
+                null, null, com.aleatica.parking.request.domain.RejectionReasonCode.NO_AVAILABILITY,
                 reason, 1L, NOW, NOW, com.aleatica.parking.resource.ResourceType.PARKING);
     }
 }

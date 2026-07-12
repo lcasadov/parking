@@ -16,8 +16,8 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
 import com.aleatica.parking.export.ExportTable;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,7 +46,7 @@ class ExportServiceTest {
     @Mock
     private EmployeeRepository employeeRepository;
     @Mock
-    private RequestRepository requestRepository;
+    private RequestJpaRepository requestRepository;
     @Mock
     private AuditLogRepository auditLogRepository;
     @Mock
@@ -183,7 +183,7 @@ class ExportServiceTest {
         return employee;
     }
 
-    private static Request request(long employeeId) {
-        return Request.create(employeeId, LocalDate.parse("2026-07-10"), NOW);
+    private static RequestEntity request(long employeeId) {
+        return RequestEntity.create(employeeId, LocalDate.parse("2026-07-10"), NOW);
     }
 }

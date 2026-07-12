@@ -16,8 +16,8 @@ import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RequestStatus;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.VisitorRepository;
 import com.aleatica.parking.visitor.VisitorReservation;
@@ -64,7 +64,7 @@ class VisitorReservationServiceTest {
     @Mock
     private FixedAssignmentRepository fixedAssignmentRepository;
     @Mock
-    private RequestRepository requestRepository;
+    private RequestJpaRepository requestRepository;
     @Mock
     private ReleaseRepository releaseRepository;
     @Mock

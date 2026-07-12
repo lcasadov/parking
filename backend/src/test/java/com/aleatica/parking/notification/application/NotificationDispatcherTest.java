@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
 import com.aleatica.parking.support.EmployeeTestFactory;
 import java.time.Instant;

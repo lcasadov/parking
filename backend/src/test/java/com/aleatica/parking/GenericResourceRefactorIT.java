@@ -8,8 +8,8 @@ import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
 import com.aleatica.parking.release.Release;
 import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpaceResourceResolver;
 import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.resource.ResourceType;
@@ -46,7 +46,7 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
     private FixedAssignmentRepository fixedAssignmentRepository;
 
     @Autowired
-    private RequestRepository requestRepository;
+    private RequestJpaRepository requestRepository;
 
     @Autowired
     private ReleaseRepository releaseRepository;
@@ -88,7 +88,7 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
         long employeeId = insertEmployee("emp-pending");
 
         // Act
-        Request saved = requestRepository.saveAndFlush(Request.create(employeeId, DATE, Instant.now()));
+        RequestEntity saved = requestRepository.saveAndFlush(RequestEntity.create(employeeId, DATE, Instant.now()));
 
         // Assert: PENDING sin recurso asignado, pero tipo PARKING por defecto del nucleo
         assertThat(saved.getResourceId()).isNull();
