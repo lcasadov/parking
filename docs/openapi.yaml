@@ -9,7 +9,9 @@
 #   - Esquema de datos: docs/data-model.md (no se inventan campos de entidad).
 #   - Auth / RBAC: docs/security-design.md.
 #   - Endpoints: lista del prompt 4 (el README ya no incluye sección "API REST").
-#   - Alcance: núcleo de parking (plazas). Puestos/plano (desks) quedan fuera.
+#   - Alcance: núcleo de parking (plazas), puestos de oficina y plano interactivo
+#     (desks/floor plan), visitantes y reservas, asignaciones fijas, solicitudes,
+#     liberaciones, disponibilidad, calendario, auditoría, exportaciones y health.
 #   - operationId: convención <verb><Resource> en camelCase.
 # =============================================================================
 openapi: 3.1.0
@@ -58,6 +60,8 @@ tags:
     description: Auditoría funcional y logs de login
   - name: Exports
     description: Exportaciones a CSV/XLSX
+  - name: Health
+    description: Comprobación pública de disponibilidad de la API (liveness)
 
 # Por defecto toda operación exige la cookie de sesión.
 # Los endpoints públicos la anulan con `security: []`.
@@ -65,6 +69,27 @@ security:
   - sessionCookie: []
 
 paths:
+
+  # ---------------------------------------------------------------------------
+  # Health
+  # ---------------------------------------------------------------------------
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Estado de la API (liveness)
+      description: >
+        🟢 Endpoint público. Devuelve `{"status":"UP"}` si la API responde.
+        Contrato estable y mínimo, sin exponer detalles de infraestructura.
+      security: []
+      responses:
+        '200':
+          description: La API está operativa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '500': { $ref: '#/components/responses/ServerError' }
 
   # ---------------------------------------------------------------------------
   # Auth
@@ -1507,9 +1532,6 @@ components:
       type: string
       description: Catálogo de motivos de rechazo (la UI los muestra traducidos ES/EN). Catálogo inicial; a confirmar con negocio.
       enum: [NO_AVAILABILITY, OUTSIDE_POLICY, OTHER]
-    ResourceType:
-      type: string
-      enum: [PARKING, DESK]
     LoginResult:
       type: string
       enum: [OK, INVALID_CREDENTIALS, LOCKED, INACTIVE, NO_ACCESS, FALLBACK_OK]
@@ -1523,6 +1545,16 @@ components:
     MyWeekDayState:
       type: string
       enum: [ASSIGNED, RELEASED, REQUEST_PENDING, FREE]
+
+    # ---- Health ----
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: Estado de liveness de la API.
+          example: UP
 
     # ---- Error ----
     ApiError:

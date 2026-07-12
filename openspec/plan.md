@@ -1,16 +1,16 @@
 # Plan de ejecución — parking (ALEATICA)
 
 > Tracker vivo del desarrollo. Actualiza el **estado** y el **%** de cada change al avanzar.
-> Última actualización: **2026-07-05**.
+> Última actualización: **2026-07-12**.
 
 ## Dashboard
 
 | Stream | Estado | Avance |
 |--------|--------|--------|
-| 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | ✅ completa | `██████████` **100%** |
-| 📐 Especificación OpenSpec (config + 15 changes `init-`) | ✅ completa | `██████████` **100%** |
-| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — **Fase A + Fase B + Fase C completas** (C1 refactor genérico + C2 desks + C3 floor-plan) ✅ (+ fix #43, #57) · Puerta 3 e2e ✅ 4/4 · solo pendiente D1 SSO (bloqueado por inputs de ALEATICA) | `█████████▌` **~95%** |
-| **Avance global del proyecto** | 🔄 implementación (Fase 1 funcional completa) | `█████████▌` **~96%** |
+| 📄 Documentación (README, PROJECT, data-model, architecture, security, openapi, testing, sonar, ui-screens, ux-flows, pull-requests, mockups, **design-system**) | 🔄 re-sincronización en curso (issue #87 — bloque A de la auditoría doc↔código; los docs se escribieron pre-refactor V12/V13/V15) | `████████▌` **~85%** |
+| 📐 Especificación OpenSpec (config + changes) | 🔄 `design-system-components` **mergeado (#82)** pero pendiente de archivar; `init-auth-sso` bloqueado (Fase 2) | `█████████▌` **~95%** |
+| ⚙️ Implementación (código backend + frontend) | 🔄 en curso — **Fase A + Fase B + Fase C completas** (C1 refactor genérico + C2 desks + C3 floor-plan) ✅ · rediseño design-system (#82) ✅ · **Puerta 3 e2e ✅ 20/20** (7 journeys nuevos + aislamiento por test, #84) · fix toggle puestos (#83/#84) y ExportIT (#85/#86) ✅ · solo pendiente D1 SSO (bloqueado por inputs de ALEATICA) | `█████████▊` **~97%** |
+| **Avance global del proyecto** | 🔄 implementación (Fase 1 funcional completa) | `█████████▊` **~97%** |
 
 > Ponderación del avance global: **preparación (docs+specs) ≈ 20%** del esfuerzo · **implementación ≈ 80%**. La preparación está hecha; el grueso (implementar las 15 capabilities + arranque) está por delante.
 

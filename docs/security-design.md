@@ -14,7 +14,7 @@
 3. Matriz RBAC
 4. Validación de entradas
 5. Protección OWASP API Top 10 (2023)
-6. CORS y cookies
+6. CORS, CSRF y cookies
 7. Rate limiting
 8. Auditoría
 9. Secretos y gestión de claves
@@ -180,54 +180,59 @@ consulta:  WHERE campo LIKE :patrón_seguro + '%'   -- prefijo controlado por el
 | **API1 — Broken Object Level Authorization (BOLA)** | Cada endpoint sobre un recurso propio verifica pertenencia: `request.employee_id == session.employee_id`, asignación/liberación propias, etc. No basta el rol. |
 | **API2 — Broken Authentication** | BCrypt coste 12, bloqueo por intentos (`locked_until`), sesión Spring Session con TTL e invalidación server-side; 🔵 validación estricta del JWT (firma + `iss`/`aud`/`exp`). |
 | **API3 — Broken Object Property Level Authorization** | Los DTO de salida **nunca** exponen `password_hash`, `failed_login_attempts`, `locked_until`, `slo_token`. Los DTO de entrada ignoran propiedades no editables (sin *mass assignment*: el rol nunca se setea desde el cuerpo). |
-| **API4 — Unrestricted Resource Consumption** | Paginación obligatoria en todos los listados; rate limiting (sección 7); límites de tamaño de payload. |
+| **API4 — Unrestricted Resource Consumption** | Paginación obligatoria en todos los listados; límites de tamaño de payload. Rate limiting **parcial** (sección 7): implementado solo en exportación; login y solicitudes quedan **pendientes** en Fase 1. |
 | **API5 — Broken Function Level Authorization** | RBAC con `@PreAuthorize` en cada endpoint (sección 3); fail closed por defecto. |
-| **API6 — Unrestricted Access to Sensitive Business Flows** | Flujos sensibles (creación masiva de solicitudes, aprobación, reset de contraseña) limitados por rate limiting + RBAC; la unicidad de `PENDING` por empleado/fecha frena el abuso. |
+| **API6 — Unrestricted Access to Sensitive Business Flows** | Flujos sensibles (creación masiva de solicitudes, aprobación, reset de contraseña) protegidos por RBAC; la unicidad de `PENDING` por empleado/fecha frena el abuso. El rate limiting sobre estos flujos está **pendiente** en Fase 1 (solo exportación lo aplica; ver sección 7). |
 | **API7 — Server-Side Request Forgery (SSRF)** | Superficie mínima: parking solo realiza peticiones salientes a SMTP y, 🔵, al WS SSO (`consultaporlogin`), ambos con destino fijo por configuración; no se construyen URLs de salida desde entrada de usuario. |
-| **API8 — Security Misconfiguration** | Actuator restringido a `health,info` y protegido; sin stack traces ni detalles internos en respuestas de error; CORS sin `*` (sección 6); cabeceras de seguridad por defecto de Spring Security. |
+| **API8 — Security Misconfiguration** | Actuator restringido a `health,info` y protegido; sin stack traces ni detalles internos en respuestas de error; cabeceras de seguridad por defecto de Spring Security. **CSRF desactivado deliberadamente** (API JSON sin formularios + cookie `SameSite=Lax`; ver sección 6). CORS de backend **no cableado** en Fase 1: la propiedad `parking.cors.allowed-origins` existe pero ningún bean la consume; la protección cross-origin en desarrollo recae en el **proxy de Vite** (ver sección 6). |
 | **API9 — Improper Inventory Management** | Contrato OpenAPI (SpringDoc) mantenido sincronizado con el código; versionado de API (`/api/v1`); entornos DES/PRE/PRO claramente separados. |
 | **API10 — Unsafe Consumption of APIs** | 🔵 Validación estricta de todo lo recibido del SSO/WS de ALEATICA (firma, claims, formato); se trata como entrada no confiable. |
 
 ---
 
-## 6. CORS y cookies
+## 6. CORS, CSRF y cookies
 
-**CORS** — En **PRE/PRO no aplica**: la SPA y la API se sirven desde el **mismo origen** por el propio Tomcat, así que no hay petición *cross-origin*. CORS solo se configura en **desarrollo**, donde la SPA corre en un dev server distinto (`:5173`).
-- `Access-Control-Allow-Origin`: **lista exacta, nunca `*`**. *Por qué:* con credenciales, `*` está prohibido por el navegador; la lista blanca evita que orígenes ajenos consuman la API con la cookie.
-- `Access-Control-Allow-Credentials: true` (solo en DES).
-- **DES:** `http://localhost:5173` (dev server de la SPA, Vite) + `http://localhost:8080`.
-- **PRE/PRO:** sin CORS (mismo origen). *Por qué seguro:* al no haber origen cruzado, no se expone la API a sitios de terceros.
+**CSRF — desactivado deliberadamente.** `SecurityConfig` desactiva CSRF (`csrf(AbstractHttpConfigurer::disable)`). *Por qué es seguro desactivarlo aquí:* la API es **JSON sin formularios** (no hay envío de formularios HTML clásicos susceptibles del ataque CSRF tradicional) y la cookie de sesión usa **`SameSite=Lax`**, que ya bloquea el envío de la cookie en peticiones cross-site de terceros. La combinación *API JSON + `SameSite=Lax`* cubre el vector CSRF sin necesidad del token sincronizador de Spring Security. *(No confundir con «cabeceras de seguridad por defecto»: la protección CSRF de Spring está explícitamente apagada; la mitigación proviene del atributo de cookie, no del filtro CSRF.)*
 
-**Cookie de sesión:**
+**CORS — config actualmente huérfana (pendiente de cablear en Fase 1).** La propiedad `parking.cors.allowed-origins` existe en `application-des.yml` (`http://localhost:5173,http://localhost:8080`), pero **ningún bean la consume**: no hay `CorsConfigurationSource` ni `.cors(...)` en `SecurityConfig`. Por tanto, **el backend no aplica CORS por sí mismo** hoy.
+- **En desarrollo (DES):** la protección cross-origin recae en el **proxy del dev server de Vite**, que sirve la SPA (`:5173`) y reenvía las llamadas de API al backend bajo el mismo origen aparente, evitando la petición *cross-origin* real desde el navegador.
+- **En PRE/PRO:** la SPA y la API se sirven desde el **mismo origen** por el propio Tomcat, así que no hay petición *cross-origin* y CORS no es necesario.
+- **Diseño objetivo (cuando se cablee el CORS de backend):** `Access-Control-Allow-Origin` como **lista exacta, nunca `*`** (con credenciales, `*` está prohibido por el navegador), consumiendo `parking.cors.allowed-origins`, y `Access-Control-Allow-Credentials: true` solo en DES. **Marcado como pendiente** (sección 14): hoy la propiedad está declarada pero no conectada a ningún `CorsConfigurationSource`.
+
+**Cookie de sesión** (serializada por `SessionConfig#cookieSerializer`):
 
 ```
 Set-Cookie: parking_SESSION=<id>;
             HttpOnly;
-            Secure;
+            [Secure]        ← condicional por entorno (ver abajo)
             SameSite=Lax;
             Path=/parking-api;
             Max-Age=3600
 ```
 
 Justificación de cada flag:
-- **`HttpOnly`** — inaccesible a JavaScript: un XSS no puede robar la sesión.
-- **`Secure`** — solo viaja por HTTPS: evita captura en claro.
-- **`SameSite=Lax`** — bloquea el envío en peticiones cross-site de terceros (anti-CSRF), pero **permite** la navegación top-level por GET, necesaria para el retorno desde la landing en el flujo SSO (🔵). *Por qué Lax y no Strict:* `Strict` rompería el redirect de vuelta del SSO.
+- **`HttpOnly`** — inaccesible a JavaScript: un XSS no puede robar la sesión. Siempre activo.
+- **`Secure`** — **condicional por entorno**, controlado por `parking.session.cookie.secure` (`useSecureCookie`): en **DES** vale `false` (la app corre sobre HTTP plano, marcar `Secure` impediría enviar la cookie); solo en **PRO** (perfil `pro`) vale `true`, exigiendo HTTPS para que la cookie viaje. *Por qué condicional:* una cookie `Secure` no se envía por HTTP, lo que rompería el desarrollo local; en producción sobre HTTPS sí evita la captura en claro.
+- **`SameSite=Lax`** — bloquea el envío en peticiones cross-site de terceros (anti-CSRF), pero **permite** la navegación top-level por GET, necesaria para el retorno desde la landing en el flujo SSO (🔵). *Por qué Lax y no Strict:* `Strict` rompería el redirect de vuelta del SSO. Este atributo es la base de la mitigación CSRF (ver arriba).
 - **`Path=/parking-api`** — acota el envío de la cookie a la API.
-- **`Max-Age=3600`** — TTL de sesión de 1 hora; reduce la ventana de uso de una sesión robada. La expiración server-side la gobierna además Spring Session.
+- **`Max-Age=3600`** — TTL de sesión de 1 hora; reduce la ventana de uso de una sesión robada. La expiración server-side la gobierna además Spring Session (JDBC, `SessionConfig.SESSION_TTL_SECONDS = 3600`).
 
 ---
 
 ## 7. Rate limiting
 
-| Endpoint | Límite | Clave |
-|----------|--------|-------|
-| `POST /auth/login` 🟢 | 10 intentos / 15 min | por IP |
-| `POST /requests` | 30 / hora | por empleado |
-| Endpoints de exportación | 5 / minuto | por usuario |
+> **Estado de implementación (Fase 1):** de las tres medidas de esta sección, **solo el rate limiting de exportación está implementado** (`ExportRateLimiter`, 5/min por usuario). Las dos primeras (login y solicitudes) son **diseño objetivo pero NO están implementadas** en Fase 1 — ver la columna «Estado».
 
-- *Por qué por IP en login y por empleado en el resto:* el login no tiene aún identidad fiable (la clave natural es la IP); el resto opera bajo sesión autenticada (la clave natural es el empleado). El rate limiting de login **complementa** el bloqueo por cuenta: frena el barrido distribuido sobre muchas cuentas desde una IP.
-- **Implementación:** **Bucket4j (o equivalente) con almacenamiento en memoria** en Fase 1 (un único WAR). *Implementable con el stack actual, sin infraestructura extra.*
+| Endpoint | Límite | Clave | Estado |
+|----------|--------|-------|--------|
+| `POST /auth/login` 🟢 | 10 intentos / 15 min | por IP | ⛔ **PENDIENTE — no implementado en Fase 1** |
+| `POST /requests` | 30 / hora | por empleado | ⛔ **PENDIENTE — no implementado en Fase 1** |
+| Endpoints de exportación | 5 / minuto | por usuario | ✅ Implementado (`ExportRateLimiter`) |
+
+- *Por qué por IP en login y por empleado en el resto:* el login no tiene aún identidad fiable (la clave natural es la IP); el resto opera bajo sesión autenticada (la clave natural es el empleado).
+- **Rate limiting de login — PENDIENTE:** el límite 10/15 min por IP **no está implementado** en Fase 1. La única defensa anti-fuerza-bruta activa hoy es el **bloqueo por cuenta** (5 intentos / 15 min, en `AuthService`; ver sección 2), que sí está implementado. Como consecuencia, la **mitigación anti-fuerza-bruta distribuida** (barrido de muchas cuentas desde una misma IP, o desde muchas IP) **queda abierta**: el bloqueo por cuenta frena el ataque contra *una* cuenta concreta, pero no limita el volumen de intentos por origen. Cablear el rate limiting de login por IP es requisito para cerrar este hueco.
+- **Rate limiting de `POST /requests` — PENDIENTE:** el límite 30/hora por empleado **no está implementado**; el abuso de creación de solicitudes se contiene hoy únicamente por RBAC y por la **unicidad de `PENDING`** por empleado/fecha (regla de negocio), no por un limitador de tasa.
+- **Implementación prevista (cuando se aborde):** **Bucket4j (o equivalente) con almacenamiento en memoria** en Fase 1 (un único WAR). *Implementable con el stack actual, sin infraestructura extra.* Hoy solo existe este patrón en el módulo `export/` (`ExportRateLimiter`).
 - **Futuro / pendiente:** si parking se despliega en **varias instancias**, el contador en memoria deja de ser global → se requeriría **Redis** (u otro backend compartido). Marcado como **futuro** (sección 14), no se asume ahora.
 
 ---
@@ -306,13 +311,19 @@ Justificación de cada flag:
 ## 14. Decisiones fijadas y pendientes
 
 **Decisiones fijadas** (antes pendientes):
-- **CORS**: no aplica en PRE/PRO (SPA y API en el mismo origen, servidas por Tomcat); solo en DES (`:5173`, Vite).
+- **CORS**: no aplica en PRE/PRO (SPA y API en el mismo origen, servidas por Tomcat); en DES la protección cross-origin recae en el **proxy de Vite** (`:5173`). El CORS de backend queda pendiente de cablear (ver más abajo).
+- **CSRF**: desactivado deliberadamente en `SecurityConfig` (API JSON + cookie `SameSite=Lax`; ver sección 6). Decisión cerrada, no pendiente.
 - **Validación JWT (Fase 2)**: librería **jjwt 0.12.x** (`io.jsonwebtoken`).
 
+**Pendientes de implementación (Fase 1)** — diseñados en este documento pero **no presentes en el código**:
+1. **Rate limiting de `POST /auth/login`** (10/15 min por IP): no implementado. Único freno actual = bloqueo por cuenta (5/15 min, `AuthService`). La mitigación anti-fuerza-bruta **distribuida** queda abierta (sección 7).
+2. **Rate limiting de `POST /requests`** (30/hora por empleado): no implementado; hoy solo lo contiene RBAC + unicidad de `PENDING` (sección 7).
+3. **Cableado del CORS de backend:** `parking.cors.allowed-origins` está declarada pero ningún bean (`CorsConfigurationSource` / `.cors(...)`) la consume; en Fase 1 la protección cross-origin la aporta el proxy de Vite (sección 6).
+
 **Pendientes** (externos / por confirmar):
-1. **Clave/secreto de firma del JWT** del SSO (Fase 2) y su gestión por entorno — lo provee ALEATICA.
-2. **DPO o responsable de seguridad** destinatario de la notificación de brecha (sección 11).
-3. **Vault corporativo** para secretos en PRE/PRO: confirmar disponibilidad; hasta entonces, env vars. *(Futuro.)*
-4. **Redis (o backend compartido)** para rate limiting si parking se despliega en varias instancias. *(Futuro.)*
-5. **Especificación del WS `consultaporlogin`** del SSO (Fase 2), para validar su consumo (API10).
-6. **Credenciales SMTP corporativas** de **PRO** (LOCAL/DES/PRE usan Ethereal, ya configurado en `.env`).
+4. **Clave/secreto de firma del JWT** del SSO (Fase 2) y su gestión por entorno — lo provee ALEATICA.
+5. **DPO o responsable de seguridad** destinatario de la notificación de brecha (sección 11).
+6. **Vault corporativo** para secretos en PRE/PRO: confirmar disponibilidad; hasta entonces, env vars. *(Futuro.)*
+7. **Redis (o backend compartido)** para rate limiting si parking se despliega en varias instancias. *(Futuro.)*
+8. **Especificación del WS `consultaporlogin`** del SSO (Fase 2), para validar su consumo (API10).
+9. **Credenciales SMTP corporativas** de **PRO** (LOCAL/DES/PRE usan Ethereal, ya configurado en `.env`).

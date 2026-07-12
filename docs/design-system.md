@@ -216,6 +216,43 @@ Variantes `blue` (info neutra), `green` (confirmación), `red` (advertencia dest
 - **Toggle** (`.toggle`): switch booleano; `on` → track verde, knob a la derecha.
 - **Popover** (`.popover`): menú de usuario/preferencias anclado bajo el header.
 
+### 6.17 Pills de recurso y categoría
+
+Componentes reales de `frontend/src/components/` que reutilizan la base `.pill` (§6.3) con semántica de dominio:
+
+- **`ResourceTypePill`** (`ResourceTypePill.tsx`): distingue el tipo de recurso de una solicitud/asignación — **puesto** (`DESK` → `pill-blue`) vs **plaza** (`PARKING` → `pill-gray`). Default `PARKING` (retrocompatible). Texto vía i18n `requests.resourceType.*`.
+- **`DeskCategoryBadge`** (`DeskCategoryBadge.tsx`): categoría del puesto — **Dirección** (`EXECUTIVE` → `pill-blue`) vs **Estándar** (`STANDARD` → `pill-gray`). Texto vía `desks.category.*`.
+
+### 6.18 Plano interactivo (familia FloorPlan*)
+
+Componentes de la vista de plano (`FloorPlanPage`), única para admin y empleado (la diferencia es por **rol**, no por breakpoint; ver [`ux-flows.md` §3](ux-flows.md)):
+
+- **`FloorPlanMarker`** (`.floor-marker`): botón accesible posicionado por `%` (`left`/`top`) sobre la imagen. Fuera de edición pinta el **color semántico de estado** (`markerStateClass`); en edición se pinta neutro y es **arrastrable** (Pointer Events, ratón + táctil). `EXECUTIVE` se distingue con **anillo ámbar + ◆** (`--exec-ring`). Un puesto `FREE` es solicitable; el resto va `disabled`.
+- **`FloorPlanSurface`** (`.floor-plan-surface` / `.plano-world`): superficie con **leyenda** de estados + viewport con **zoom/pan** (transform CSS) que contiene la imagen de planta y un marcador por puesto colocado; lista aparte los puestos sin posición (`.floor-unplaced`).
+- **`FloorPlanZoom`** (`.plano-zoom`): controles acercar / alejar / restablecer; indicador de porcentaje (`aria-live`). Acotado por `ZOOM_MIN`/`ZOOM_MAX`.
+- **`FloorPlanFilters`** (`.chip-filters` / `.chip-filter`): chips de filtro por estado (Libre, Liberado hoy, Mi puesto, Solicitado, Ocupado) con **contadores** + chip de **Dirección**; actúan como toggle (`aria-pressed`).
+- **`FloorPlanDatebar`** (`.plano-datebar`): navegación día anterior / "Hoy" / día siguiente, fecha larga localizada (`date-fns`) y recordatorio de la ventana de reserva; acotada a hoy…hoy+14.
+- **`FloorPlanMobileList`** (`.mlist`): lista "Disponibles para solicitar" con un botón "Solicitar" por puesto libre. Se renderiza para **cualquier empleado** (`!canEdit`), no por breakpoint; el admin **no** la ve.
+- **`FloorPlanSidePanel`** (`.plano-side`): panel lateral (escritorio) con lista de puestos **buscable** por número; en la variante admin (`showStatus`) cada fila muestra la **pill de estado** del día.
+
+### 6.19 Exportación (CSV/XLSX y RGPD)
+
+- **`ExportMenu`** (`.export-menu`): grupo de botones "CSV" / "XLSX" que dispara la descarga del fichero binario; deshabilita mientras descarga y admite `requiredRole` (defensa en profundidad; el backend sigue siendo la autoridad). Textos `exports.*`.
+- **`ExportMyDataButton`**: acción RGPD "Exportar mis datos" (derecho de acceso) — cualquier usuario autenticado descarga sus datos personales en XLSX. Vive en la cabecera; solo visible con sesión activa.
+
+### 6.20 Badge de solicitudes pendientes
+
+- **`PendingRequestsBadge`** (`.badge-red`): contador rojo de solicitudes `PENDING` mostrado junto al item "Solicitudes" del sidebar de admin. Query ligera (`size 1`, solo `totalElements`); se **oculta** si no hay pendientes.
+
+### 6.21 Marca y contenedores de autenticación
+
+- **`BrandCurve`** / **`BrandLogo`** (`BrandCurve.tsx`): la **curva decorativa SVG** corporativa (verde + naranja) del header, con variantes `header` (viewBox 340×64) y `auth` (viewBox 380×96); trazos copiados de `docs/mockups/shell.js` y colores tokenizados (`--green-border`, `--curve-orange`). Decorativa → `aria-hidden`. `BrandLogo` renderiza el punto cónico + "parking" + "ALEATICA".
+- **`AuthShell`** (`.auth-wrap` / `.auth-card`): contenedor de las pantallas de autenticación (login / cambio de contraseña) — `auth-card` con cabecera de marca + curva y toggles de tema/idioma en el cuerpo.
+
+### 6.22 Modal de sesión expirada
+
+- **`SessionExpiredModal`**: modal (variante `amber`, no roja) suscrito al evento del interceptor `401`. Muestra el aviso de sesión caducada + banner de fase; al cerrar limpia la sesión y navega a `/login`. Base: `Modal` (§6.12) + `InfoBanner` (§6.10).
+
 ---
 
 ## 7. Layout y responsive
@@ -244,7 +281,7 @@ Variantes `blue` (info neutra), `green` (confirmación), `red` (advertencia dest
 ## 9. Accesibilidad
 
 - Contraste mínimo **WCAG AA** en todo texto sobre fondo (verificar también en dark, §10).
-- **Focus visible**: `outline: 2px solid var(--green); outline-offset: 2px` (pendiente de añadir a `styles.css`, §12).
+- **Focus visible**: `outline: 2px solid var(--green); outline-offset: 2px` — **implementado** en `frontend/src/styles/base.css` sobre `a/button/input/[tabindex]:focus-visible`.
 - `label` asociado a cada input vía `htmlFor`.
 - Modales: `role="dialog"` + `aria-labelledby`; foco atrapado.
 - Iconos decorativos `aria-hidden="true"`; icon-only con `aria-label`.
@@ -314,8 +351,8 @@ body.theme-dark{ --bg-page:#1c1c19; --bg-card:#26261f; --text:#e9e7df; /* …§1
 ## 12. Pendientes
 
 1. **`info-banner.amber`**: el token ámbar existe pero falta la regla CSS de la variante (Prompt 6 §6.10 la pedía "por simetría").
-2. **Focus ring de accesibilidad**: añadir `outline: 2px solid var(--green); outline-offset: 2px` a elementos interactivos en `styles.css` (§9) — hoy no está.
-3. **Container principal**: definir `max-width` (~1300px) + margin auto para pantallas anchas (no presente en los mockups).
-4. **Tokens tipográficos y de espaciado como variables CSS**: hoy los tamaños/paddings están inline en `styles.css`; conviene extraerlos a variables (`--text-sm`, `--space-3`, …) para un único punto de cambio.
-5. **Cableado i18n de `date-fns`** (selección de locale `es`/`en` en runtime).
-6. **Drawer móvil** del sidebar (alternativa a la barra horizontal) si el número de items crece.
+2. **Container principal**: definir `max-width` (~1300px) + margin auto para pantallas anchas (no presente en los mockups).
+3. **Cableado i18n de `date-fns`** (selección de locale `es`/`en` en runtime).
+4. **Drawer móvil** del sidebar (alternativa a la barra horizontal) si el número de items crece.
+
+> **Ya resueltos** (antes en esta lista): el **focus ring de accesibilidad** está implementado en `frontend/src/styles/base.css` (§9); las **variables de espaciado y tipografía** (`--space-1…8`, `--text-xs…2xl`, `--radius-*`) están definidas en `frontend/src/styles/tokens.css` (§3, §4), así que los tamaños/paddings ya no viven inline.

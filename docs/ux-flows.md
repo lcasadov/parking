@@ -28,36 +28,42 @@
 
 ---
 
-## 2. Empleado solicita plaza y/o puesto (solicitud unificada, escritorio)
+## 2. Empleado solicita plaza y/o puesto (solicitud unificada)
 
 - **Objetivo del usuario:** pedir, para una misma fecha, plaza de parking y/o puesto de oficina en un solo paso.
-- **Disparador:** acceso "Solicitud unificada" desde [Plano de puestos — vista empleado (escritorio)](ui-screens.md#9-plano-de-puestos--vista-empleado-escritorio-panel-de-disponibles).
-- **Camino feliz** (fuente: `Solicitud unificada _ plaza _ puesto.html`):
-  1. Abre la [Solicitud unificada](ui-screens.md#12-solicitud-unificada-plaza-yo-puesto).
-  2. Elige la **Fecha** (dentro de "Ventana de reserva: 14 días").
-  3. Marca **Plaza de parking** (ve "Hay N plazas potencialmente disponibles") y/o **Puesto de oficina**.
-  4. Pulsa "Enviar solicitudes": se genera **una solicitud independiente por cada recurso marcado** (`README` → solicitud unificada).
+- **Disparador:** botón "Nueva solicitud" en [Mis solicitudes](ui-screens.md#29-mis-solicitudes), que abre el modal `CreateRequestModal`.
+- **Implementación real (fuente: `frontend/src/components/CreateRequestModal.tsx`):** el mockup `Solicitud unificada _ plaza _ puesto.html` mostraba un puesto **concreto** ya elegido en el plano. La implementación **no** selecciona un puesto concreto: es un modal con una **Fecha** y un grupo de **checkboxes** de tipo de recurso.
+- **Camino feliz:**
+  1. Abre el modal de [Solicitud unificada](ui-screens.md#12-solicitud-unificada-plaza-yo-puesto).
+  2. Elige la **Fecha** (input acotado a hoy…hoy+14; ventana de reserva de 14 días).
+  3. Marca las casillas de recurso: **Plaza de parking** (marcada por defecto) y/o **Puesto de oficina**. Bajo cada casilla, un banner de disponibilidad indica cuántos hay potencialmente libres esa fecha. **No** se elige un puesto concreto ni hay enlace al plano.
+  4. Pulsa "Enviar": por **cada** casilla marcada se lanza un `POST /requests` con su `resourceType`, generando **una solicitud independiente por recurso** (`README` → solicitud unificada).
 - **Puntos de decisión / ramificaciones:**
   - Marca solo plaza, solo puesto, o ambos (solicitudes independientes; el admin las resuelve por separado).
-  - "Cambiar en el plano" lleva al [Plano de puestos](ui-screens.md#9-plano-de-puestos--vista-empleado-escritorio-panel-de-disponibles) para elegir otro puesto.
-- **Casos límite y errores** (mostrados en el mockup):
-  - El puesto elegido deja de estar libre → mensaje "El puesto … ya no está libre esta fecha. Elige otro."
-  - Ningún recurso disponible marcado → "Marca al menos un recurso disponible para continuar" (botón de envío bloqueado).
+  - "Cancelar" aborta sin crear nada.
+- **Casos límite y errores** (validación local + respuesta del backend, traducidos a toast):
+  - Fecha vacía → "requiredDate"; fecha fuera de la ventana → "outsideWindow"; ningún recurso marcado → "requiredResource" (validación local, antes de enviar).
+  - **`400 Bad Request`** (fecha fuera de la ventana en el servidor) → toast `requests.errors.window`.
+  - **`409 Conflict`** (ya existe una solicitud `PENDING` del empleado para esa fecha/recurso) → toast `requests.errors.duplicate`.
+  - Otros errores → toast genérico. (No existe el mensaje "el puesto ya no está libre": ese caso pertenecía al mockup con puesto concreto y no se implementó así.)
 - **Resultado final:** una o dos solicitudes (`Request`) en `PENDING`, una por recurso; emails a admins.
 
 ---
 
-## 3. Empleado solicita un puesto desde el plano (móvil)
+## 3. Empleado solicita un puesto desde el plano
 
 - **Objetivo del usuario:** reservar un puesto de oficina concreto eligiéndolo visualmente en el plano.
-- **Disparador:** abrir el plano de puestos en móvil para una fecha.
-- **Camino feliz** (fuente: `M_vil _ pinch-zoom _ lista de libres.html`):
-  1. En [Plano de puestos — vista empleado (móvil)](ui-screens.md#10-plano-de-puestos--vista-empleado-móvil-pinch-zoom-y-lista-de-libres), ajusta el zoom (pinch / + / −) y consulta los marcadores por estado.
-  2. En "DISPONIBLES PARA SOLICITAR", pulsa "Solicitar" sobre un puesto libre.
-  3. Se solicita ese puesto (`README` → "pinchar un puesto libre para solicitarlo directamente").
-- **Puntos de decisión / ramificaciones:** elegir Estándar o Dirección (◆) entre los libres.
-- **Casos límite y errores:** solo se pueden seleccionar puestos en estado "libre" para la fecha (`README` → RN-DESK-04). ⚠️ Pendiente de confirmar si "Solicitar" abre la [Solicitud unificada](ui-screens.md#12-solicitud-unificada-plaza-yo-puesto) o envía directamente.
-- **Resultado final:** solicitud de puesto en `PENDING`. ⚠️ Pendiente de confirmar la confirmación visual de éxito.
+- **Disparador:** sidebar "Plano" (`/employee/floor-plan`) para una fecha dentro de la ventana.
+- **Distinción real (fuente: `frontend/src/pages/FloorPlanPage.tsx`):** el plano **no** se bifurca por "móvil vs escritorio", sino por **rol**. `FloorPlanPage` es única; la lógica depende de `user.role`:
+  - **Empleado:** puede pinchar un marcador **libre** para solicitarlo y, además, ve siempre la **lista "Disponibles para solicitar"** (`FloorPlanMobileList`) con un botón "Solicitar" por puesto libre. Esa lista se renderiza para **cualquier empleado** (`!canEdit`), **no** por breakpoint de pantalla.
+  - **Admin:** **nunca** ve la lista de solicitud rápida; en su lugar ve el panel lateral de ocupación y puede entrar en modo edición de posiciones ([Flujo 10](#10-admin-edita-las-posiciones-del-plano)).
+- **Camino feliz:**
+  1. Abre el plano y ajusta fecha/zoom; los marcadores muestran su estado (Libre / Liberado hoy / Mi puesto / Solicitado / Ocupado).
+  2. Pincha un marcador **libre**, o pulsa "Solicitar" en la lista "Disponibles para solicitar".
+  3. Se lanza directamente la solicitud del puesto (`handleRequest` → mutación); con éxito se muestra el feedback de confirmación.
+- **Puntos de decisión / ramificaciones:** elegir Estándar o Dirección (◆) entre los libres. Solo los marcadores en estado `FREE` son solicitables (el resto van deshabilitados).
+- **Casos límite y errores:** si el puesto deja de estar libre al confirmar, la mutación falla y se muestra el feedback de **conflicto** (`409`). El envío es **directo** (no abre la solicitud unificada).
+- **Resultado final:** solicitud de puesto en `PENDING`, con confirmación visual (feedback `success`).
 
 ---
 
@@ -160,14 +166,29 @@
 ## 10. Admin edita las posiciones del plano
 
 - **Objetivo del usuario:** ajustar dónde se dibuja cada puesto sobre la imagen del plano.
-- **Disparador:** "Editar posiciones" desde el [Plano de puestos — vista admin](ui-screens.md#8-plano-de-puestos--vista-admin-titulares-y-estado-del-día).
-- **Camino feliz** (fuente: `Editor de posiciones _ arrastrar marcadores.html`):
-  1. Abre el [Editor de posiciones del plano](ui-screens.md#11-editor-de-posiciones-del-plano).
-  2. Arrastra los marcadores 1–65; ajusta o consulta "coord X (%)" / "coord Y (%)".
-  3. Pulsa "Guardar todo" para persistir las coordenadas (`coord_x`, `coord_y`).
-- **Puntos de decisión / ramificaciones:** "Descartar" desecha cambios; "Volver al plano" regresa a la vista admin.
-- **Casos límite y errores:** ⚠️ Pendiente de confirmar (confirmación de guardado / error no mostrados).
-- **Resultado final:** las posiciones de los puestos quedan actualizadas y se reflejan en el plano.
+- **Disparador:** botón "Editar posiciones" en el [Plano de puestos — vista admin](ui-screens.md#8-plano-de-puestos--vista-admin-titulares-y-estado-del-día) (solo ADMIN).
+- **Implementación real (fuente: `frontend/src/pages/FloorPlanPage.tsx`):** el mockup `Editor de posiciones _ arrastrar marcadores.html` sugería una **pantalla separada** con acciones "Descartar" y "Guardar todo". En la práctica es un **modo edición inline** sobre la misma vista del plano (`editMode`), con **auto-guardado por marcador**.
+- **Camino feliz:**
+  1. Pulsa "Editar posiciones": la vista entra en `editMode` (mismos marcadores, pintados en gris neutro; el zoom/pan queda desactivado). Aparece una barra con la instrucción de arrastre.
+  2. Arrastra un marcador (Pointer Events, ratón o táctil). **Al soltar cada marcador**, su posición se **persiste automáticamente** (`PATCH /desks/{id}` con `coordX`/`coordY`); no hay que confirmar puesto a puesto.
+  3. Opcionalmente pulsa "Guardar posiciones": no envía nada nuevo, solo muestra un **feedback** de que todo está guardado.
+- **Puntos de decisión / ramificaciones:** pulsar de nuevo "Editar posiciones" sale del modo edición. No existe un "Descartar" (los cambios ya están guardados al soltar cada marcador).
+- **Casos límite y errores:** cada arrastre es una escritura independiente; un fallo afecta solo a ese marcador. ⚠️ Pendiente de confirmar el detalle del manejo de error por marcador.
+- **Resultado final:** las coordenadas (`coord_x`, `coord_y`) de cada puesto quedan actualizadas de inmediato y se reflejan en el plano.
+
+---
+
+## 11. Usuario cierra sesión (menú de usuario)
+
+- **Objetivo del usuario:** salir de la aplicación de forma segura.
+- **Disparador:** el **avatar** de la cabecera (disponible en cualquier pantalla autenticada, admin o empleado).
+- **Implementación real (fuente: `frontend/src/components/AppHeader.tsx`):** "Cerrar sesión" **no** es un botón suelto de la cabecera: vive **dentro del menú de usuario**, un `Popover` que se abre al pulsar el avatar (junto a idioma y tema, ver [Preferencias](ui-screens.md#22-preferencias-idioma-y-tema)).
+  1. Pulsa el avatar → se despliega el `Popover` (`role="dialog"`) con identidad, idioma, tema y "Cerrar sesión".
+  2. Pulsa "Cerrar sesión": se lanza la mutación de logout (`POST` de cierre de sesión).
+  3. **Pase lo que pase** (`onSettled`, éxito o error de red), se limpia el estado de usuario en el cliente y se **redirige a `/login`**.
+- **Puntos de decisión / ramificaciones:** pulsar fuera del popover (o `Esc`) lo cierra sin cerrar sesión.
+- **Casos límite y errores:** si la llamada de logout falla, la sesión local se limpia igualmente y se navega a `/login` (el cierre en cliente no depende de la respuesta del servidor).
+- **Resultado final:** sesión cerrada; el usuario aterriza en [Login](ui-screens.md#13-login-local-fase-1). Cualquier `401` posterior en otra pestaña dispararía además el modal de [Sesión expirada](ui-screens.md#24-sesión-expirada-modal).
 
 ---
 
