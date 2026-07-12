@@ -137,9 +137,12 @@ public class FixedAssignmentService {
     }
 
     /**
-     * Revoca logicamente todas las asignaciones fijas activas de un empleado
-     * ({@code active=false} + {@code revoked_at}/{@code revoked_by_id}), sin borrar la
-     * fila ni afectar a dias pasados ni a solicitudes ya aprobadas.
+     * Revoca logicamente <em>todas</em> las asignaciones fijas activas de un empleado
+     * (ambos tipos de recurso), sin borrar la fila ni afectar a dias pasados ni a
+     * solicitudes ya aprobadas.
+     *
+     * <p>Equivale a {@link #revoke(Long, ResourceType, String)} con {@code resourceType}
+     * nulo: es el comportamiento retrocompatible cuando el cliente no acota por tipo.</p>
      *
      * @param employeeId empleado cuyas asignaciones se revocan
      * @param actorLogin login del {@code ADMIN} que revoca (para {@code revoked_by})
@@ -147,8 +150,35 @@ public class FixedAssignmentService {
      */
     @Transactional
     public void revoke(Long employeeId, String actorLogin) {
-        List<FixedAssignment> active =
-                fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(employeeId);
+        revoke(employeeId, null, actorLogin);
+    }
+
+    /**
+     * Revoca logicamente las asignaciones fijas activas de un empleado acotadas a un tipo
+     * de recurso ({@code active=false} + {@code revoked_at}/{@code revoked_by_id}), sin
+     * borrar la fila ni afectar a dias pasados ni a solicitudes ya aprobadas.
+     *
+     * <p>Semantica del parametro {@code resourceType}:</p>
+     * <ul>
+     *   <li>{@code null}: revoca <em>todas</em> las asignaciones activas del empleado, sea
+     *       cual sea su tipo (retrocompatible con el contrato previo).</li>
+     *   <li>{@code PARKING}/{@code DESK}: revoca <em>solo</em> las de ese tipo, dejando
+     *       intactas las del otro (el modal de empleado opera plaza y puesto de forma
+     *       independiente).</li>
+     * </ul>
+     *
+     * <p>Se lanza {@code 404} solo cuando no existe ninguna asignacion activa del tipo
+     * solicitado: revocar el puesto de un empleado que solo tiene plaza es un 404, no un
+     * borrado silencioso de la plaza.</p>
+     *
+     * @param employeeId   empleado cuyas asignaciones se revocan
+     * @param resourceType tipo de recurso a revocar; {@code null} = todos los tipos
+     * @param actorLogin   login del {@code ADMIN} que revoca (para {@code revoked_by})
+     * @throws EntityNotFoundException si el empleado no tiene asignacion activa del tipo dado
+     */
+    @Transactional
+    public void revoke(Long employeeId, ResourceType resourceType, String actorLogin) {
+        List<FixedAssignment> active = findActiveForRevoke(employeeId, resourceType);
         if (active.isEmpty()) {
             throw new EntityNotFoundException(MSG_NO_ACTIVE + employeeId);
         }
@@ -160,6 +190,14 @@ public class FixedAssignmentService {
         // email por revocacion, no uno por dia/fila. Un fallo del envio no revierte la
         // revocacion (el listener se engancha tras el commit).
         eventPublisher.publishEvent(new FixedAssignmentRevokedEvent(employeeId));
+    }
+
+    private List<FixedAssignment> findActiveForRevoke(Long employeeId, ResourceType resourceType) {
+        if (resourceType == null) {
+            return fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(employeeId);
+        }
+        return fixedAssignmentRepository
+                .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(employeeId, resourceType);
     }
 
     private void applyDaySet(

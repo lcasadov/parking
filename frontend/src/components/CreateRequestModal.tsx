@@ -86,8 +86,24 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
     }
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('requests.create.cancel')}
+      </Button>
+      <Button
+        variant="green"
+        submit
+        form="create-request-form"
+        disabled={createMutation.isPending}
+      >
+        {t('requests.create.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t('requests.create.title')} onClose={onClose}>
+    <Modal title={t('requests.create.title')} onClose={onClose} footer={footer}>
       <form id="create-request-form" onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="create-request-date">
           {t('requests.create.date')}
@@ -111,6 +127,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
               checked={parkingSelected}
               onChange={(event) => setParkingSelected(event.target.checked)}
             />
+            <i className="ti ti-parking" aria-hidden="true" />
             {t('requests.create.resourceParking')}
           </label>
           <ResourceAvailabilityBanner date={date} resourceType="PARKING" />
@@ -120,6 +137,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
               checked={deskSelected}
               onChange={(event) => setDeskSelected(event.target.checked)}
             />
+            <i className="ti ti-armchair" aria-hidden="true" />
             {t('requests.create.resourceDesk')}
           </label>
           <ResourceAvailabilityBanner date={date} resourceType="DESK" />
@@ -130,15 +148,6 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('requests.create.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={createMutation.isPending}>
-            {t('requests.create.submit')}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

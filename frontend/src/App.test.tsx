@@ -44,7 +44,7 @@ describe('App composition (rutas + SessionExpiredModal)', () => {
     await waitForLoginForm();
 
     await user.type(screen.getByLabelText(/usuario|username/i), 'nobody');
-    await user.type(screen.getByLabelText(/contraseña|password/i), 'wrong');
+    await user.type(screen.getByLabelText(/^contraseña$|^password$/i), 'wrong');
     await user.click(screen.getByRole('button', { name: /entrar|sign in/i }));
 
     // Error inline generico visible...

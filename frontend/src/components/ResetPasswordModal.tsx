@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { InfoBanner } from './InfoBanner';
 import { Modal } from './Modal';
 import { useResetEmployeePassword } from '../hooks/useEmployees';
 import type { Employee } from '../types/employee';
@@ -10,8 +11,8 @@ interface ResetPasswordModalProps {
   onClose: () => void;
 }
 
-// Modal de reset de contraseña. Fase 1: tras confirmar, muestra la contraseña
-// temporal UNA sola vez (ui-screens §12). Fase 2: llega sin temporal (email).
+// Modal de reset de contraseña (mockup 15). Fase 1: tras confirmar, muestra la
+// contraseña temporal UNA sola vez. Fase 2: llega sin temporal (email).
 export function ResetPasswordModal({ employee, onClose }: ResetPasswordModalProps) {
   const { t } = useTranslation();
   const resetMutation = useResetEmployeePassword();
@@ -34,49 +35,69 @@ export function ResetPasswordModal({ employee, onClose }: ResetPasswordModalProp
 
   if (result) {
     const tempPassword = result.temporaryPassword;
+    const doneFooter = (
+      <>
+        <button type="button" className="btn-back" onClick={onClose}>
+          {t('employees.reset.close')}
+        </button>
+        <Button variant="green" icon="check" onClick={onClose}>
+          {t('employees.reset.done')}
+        </Button>
+      </>
+    );
     return (
-      <Modal title={t('employees.reset.title')} onClose={onClose}>
-        <p>{t('employees.reset.intro', { name: fullName })}</p>
+      <Modal
+        title={t('employees.reset.title')}
+        icon="key"
+        onClose={onClose}
+        footer={doneFooter}
+      >
+        <p className="muted">{t('employees.reset.intro', { name: fullName })}</p>
         {tempPassword ? (
           <>
-            <p className="reset-warning">{t('employees.reset.onceWarning')}</p>
-            <div className="reset-password-row">
-              <code className="reset-password" aria-label={t('employees.reset.tempPasswordLabel')}>
-                {tempPassword}
-              </code>
-              <Button variant="blue" icon="copy" onClick={() => void handleCopy(tempPassword)}>
+            <InfoBanner variant="amber" icon="alert-triangle">
+              {t('employees.reset.onceWarning')}
+            </InfoBanner>
+            <div className="field-label">{t('employees.reset.tempPasswordLabel')}</div>
+            <div className="field-value with-icon temp-password">
+              <span aria-label={t('employees.reset.tempPasswordLabel')}>{tempPassword}</span>
+              <Button variant="white" icon="copy" onClick={() => void handleCopy(tempPassword)}>
                 {copied ? t('employees.reset.copied') : t('employees.reset.copy')}
               </Button>
             </div>
             <p className="hint">{t('employees.reset.mustChangeNote')}</p>
           </>
         ) : (
-          <p className="hint">{t('employees.reset.phase2Note')}</p>
+          <InfoBanner variant="blue" icon="mail">
+            {t('employees.reset.phase2Note')}
+          </InfoBanner>
         )}
-        <div className="modal-footer-inline">
-          <Button variant="green" onClick={onClose}>
-            {t('employees.reset.close')}
-          </Button>
-        </div>
       </Modal>
     );
   }
 
   const footer = (
     <>
-      <Button variant="white" onClick={onClose}>
+      <button type="button" className="btn-back" onClick={onClose}>
         {t('employees.reset.close')}
-      </Button>
-      <Button variant="green" onClick={handleConfirm} disabled={resetMutation.isPending}>
+      </button>
+      <Button
+        variant="green"
+        icon="key"
+        onClick={handleConfirm}
+        disabled={resetMutation.isPending}
+      >
         {t('employees.reset.confirm')}
       </Button>
     </>
   );
 
   return (
-    <Modal title={t('employees.reset.title')} onClose={onClose} footer={footer}>
+    <Modal title={t('employees.reset.title')} icon="key" onClose={onClose} footer={footer}>
       <p>{t('employees.reset.confirmBody', { name: fullName })}</p>
-      <p className="hint">{t('employees.reset.phase2Note')}</p>
+      <InfoBanner variant="blue" icon="info-circle">
+        {t('employees.reset.phase2Note')}
+      </InfoBanner>
       {resetMutation.isError ? (
         <p className="form-error" role="alert">
           {t('employees.reset.error')}

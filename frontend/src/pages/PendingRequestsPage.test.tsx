@@ -167,7 +167,10 @@ describe('PendingRequestsPage (ADMIN)', () => {
 
     const dialog = within(screen.getByRole('dialog'));
     await user.selectOptions(dialog.getByLabelText(/motivo del rechazo|rejection reason/i), 'OTHER');
-    await user.type(dialog.getByLabelText(/detalle del motivo|reason detail/i), 'obras en el garaje');
+    await user.type(
+      dialog.getByLabelText(/comentario adicional|additional comment/i),
+      'obras en el garaje',
+    );
     await user.click(dialog.getByRole('button', { name: /confirmar rechazo|confirm rejection/i }));
 
     await waitFor(() =>

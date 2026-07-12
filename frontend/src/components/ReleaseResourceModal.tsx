@@ -1,11 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { FieldValue } from './FieldValue';
+import { InfoBanner } from './InfoBanner';
 import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRelease } from '../hooks/useReleases';
 import { todayIso } from '../utils/releases';
+import { longDate } from '../utils/calendar';
 
 interface ReleaseResourceModalProps {
   parkingSpaceId: number;
@@ -39,10 +42,11 @@ export function ReleaseResourceModal({
   onClose,
   onReleased,
 }: ReleaseResourceModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [date, setDate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const releaseMutation = useCreateRelease();
+  const daySummary = date === '' ? t('releases.release.summary.pendingDay') : longDate(date, i18n.language);
 
   function handleSubmit(event: FormEvent): void {
     event.preventDefault();
@@ -63,15 +67,9 @@ export function ReleaseResourceModal({
   return (
     <Modal title={t('releases.release.title')} onClose={onClose}>
       <form id="release-resource-form" onSubmit={handleSubmit} noValidate>
-        <label className="field-label" htmlFor="release-resource-space">
-          {t('releases.release.space')}
-        </label>
-        <input
-          id="release-resource-space"
-          className="field-input"
-          value={spaceLabel}
-          readOnly
-        />
+        <InfoBanner variant="green" icon="parking">
+          {t('releases.release.fixedResource', { label: spaceLabel })}
+        </InfoBanner>
 
         <label className="field-label" htmlFor="release-resource-date">
           {t('releases.release.date')}
@@ -85,6 +83,30 @@ export function ReleaseResourceModal({
           onChange={(event) => setDate(event.target.value)}
         />
         <p className="hint">{t('releases.release.hint')}</p>
+
+        <div className="release-summary">
+          <p className="summary-label">{t('releases.release.summary.title')}</p>
+          <label className="field-label" htmlFor="release-summary-resource">
+            {t('releases.release.summary.resource')}
+          </label>
+          <FieldValue readOnly>
+            <span id="release-summary-resource">{spaceLabel}</span>
+          </FieldValue>
+          <label className="field-label" htmlFor="release-summary-day">
+            {t('releases.release.summary.day')}
+          </label>
+          <FieldValue readOnly>
+            <span id="release-summary-day">{daySummary}</span>
+          </FieldValue>
+          <span className="field-label">{t('releases.release.summary.type')}</span>
+          <FieldValue readOnly>
+            <span className="pill pill-pink">{t('releases.release.summary.voluntary')}</span>
+          </FieldValue>
+        </div>
+
+        <InfoBanner variant="blue" icon="users">
+          {t('releases.release.summary.availableNote')}
+        </InfoBanner>
 
         {error ? (
           <p className="form-error" role="alert">

@@ -8,7 +8,6 @@ export const ROUTES = {
   adminParkingSpaces: '/admin/parking-spaces',
   adminDesks: '/admin/desks',
   adminFloorPlan: '/admin/floor-plan',
-  adminFixedAssignments: '/admin/fixed-assignments',
   adminRequests: '/admin/requests',
   adminReleases: '/admin/releases',
   adminVisitors: '/admin/visitors',

@@ -17,6 +17,7 @@ import type {
   FixedAssignmentPutRequest,
   PageFixedAssignment,
 } from '../types/fixedAssignment';
+import type { ResourceType } from '../types/request';
 
 // Clave raiz de la cache de asignaciones fijas (S1192: sin literales repetidos).
 const FIXED_ASSIGNMENTS_KEY = 'fixed-assignments';
@@ -78,10 +79,21 @@ export function useSetFixedAssignments(): UseMutationResult<
   });
 }
 
-export function useRevokeFixedAssignment(): UseMutationResult<void, unknown, number> {
+export interface RevokeFixedAssignmentVars {
+  employeeId: number;
+  // Omitido = revoca todos los recursos; PARKING|DESK acota a un tipo.
+  resourceType?: ResourceType;
+}
+
+export function useRevokeFixedAssignment(): UseMutationResult<
+  void,
+  unknown,
+  RevokeFixedAssignmentVars
+> {
   const invalidate = useInvalidateFixedAssignments();
   return useMutation({
-    mutationFn: (employeeId: number) => revokeEmployeeFixedAssignment(employeeId),
+    mutationFn: ({ employeeId, resourceType }: RevokeFixedAssignmentVars) =>
+      revokeEmployeeFixedAssignment(employeeId, resourceType),
     onSuccess: invalidate,
   });
 }

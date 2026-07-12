@@ -56,13 +56,6 @@ export function AdminLayout() {
             {t('floorPlan.navLabel')}
           </NavLink>
           <NavLink
-            to={ROUTES.adminFixedAssignments}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-          >
-            <i className="ti ti-pin" aria-hidden="true" />
-            {t('fixedAssignments.navLabel')}
-          </NavLink>
-          <NavLink
             to={ROUTES.adminRequests}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >

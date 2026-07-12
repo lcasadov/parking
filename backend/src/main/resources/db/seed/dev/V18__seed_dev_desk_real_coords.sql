@@ -1,0 +1,72 @@
+-- V18 — Seed DEV: posiciones reales de los 65 puestos sobre el plano de oficina.
+-- Coordenadas (x%,y%) tomadas del mockup autoritativo docs/mockups/"Editor de
+-- posiciones _ arrastrar marcadores.html" (marcadores puesto-marker: left/top sobre
+-- la imagen mostrada 734x426.4), para que cada marcador caiga EXACTAMENTE sobre su
+-- puesto dibujado en la imagen real (docs/assets/plano-verificacion.png).
+-- Solo perfil `des`. El ADMIN puede afinar con el editor de posiciones. Idempotente.
+
+UPDATE dbo.desks SET coord_x = 11.00, coord_y = 11.00 WHERE number = 1;
+UPDATE dbo.desks SET coord_x = 10.00, coord_y = 14.50 WHERE number = 2;
+UPDATE dbo.desks SET coord_x = 13.00, coord_y = 14.50 WHERE number = 3;
+UPDATE dbo.desks SET coord_x = 18.00, coord_y = 10.50 WHERE number = 4;
+UPDATE dbo.desks SET coord_x = 18.00, coord_y = 14.50 WHERE number = 5;
+UPDATE dbo.desks SET coord_x = 20.50, coord_y = 10.50 WHERE number = 6;
+UPDATE dbo.desks SET coord_x = 20.50, coord_y = 14.50 WHERE number = 7;
+UPDATE dbo.desks SET coord_x = 31.50, coord_y = 26.00 WHERE number = 8;
+UPDATE dbo.desks SET coord_x = 31.50, coord_y = 29.49 WHERE number = 9;
+UPDATE dbo.desks SET coord_x = 37.50, coord_y = 12.50 WHERE number = 10;
+UPDATE dbo.desks SET coord_x = 40.00, coord_y = 11.50 WHERE number = 11;
+UPDATE dbo.desks SET coord_x = 40.00, coord_y = 15.00 WHERE number = 12;
+UPDATE dbo.desks SET coord_x = 45.00, coord_y = 10.00 WHERE number = 13;
+UPDATE dbo.desks SET coord_x = 45.00, coord_y = 14.50 WHERE number = 14;
+UPDATE dbo.desks SET coord_x = 47.50, coord_y = 10.00 WHERE number = 15;
+UPDATE dbo.desks SET coord_x = 47.50, coord_y = 14.50 WHERE number = 16;
+UPDATE dbo.desks SET coord_x = 52.00, coord_y = 10.50 WHERE number = 17;
+UPDATE dbo.desks SET coord_x = 52.00, coord_y = 14.50 WHERE number = 18;
+UPDATE dbo.desks SET coord_x = 54.50, coord_y = 10.50 WHERE number = 19;
+UPDATE dbo.desks SET coord_x = 58.50, coord_y = 10.00 WHERE number = 20;
+UPDATE dbo.desks SET coord_x = 58.00, coord_y = 14.50 WHERE number = 21;
+UPDATE dbo.desks SET coord_x = 60.50, coord_y = 14.50 WHERE number = 22;
+UPDATE dbo.desks SET coord_x = 68.50, coord_y = 10.00 WHERE number = 23;
+UPDATE dbo.desks SET coord_x = 66.00, coord_y = 10.50 WHERE number = 24;
+UPDATE dbo.desks SET coord_x = 67.50, coord_y = 14.50 WHERE number = 25;
+UPDATE dbo.desks SET coord_x = 73.50, coord_y = 14.50 WHERE number = 26;
+UPDATE dbo.desks SET coord_x = 75.50, coord_y = 10.00 WHERE number = 27;
+UPDATE dbo.desks SET coord_x = 76.00, coord_y = 14.50 WHERE number = 28;
+UPDATE dbo.desks SET coord_x = 80.50, coord_y = 10.00 WHERE number = 29;
+UPDATE dbo.desks SET coord_x = 80.50, coord_y = 14.50 WHERE number = 30;
+UPDATE dbo.desks SET coord_x = 83.00, coord_y = 10.00 WHERE number = 31;
+UPDATE dbo.desks SET coord_x = 83.00, coord_y = 14.50 WHERE number = 32;
+UPDATE dbo.desks SET coord_x = 88.00, coord_y = 14.50 WHERE number = 33;
+UPDATE dbo.desks SET coord_x = 90.50, coord_y = 14.50 WHERE number = 34;
+UPDATE dbo.desks SET coord_x = 89.50, coord_y = 10.50 WHERE number = 35;
+UPDATE dbo.desks SET coord_x = 90.00, coord_y = 92.99 WHERE number = 36;
+UPDATE dbo.desks SET coord_x = 89.00, coord_y = 87.99 WHERE number = 37;
+UPDATE dbo.desks SET coord_x = 86.00, coord_y = 90.49 WHERE number = 38;
+UPDATE dbo.desks SET coord_x = 80.50, coord_y = 92.99 WHERE number = 39;
+UPDATE dbo.desks SET coord_x = 80.50, coord_y = 88.99 WHERE number = 40;
+UPDATE dbo.desks SET coord_x = 78.00, coord_y = 88.99 WHERE number = 41;
+UPDATE dbo.desks SET coord_x = 78.00, coord_y = 92.99 WHERE number = 42;
+UPDATE dbo.desks SET coord_x = 71.50, coord_y = 91.99 WHERE number = 43;
+UPDATE dbo.desks SET coord_x = 70.50, coord_y = 87.99 WHERE number = 44;
+UPDATE dbo.desks SET coord_x = 69.50, coord_y = 91.49 WHERE number = 45;
+UPDATE dbo.desks SET coord_x = 71.50, coord_y = 79.49 WHERE number = 46;
+UPDATE dbo.desks SET coord_x = 71.50, coord_y = 75.49 WHERE number = 47;
+UPDATE dbo.desks SET coord_x = 69.00, coord_y = 75.49 WHERE number = 48;
+UPDATE dbo.desks SET coord_x = 69.00, coord_y = 79.49 WHERE number = 49;
+UPDATE dbo.desks SET coord_x = 64.50, coord_y = 91.99 WHERE number = 50;
+UPDATE dbo.desks SET coord_x = 63.00, coord_y = 94.99 WHERE number = 51;
+UPDATE dbo.desks SET coord_x = 63.50, coord_y = 88.49 WHERE number = 52;
+UPDATE dbo.desks SET coord_x = 60.50, coord_y = 90.99 WHERE number = 53;
+UPDATE dbo.desks SET coord_x = 61.00, coord_y = 86.99 WHERE number = 54;
+UPDATE dbo.desks SET coord_x = 58.00, coord_y = 89.49 WHERE number = 55;
+UPDATE dbo.desks SET coord_x = 51.50, coord_y = 92.99 WHERE number = 56;
+UPDATE dbo.desks SET coord_x = 51.50, coord_y = 88.49 WHERE number = 57;
+UPDATE dbo.desks SET coord_x = 49.00, coord_y = 92.99 WHERE number = 58;
+UPDATE dbo.desks SET coord_x = 49.00, coord_y = 88.49 WHERE number = 59;
+UPDATE dbo.desks SET coord_x = 44.50, coord_y = 89.99 WHERE number = 60;
+UPDATE dbo.desks SET coord_x = 43.50, coord_y = 93.99 WHERE number = 61;
+UPDATE dbo.desks SET coord_x = 42.50, coord_y = 88.49 WHERE number = 62;
+UPDATE dbo.desks SET coord_x = 37.50, coord_y = 91.99 WHERE number = 63;
+UPDATE dbo.desks SET coord_x = 38.00, coord_y = 87.99 WHERE number = 64;
+UPDATE dbo.desks SET coord_x = 35.50, coord_y = 90.99 WHERE number = 65;

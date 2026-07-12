@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
@@ -9,6 +9,7 @@ import { employeeAlice } from '../mocks/employeeFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 
 const EMPLOYEES_URL = `${MSW_BASE}/employees`;
+const LOGIN_RE = /usuario \/ login|username \/ login/i;
 
 function conflict(field: 'login' | 'email') {
   return HttpResponse.json(
@@ -25,7 +26,7 @@ function conflict(field: 'login' | 'email') {
 async function fillValidCreateForm(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.type(screen.getByLabelText(/^nombre$|^first name$/i), 'Carol');
   await user.type(screen.getByLabelText(/^apellidos$|^last name$/i), 'Carter');
-  await user.type(screen.getByLabelText(/^usuario$|^username$/i), 'ccarter');
+  await user.type(screen.getByLabelText(LOGIN_RE), 'ccarter');
   await user.type(screen.getByLabelText(/^email$/i), 'carol@aleatica.com');
 }
 
@@ -115,8 +116,8 @@ describe('EmployeeFormModal', () => {
     const firstName = screen.getByLabelText(/^nombre$|^first name$/i);
     await user.clear(firstName);
     await user.type(firstName, 'Alicia');
-    // El campo login no se edita: ausente en modo edicion.
-    expect(screen.queryByLabelText(/^usuario$|^username$/i)).not.toBeInTheDocument();
+    // El campo login no se edita: se muestra de solo lectura, sin input asociado.
+    expect(screen.queryByLabelText(LOGIN_RE)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /guardar|save/i }));
 
     await waitFor(() => {
@@ -124,5 +125,58 @@ describe('EmployeeFormModal', () => {
     });
     expect(putId).toBe(String(employeeAlice.id));
     expect(putBody).toMatchObject({ firstName: 'Alicia' });
+  });
+
+  it('should_render_tabs_for_details_parking_and_desk', async () => {
+    renderWithProviders(<EmployeeFormModal onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    expect(screen.getByRole('tab', { name: /detalles|details/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /plaza fija|fixed space/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /puesto fijo|fixed desk/i })).toBeInTheDocument();
+  });
+
+  it('should_save_fixed_parking_with_resource_type_parking_when_set_in_tab', async () => {
+    let assignmentBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post(EMPLOYEES_URL, () => HttpResponse.json({ ...employeeAlice, id: 77 }, { status: 201 })),
+      http.put(`${MSW_BASE}/fixed-assignments/employee/:id`, async ({ request }) => {
+        assignmentBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json([]);
+      }),
+    );
+    const onSaved = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<EmployeeFormModal onClose={vi.fn()} onSaved={onSaved} />);
+
+    await fillValidCreateForm(user);
+    await user.click(screen.getByRole('tab', { name: /plaza fija|fixed space/i }));
+    await user.selectOptions(screen.getByLabelText(/^plaza$|^space$/i), '1');
+    await user.click(screen.getByRole('button', { name: /martes|tuesday/i }));
+    await user.click(screen.getByRole('button', { name: /guardar|save/i }));
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(assignmentBody).toMatchObject({
+      parkingSpaceId: 1,
+      daysOfWeek: [2],
+      resourceType: 'PARKING',
+    });
+  });
+
+  it('should_open_reset_password_modal_from_details_when_editing', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <EmployeeFormModal employee={employeeAlice} onClose={vi.fn()} onSaved={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /resetear contraseña|reset password/i }));
+
+    const dialogs = await screen.findAllByRole('dialog');
+    expect(
+      within(dialogs[dialogs.length - 1]).getByRole('button', {
+        name: /generar contraseña temporal|generate temporary/i,
+      }),
+    ).toBeInTheDocument();
   });
 });

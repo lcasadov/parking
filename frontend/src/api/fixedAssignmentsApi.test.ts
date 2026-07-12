@@ -60,4 +60,18 @@ describe('fixedAssignmentsApi', () => {
   it('should_resolve_without_body_when_revoking_assignment', async () => {
     await expect(revokeEmployeeFixedAssignment(10)).resolves.toBeUndefined();
   });
+
+  it('should_send_resource_type_query_when_revoking_single_type', async () => {
+    let requestUrl = '';
+    server.use(
+      http.delete(`${MSW_BASE}/fixed-assignments/employee/:id`, ({ request }) => {
+        requestUrl = request.url;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await revokeEmployeeFixedAssignment(10, 'DESK');
+
+    expect(requestUrl).toContain('resourceType=DESK');
+  });
 });

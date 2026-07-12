@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { FieldRow } from './FieldRow';
+import { InfoBanner } from './InfoBanner';
 import { Input } from './Input';
 import { Modal } from './Modal';
+import { Toggle } from './Toggle';
 import { getFieldErrors, getStatus } from '../api/apiError';
 import { useCreateDesk, useUpdateDesk } from '../hooks/useDesks';
 import type { Desk, DeskCategory, DeskCreate } from '../types/desk';
@@ -111,8 +114,9 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
     }
   }
 
-  function handleSubmit(event: FormEvent): void {
-    event.preventDefault();
+  // Valida y envia; compartida por el onSubmit del form (tecla Enter) y el boton
+  // GUARDAR de la barra de acciones (que vive fuera del <form>).
+  function trySubmit(): void {
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -121,22 +125,52 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
     submit();
   }
 
+  function handleSubmit(event: FormEvent): void {
+    event.preventDefault();
+    trySubmit();
+  }
+
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('desks.form.cancel')}
+      </Button>
+      <Button variant="green" icon="check" onClick={trySubmit} disabled={isSaving}>
+        {t('desks.form.save')}
+      </Button>
+    </>
+  );
+
   return (
     <Modal
       title={t(isEdit ? 'desks.form.editTitle' : 'desks.form.createTitle')}
+      icon="armchair"
+      narrow
       onClose={onClose}
+      footer={footer}
     >
       <form id="desk-form" onSubmit={handleSubmit} noValidate>
-        <Input
-          label={t('desks.form.number')}
-          type="number"
-          min={DESK_MIN}
-          max={DESK_MAX}
-          value={values.number}
-          error={Boolean(errors.number)}
-          hint={errors.number}
-          onChange={(event) => setNumber(event.target.value)}
-        />
+        <FieldRow>
+          <Input
+            label={t('desks.form.number')}
+            type="number"
+            min={DESK_MIN}
+            max={DESK_MAX}
+            value={values.number}
+            error={Boolean(errors.number)}
+            hint={errors.number}
+            onChange={(event) => setNumber(event.target.value)}
+          />
+          <div className="auth-field">
+            <span className="field-label">{t('desks.form.statusLabel')}</span>
+            <Toggle
+              checked={values.active}
+              onChange={setActive}
+              label={t('desks.form.active')}
+            />
+            <p className="hint">{t('desks.form.activeHint')}</p>
+          </div>
+        </FieldRow>
         <div className="auth-field">
           <label className="field-label" htmlFor="desk-category">
             {t('desks.form.category')}
@@ -154,27 +188,14 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
             ))}
           </select>
         </div>
-        <label className="checkbox-field">
-          <input
-            type="checkbox"
-            checked={values.active}
-            onChange={(event) => setActive(event.target.checked)}
-          />
-          {t('desks.form.active')}
-        </label>
+        <InfoBanner variant="blue" icon="info-circle">
+          {t('desks.form.holderInfo')}
+        </InfoBanner>
         {errors.form ? (
           <p className="form-error" role="alert">
             {errors.form}
           </p>
         ) : null}
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('desks.form.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={isSaving}>
-            {t('desks.form.save')}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

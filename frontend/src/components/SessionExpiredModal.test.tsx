@@ -40,6 +40,10 @@ describe('SessionExpiredModal', () => {
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
+
+    // Mockup 19: encabezado del cuerpo y nota de fase (banner azul).
+    expect(screen.getByText(/tu sesión ha caducado|your session has expired/i)).toBeInTheDocument();
+    expect(screen.getByText(/fase 2|phase 2/i)).toBeInTheDocument();
   });
 
   it('should_clear_session_and_navigate_to_login_when_closed', async () => {

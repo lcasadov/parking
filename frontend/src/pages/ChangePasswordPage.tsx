@@ -7,6 +7,7 @@ import { useAuth } from '../auth/useAuth';
 import { evaluatePasswordPolicy, isPasswordValid, POLICY_RULES } from '../auth/passwordPolicy';
 import { AuthShell } from '../components/AuthShell';
 import { Button } from '../components/Button';
+import { InfoBanner } from '../components/InfoBanner';
 import { Input } from '../components/Input';
 import { homePathForRole } from '../routes/paths';
 
@@ -40,6 +41,9 @@ export function ChangePasswordPage() {
   return (
     <AuthShell title={t('auth.changePasswordTitle')}>
       <form onSubmit={handleSubmit} noValidate>
+        <InfoBanner variant="amber" icon="key">
+          {t('auth.changePasswordIntro')}
+        </InfoBanner>
         <Input
           label={t('auth.currentPassword')}
           name="currentPassword"
@@ -77,7 +81,7 @@ export function ChangePasswordPage() {
           {POLICY_RULES.map((rule) => (
             <li key={rule} className={policy[rule] ? 'ok' : 'bad'}>
               <i
-                className={`ti ti-${policy[rule] ? 'check' : 'x'}`}
+                className={`ti ti-${policy[rule] ? 'circle-check' : 'circle-x'}`}
                 aria-hidden="true"
               />
               {t(`auth.policy.${rule}`)}
@@ -92,6 +96,7 @@ export function ChangePasswordPage() {
         <Button
           variant="green"
           submit
+          icon="device-floppy"
           disabled={!canSubmit || mutation.isPending}
           className="btn-block"
         >

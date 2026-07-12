@@ -15,7 +15,7 @@ describe('AppHeader', () => {
     expect(screen.getByText('Panel')).toBeInTheDocument();
   });
 
-  it('should_call_logout_when_logout_clicked', async () => {
+  it('should_open_user_menu_and_call_logout_when_logout_clicked', async () => {
     server.use(http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(adminUser)));
     let loggedOut = false;
     server.use(
@@ -27,23 +27,40 @@ describe('AppHeader', () => {
     const user = userEvent.setup();
     renderWithProviders(<AppHeader />);
 
-    // Bug #12: el boton de logout solo se renderiza cuando la query /auth/me
-    // resuelve; en una ejecucion fria de la suite completa con cobertura ese
-    // primer render puede superar el timeout por defecto de findBy* (1000 ms).
-    // Timeout generoso por-query (dentro del testTimeout de 15 s): findBy*
-    // hace polling, asi que resuelve en cuanto aparece el boton — determinista.
-    const logoutBtn = await screen.findByRole(
+    // Bug #12: el disparador del menu solo se renderiza cuando /auth/me
+    // resuelve; findBy* hace polling hasta que aparece — determinista.
+    const trigger = await screen.findByRole(
       'button',
-      { name: /cerrar sesión|log out/i },
+      { name: /abrir menú de usuario|open user menu/i },
       { timeout: 10000 },
     );
-    // El avatar con iniciales del usuario autenticado se muestra junto a los controles.
+    // El avatar con iniciales del usuario autenticado vive dentro del disparador.
     expect(screen.getByRole('img', { name: /ada admin/i })).toHaveTextContent('AA');
 
+    // El popover (mockup 17) contiene el cierre de sesion.
+    await user.click(trigger);
+    const logoutBtn = await screen.findByRole('button', { name: /cerrar sesión|log out/i });
     await user.click(logoutBtn);
 
     await waitFor(() => {
       expect(loggedOut).toBe(true);
     });
+  });
+
+  it('should_toggle_language_control_inside_the_user_menu', async () => {
+    server.use(http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(adminUser)));
+    const user = userEvent.setup();
+    renderWithProviders(<AppHeader />);
+
+    const trigger = await screen.findByRole(
+      'button',
+      { name: /abrir menú de usuario|open user menu/i },
+      { timeout: 10000 },
+    );
+    await user.click(trigger);
+
+    // Idioma (segmented) y tema (switch) conviven en el popover.
+    expect(await screen.findByRole('switch')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^EN$/i })).toBeInTheDocument();
   });
 });

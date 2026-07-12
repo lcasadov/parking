@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { FieldRow } from './FieldRow';
+import { InfoBanner } from './InfoBanner';
 import { Input } from './Input';
 import { Modal } from './Modal';
+import { Toggle } from './Toggle';
 import { getFieldErrors, getStatus } from '../api/apiError';
 import { useCreateParkingSpace, useUpdateParkingSpace } from '../hooks/useParkingSpaces';
 import type { ParkingSpace, ParkingSpaceCreate } from '../types/parkingSpace';
@@ -90,8 +93,9 @@ export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceF
     }
   }
 
-  function handleSubmit(event: FormEvent): void {
-    event.preventDefault();
+  // Valida y envia; compartida por el onSubmit del form (tecla Enter) y el boton
+  // GUARDAR de la barra de acciones (que vive fuera del <form>).
+  function trySubmit(): void {
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -100,41 +104,58 @@ export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceF
     submit();
   }
 
+  function handleSubmit(event: FormEvent): void {
+    event.preventDefault();
+    trySubmit();
+  }
+
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('parkingSpaces.form.cancel')}
+      </Button>
+      <Button variant="green" icon="check" onClick={trySubmit} disabled={isSaving}>
+        {t('parkingSpaces.form.save')}
+      </Button>
+    </>
+  );
+
   return (
     <Modal
       title={t(isEdit ? 'parkingSpaces.form.editTitle' : 'parkingSpaces.form.createTitle')}
+      icon="parking"
+      narrow
       onClose={onClose}
+      footer={footer}
     >
       <form id="parking-space-form" onSubmit={handleSubmit} noValidate>
-        <Input
-          label={t('parkingSpaces.form.label')}
-          value={values.label}
-          error={Boolean(errors.label)}
-          hint={errors.label}
-          maxLength={20}
-          onChange={(event) => setLabel(event.target.value)}
-        />
-        <label className="checkbox-field">
-          <input
-            type="checkbox"
-            checked={values.active}
-            onChange={(event) => setActive(event.target.checked)}
+        <FieldRow>
+          <Input
+            label={t('parkingSpaces.form.label')}
+            value={values.label}
+            error={Boolean(errors.label)}
+            hint={errors.label ?? t('parkingSpaces.form.labelHint')}
+            maxLength={20}
+            onChange={(event) => setLabel(event.target.value)}
           />
-          {t('parkingSpaces.form.active')}
-        </label>
+          <div className="auth-field">
+            <span className="field-label">{t('parkingSpaces.form.statusLabel')}</span>
+            <Toggle
+              checked={values.active}
+              onChange={setActive}
+              label={t('parkingSpaces.form.active')}
+            />
+            <p className="hint">{t('parkingSpaces.form.activeHint')}</p>
+          </div>
+        </FieldRow>
+        <InfoBanner variant="blue" icon="info-circle">
+          {t('parkingSpaces.form.holderInfo')}
+        </InfoBanner>
         {errors.form ? (
           <p className="form-error" role="alert">
             {errors.form}
           </p>
         ) : null}
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('parkingSpaces.form.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={isSaving}>
-            {t('parkingSpaces.form.save')}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

@@ -99,6 +99,22 @@ describe('DesksPage', () => {
     expect(sentBody).toMatchObject({ active: true });
   });
 
+  it('should_filter_visible_rows_when_typing_in_search_box', async () => {
+    server.use(
+      http.get(DESKS_URL, () => HttpResponse.json(pageOfDesks([deskStandard, deskExecutive]))),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<DesksPage />);
+    await screen.findByText('1');
+
+    await user.type(screen.getByRole('searchbox'), String(deskExecutive.number));
+
+    await waitFor(() => {
+      expect(screen.queryByText('1')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText(String(deskExecutive.number))).toBeInTheDocument();
+  });
+
   it('should_request_inactive_filter_when_selecting_inactive', async () => {
     let receivedActive: string | null = null;
     server.use(

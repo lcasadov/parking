@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
-import { Input } from '../components/Input';
+import { InfoBanner } from '../components/InfoBanner';
 import { FloorPlanSurface } from '../components/FloorPlanSurface';
 import { FloorPlanFeedback, type FloorPlanFeedbackKind } from '../components/FloorPlanFeedback';
 import { FloorPlanStatus } from '../components/FloorPlanStatus';
@@ -19,7 +19,7 @@ import {
   useUpdateDeskPosition,
 } from '../hooks/useFloorPlan';
 import { isValidIsoDate } from '../utils/calendar';
-import { maxRequestDateIso, todayIso } from '../utils/requests';
+import { todayIso } from '../utils/requests';
 import type { FloorPlanDesk } from '../types/floorPlan';
 
 // Vista del plano interactivo de puestos (floor-plan). Ver plano = autenticado;
@@ -55,6 +55,12 @@ export function FloorPlanPage() {
   function handleToggleEdit(): void {
     setEditMode((previous) => !previous);
     setFeedback(null);
+  }
+
+  // Confirmación explícita del editor: las posiciones se auto-guardan al soltar
+  // cada marcador, pero el botón da un feedback claro de que todo está guardado.
+  function handleSavePositions(): void {
+    setFeedback('saved');
   }
 
   function toggleFilter(value: FloorPlanFilterValue): void {
@@ -96,22 +102,18 @@ export function FloorPlanPage() {
       </header>
 
       <div className="floor-plan-controls">
-        <Input
-          id="floor-plan-date"
-          type="date"
-          label={t('floorPlan.dateLabel')}
-          value={date}
-          min={todayIso()}
-          max={maxRequestDateIso()}
-          onChange={(event) => handleDateChange(event.target.value)}
-        />
-        {isDateValid ? <FloorPlanDatebar date={date} onChange={handleDateChange} /> : null}
+        <FloorPlanDatebar date={date} onChange={handleDateChange} />
       </div>
 
       {editMode ? (
-        <p className="form-hint" role="status">
-          {t('floorPlan.editHint')}
-        </p>
+        <div className="floor-plan-editor-bar">
+          <InfoBanner variant="blue" icon="drag-drop">
+            {t('floorPlan.editHint')}
+          </InfoBanner>
+          <Button variant="green" icon="device-floppy" onClick={handleSavePositions}>
+            {t('floorPlan.savePositions')}
+          </Button>
+        </div>
       ) : null}
 
       <FloorPlanFeedback feedback={feedback} />

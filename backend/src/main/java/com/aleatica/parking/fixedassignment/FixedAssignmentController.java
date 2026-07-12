@@ -6,6 +6,7 @@ import com.aleatica.parking.exception.ApiError;
 import com.aleatica.parking.fixedassignment.application.FixedAssignmentService;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
+import com.aleatica.parking.resource.ResourceType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -148,9 +150,17 @@ public class FixedAssignmentController {
     }
 
     /**
-     * Revoca (logicamente) la asignacion fija de un empleado (solo {@code ADMIN}).
+     * Revoca (logicamente) la asignacion fija de un empleado (solo {@code ADMIN}),
+     * opcionalmente acotada a un tipo de recurso.
+     *
+     * <p>Si {@code resourceType} se omite se revocan <em>todas</em> las asignaciones
+     * activas del empleado (comportamiento retrocompatible); si se indica
+     * ({@code PARKING} o {@code DESK}) se revocan <em>solo</em> las de ese tipo, dejando
+     * intactas las del otro. Esto permite al modal de empleado revocar plaza y puesto de
+     * forma independiente.</p>
      *
      * @param employeeId     empleado cuyas asignaciones se revocan
+     * @param resourceType   tipo a revocar ({@code PARKING}/{@code DESK}); {@code null} = todos
      * @param authentication autenticacion resuelta de la sesion (autor de la revocacion)
      * @return {@code 204} sin contenido
      */
@@ -158,18 +168,23 @@ public class FixedAssignmentController {
             security = @SecurityRequirement(name = "sessionCookie"))
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Asignacion revocada"),
+            @ApiResponse(responseCode = "400", description = "Tipo de recurso invalido",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "401", description = "No autenticado",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "403", description = "Sin permisos",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "404", description = "Sin asignacion activa que revocar",
+            @ApiResponse(responseCode = "404", description = "Sin asignacion activa del tipo dado que revocar",
                     content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
     @DeleteMapping("/employee/{employeeId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> revokeEmployeeFixedAssignment(
-            @PathVariable Long employeeId, Authentication authentication) {
-        fixedAssignmentService.revoke(employeeId, authentication.getName());
+            @PathVariable Long employeeId,
+            @Parameter(description = "Tipo de recurso a revocar; por defecto todos")
+            @RequestParam(required = false) ResourceType resourceType,
+            Authentication authentication) {
+        fixedAssignmentService.revoke(employeeId, resourceType, authentication.getName());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 

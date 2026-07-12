@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { DeskCategoryBadge } from '../components/DeskCategoryBadge';
 import { DeskFormModal } from '../components/DeskFormModal';
+import { Legend } from '../components/Legend';
 import { Spinner } from '../components/Spinner';
 import { emitApiErrorToast } from '../api/events';
 import { useDesksQuery, useUpdateDesk } from '../hooks/useDesks';
@@ -29,6 +30,7 @@ function filterToActive(filter: ActiveFilter): boolean | undefined {
 export function DesksPage() {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
+  const [q, setQ] = useState('');
   const [page, setPage] = useState(0);
   const [formDesk, setFormDesk] = useState<Desk | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -77,6 +79,12 @@ export function DesksPage() {
   }
 
   const desks = query.data?.content ?? [];
+  // Busqueda local por numero: el contrato de /desks no expone `q`, asi que el
+  // filtro actua sobre la pagina cargada.
+  const search = q.trim();
+  const visibleDesks = search
+    ? desks.filter((desk) => String(desk.number).includes(search))
+    : desks;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
@@ -95,6 +103,16 @@ export function DesksPage() {
       </header>
 
       <div className="toolbar">
+        <div className="search-box">
+          <i className="ti ti-search" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label={t('desks.searchLabel')}
+            placeholder={t('desks.searchPlaceholder')}
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+          />
+        </div>
         <label className="field-label" htmlFor="desks-filter">
           {t('desks.filterLabel')}
         </label>
@@ -130,14 +148,14 @@ export function DesksPage() {
               </tr>
             </thead>
             <tbody>
-              {desks.length === 0 ? (
+              {visibleDesks.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="table-empty">
                     {t('desks.empty')}
                   </td>
                 </tr>
               ) : (
-                desks.map((desk) => (
+                visibleDesks.map((desk) => (
                   <tr key={desk.id} className="table-row">
                     <td>{desk.number}</td>
                     <td>
@@ -171,6 +189,12 @@ export function DesksPage() {
               )}
             </tbody>
           </table>
+          <Legend
+            items={[
+              { color: 'var(--green)', label: t('desks.status.active') },
+              { color: 'var(--text-muted)', label: t('desks.status.inactive') },
+            ]}
+          />
         </div>
       ) : null}
 

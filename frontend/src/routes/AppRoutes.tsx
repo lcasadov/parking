@@ -7,7 +7,6 @@ import { EmployeesPage } from '../pages/EmployeesPage';
 import { ParkingSpacesPage } from '../pages/ParkingSpacesPage';
 import { DesksPage } from '../pages/DesksPage';
 import { FloorPlanPage } from '../pages/FloorPlanPage';
-import { FixedAssignmentsPage } from '../pages/FixedAssignmentsPage';
 import { MyFixedAssignmentsPage } from '../pages/MyFixedAssignmentsPage';
 import { PendingRequestsPage } from '../pages/PendingRequestsPage';
 import { MyRequestsPage } from '../pages/MyRequestsPage';
@@ -47,7 +46,6 @@ export function AppRoutes() {
         <Route path="parking-spaces" element={<ParkingSpacesPage />} />
         <Route path="desks" element={<DesksPage />} />
         <Route path="floor-plan" element={<FloorPlanPage />} />
-        <Route path="fixed-assignments" element={<FixedAssignmentsPage />} />
         <Route path="requests" element={<PendingRequestsPage />} />
         <Route path="releases" element={<AdministrativeReleasesPage />} />
         <Route path="visitors" element={<VisitorsPage />} />

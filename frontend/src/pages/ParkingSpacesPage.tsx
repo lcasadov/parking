@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { ConfigureParkingCard } from '../components/ConfigureParkingCard';
+import { Legend } from '../components/Legend';
 import { ParkingSpaceFormModal } from '../components/ParkingSpaceFormModal';
 import { Spinner } from '../components/Spinner';
-import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
+import { emitApiErrorToast } from '../api/events';
+import { useParkingSpacesQuery, useUpdateParkingSpace } from '../hooks/useParkingSpaces';
 import type { ParkingSpace } from '../types/parkingSpace';
 
 const PAGE_SIZE = 20;
@@ -27,6 +29,7 @@ function filterToActive(filter: ActiveFilter): boolean | undefined {
 export function ParkingSpacesPage() {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
+  const [q, setQ] = useState('');
   const [page, setPage] = useState(0);
   const [formSpace, setFormSpace] = useState<ParkingSpace | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -36,10 +39,20 @@ export function ParkingSpacesPage() {
     size: PAGE_SIZE,
     active: filterToActive(filter),
   });
+  const updateMutation = useUpdateParkingSpace();
 
   function handleFilter(value: ActiveFilter): void {
     setFilter(value);
     setPage(0);
+  }
+
+  // Activa/desactiva una plaza (paridad con la vista de puestos). Reenvia la
+  // etiqueta actual porque el contrato de PUT exige el cuerpo completo.
+  function toggleActivation(space: ParkingSpace): void {
+    updateMutation.mutate(
+      { id: space.id, body: { label: space.label, active: !space.active } },
+      { onError: () => emitApiErrorToast('parkingSpaces.errors.toggle') },
+    );
   }
 
   function openCreate(): void {
@@ -58,6 +71,12 @@ export function ParkingSpacesPage() {
   }
 
   const spaces = query.data?.content ?? [];
+  // Busqueda local por etiqueta: el contrato de /parking-spaces no expone `q`, asi
+  // que el filtro actua sobre la pagina cargada.
+  const search = q.trim().toLowerCase();
+  const visibleSpaces = search
+    ? spaces.filter((space) => space.label.toLowerCase().includes(search))
+    : spaces;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
@@ -78,6 +97,16 @@ export function ParkingSpacesPage() {
       <ConfigureParkingCard />
 
       <div className="toolbar">
+        <div className="search-box">
+          <i className="ti ti-search" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label={t('parkingSpaces.searchLabel')}
+            placeholder={t('parkingSpaces.searchPlaceholder')}
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+          />
+        </div>
         <label className="field-label" htmlFor="parking-spaces-filter">
           {t('parkingSpaces.filterLabel')}
         </label>
@@ -112,14 +141,14 @@ export function ParkingSpacesPage() {
               </tr>
             </thead>
             <tbody>
-              {spaces.length === 0 ? (
+              {visibleSpaces.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="table-empty">
                     {t('parkingSpaces.empty')}
                   </td>
                 </tr>
               ) : (
-                spaces.map((space) => (
+                visibleSpaces.map((space) => (
                   <tr key={space.id} className="table-row">
                     <td>{space.label}</td>
                     <td>
@@ -136,12 +165,26 @@ export function ParkingSpacesPage() {
                       >
                         {t('parkingSpaces.actions.edit')}
                       </Button>
+                      <Button
+                        variant={space.active ? 'red' : 'green'}
+                        icon={space.active ? 'circle-off' : 'circle-check'}
+                        disabled={updateMutation.isPending}
+                        onClick={() => toggleActivation(space)}
+                      >
+                        {t(space.active ? 'parkingSpaces.actions.deactivate' : 'parkingSpaces.actions.activate')}
+                      </Button>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+          <Legend
+            items={[
+              { color: 'var(--green)', label: t('parkingSpaces.status.active') },
+              { color: 'var(--text-muted)', label: t('parkingSpaces.status.inactive') },
+            ]}
+          />
         </div>
       ) : null}
 

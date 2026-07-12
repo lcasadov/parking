@@ -711,7 +711,13 @@ paths:
       tags: [FixedAssignments]
       operationId: getEmployeeFixedAssignments
       summary: Asignaciones fijas de un empleado
-      description: ADMIN cualquiera; EMPLOYEE solo las suyas (verificación de objeto).
+      description: >
+        ADMIN cualquiera; EMPLOYEE solo las suyas (verificación de objeto). Devuelve la
+        lista plana de asignaciones activas de AMBOS tipos de recurso. Para el prefill
+        del modal de empleado, el cliente agrupa por `resourceType`: las filas `PARKING`
+        reconstruyen la plaza fija ({ parkingSpaceId, dayOfWeek[] }) y las `DESK` el
+        puesto fijo ({ parkingSpaceId, dayOfWeek[] }). Un empleado puede tener plaza y
+        puesto el mismo día (recursos independientes).
       responses:
         '200':
           description: Asignaciones fijas del empleado
@@ -758,9 +764,25 @@ paths:
       tags: [FixedAssignments]
       operationId: revokeEmployeeFixedAssignment
       summary: Revoca (lógicamente) la asignación fija de un empleado (ADMIN)
-      description: Marca `active=false`, `revoked_at`, `revoked_by_id`. No borra.
+      description: >
+        Marca `active=false`, `revoked_at`, `revoked_by_id`. No borra. El parámetro
+        opcional `resourceType` acota la revocación a un tipo de recurso: si se omite se
+        revocan TODAS las asignaciones activas del empleado (comportamiento
+        retrocompatible); si se indica (`PARKING` o `DESK`) se revocan SOLO las de ese
+        tipo, dejando intactas las del otro. Devuelve 404 cuando no hay ninguna
+        asignación activa del tipo solicitado.
+      parameters:
+        - name: resourceType
+          in: query
+          required: false
+          description: >
+            Tipo de recurso a revocar. Omitido = todos los tipos (default
+            retrocompatible). `PARKING` revoca solo la plaza fija; `DESK` solo el puesto.
+          schema:
+            $ref: '#/components/schemas/ResourceType'
       responses:
         '204': { description: Asignación revocada }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }

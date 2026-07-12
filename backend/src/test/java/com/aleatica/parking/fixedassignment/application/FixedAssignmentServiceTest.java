@@ -191,6 +191,43 @@ class FixedAssignmentServiceTest {
     }
 
     @Test
+    void shouldRevokeOnlyRequestedType_whenResourceTypeGiven() {
+        // Arrange: el empleado tiene puesto (DESK) activo; se revoca solo DESK
+        givenActor(ADMIN_LOGIN, ADMIN_ID);
+        FixedAssignment desk = activeDesk(1);
+        given(fixedAssignmentRepository
+                .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(EMP_ID, ResourceType.DESK))
+                .willReturn(List.of(desk));
+
+        // Act
+        newService().revoke(EMP_ID, ResourceType.DESK, ADMIN_LOGIN);
+
+        // Assert: solo se revoca el DESK; NUNCA se consulta la vista de todos los tipos
+        // (la plaza del empleado, si la tiene, queda intacta) y se notifica una vez.
+        assertThat(desk.isActive()).isFalse();
+        assertThat(desk.getRevokedById()).isEqualTo(ADMIN_ID);
+        verify(fixedAssignmentRepository, never())
+                .findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(anyLong());
+        verify(eventPublisher).publishEvent(new FixedAssignmentRevokedEvent(EMP_ID));
+    }
+
+    @Test
+    void shouldThrowNotFound_whenRevokingTypeWithoutActiveOfThatType() {
+        // Arrange: el empleado no tiene ninguna asignacion activa del tipo solicitado
+        given(fixedAssignmentRepository
+                .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(EMP_ID, ResourceType.DESK))
+                .willReturn(List.of());
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().revoke(EMP_ID, ResourceType.DESK, ADMIN_LOGIN))
+                .isInstanceOf(EntityNotFoundException.class);
+
+        // Assert: sin filas del tipo no se revoca ni se notifica nada
+        verify(fixedAssignmentRepository, never()).saveAll(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
     void shouldThrowNotFound_whenRevokingEmployeeWithoutActiveAssignment() {
         // Arrange
         given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
@@ -301,6 +338,10 @@ class FixedAssignmentServiceTest {
 
     private FixedAssignment active(int day) {
         return FixedAssignment.create(SPACE_ID, EMP_ID, day, ADMIN_ID, NOW);
+    }
+
+    private FixedAssignment activeDesk(int day) {
+        return FixedAssignment.create(SPACE_ID, ResourceType.DESK, EMP_ID, day, ADMIN_ID, NOW);
     }
 
     private FixedAssignmentPutRequest request(Integer... days) {
