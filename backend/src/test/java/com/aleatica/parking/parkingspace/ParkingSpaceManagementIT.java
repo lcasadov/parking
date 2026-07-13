@@ -28,8 +28,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  * Tests de integracion de gestion de plazas contra un SQL Server real
  * (Testcontainers): CRUD end-to-end, configuracion masiva del total preservando
  * historico, autorizacion por rol y, sobre todo, que el indice unico
- * {@code UX_parking_spaces_label} de la BD real fuerza el {@code 409} en colision,
- * incluida el alta concurrente del mismo {@code label}.
+ * {@code UX_parking_spaces_number} de la BD real fuerza el {@code 409} en colision,
+ * incluida el alta concurrente del mismo {@code number}.
  */
 class ParkingSpaceManagementIT extends BaseIntegrationTest {
 
@@ -45,7 +45,7 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
     private static final String EMP_EMAIL = "ittest.space.rbac@aleatica.com";
     private static final String EMP_PASSWORD = "Rbac#Pass1word";
 
-    private static final String LABEL = "P-08";
+    private static final int NUMBER = 1007;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -62,33 +62,34 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldCreateSpace_whenLabelIsUnique() throws Exception {
+    void shouldCreateSpace_whenNumberIsUnique() throws Exception {
         // Act
-        createSpace(LABEL).andExpect(status().isCreated())
-                .andExpect(jsonPath("$.label").value(LABEL))
+        createSpace(NUMBER).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.number").value(NUMBER))
+                .andExpect(jsonPath("$.floor").value(1))
                 .andExpect(jsonPath("$.active").value(true));
 
         // Assert: aparece en el listado, sin asumir su posicion (order-independent)
         mockMvc.perform(get(BASE_URL).cookie(adminSession))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[*].label", hasItem(LABEL)));
+                .andExpect(jsonPath("$.content[*].number", hasItem(NUMBER)));
     }
 
     @Test
-    void shouldReturn409_whenCreatingSpaceWithExistingLabel() throws Exception {
+    void shouldReturn409_whenCreatingSpaceWithExistingNumber() throws Exception {
         // Arrange
-        createSpace(LABEL).andExpect(status().isCreated());
+        createSpace(NUMBER).andExpect(status().isCreated());
 
-        // Act / Assert: mismo label -> el indice unico UX_parking_spaces_label fuerza 409
-        createSpace(LABEL)
+        // Act / Assert: mismo number -> el indice unico UX_parking_spaces_number fuerza 409
+        createSpace(NUMBER)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.fields.label").exists());
-        assertThat(spaceCount(LABEL)).isEqualTo(1);
+                .andExpect(jsonPath("$.fields.number").exists());
+        assertThat(spaceCount(NUMBER)).isEqualTo(1);
     }
 
     @Test
-    void shouldReturn409_whenConcurrentInsertSameLabel() throws Exception {
-        // Arrange: dos altas concurrentes del mismo label; la red dura es el indice unico
+    void shouldReturn409_whenConcurrentInsertSameNumber() throws Exception {
+        // Arrange: dos altas concurrentes del mismo number; la red dura es el indice unico
         int threads = 2;
         ExecutorService pool = Executors.newFixedThreadPool(threads);
         CountDownLatch ready = new CountDownLatch(threads);
@@ -109,36 +110,38 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
         // Assert: exactamente un alta correcta (201) y una en conflicto (409); una sola fila
         assertThat(Collections.frequency(statuses, 201)).isEqualTo(1);
         assertThat(Collections.frequency(statuses, 409)).isEqualTo(1);
-        assertThat(spaceCount(LABEL)).isEqualTo(1);
+        assertThat(spaceCount(NUMBER)).isEqualTo(1);
     }
 
     @Test
     void shouldUpdateAndDeactivate_whenAdminOperates() throws Exception {
         // Arrange
-        long id = createAndGetId(LABEL);
+        long id = createAndGetId(NUMBER);
 
-        // Act / Assert: edicion del label
-        updateSpace(id, "{\"label\":\"P-09\",\"active\":true}")
+        // Act / Assert: edicion del number (recalcula label y planta derivada)
+        updateSpace(id, "{\"number\":2003,\"active\":true}")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.label").value("P-09"));
+                .andExpect(jsonPath("$.number").value(2003))
+                .andExpect(jsonPath("$.floor").value(2))
+                .andExpect(jsonPath("$.label").value("2003"));
 
         // Desactivar la plaza la excluye de disponibilidad (active = false persistido)
-        updateSpace(id, "{\"label\":\"P-09\",\"active\":false}")
+        updateSpace(id, "{\"number\":2003,\"active\":false}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
         assertThat(activeFlag(id)).isFalse();
     }
 
     @Test
-    void shouldReturn409_whenUpdatingToLabelUsedByAnotherSpace() throws Exception {
+    void shouldReturn409_whenUpdatingToNumberUsedByAnotherSpace() throws Exception {
         // Arrange: dos plazas
-        createAndGetId("P-08");
-        long second = createAndGetId("P-09");
+        createAndGetId(1007);
+        long second = createAndGetId(2003);
 
-        // Act / Assert: editar la segunda al label de la primera -> 409
-        updateSpace(second, "{\"label\":\"P-08\",\"active\":true}")
+        // Act / Assert: editar la segunda al number de la primera -> 409
+        updateSpace(second, "{\"number\":1007,\"active\":true}")
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.fields.label").exists());
+                .andExpect(jsonPath("$.fields.number").exists());
     }
 
     @Test
@@ -165,7 +168,7 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
 
         // Act / Assert
         mockMvc.perform(post(BASE_URL).cookie(empSession)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"label\":\"P-99\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"number\":9099}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -174,7 +177,7 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
             ready.countDown();
             fire.await(10, TimeUnit.SECONDS);
             int statusCode = mockMvc.perform(post(BASE_URL).cookie(adminSession)
-                            .contentType(MediaType.APPLICATION_JSON).content(createBody(LABEL)))
+                            .contentType(MediaType.APPLICATION_JSON).content(createBody(NUMBER)))
                     .andReturn().getResponse().getStatus();
             statuses.add(statusCode);
         } catch (Exception ex) {
@@ -183,10 +186,10 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
         }
     }
 
-    private org.springframework.test.web.servlet.ResultActions createSpace(String label)
+    private org.springframework.test.web.servlet.ResultActions createSpace(int number)
             throws Exception {
         return mockMvc.perform(post(BASE_URL).cookie(adminSession)
-                .contentType(MediaType.APPLICATION_JSON).content(createBody(label)));
+                .contentType(MediaType.APPLICATION_JSON).content(createBody(number)));
     }
 
     private org.springframework.test.web.servlet.ResultActions updateSpace(long id, String body)
@@ -195,10 +198,10 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
-    private long createAndGetId(String label) throws Exception {
-        createSpace(label).andExpect(status().isCreated());
+    private long createAndGetId(int number) throws Exception {
+        createSpace(number).andExpect(status().isCreated());
         Long id = jdbcTemplate.queryForObject(
-                "SELECT id FROM dbo.parking_spaces WHERE label = ?", Long.class, label);
+                "SELECT id FROM dbo.parking_spaces WHERE number = ?", Long.class, number);
         return id == null ? 0L : id;
     }
 
@@ -227,9 +230,9 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
         return Boolean.TRUE.equals(value);
     }
 
-    private int spaceCount(String label) {
+    private int spaceCount(int number) {
         Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM dbo.parking_spaces WHERE label = ?", Integer.class, label);
+                "SELECT COUNT(*) FROM dbo.parking_spaces WHERE number = ?", Integer.class, number);
         return count == null ? 0 : count;
     }
 
@@ -245,7 +248,7 @@ class ParkingSpaceManagementIT extends BaseIntegrationTest {
         return count == null ? 0 : count;
     }
 
-    private static String createBody(String label) {
-        return "{\"label\":\"" + label + "\"}";
+    private static String createBody(int number) {
+        return "{\"number\":" + number + "}";
     }
 }

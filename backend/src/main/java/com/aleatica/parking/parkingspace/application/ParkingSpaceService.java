@@ -25,10 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ParkingSpaceService {
 
-    private static final String FIELD_LABEL = "label";
-    private static final String MSG_LABEL_TAKEN = "La etiqueta ya esta en uso";
+    private static final String FIELD_NUMBER = "number";
+    private static final String MSG_NUMBER_TAKEN = "El numero ya esta en uso";
     private static final String MSG_NOT_FOUND = "Plaza no encontrada: ";
-    private static final String LABEL_FORMAT = "P-%03d";
+    private static final int SPACES_PER_FLOOR = 5;
+    private static final int FLOOR_RANGE = 1000;
     private static final Sort BY_ID = Sort.by(Sort.Direction.ASC, "id");
 
     private final ParkingSpaceRepository parkingSpaceRepository;
@@ -41,52 +42,61 @@ public class ParkingSpaceService {
     }
 
     /**
-     * Lista plazas de forma paginada, con filtro opcional por estado.
+     * Lista plazas de forma paginada, con filtro opcional por estado y por planta.
+     *
+     * <p>La planta {@code floor} se traduce al rango de numeros
+     * {@code [floor*1000, floor*1000+999]} (design §Decision 1); {@code null} no
+     * filtra por planta.</p>
      *
      * @param active   filtro por estado activo; {@code null} no filtra
+     * @param floor    filtro por planta; {@code null} no filtra
      * @param pageable pagina y orden solicitados
      * @return pagina de plazas (DTO) con sus metadatos
      */
     @Transactional(readOnly = true)
-    public PageResponse<ParkingSpaceResponse> list(Boolean active, Pageable pageable) {
-        Page<ParkingSpace> page = parkingSpaceRepository.search(active, pageable);
+    public PageResponse<ParkingSpaceResponse> list(Boolean active, Integer floor, Pageable pageable) {
+        Integer minNumber = floor == null ? null : floor * FLOOR_RANGE;
+        Integer maxNumber = floor == null ? null : floor * FLOOR_RANGE + (FLOOR_RANGE - 1);
+        Page<ParkingSpace> page = parkingSpaceRepository.search(active, minNumber, maxNumber, pageable);
         return PageResponse.from(page, ParkingSpaceResponse::from);
     }
 
     /**
-     * Da de alta una plaza validando la unicidad del {@code label}.
+     * Da de alta una plaza validando la unicidad del {@code number}; el
+     * {@code label} y la planta se derivan del numero.
      *
      * @param request datos de alta ya validados sintacticamente
      * @return la plaza creada
-     * @throws ParkingSpaceConflictException si el {@code label} ya existe
+     * @throws ParkingSpaceConflictException si el {@code number} ya existe
      */
     @Transactional
     public ParkingSpaceResponse create(ParkingSpaceRequest request) {
-        if (parkingSpaceRepository.existsByLabel(request.label())) {
-            throw new ParkingSpaceConflictException(FIELD_LABEL, MSG_LABEL_TAKEN);
+        if (parkingSpaceRepository.existsByNumber(request.number())) {
+            throw new ParkingSpaceConflictException(FIELD_NUMBER, MSG_NUMBER_TAKEN);
         }
-        ParkingSpace space = ParkingSpace.create(request.label());
+        ParkingSpace space = ParkingSpace.create(request.number());
         space.setActive(request.activeOrDefault());
         return ParkingSpaceResponse.from(parkingSpaceRepository.save(space));
     }
 
     /**
-     * Modifica una plaza existente: cambia el {@code label} (validando que no
-     * colisione con otra plaza) y el estado {@code active}.
+     * Modifica una plaza existente: cambia el {@code number} (validando que no
+     * colisione con otra plaza; recalcula {@code label} y planta derivada) y el
+     * estado {@code active}.
      *
      * @param id      id de la plaza a modificar
      * @param request datos de edicion ya validados sintacticamente
      * @return la plaza actualizada
      * @throws EntityNotFoundException       si la plaza no existe
-     * @throws ParkingSpaceConflictException si el {@code label} lo usa otra plaza
+     * @throws ParkingSpaceConflictException si el {@code number} lo usa otra plaza
      */
     @Transactional
     public ParkingSpaceResponse update(Long id, ParkingSpaceRequest request) {
         ParkingSpace space = findOrThrow(id);
-        if (parkingSpaceRepository.existsByLabelAndIdNot(request.label(), id)) {
-            throw new ParkingSpaceConflictException(FIELD_LABEL, MSG_LABEL_TAKEN);
+        if (parkingSpaceRepository.existsByNumberAndIdNot(request.number(), id)) {
+            throw new ParkingSpaceConflictException(FIELD_NUMBER, MSG_NUMBER_TAKEN);
         }
-        space.setLabel(request.label());
+        space.setNumber(request.number());
         space.setActive(request.activeOrDefault());
         return ParkingSpaceResponse.from(parkingSpaceRepository.save(space));
     }
@@ -120,16 +130,26 @@ public class ParkingSpaceService {
     }
 
     private void createSpaces(int count) {
-        int sequence = 1;
+        int index = 0;
         int created = 0;
         while (created < count) {
-            String label = LABEL_FORMAT.formatted(sequence);
-            sequence++;
-            if (!parkingSpaceRepository.existsByLabel(label)) {
-                parkingSpaceRepository.save(ParkingSpace.create(label));
+            int number = numberForIndex(index);
+            index++;
+            if (!parkingSpaceRepository.existsByNumber(number)) {
+                parkingSpaceRepository.save(ParkingSpace.create(number));
                 created++;
             }
         }
+    }
+
+    /**
+     * Numero 1000-based para la posicion {@code index} (0-based) segun el reparto
+     * por planta: {@code floor = 1 + index/SPACES_PER_FLOOR};
+     * {@code number = floor*1000 + index%SPACES_PER_FLOOR + 1} (design §Decision 3).
+     */
+    private static int numberForIndex(int index) {
+        int floor = 1 + index / SPACES_PER_FLOOR;
+        return floor * FLOOR_RANGE + (index % SPACES_PER_FLOOR) + 1;
     }
 
     private void deactivateSurplus(List<ParkingSpace> activeSpaces, int surplus) {

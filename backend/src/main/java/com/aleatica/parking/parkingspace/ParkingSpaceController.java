@@ -74,8 +74,10 @@ public class ParkingSpaceController {
     public ResponseEntity<PageResponse<ParkingSpaceResponse>> listParkingSpaces(
             @Parameter(description = "Filtro por estado activo")
             @RequestParam(name = "active", required = false) Boolean active,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(parkingSpaceService.list(active, pageable));
+            @Parameter(description = "Filtro por planta (planta f = numeros f*1000..f*1000+999)")
+            @RequestParam(name = "floor", required = false) Integer floor,
+            @PageableDefault(size = 20, sort = "number") Pageable pageable) {
+        return ResponseEntity.ok(parkingSpaceService.list(active, floor, pageable));
     }
 
     /**

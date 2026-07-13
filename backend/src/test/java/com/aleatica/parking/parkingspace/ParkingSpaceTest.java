@@ -47,4 +47,47 @@ class ParkingSpaceTest {
                 .isNotEqualTo(null)
                 .isNotEqualTo("P-08");
     }
+
+    @Test
+    void shouldDeriveLabelFromNumber_whenCreatedByNumber() {
+        // Act
+        ParkingSpace space = ParkingSpace.create(1007);
+
+        // Assert
+        assertThat(space.getNumber()).isEqualTo(1007);
+        assertThat(space.getLabel()).isEqualTo("1007");
+        assertThat(space.isActive()).isTrue();
+    }
+
+    @Test
+    void shouldDeriveFloorAsNumberDividedByThousand() {
+        // Assert: floor = number / 1000 (division entera)
+        assertThat(ParkingSpace.create(1007).floor()).isEqualTo(1);
+        assertThat(ParkingSpace.create(2001).floor()).isEqualTo(2);
+        assertThat(ParkingSpace.create(3025).floor()).isEqualTo(3);
+        assertThat(ParkingSpace.create(12010).floor()).isEqualTo(12);
+    }
+
+    @Test
+    void shouldRecalculateLabelAndFloor_whenNumberChanges() {
+        // Arrange
+        ParkingSpace space = ParkingSpace.create(1001);
+
+        // Act
+        space.setNumber(2003);
+
+        // Assert
+        assertThat(space.getLabel()).isEqualTo("2003");
+        assertThat(space.floor()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldReturnNullFloor_whenNumberNotAssigned() {
+        // Act: fabrica de compatibilidad por label, sin numero
+        ParkingSpace space = ParkingSpace.create(LABEL);
+
+        // Assert
+        assertThat(space.getNumber()).isNull();
+        assertThat(space.floor()).isNull();
+    }
 }

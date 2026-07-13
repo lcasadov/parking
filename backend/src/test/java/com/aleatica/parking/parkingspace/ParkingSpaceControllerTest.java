@@ -43,10 +43,11 @@ class ParkingSpaceControllerTest {
     private static final String EMP = "empleado";
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_EMPLOYEE = "EMPLOYEE";
-    private static final String LABEL = "P-08";
+    private static final int NUMBER = 1007;
+    private static final String LABEL = "1007";
 
-    private static final String CREATE_BODY = "{\"label\":\"P-08\"}";
-    private static final String UPDATE_BODY = "{\"label\":\"P-09\",\"active\":true}";
+    private static final String CREATE_BODY = "{\"number\":1007}";
+    private static final String UPDATE_BODY = "{\"number\":2003,\"active\":true}";
     private static final String CONFIGURE_BODY = "{\"total\":50}";
 
     @Autowired
@@ -92,12 +93,14 @@ class ParkingSpaceControllerTest {
     @Test
     void shouldReturnPage_whenAdminListsSpaces() throws Exception {
         // Arrange
-        given(parkingSpaceService.list(any(), any()))
+        given(parkingSpaceService.list(any(), any(), any()))
                 .willReturn(new PageResponse<>(List.of(sample()), 1, 1, 20, 0, true, true));
 
         // Act / Assert
         mockMvc.perform(get(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].number").value(NUMBER))
+                .andExpect(jsonPath("$.content[0].floor").value(1))
                 .andExpect(jsonPath("$.content[0].label").value(LABEL))
                 .andExpect(jsonPath("$.content[0].active").value(true))
                 .andExpect(jsonPath("$.totalElements").value(1));
@@ -112,24 +115,35 @@ class ParkingSpaceControllerTest {
         mockMvc.perform(post(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.label").value(LABEL))
+                .andExpect(jsonPath("$.number").value(NUMBER))
+                .andExpect(jsonPath("$.floor").value(1))
                 .andExpect(jsonPath("$.active").value(true));
     }
 
     @Test
-    void shouldReturn400_whenCreatingSpaceWithBlankLabel() throws Exception {
-        // Act / Assert: label en blanco
+    void shouldReturn400_whenCreatingSpaceWithNumberBelowThousand() throws Exception {
+        // Act / Assert: number < 1000 viola @Min
         mockMvc.perform(post(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"label\":\"\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"number\":999}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.fields.label").exists());
+                .andExpect(jsonPath("$.fields.number").exists());
     }
 
     @Test
-    void shouldReturn409_whenCreatingSpaceWithExistingLabel() throws Exception {
+    void shouldReturn400_whenCreatingSpaceWithoutNumber() throws Exception {
+        // Act / Assert: number ausente viola @NotNull
+        mockMvc.perform(post(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"active\":true}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fields.number").exists());
+    }
+
+    @Test
+    void shouldReturn409_whenCreatingSpaceWithExistingNumber() throws Exception {
         // Arrange
-        willThrow(new ParkingSpaceConflictException("label", "La etiqueta ya esta en uso"))
+        willThrow(new ParkingSpaceConflictException("number", "El numero ya esta en uso"))
                 .given(parkingSpaceService).create(any());
 
         // Act / Assert
@@ -137,20 +151,23 @@ class ParkingSpaceControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("CONFLICT"))
-                .andExpect(jsonPath("$.fields.label").exists());
+                .andExpect(jsonPath("$.fields.number").exists());
     }
 
     @Test
     void shouldReturn200_whenAdminUpdatesSpace() throws Exception {
         // Arrange
         given(parkingSpaceService.update(eq(5L), any()))
-                .willReturn(new ParkingSpaceResponse(5L, "P-09", true, Instant.parse("2026-01-01T00:00:00Z")));
+                .willReturn(new ParkingSpaceResponse(
+                        5L, 2003, "2003", 2, true, Instant.parse("2026-01-01T00:00:00Z")));
 
         // Act / Assert
         mockMvc.perform(put(BASE_URL + "/5").with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(UPDATE_BODY))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.label").value("P-09"));
+                .andExpect(jsonPath("$.number").value(2003))
+                .andExpect(jsonPath("$.floor").value(2))
+                .andExpect(jsonPath("$.label").value("2003"));
     }
 
     @Test
@@ -167,16 +184,16 @@ class ParkingSpaceControllerTest {
     }
 
     @Test
-    void shouldReturn409_whenUpdatingToLabelUsedByAnotherSpace() throws Exception {
+    void shouldReturn409_whenUpdatingToNumberUsedByAnotherSpace() throws Exception {
         // Arrange
-        willThrow(new ParkingSpaceConflictException("label", "La etiqueta ya esta en uso"))
+        willThrow(new ParkingSpaceConflictException("number", "El numero ya esta en uso"))
                 .given(parkingSpaceService).update(eq(5L), any());
 
         // Act / Assert
         mockMvc.perform(put(BASE_URL + "/5").with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(UPDATE_BODY))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.fields.label").exists());
+                .andExpect(jsonPath("$.fields.number").exists());
     }
 
     @Test
@@ -202,6 +219,7 @@ class ParkingSpaceControllerTest {
     }
 
     private ParkingSpaceResponse sample() {
-        return new ParkingSpaceResponse(5L, LABEL, true, Instant.parse("2026-01-01T00:00:00Z"));
+        return new ParkingSpaceResponse(
+                5L, NUMBER, LABEL, 1, true, Instant.parse("2026-01-01T00:00:00Z"));
     }
 }

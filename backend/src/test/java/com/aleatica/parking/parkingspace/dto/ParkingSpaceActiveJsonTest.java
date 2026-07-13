@@ -25,7 +25,7 @@ class ParkingSpaceActiveJsonTest {
     void shouldSerializeActiveFlagAsActive_whenSerializingResponse() throws Exception {
         // Arrange
         ParkingSpaceResponse response = new ParkingSpaceResponse(
-                1L, "P-08", true, Instant.parse("2026-01-01T00:00:00Z"));
+                1L, 1007, "1007", 1, true, Instant.parse("2026-01-01T00:00:00Z"));
 
         // Act
         String json = objectMapper.writeValueAsString(response);
@@ -37,7 +37,7 @@ class ParkingSpaceActiveJsonTest {
     @Test
     void shouldBindActiveFlag_whenDeserializingRequestWithActive() throws Exception {
         // Arrange
-        String body = "{\"label\":\"P-08\",\"active\":false}";
+        String body = "{\"number\":1007,\"active\":false}";
 
         // Act
         ParkingSpaceRequest request = objectMapper.readValue(body, ParkingSpaceRequest.class);
@@ -50,7 +50,7 @@ class ParkingSpaceActiveJsonTest {
     @Test
     void shouldDefaultActiveToTrue_whenRequestOmitsActive() throws Exception {
         // Arrange
-        String body = "{\"label\":\"P-08\"}";
+        String body = "{\"number\":1007}";
 
         // Act
         ParkingSpaceRequest request = objectMapper.readValue(body, ParkingSpaceRequest.class);
