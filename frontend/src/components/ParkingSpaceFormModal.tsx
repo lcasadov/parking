@@ -18,17 +18,29 @@ interface ParkingSpaceFormModalProps {
 
 const HTTP_CONFLICT = 409;
 const HTTP_BAD_REQUEST = 400;
+const MIN_NUMBER = 1000;
+const SPACES_PER_FLOOR = 1000;
 
 interface FormState {
-  label: string;
+  number: string;
   active: boolean;
 }
 
 function initialState(space?: ParkingSpace | null): FormState {
   return {
-    label: space?.label ?? '',
+    number: space?.number !== undefined ? String(space.number) : '',
     active: space?.active ?? true,
   };
+}
+
+// Planta derivada del numero introducido (`floor = number / 1000`), replicando la
+// derivacion del backend. Devuelve '' mientras el numero no sea valido.
+function derivedFloor(rawNumber: string): string {
+  const parsed = Number(rawNumber);
+  if (!rawNumber.trim() || !Number.isInteger(parsed) || parsed < MIN_NUMBER) {
+    return '';
+  }
+  return String(Math.floor(parsed / SPACES_PER_FLOOR));
 }
 
 export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceFormModalProps) {
@@ -40,14 +52,14 @@ export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceF
   const updateMutation = useUpdateParkingSpace();
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  function setLabel(value: string): void {
-    setValues((previous) => ({ ...previous, label: value }));
+  function setNumber(value: string): void {
+    setValues((previous) => ({ ...previous, number: value }));
     setErrors((previous) => {
-      if (!previous.label) {
+      if (!previous.number) {
         return previous;
       }
       const next = { ...previous };
-      delete next.label;
+      delete next.number;
       return next;
     });
   }
@@ -58,18 +70,21 @@ export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceF
 
   function validate(): Record<string, string> {
     const next: Record<string, string> = {};
-    if (!values.label.trim()) {
-      next.label = t('parkingSpaces.form.required');
+    const parsed = Number(values.number);
+    if (!values.number.trim()) {
+      next.number = t('parkingSpaces.form.required');
+    } else if (!Number.isInteger(parsed) || parsed < MIN_NUMBER) {
+      next.number = t('parkingSpaces.form.numberInvalid');
     }
     return next;
   }
 
-  // Mapea el error del servidor (409 label duplicado / 400 validacion) a errores
+  // Mapea el error del servidor (409 numero duplicado / 400 validacion) a errores
   // inline por campo.
   function handleServerError(error: unknown): void {
     const status = getStatus(error);
     if (status === HTTP_CONFLICT) {
-      setErrors({ label: t('parkingSpaces.form.duplicateLabel') });
+      setErrors({ number: t('parkingSpaces.form.duplicateNumber') });
       return;
     }
     const fields = getFieldErrors(error);
@@ -82,7 +97,7 @@ export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceF
 
   function submit(): void {
     const body: ParkingSpaceCreate = {
-      label: values.label.trim(),
+      number: Number(values.number),
       active: values.active,
     };
     const options = { onSuccess: onSaved, onError: handleServerError };
@@ -131,12 +146,22 @@ export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceF
       <form id="parking-space-form" onSubmit={handleSubmit} noValidate>
         <FieldRow>
           <Input
-            label={t('parkingSpaces.form.label')}
-            value={values.label}
-            error={Boolean(errors.label)}
-            hint={errors.label ?? t('parkingSpaces.form.labelHint')}
-            maxLength={20}
-            onChange={(event) => setLabel(event.target.value)}
+            label={t('parkingSpaces.form.number')}
+            type="number"
+            inputMode="numeric"
+            min={MIN_NUMBER}
+            step={1}
+            value={values.number}
+            error={Boolean(errors.number)}
+            hint={errors.number ?? t('parkingSpaces.form.numberHint')}
+            onChange={(event) => setNumber(event.target.value)}
+          />
+          <Input
+            label={t('parkingSpaces.form.floorLabel')}
+            value={derivedFloor(values.number)}
+            hint={t('parkingSpaces.form.floorHint')}
+            readOnly
+            placeholder="—"
           />
           <div className="auth-field">
             <span className="field-label">{t('parkingSpaces.form.statusLabel')}</span>

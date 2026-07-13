@@ -23,6 +23,9 @@ function buildListParams(params: ParkingSpaceListParams): Record<string, string 
   if (params.active !== undefined) {
     query.active = params.active;
   }
+  if (params.floor !== undefined) {
+    query.floor = params.floor;
+  }
   return query;
 }
 
