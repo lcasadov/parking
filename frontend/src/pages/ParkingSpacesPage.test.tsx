@@ -9,13 +9,17 @@ import { spaceP01, spaceP02, pageOfSpaces } from '../mocks/parkingSpaceFixtures'
 import { renderWithProviders } from '../test/renderWithProviders';
 
 const SPACES_URL = `${MSW_BASE}/parking-spaces`;
+const NUMBER_LABEL = /número de la plaza|space number/i;
 
 describe('ParkingSpacesPage', () => {
-  it('should_render_space_rows_when_list_loads', async () => {
+  it('should_render_space_rows_with_floor_when_list_loads', async () => {
     renderWithProviders(<ParkingSpacesPage />);
 
     expect(await screen.findByText('P-01')).toBeInTheDocument();
     expect(screen.getByText('P-02')).toBeInTheDocument();
+    // Planta mostrada por fila (P-01 -> planta 1, P-02 -> planta 2).
+    const row = (screen.getByText('P-01').closest('tr')) as HTMLElement;
+    expect(within(row).getByText(/planta 1|floor 1/i)).toBeInTheDocument();
   });
 
   it('should_request_active_filter_when_selecting_active', async () => {
@@ -44,6 +48,32 @@ describe('ParkingSpacesPage', () => {
     expect(screen.getByText('P-01')).toBeInTheDocument();
   });
 
+  it('should_request_floor_param_when_selecting_a_floor', async () => {
+    let receivedFloor: string | null = null;
+    server.use(
+      http.get(SPACES_URL, ({ request }) => {
+        receivedFloor = new URL(request.url).searchParams.get('floor');
+        const all = [spaceP01, spaceP02];
+        const filtered =
+          receivedFloor === null ? all : all.filter((s) => String(s.floor) === receivedFloor);
+        return HttpResponse.json(pageOfSpaces(filtered));
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ParkingSpacesPage />);
+    await screen.findByText('P-01');
+
+    await user.selectOptions(screen.getByLabelText(/filtrar por planta|filter by floor/i), '2');
+
+    await waitFor(() => {
+      expect(receivedFloor).toBe('2');
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('P-01')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('P-02')).toBeInTheDocument();
+  });
+
   it('should_open_edit_form_prefilled_when_clicking_edit', async () => {
     const user = userEvent.setup();
     renderWithProviders(<ParkingSpacesPage />);
@@ -56,7 +86,7 @@ describe('ParkingSpacesPage', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/editar plaza|edit space/i)).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/etiqueta de la plaza|space label/i)).toHaveValue('P-01');
+    expect(within(dialog).getByLabelText(NUMBER_LABEL)).toHaveValue(1001);
   });
 
   it('should_show_error_message_when_list_request_fails', async () => {
@@ -91,7 +121,7 @@ describe('ParkingSpacesPage', () => {
     await user.click(within(row).getByRole('button', { name: /desactivar|deactivate/i }));
 
     await waitFor(() => expect(sentBody).not.toBeNull());
-    expect(sentBody).toMatchObject({ label: 'P-01', active: false });
+    expect(sentBody).toMatchObject({ number: 1001, active: false });
   });
 
   it('should_filter_visible_rows_when_typing_in_search_box', async () => {

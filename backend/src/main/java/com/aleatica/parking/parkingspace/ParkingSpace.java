@@ -36,6 +36,9 @@ public class ParkingSpace implements BookableResource {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "number", nullable = false)
+    private Integer number;
+
     @Column(name = "label", nullable = false, length = 20)
     private String label;
 
@@ -52,10 +55,27 @@ public class ParkingSpace implements BookableResource {
     }
 
     /**
-     * Da de alta una nueva plaza activa (caso de uso de creacion).
+     * Da de alta una nueva plaza activa a partir de su {@code number} (caso de uso
+     * de creacion). El {@code label} se deriva del numero y la planta queda
+     * implicita como {@code number / 1000} (no se persiste, design §Decision 1).
      *
      * <p>El {@code created_at} lo fija la base de datos ({@code DEFAULT SYSUTCDATETIME()});
      * la plaza nace con {@code active = true}.</p>
+     *
+     * @param number numero unico de la plaza ({@code >= 1000})
+     * @return la plaza nueva, aun no persistida
+     */
+    public static ParkingSpace create(int number) {
+        ParkingSpace space = new ParkingSpace();
+        space.setNumber(number);
+        space.active = true;
+        return space;
+    }
+
+    /**
+     * Da de alta una plaza activa a partir de un {@code label} textual (fabrica de
+     * compatibilidad para escenarios que aun operan por etiqueta; el numero queda
+     * sin fijar). El alta/edicion por API usa {@link #create(int)}.
      *
      * @param label etiqueta unica de la plaza
      * @return la plaza nueva, aun no persistida
@@ -89,6 +109,31 @@ public class ParkingSpace implements BookableResource {
     @Override
     public ResourceType getResourceType() {
         return ResourceType.PARKING;
+    }
+
+    public Integer getNumber() {
+        return number;
+    }
+
+    /**
+     * Fija el numero de la plaza y deriva su {@code label} textual del numero.
+     *
+     * @param number numero de la plaza
+     */
+    public void setNumber(int number) {
+        this.number = number;
+        this.label = Integer.toString(number);
+    }
+
+    /**
+     * Planta a la que pertenece la plaza, DERIVADA del numero
+     * ({@code number / 1000}); no se persiste. Devuelve {@code null} si la plaza
+     * aun no tiene numero asignado.
+     *
+     * @return la planta derivada, o {@code null} si no hay numero
+     */
+    public Integer floor() {
+        return number == null ? null : number / 1000;
     }
 
     @Override

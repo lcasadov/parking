@@ -408,6 +408,11 @@ paths:
           in: query
           required: false
           schema: { type: boolean }
+        - name: floor
+          in: query
+          required: false
+          description: Filtro por planta (planta f = números f*1000..f*1000+999).
+          schema: { type: integer, minimum: 1 }
       responses:
         '200':
           description: Página de plazas
@@ -422,7 +427,7 @@ paths:
       tags: [ParkingSpaces]
       operationId: createParkingSpace
       summary: Crea una plaza (ADMIN)
-      description: '`label` único (409 en colisión).'
+      description: '`number` entero único ≥ 1000 (409 en colisión); `label` y `floor` se derivan del número.'
       requestBody:
         required: true
         content:
@@ -1687,14 +1692,16 @@ components:
       type: object
       properties:
         id: { type: integer, format: int64 }
-        label: { type: string }
+        number: { type: integer, description: Número único de la plaza (≥ 1000). }
+        label: { type: string, description: Etiqueta derivada del número. }
+        floor: { type: integer, readOnly: true, description: 'Planta derivada (number/1000), solo lectura.' }
         active: { type: boolean }
         createdAt: { type: string, format: date-time }
     ParkingSpaceCreate:
       type: object
-      required: [label]
+      required: [number]
       properties:
-        label: { type: string, minLength: 1, maxLength: 20 }
+        number: { type: integer, minimum: 1000, description: 'Número único de la plaza (≥ 1000); la planta se deriva como number/1000.' }
         active: { type: boolean, default: true }
     ParkingSpaceConfigureRequest:
       type: object

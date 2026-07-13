@@ -26,9 +26,28 @@ function filterToActive(filter: ActiveFilter): boolean | undefined {
 
 // Vista de gestion de plazas (ADMIN): configuracion del total + tabla paginada
 // con filtro activa/inactiva.
+const ALL_FLOORS = 'all';
+type FloorFilter = number | typeof ALL_FLOORS;
+
+// Traduce el filtro de planta al parametro `floor` del contrato.
+function floorToParam(filter: FloorFilter): number | undefined {
+  return filter === ALL_FLOORS ? undefined : filter;
+}
+
+// Opciones de planta derivadas de las plazas cargadas; garantiza que la planta
+// seleccionada permanezca disponible aunque el filtro reduzca la lista.
+function buildFloorOptions(spaces: ParkingSpace[], selected: FloorFilter): number[] {
+  const floors = new Set<number>(spaces.map((space) => space.floor));
+  if (selected !== ALL_FLOORS) {
+    floors.add(selected);
+  }
+  return Array.from(floors).sort((a, b) => a - b);
+}
+
 export function ParkingSpacesPage() {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
+  const [floor, setFloor] = useState<FloorFilter>(ALL_FLOORS);
   const [q, setQ] = useState('');
   const [page, setPage] = useState(0);
   const [formSpace, setFormSpace] = useState<ParkingSpace | null>(null);
@@ -38,6 +57,7 @@ export function ParkingSpacesPage() {
     page,
     size: PAGE_SIZE,
     active: filterToActive(filter),
+    floor: floorToParam(floor),
   });
   const updateMutation = useUpdateParkingSpace();
 
@@ -46,11 +66,16 @@ export function ParkingSpacesPage() {
     setPage(0);
   }
 
-  // Activa/desactiva una plaza (paridad con la vista de puestos). Reenvia la
-  // etiqueta actual porque el contrato de PUT exige el cuerpo completo.
+  function handleFloor(value: string): void {
+    setFloor(value === ALL_FLOORS ? ALL_FLOORS : Number(value));
+    setPage(0);
+  }
+
+  // Activa/desactiva una plaza (paridad con la vista de puestos). Reenvia el
+  // numero actual porque el contrato de PUT exige el cuerpo completo.
   function toggleActivation(space: ParkingSpace): void {
     updateMutation.mutate(
-      { id: space.id, body: { label: space.label, active: !space.active } },
+      { id: space.id, body: { number: space.number, active: !space.active } },
       { onError: () => emitApiErrorToast('parkingSpaces.errors.toggle') },
     );
   }
@@ -80,6 +105,9 @@ export function ParkingSpacesPage() {
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
+
+  const floorOptions = buildFloorOptions(spaces, floor);
+  const floorSelectValue = floor === ALL_FLOORS ? ALL_FLOORS : String(floor);
 
   return (
     <section className="parking-spaces-page" aria-labelledby="parking-spaces-title">
@@ -120,6 +148,22 @@ export function ParkingSpacesPage() {
           <option value="active">{t('parkingSpaces.filter.active')}</option>
           <option value="inactive">{t('parkingSpaces.filter.inactive')}</option>
         </select>
+        <label className="field-label" htmlFor="parking-spaces-floor">
+          {t('parkingSpaces.filterFloorLabel')}
+        </label>
+        <select
+          id="parking-spaces-floor"
+          className="field-input"
+          value={floorSelectValue}
+          onChange={(event) => handleFloor(event.target.value)}
+        >
+          <option value={ALL_FLOORS}>{t('parkingSpaces.floorFilter.all')}</option>
+          {floorOptions.map((value) => (
+            <option key={value} value={String(value)}>
+              {t('parkingSpaces.floorOption', { floor: value })}
+            </option>
+          ))}
+        </select>
       </div>
 
       {query.isLoading ? <Spinner /> : null}
@@ -136,6 +180,7 @@ export function ParkingSpacesPage() {
             <thead>
               <tr className="table-header">
                 <th scope="col">{t('parkingSpaces.columns.label')}</th>
+                <th scope="col">{t('parkingSpaces.columns.floor')}</th>
                 <th scope="col">{t('parkingSpaces.columns.status')}</th>
                 <th scope="col">{t('parkingSpaces.columns.actions')}</th>
               </tr>
@@ -143,7 +188,7 @@ export function ParkingSpacesPage() {
             <tbody>
               {visibleSpaces.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="table-empty">
+                  <td colSpan={4} className="table-empty">
                     {t('parkingSpaces.empty')}
                   </td>
                 </tr>
@@ -151,6 +196,7 @@ export function ParkingSpacesPage() {
                 visibleSpaces.map((space) => (
                   <tr key={space.id} className="table-row">
                     <td>{space.label}</td>
+                    <td>{t('parkingSpaces.floorValue', { floor: space.floor })}</td>
                     <td>
                       <span className={`pill ${space.active ? 'pill-green' : 'pill-gray'}`}>
                         {t(space.active ? 'parkingSpaces.status.active' : 'parkingSpaces.status.inactive')}

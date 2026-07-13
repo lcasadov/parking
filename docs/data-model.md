@@ -127,23 +127,29 @@ GO
 - `last_password_change_at` drives the 90-day rotation (Phase 2 / fallback).
 
 ### 3.2 `parking_spaces`
-**Purpose:** physical parking spaces, identified by a label (e.g. `P-08`), active/inactive.
+**Purpose:** physical parking spaces, identified by an integer `number` (≥ 1000) from which the **floor** is derived (`floor = number / 1000`), active/inactive.
 
 ```sql
 CREATE TABLE dbo.parking_spaces (
     id          BIGINT IDENTITY(1,1) NOT NULL,
+    number      INT NOT NULL,                                                      -- V19 (>= 1000)
     label       NVARCHAR(20) NOT NULL,
     active      BIT NOT NULL CONSTRAINT DF_parking_spaces_active DEFAULT 1,
     created_at  DATETIME2(3) NOT NULL CONSTRAINT DF_parking_spaces_created_at DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT PK_parking_spaces PRIMARY KEY (id)
+    CONSTRAINT PK_parking_spaces PRIMARY KEY (id),
+    CONSTRAINT CK_parking_spaces_number CHECK (number >= 1000)                     -- V19
 );
 GO
 CREATE UNIQUE INDEX UX_parking_spaces_label ON dbo.parking_spaces(label);
 GO
+CREATE UNIQUE INDEX UX_parking_spaces_number ON dbo.parking_spaces(number);        -- V19
+GO
 ```
 
 **Notes**
-- `label` is unique and human-facing. Inactive spaces are never available for any date.
+- `number` (added in **V19**) is unique and human-facing; both `number` and the derived `label` (`CONVERT(NVARCHAR, number)`) are unique. Inactive spaces are never available for any date.
+- **Floor is DERIVED, not persisted** (`floor = number / 1000`, integer division): `1001..1999 → floor 1`, `2001..2999 → floor 2`, etc. It is computed in the domain/DTO and exposed read-only; listing filters by floor via the number range `[floor*1000, floor*1000+999]` (change `parking-space-floors`, design §Decision 1).
+- **V19 renumbering** rewrites the existing rows by `id` order (spacesPerFloor = 5) without touching `id`, so all polymorphic references (`fixed_assignments`/`requests`/`releases`) and the real FK from `visitor_reservations` keep resolving by `id`. The 25 seeded spaces become `1001-1005, 2001-2005, 3001-3005, 4001-4005, 5001-5005`.
 - `desks` (§3.2b) is the sibling reservable table; since `generic-resource-refactor` (V12) both are addressed polymorphically through `resource_id` + `resource_type`. `ParkingSpace` implements the `BookableResource` domain interface with `resource_type = PARKING`.
 
 ### 3.2b `desks` (capability `init-desks`)
@@ -580,6 +586,7 @@ Schema migrations live in `backend/src/main/resources/db/migration/`; **dev seed
 | V12 | `V12__generic_resource_refactor.sql` | Generalizes `parking_space_id` → `resource_id` + `resource_type` on `fixed_assignments`, `requests`, `releases`; rebuilds their unique indexes; re-adds then keeps `FK_*_parking_spaces`. |
 | V13 | `V13__desks.sql` | `desks` (§3.2b) + `UX_desks_number`; **drops** the three `FK_*_parking_spaces` (polymorphic `resource_id`). |
 | V15 | `V15__floor_plan_desk_pending_index.sql` | `UX_requests_desk_date_pending` (filtered: PENDING + DESK + `resource_id IS NOT NULL`). (V14 is a dev seed → gap.) |
+| V19 | `V19__parking_space_number.sql` | Adds `parking_spaces.number` (`CK_parking_spaces_number CHECK (number >= 1000)`) + `UX_parking_spaces_number`; renumbers existing rows by `id` (spacesPerFloor = 5) preserving `id`; floor is derived (`number/1000`, §3.2). (V16-V18 are dev seeds → gap.) |
 
 **Dev seeds (`db/seed/dev/`, profile `des` only — never PRE/PRO):**
 

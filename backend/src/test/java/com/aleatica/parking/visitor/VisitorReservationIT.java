@@ -326,7 +326,7 @@ class VisitorReservationIT extends BaseIntegrationTest {
     }
 
     private long insertSpace(String label, boolean active) {
-        jdbcTemplate.update("INSERT INTO dbo.parking_spaces (label, active) VALUES (?, ?)",
+        jdbcTemplate.update("INSERT INTO dbo.parking_spaces (number, label, active) VALUES ((SELECT ISNULL(MAX(number),1000)+1 FROM dbo.parking_spaces), ?, ?)",
                 label, active ? 1 : 0);
         Long id = jdbcTemplate.queryForObject(
                 "SELECT id FROM dbo.parking_spaces WHERE label = ?", Long.class, label);
