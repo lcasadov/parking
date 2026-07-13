@@ -175,6 +175,7 @@ export function EmployeesPage() {
                 <th scope="col">{t('employees.columns.parkingFixed')}</th>
                 <th scope="col">{t('employees.columns.deskFixed')}</th>
                 <th scope="col">{t('employees.columns.role')}</th>
+                <th scope="col">{t('employees.columns.category')}</th>
                 <th scope="col">{t('employees.columns.status')}</th>
                 <th scope="col">{t('employees.columns.actions')}</th>
               </tr>
@@ -182,7 +183,7 @@ export function EmployeesPage() {
             <tbody>
               {employees.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="table-empty">
+                  <td colSpan={8} className="table-empty">
                     {t('employees.empty')}
                   </td>
                 </tr>
@@ -214,6 +215,7 @@ export function EmployeesPage() {
                         <ResourceCell group={resources.desk} labels={deskLabels} />
                       </td>
                       <td>{t(`employees.role.${employee.role}`)}</td>
+                      <td>{t(`employees.category.${employee.category}`)}</td>
                       <td>
                         <span className={`pill ${employee.active ? 'pill-green' : 'pill-gray'}`}>
                           {t(

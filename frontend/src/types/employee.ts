@@ -10,6 +10,28 @@ export type AuthOrigin = 'LOCAL' | 'ENTRA_ID';
 // Formato de exportacion: schema ExportFormatParam (enum [csv, xlsx]).
 export type ExportFormat = 'csv' | 'xlsx';
 
+// EmployeeCategory: schema #/components/schemas/EmployeeCategory.
+// Orden jerarquico de mayor a menor rango.
+export type EmployeeCategory =
+  | 'CEO'
+  | 'CONSEJO'
+  | 'DIRECTOR_N1'
+  | 'DIRECTOR_N2'
+  | 'GERENTE'
+  | 'MANDO_INTERMEDIO'
+  | 'EMPLEADO';
+
+// Valores de EmployeeCategory en orden jerarquico (mayor -> menor rango).
+export const EMPLOYEE_CATEGORIES: EmployeeCategory[] = [
+  'CEO',
+  'CONSEJO',
+  'DIRECTOR_N1',
+  'DIRECTOR_N2',
+  'GERENTE',
+  'MANDO_INTERMEDIO',
+  'EMPLEADO',
+];
+
 // Employee: schema #/components/schemas/Employee.
 export interface Employee {
   id: number;
@@ -23,6 +45,7 @@ export interface Employee {
   isCorporate: boolean;
   authOrigin: AuthOrigin;
   role: Role;
+  category: EmployeeCategory;
   enabled: boolean;
   active: boolean;
   passwordMustChange: boolean;
@@ -42,6 +65,7 @@ export interface EmployeeCreate {
   isCorporate?: boolean;
   authOrigin?: AuthOrigin;
   role: Role;
+  category: EmployeeCategory;
 }
 
 // EmployeeUpdate: schema #/components/schemas/EmployeeUpdate (sin login).
@@ -54,6 +78,7 @@ export interface EmployeeUpdate {
   licensePlate?: string;
   isCorporate?: boolean;
   role?: Role;
+  category: EmployeeCategory;
 }
 
 // EmployeeResetPasswordResponse: schema #/components/schemas/EmployeeResetPasswordResponse.

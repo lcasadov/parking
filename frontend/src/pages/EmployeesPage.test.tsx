@@ -38,6 +38,14 @@ describe('EmployeesPage', () => {
     expect(within(aliceRow).getByText('P-01')).toBeInTheDocument();
   });
 
+  it('should_render_category_label_for_each_employee', async () => {
+    renderWithProviders(<EmployeesPage />);
+
+    // Alice: EMPLEADO -> "Empleado"; Bob: DIRECTOR_N1 -> "Director nivel 1".
+    const bobRow = (await screen.findByText('Bob Brown')).closest('tr') as HTMLElement;
+    expect(within(bobRow).getByText('Director nivel 1')).toBeInTheDocument();
+  });
+
   it('should_request_with_q_and_filter_when_searching', async () => {
     let receivedQ: string | null = null;
     server.use(

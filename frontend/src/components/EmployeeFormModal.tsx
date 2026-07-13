@@ -24,7 +24,14 @@ import {
   toEmployeeFixedResources,
   type FixedAssignmentGroup,
 } from '../utils/fixedAssignments';
-import type { Employee, EmployeeCreate, EmployeeUpdate, Role } from '../types/employee';
+import {
+  EMPLOYEE_CATEGORIES,
+  type Employee,
+  type EmployeeCategory,
+  type EmployeeCreate,
+  type EmployeeUpdate,
+  type Role,
+} from '../types/employee';
 import type { ResourceType } from '../types/request';
 
 interface EmployeeFormModalProps {
@@ -42,6 +49,7 @@ interface FormState {
   mobilePhone: string;
   licensePlate: string;
   role: Role;
+  category: EmployeeCategory;
   isCorporate: boolean;
 }
 
@@ -72,6 +80,7 @@ function initialState(employee?: Employee | null): FormState {
     mobilePhone: employee?.mobilePhone ?? '',
     licensePlate: employee?.licensePlate ?? '',
     role: employee?.role ?? 'EMPLOYEE',
+    category: employee?.category ?? 'EMPLEADO',
     isCorporate: employee?.isCorporate ?? false,
   };
 }
@@ -126,6 +135,7 @@ interface DetailsPanelProps {
 function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanelProps) {
   const { t } = useTranslation();
   const roleId = useId();
+  const categoryId = useId();
   const corporateLabel = values.isCorporate
     ? t('employees.form.corporateOn')
     : t('employees.form.corporateOff');
@@ -202,6 +212,25 @@ function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanel
           >
             <option value="EMPLOYEE">{t('employees.role.EMPLOYEE')}</option>
             <option value="ADMIN">{t('employees.role.ADMIN')}</option>
+          </select>
+        </div>
+      </FieldRow>
+      <FieldRow>
+        <div className="auth-field">
+          <label className="field-label" htmlFor={categoryId}>
+            {t('employees.form.category')}
+          </label>
+          <select
+            id={categoryId}
+            className="field-input"
+            value={values.category}
+            onChange={(event) => onField('category', event.target.value as EmployeeCategory)}
+          >
+            {EMPLOYEE_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {t(`employees.category.${category}`)}
+              </option>
+            ))}
           </select>
         </div>
       </FieldRow>
@@ -403,6 +432,7 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       licensePlate: values.licensePlate.trim() || undefined,
       isCorporate: values.isCorporate,
       role: values.role,
+      category: values.category,
     };
   }
 
@@ -416,6 +446,7 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       licensePlate: values.licensePlate.trim() || undefined,
       isCorporate: values.isCorporate,
       role: values.role,
+      category: values.category,
     };
   }
 

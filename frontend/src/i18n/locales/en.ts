@@ -106,6 +106,7 @@ export const en = {
       parkingFixed: 'Fixed space',
       deskFixed: 'Fixed desk',
       role: 'Role',
+      category: 'Category',
       status: 'Status',
       actions: 'Actions',
     },
@@ -116,6 +117,15 @@ export const en = {
     role: {
       ADMIN: 'Administrator',
       EMPLOYEE: 'Employee',
+    },
+    category: {
+      CEO: 'CEO',
+      CONSEJO: 'Board',
+      DIRECTOR_N1: 'Director level 1',
+      DIRECTOR_N2: 'Director level 2',
+      GERENTE: 'Manager',
+      MANDO_INTERMEDIO: 'Middle management',
+      EMPLEADO: 'Employee',
     },
     status: {
       active: 'Active',
@@ -151,6 +161,7 @@ export const en = {
       mobilePhone: 'Mobile phone',
       licensePlate: 'License plate',
       role: 'Role',
+      category: 'Category',
       isCorporate: 'Corporate employee',
       corporateOn: 'Yes (has EntraID)',
       corporateOff: 'No (local user)',

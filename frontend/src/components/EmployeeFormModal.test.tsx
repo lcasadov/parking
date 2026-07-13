@@ -52,6 +52,70 @@ describe('EmployeeFormModal', () => {
     expect(sentBody).toMatchObject({ login: 'ccarter', email: 'carol@aleatica.com' });
   });
 
+  it('should_send_selected_category_in_create_body', async () => {
+    let sentBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post(EMPLOYEES_URL, async ({ request }) => {
+        sentBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...employeeAlice, id: 51 }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<EmployeeFormModal onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await fillValidCreateForm(user);
+    const categorySelect = screen.getByLabelText(/^categoría$|^category$/i);
+    expect(categorySelect).toBeInTheDocument();
+    await user.selectOptions(categorySelect, 'DIRECTOR_N1');
+    await user.click(screen.getByRole('button', { name: /guardar|save/i }));
+
+    await waitFor(() => {
+      expect(sentBody).toMatchObject({ category: 'DIRECTOR_N1' });
+    });
+  });
+
+  it('should_default_category_to_empleado_in_create_body', async () => {
+    let sentBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post(EMPLOYEES_URL, async ({ request }) => {
+        sentBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...employeeAlice, id: 52 }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<EmployeeFormModal onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await fillValidCreateForm(user);
+    await user.click(screen.getByRole('button', { name: /guardar|save/i }));
+
+    await waitFor(() => {
+      expect(sentBody).toMatchObject({ category: 'EMPLEADO' });
+    });
+  });
+
+  it('should_prefill_and_send_category_when_editing', async () => {
+    let putBody: Record<string, unknown> | null = null;
+    server.use(
+      http.put(`${EMPLOYEES_URL}/:id`, async ({ request }) => {
+        putBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...employeeAlice, ...putBody });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <EmployeeFormModal employee={employeeAlice} onClose={vi.fn()} onSaved={vi.fn()} />,
+    );
+
+    const categorySelect = screen.getByLabelText(/^categoría$|^category$/i) as HTMLSelectElement;
+    expect(categorySelect.value).toBe(employeeAlice.category);
+    await user.selectOptions(categorySelect, 'GERENTE');
+    await user.click(screen.getByRole('button', { name: /guardar|save/i }));
+
+    await waitFor(() => {
+      expect(putBody).toMatchObject({ category: 'GERENTE' });
+    });
+  });
+
   it('should_show_login_error_when_create_returns_409_duplicate_login', async () => {
     server.use(http.post(EMPLOYEES_URL, () => conflict('login')));
     const user = userEvent.setup();
