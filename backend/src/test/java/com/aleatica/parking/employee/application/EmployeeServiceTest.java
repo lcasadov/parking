@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
+import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
 import com.aleatica.parking.employee.dto.EmployeeCreateRequest;
@@ -80,6 +81,7 @@ class EmployeeServiceTest {
         assertThat(created.email()).isEqualTo(EMAIL);
         assertThat(created.active()).isTrue();
         assertThat(created.enabled()).isTrue();
+        assertThat(created.category()).isEqualTo(EmployeeCategory.DIRECTOR_N1);
     }
 
     @Test
@@ -124,6 +126,7 @@ class EmployeeServiceTest {
         assertThat(updated.email()).isEqualTo(OTHER_EMAIL);
         assertThat(updated.firstName()).isEqualTo("Nuevo");
         assertThat(updated.updatedAt()).isEqualTo(NOW);
+        assertThat(updated.category()).isEqualTo(EmployeeCategory.GERENTE);
     }
 
     @Test
@@ -226,13 +229,15 @@ class EmployeeServiceTest {
     private EmployeeCreateRequest validCreateRequest() {
         return new EmployeeCreateRequest(
                 "Juan", "Perez", LOGIN, EMAIL,
-                "IT", "600100200", "1234ABC", true, null, Role.EMPLOYEE);
+                "IT", "600100200", "1234ABC", true, null, Role.EMPLOYEE,
+                EmployeeCategory.DIRECTOR_N1);
     }
 
     private EmployeeUpdateRequest validUpdateRequest(String email) {
         return new EmployeeUpdateRequest(
                 "Nuevo", "Apellido", email,
-                "RRHH", "600300400", "5678DEF", false, Role.ADMIN);
+                "RRHH", "600300400", "5678DEF", false, Role.ADMIN,
+                EmployeeCategory.GERENTE);
     }
 
     private Employee existing() {

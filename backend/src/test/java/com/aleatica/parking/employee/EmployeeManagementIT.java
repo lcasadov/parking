@@ -216,22 +216,22 @@ class EmployeeManagementIT extends BaseIntegrationTest {
 
     private static String createBody(String login, String email) {
         return "{\"firstName\":\"Juan\",\"lastName\":\"Perez\",\"login\":\"" + login
-                + "\",\"email\":\"" + email + "\",\"role\":\"EMPLOYEE\"}";
+                + "\",\"email\":\"" + email + "\",\"role\":\"EMPLOYEE\",\"category\":\"EMPLEADO\"}";
     }
 
     private static String updateBody(String firstName, String email) {
         return "{\"firstName\":\"" + firstName + "\",\"lastName\":\"Perez\",\"email\":\""
-                + email + "\",\"role\":\"EMPLOYEE\"}";
+                + email + "\",\"role\":\"EMPLOYEE\",\"category\":\"EMPLEADO\"}";
     }
 
     private static String createBodyCorporate(String login, String email, boolean corporate) {
         return "{\"firstName\":\"Juan\",\"lastName\":\"Perez\",\"login\":\"" + login
                 + "\",\"email\":\"" + email + "\",\"isCorporate\":" + corporate
-                + ",\"role\":\"EMPLOYEE\"}";
+                + ",\"role\":\"EMPLOYEE\",\"category\":\"EMPLEADO\"}";
     }
 
     private static String updateBodyCorporate(String email, boolean corporate) {
         return "{\"firstName\":\"Juan\",\"lastName\":\"Perez\",\"email\":\"" + email
-                + "\",\"isCorporate\":" + corporate + ",\"role\":\"EMPLOYEE\"}";
+                + "\",\"isCorporate\":" + corporate + ",\"role\":\"EMPLOYEE\",\"category\":\"EMPLEADO\"}";
     }
 }

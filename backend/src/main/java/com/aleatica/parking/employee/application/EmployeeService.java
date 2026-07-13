@@ -98,7 +98,8 @@ public class EmployeeService {
         }
         Employee employee = Employee.register(
                 request.firstName(), request.lastName(), request.login(),
-                request.email(), request.role(), request.authOriginOrDefault());
+                request.email(), request.role(), request.authOriginOrDefault(),
+                request.category());
         employee.setDepartment(request.department());
         employee.setMobilePhone(request.mobilePhone());
         employee.setLicensePlate(request.licensePlate());
@@ -130,6 +131,7 @@ public class EmployeeService {
         employee.setLicensePlate(request.licensePlate());
         employee.setCorporate(request.corporate());
         employee.setRole(request.role());
+        employee.setCategory(request.category());
         employee.setUpdatedAt(clock.now());
         return EmployeeResponse.from(employeeRepository.save(employee));
     }

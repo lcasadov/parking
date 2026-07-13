@@ -1527,6 +1527,13 @@ components:
     AuthOrigin:
       type: string
       enum: [LOCAL, ENTRA_ID]
+    EmployeeCategory:
+      type: string
+      description: >-
+        Categoria jerarquica (rango organizativo) del empleado. Orden de mayor a
+        menor rango: CEO, CONSEJO, DIRECTOR_N1, DIRECTOR_N2, GERENTE,
+        MANDO_INTERMEDIO, EMPLEADO.
+      enum: [CEO, CONSEJO, DIRECTOR_N1, DIRECTOR_N2, GERENTE, MANDO_INTERMEDIO, EMPLEADO]
     RequestStatus:
       type: string
       enum: [PENDING, APPROVED, REJECTED, CANCELLED]
@@ -1639,6 +1646,7 @@ components:
         isCorporate: { type: boolean }
         authOrigin: { $ref: '#/components/schemas/AuthOrigin' }
         role: { $ref: '#/components/schemas/Role' }
+        category: { $ref: '#/components/schemas/EmployeeCategory' }
         enabled: { type: boolean }
         active: { type: boolean }
         passwordMustChange: { type: boolean }
@@ -1646,7 +1654,7 @@ components:
         updatedAt: { type: string, format: date-time, nullable: true }
     EmployeeCreate:
       type: object
-      required: [firstName, lastName, login, email, role]
+      required: [firstName, lastName, login, email, role, category]
       properties:
         firstName: { type: string, minLength: 1, maxLength: 100 }
         lastName: { type: string, minLength: 1, maxLength: 150 }
@@ -1658,8 +1666,10 @@ components:
         isCorporate: { type: boolean, default: false }
         authOrigin: { $ref: '#/components/schemas/AuthOrigin' }
         role: { $ref: '#/components/schemas/Role' }
+        category: { $ref: '#/components/schemas/EmployeeCategory' }
     EmployeeUpdate:
       type: object
+      required: [category]
       properties:
         firstName: { type: string, minLength: 1, maxLength: 100 }
         lastName: { type: string, minLength: 1, maxLength: 150 }
@@ -1669,6 +1679,7 @@ components:
         licensePlate: { type: string, maxLength: 15 }
         isCorporate: { type: boolean }
         role: { $ref: '#/components/schemas/Role' }
+        category: { $ref: '#/components/schemas/EmployeeCategory' }
     EmployeeResetPasswordResponse:
       type: object
       required: [mustChange]

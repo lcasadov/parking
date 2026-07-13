@@ -1,5 +1,6 @@
 package com.aleatica.parking.employee.dto;
 
+import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.Role;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,6 +24,7 @@ import jakarta.validation.constraints.Size;
  * @param licensePlate matricula (opcional)
  * @param corporate    si es empleado corporativo
  * @param role         rol funcional
+ * @param category     categoria jerarquica (obligatorio)
  */
 @Schema(description = "Datos para modificar un empleado")
 public record EmployeeUpdateRequest(
@@ -48,5 +50,8 @@ public record EmployeeUpdateRequest(
         @JsonProperty("isCorporate") boolean corporate,
 
         @Schema(description = "Rol funcional")
-        @NotNull Role role) {
+        @NotNull Role role,
+
+        @Schema(description = "Categoria jerarquica (rango organizativo)")
+        @NotNull EmployeeCategory category) {
 }

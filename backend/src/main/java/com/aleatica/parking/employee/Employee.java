@@ -69,6 +69,10 @@ public class Employee {
     @Column(name = "role", nullable = false, length = 10)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false, length = 20)
+    private EmployeeCategory category = EmployeeCategory.EMPLEADO;
+
     @Column(name = "enabled", nullable = false)
     private boolean enabled = true;
 
@@ -113,11 +117,12 @@ public class Employee {
      * @param email      email unico
      * @param role       rol funcional
      * @param authOrigin origen de autenticacion
+     * @param category   categoria jerarquica (rango organizativo)
      * @return el empleado nuevo, aun no persistido
      */
     public static Employee register(
             String firstName, String lastName, String login,
-            String email, Role role, AuthOrigin authOrigin) {
+            String email, Role role, AuthOrigin authOrigin, EmployeeCategory category) {
         Employee employee = new Employee();
         employee.firstName = firstName;
         employee.lastName = lastName;
@@ -125,6 +130,7 @@ public class Employee {
         employee.email = email;
         employee.role = role;
         employee.authOrigin = authOrigin;
+        employee.category = category;
         employee.enabled = true;
         employee.active = true;
         return employee;
@@ -191,6 +197,14 @@ public class Employee {
 
     public Role getRole() {
         return role;
+    }
+
+    public EmployeeCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(EmployeeCategory category) {
+        this.category = category;
     }
 
     public boolean isEnabled() {
