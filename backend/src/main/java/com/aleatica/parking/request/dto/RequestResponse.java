@@ -1,8 +1,8 @@
 package com.aleatica.parking.request.dto;
 
-import com.aleatica.parking.request.RejectionReasonCode;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RejectionReasonCode;
+import com.aleatica.parking.request.domain.Request;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -70,9 +70,10 @@ public record RequestResponse(
         @JsonProperty("resourceType") ResourceType resourceType) {
 
     /**
-     * Mapea la entidad de persistencia a su DTO de salida.
+     * Mapea el modelo de dominio a su DTO de salida (mapeo dominio&rarr;DTO en la capa web,
+     * arquitectura hexagonal §D1).
      *
-     * @param request entidad origen
+     * @param request modelo de dominio origen
      * @return el DTO equivalente
      */
     public static RequestResponse from(Request request) {

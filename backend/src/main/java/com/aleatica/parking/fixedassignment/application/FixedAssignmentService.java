@@ -4,8 +4,8 @@ import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.domain.FixedAssignment;
+import com.aleatica.parking.fixedassignment.domain.FixedAssignmentRepositoryPort;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
@@ -50,7 +50,7 @@ public class FixedAssignmentService {
     private static final String MSG_NO_ACTIVE =
             "El empleado no tiene ninguna asignacion fija activa que revocar: ";
 
-    private final FixedAssignmentRepository fixedAssignmentRepository;
+    private final FixedAssignmentRepositoryPort fixedAssignmentRepository;
     private final EmployeeRepository employeeRepository;
     private final ResourceResolvers resourceResolvers;
     private final ApplicationEventPublisher eventPublisher;
@@ -65,7 +65,7 @@ public class FixedAssignmentService {
      * @param clock                     reloj inyectable para {@code created_at}/{@code revoked_at}
      */
     public FixedAssignmentService(
-            FixedAssignmentRepository fixedAssignmentRepository,
+            FixedAssignmentRepositoryPort fixedAssignmentRepository,
             EmployeeRepository employeeRepository,
             ResourceResolvers resourceResolvers,
             ApplicationEventPublisher eventPublisher,
@@ -213,10 +213,9 @@ public class FixedAssignmentService {
                 assignment.revoke(actorId, now);
             }
         }
-        fixedAssignmentRepository.saveAll(current);
-        // Aplica las revocaciones antes de insertar para no chocar con el indice
-        // filtrado empleado/dia al reasignar un dia dentro del mismo recurso.
-        fixedAssignmentRepository.flush();
+        // Aplica las revocaciones antes de insertar (flush intermedio) para no chocar con el
+        // indice filtrado empleado/dia al reasignar un dia dentro del mismo recurso.
+        fixedAssignmentRepository.saveAllAndFlush(current);
 
         List<FixedAssignment> toCreate = new ArrayList<>();
         for (Integer day : targetDays) {
@@ -225,10 +224,9 @@ public class FixedAssignmentService {
                         spaceId, resourceType, employeeId, day, actorId, now));
             }
         }
-        fixedAssignmentRepository.saveAll(toCreate);
         // Fuerza la violacion del indice unico filtrado (si la hay) dentro de la
         // transaccion, para que se traduzca a 409 y haga rollback atomico.
-        fixedAssignmentRepository.flush();
+        fixedAssignmentRepository.saveAllAndFlush(toCreate);
     }
 
     private List<Integer> validateDays(List<Integer> days) {

@@ -10,8 +10,8 @@ import com.aleatica.parking.audit.AuditLogRepository;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.export.ExportTable;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +74,7 @@ public class ExportService {
             COL_ID, "actorEmployeeId", "action", "entityType", "entityId", "details", "occurredAt");
 
     private final EmployeeRepository employeeRepository;
-    private final RequestRepository requestRepository;
+    private final RequestJpaRepository requestRepository;
     private final AuditLogRepository auditLogRepository;
     private final AuditRecorder auditRecorder;
     private final AuditContextResolver auditContextResolver;
@@ -90,7 +90,7 @@ public class ExportService {
      */
     public ExportService(
             EmployeeRepository employeeRepository,
-            RequestRepository requestRepository,
+            RequestJpaRepository requestRepository,
             AuditLogRepository auditLogRepository,
             AuditRecorder auditRecorder,
             AuditContextResolver auditContextResolver,
@@ -234,7 +234,7 @@ public class ExportService {
         return row;
     }
 
-    private static List<String> requestRow(Request r) {
+    private static List<String> requestRow(RequestEntity r) {
         List<String> row = new ArrayList<>(REQUEST_HEADERS.size());
         row.add(str(r.getId()));
         row.add(str(r.getEmployeeId()));

@@ -8,10 +8,10 @@ import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
-import com.aleatica.parking.request.RejectionReasonCode;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RejectionReasonCode;
+import com.aleatica.parking.request.domain.Request;
+import com.aleatica.parking.request.domain.RequestRepositoryPort;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
@@ -66,7 +66,7 @@ public class RequestService {
     private static final String MSG_REASON_REQUIRED =
             "El motivo libre es obligatorio (>=5 caracteres) cuando el codigo es OTHER";
 
-    private final RequestRepository requestRepository;
+    private final RequestRepositoryPort requestRepository;
     private final EmployeeRepository employeeRepository;
     private final ResourceResolvers resourceResolvers;
     private final AvailabilityService availabilityService;
@@ -74,7 +74,7 @@ public class RequestService {
     private final ClockPort clock;
 
     /**
-     * @param requestRepository   repositorio de solicitudes
+     * @param requestRepository   puerto de persistencia de solicitudes (dominio)
      * @param employeeRepository  repositorio de empleados (solicitante/resolutor)
      * @param resourceResolvers   resolutor polimorfico de recursos (integridad al aprobar,
      *                            plaza o puesto segun el tipo de la solicitud)
@@ -83,7 +83,7 @@ public class RequestService {
      * @param clock               reloj inyectable para ventana y marcas de tiempo
      */
     public RequestService(
-            RequestRepository requestRepository,
+            RequestRepositoryPort requestRepository,
             EmployeeRepository employeeRepository,
             ResourceResolvers resourceResolvers,
             AvailabilityService availabilityService,

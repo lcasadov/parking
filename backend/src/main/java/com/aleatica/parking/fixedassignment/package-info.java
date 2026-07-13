@@ -1,7 +1,10 @@
 /**
- * Modulo de asignaciones fijas: la entidad de persistencia
- * {@link com.aleatica.parking.fixedassignment.FixedAssignment}, su repositorio JPA,
- * los casos de uso
+ * Modulo de asignaciones fijas (arquitectura hexagonal, change
+ * {@code hexagonal-persistence}): el modelo de dominio
+ * {@link com.aleatica.parking.fixedassignment.domain.FixedAssignment} y su puerto de salida
+ * {@link com.aleatica.parking.fixedassignment.domain.FixedAssignmentRepositoryPort}, el
+ * adaptador de persistencia con la entidad JPA y su repositorio Spring Data
+ * ({@code com.aleatica.parking.fixedassignment.infrastructure}), los casos de uso
  * ({@link com.aleatica.parking.fixedassignment.application.FixedAssignmentService})
  * y el adaptador web
  * ({@link com.aleatica.parking.fixedassignment.FixedAssignmentController}).

@@ -5,16 +5,16 @@ import com.aleatica.parking.desk.Desk;
 import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.FloorPlanDeskResponse;
 import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
@@ -52,9 +52,9 @@ public class FloorPlanQueryService {
             "La fecha consultada debe estar entre hoy y hoy+14 dias";
 
     private final DeskRepository deskRepository;
-    private final FixedAssignmentRepository fixedAssignmentRepository;
-    private final ReleaseRepository releaseRepository;
-    private final RequestRepository requestRepository;
+    private final FixedAssignmentJpaRepository fixedAssignmentRepository;
+    private final ReleaseJpaRepository releaseRepository;
+    private final RequestJpaRepository requestRepository;
     private final EmployeeRepository employeeRepository;
     private final ClockPort clock;
 
@@ -68,9 +68,9 @@ public class FloorPlanQueryService {
      */
     public FloorPlanQueryService(
             DeskRepository deskRepository,
-            FixedAssignmentRepository fixedAssignmentRepository,
-            ReleaseRepository releaseRepository,
-            RequestRepository requestRepository,
+            FixedAssignmentJpaRepository fixedAssignmentRepository,
+            ReleaseJpaRepository releaseRepository,
+            RequestJpaRepository requestRepository,
             EmployeeRepository employeeRepository,
             ClockPort clock) {
         this.deskRepository = deskRepository;
@@ -105,7 +105,7 @@ public class FloorPlanQueryService {
         Map<Long, Long> fixedByDesk = fixedHoldersForDay(deskIds, dow);
         Set<Long> releasedDesks = releaseRepository
                 .findByResourceTypeAndReleaseDateBetween(ResourceType.DESK, date, date).stream()
-                .map(Release::getResourceId)
+                .map(ReleaseEntity::getResourceId)
                 .collect(Collectors.toSet());
 
         List<FloorPlanDeskResponse> items = desks.stream()
@@ -154,7 +154,7 @@ public class FloorPlanQueryService {
                 .stream()
                 .filter(request -> request.getResourceId() != null)
                 .collect(Collectors.toMap(
-                        Request::getResourceId, Request::getEmployeeId, (a, b) -> a));
+                        RequestEntity::getResourceId, RequestEntity::getEmployeeId, (a, b) -> a));
     }
 
     private Map<Long, Long> fixedHoldersForDay(List<Long> deskIds, int dow) {
@@ -165,7 +165,7 @@ public class FloorPlanQueryService {
                 .findByResourceIdInAndResourceTypeAndActiveTrue(deskIds, ResourceType.DESK).stream()
                 .filter(fa -> fa.getDayOfWeek() == dow)
                 .collect(Collectors.toMap(
-                        FixedAssignment::getResourceId, FixedAssignment::getEmployeeId, (a, b) -> a));
+                        FixedAssignmentEntity::getResourceId, FixedAssignmentEntity::getEmployeeId, (a, b) -> a));
     }
 
     private void requireWithinWindow(LocalDate date) {

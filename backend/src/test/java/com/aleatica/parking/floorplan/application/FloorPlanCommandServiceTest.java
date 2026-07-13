@@ -17,9 +17,9 @@ import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.DeskRequestResponse;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.DuplicatePendingRequestException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
@@ -50,7 +50,7 @@ class FloorPlanCommandServiceTest {
     private static final LocalDate WITHIN = TODAY.plusDays(3);
 
     private DeskRepository deskRepository;
-    private RequestRepository requestRepository;
+    private RequestJpaRepository requestRepository;
     private EmployeeRepository employeeRepository;
     private AvailabilityService availabilityService;
     private ApplicationEventPublisher eventPublisher;
@@ -61,7 +61,7 @@ class FloorPlanCommandServiceTest {
     @BeforeEach
     void setUp() {
         deskRepository = mock(DeskRepository.class);
-        requestRepository = mock(RequestRepository.class);
+        requestRepository = mock(RequestJpaRepository.class);
         employeeRepository = mock(EmployeeRepository.class);
         availabilityService = mock(AvailabilityService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
@@ -82,9 +82,9 @@ class FloorPlanCommandServiceTest {
                 DESK_ID, ResourceType.DESK, WITHIN, RequestStatus.PENDING)).willReturn(false);
         given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
                 EMPLOYEE_ID, ResourceType.DESK, WITHIN, RequestStatus.PENDING)).willReturn(false);
-        Request saved = mock(Request.class);
+        RequestEntity saved = mock(RequestEntity.class);
         given(saved.getId()).willReturn(128L);
-        given(requestRepository.saveAndFlush(any(Request.class))).willReturn(saved);
+        given(requestRepository.saveAndFlush(any(RequestEntity.class))).willReturn(saved);
 
         // Act
         DeskRequestResponse response = service.requestDesk(LOGIN, DESK_ID, WITHIN);
@@ -93,7 +93,7 @@ class FloorPlanCommandServiceTest {
         assertThat(response.requestId()).isEqualTo(128L);
         assertThat(response.deskId()).isEqualTo(DESK_ID);
         assertThat(response.state()).isEqualTo(FloorPlanDeskState.MINE);
-        verify(requestRepository).saveAndFlush(any(Request.class));
+        verify(requestRepository).saveAndFlush(any(RequestEntity.class));
         verify(eventPublisher).publishEvent(any(RequestCreatedEvent.class));
     }
 

@@ -12,12 +12,12 @@ import static org.mockito.Mockito.verify;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
-import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.VisitorRepository;
 import com.aleatica.parking.visitor.VisitorReservation;
@@ -62,11 +62,11 @@ class VisitorReservationServiceTest {
     @Mock
     private ParkingSpaceRepository parkingSpaceRepository;
     @Mock
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
     @Mock
-    private RequestRepository requestRepository;
+    private RequestJpaRepository requestRepository;
     @Mock
-    private ReleaseRepository releaseRepository;
+    private ReleaseJpaRepository releaseRepository;
     @Mock
     private EmployeeRepository employeeRepository;
     @Mock

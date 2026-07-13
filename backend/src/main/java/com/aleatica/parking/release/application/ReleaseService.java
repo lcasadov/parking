@@ -4,10 +4,10 @@ import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
+import com.aleatica.parking.release.domain.Release;
+import com.aleatica.parking.release.domain.ReleaseRepositoryPort;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.release.dto.AdministrativeReleaseRequest;
@@ -59,10 +59,10 @@ public class ReleaseService {
     private static final String MSG_PAST_CANCELLATION =
             "No se pueden anular liberaciones de fechas pasadas";
 
-    private final ReleaseRepository releaseRepository;
+    private final ReleaseRepositoryPort releaseRepository;
     private final EmployeeRepository employeeRepository;
     private final ResourceResolvers resourceResolvers;
-    private final FixedAssignmentRepository fixedAssignmentRepository;
+    private final FixedAssignmentJpaRepository fixedAssignmentRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
 
@@ -76,10 +76,10 @@ public class ReleaseService {
      * @param clock                     reloj inyectable para la ventana y las marcas de tiempo
      */
     public ReleaseService(
-            ReleaseRepository releaseRepository,
+            ReleaseRepositoryPort releaseRepository,
             EmployeeRepository employeeRepository,
             ResourceResolvers resourceResolvers,
-            FixedAssignmentRepository fixedAssignmentRepository,
+            FixedAssignmentJpaRepository fixedAssignmentRepository,
             ApplicationEventPublisher eventPublisher,
             ClockPort clock) {
         this.releaseRepository = releaseRepository;
@@ -193,7 +193,7 @@ public class ReleaseService {
     private Long resolveVoluntarySpace(
             Long employeeId, ResourceType resourceType, LocalDate releaseDate, Long requestedSpaceId) {
         int dayOfWeek = releaseDate.getDayOfWeek().getValue();
-        List<FixedAssignment> assignments =
+        List<FixedAssignmentEntity> assignments =
                 fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
                         employeeId, resourceType, dayOfWeek);
         if (requestedSpaceId != null) {

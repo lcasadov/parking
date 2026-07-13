@@ -2,7 +2,7 @@ package com.aleatica.parking.release.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.aleatica.parking.release.ReleaseType;
+import com.aleatica.parking.release.domain.ReleaseType;
 import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;

@@ -2,14 +2,14 @@ package com.aleatica.parking;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpaceResourceResolver;
 import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.resource.ResourceType;
@@ -43,13 +43,13 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
 
     @Autowired
-    private RequestRepository requestRepository;
+    private RequestJpaRepository requestRepository;
 
     @Autowired
-    private ReleaseRepository releaseRepository;
+    private ReleaseJpaRepository releaseRepository;
 
     @Autowired
     private AvailabilityService availabilityService;
@@ -68,8 +68,8 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
         long spaceId = insertSpace("P-FA");
 
         // Act
-        FixedAssignment saved = fixedAssignmentRepository.saveAndFlush(
-                FixedAssignment.create(spaceId, employeeId, DATE_DOW, seedAdminId(), Instant.now()));
+        FixedAssignmentEntity saved = fixedAssignmentRepository.saveAndFlush(
+                FixedAssignmentEntity.create(spaceId, employeeId, DATE_DOW, seedAdminId(), Instant.now()));
 
         // Assert: recurso PARKING con resource_id = plaza; la columna persistida es PARKING
         assertThat(saved.getResourceId()).isEqualTo(spaceId);
@@ -88,7 +88,7 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
         long employeeId = insertEmployee("emp-pending");
 
         // Act
-        Request saved = requestRepository.saveAndFlush(Request.create(employeeId, DATE, Instant.now()));
+        RequestEntity saved = requestRepository.saveAndFlush(RequestEntity.create(employeeId, DATE, Instant.now()));
 
         // Assert: PENDING sin recurso asignado, pero tipo PARKING por defecto del nucleo
         assertThat(saved.getResourceId()).isNull();
@@ -112,11 +112,11 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
         long spaceReleased = insertSpace("P-REL");
         long spaceFree = insertSpace("P-FREE");
         fixedAssignmentRepository.saveAndFlush(
-                FixedAssignment.create(spaceOccupied, employeeOccupied, DATE_DOW, seedAdminId(), Instant.now()));
+                FixedAssignmentEntity.create(spaceOccupied, employeeOccupied, DATE_DOW, seedAdminId(), Instant.now()));
         fixedAssignmentRepository.saveAndFlush(
-                FixedAssignment.create(spaceReleased, employeeReleased, DATE_DOW, seedAdminId(), Instant.now()));
+                FixedAssignmentEntity.create(spaceReleased, employeeReleased, DATE_DOW, seedAdminId(), Instant.now()));
         releaseRepository.saveAndFlush(
-                Release.voluntary(spaceReleased, employeeReleased, DATE, Instant.now()));
+                ReleaseEntity.voluntary(spaceReleased, employeeReleased, DATE, Instant.now()));
 
         // Act
         List<Long> available = availabilityService.availabilityForDate(DATE).availableResources().stream()
@@ -163,7 +163,7 @@ class GenericResourceRefactorIT extends BaseIntegrationTest {
         long employeeId = insertEmployee("emp-desk");
         long spaceId = insertSpace("P-DESK");
         fixedAssignmentRepository.saveAndFlush(
-                FixedAssignment.create(spaceId, employeeId, DATE_DOW, seedAdminId(), Instant.now()));
+                FixedAssignmentEntity.create(spaceId, employeeId, DATE_DOW, seedAdminId(), Instant.now()));
 
         // Assert: el enum admite DESK, pero ninguna tabla del nucleo tiene filas DESK
         assertThat(ResourceType.values()).contains(ResourceType.DESK);

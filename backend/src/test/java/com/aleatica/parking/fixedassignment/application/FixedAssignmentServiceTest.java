@@ -3,7 +3,6 @@ package com.aleatica.parking.fixedassignment.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -12,31 +11,35 @@ import static org.mockito.Mockito.verify;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
-import com.aleatica.parking.resource.ResourceResolvers;
-import com.aleatica.parking.resource.ResourceType;
+import com.aleatica.parking.fixedassignment.domain.FixedAssignment;
+import com.aleatica.parking.fixedassignment.domain.FixedAssignmentRepositoryPort;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentPutRequest;
 import com.aleatica.parking.fixedassignment.dto.FixedAssignmentResponse;
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
-import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
+import com.aleatica.parking.resource.ResourceResolvers;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
- * Tests unitarios de {@link FixedAssignmentService} con repositorios mockeados:
- * reemplazo del conjunto de dias (alta/revocacion/idempotencia), validacion de rango,
- * revocacion con 404, y verificacion de pertenencia (BOLA). No toca la base de datos.
+ * Tests unitarios de {@link FixedAssignmentService} con un <strong>fake in-memory del puerto</strong>
+ * {@link FixedAssignmentRepositoryPort} (no un mock de Spring Data): reemplazo del conjunto de dias
+ * (alta/revocacion/idempotencia), validacion de rango, revocacion con 404 y acotada por tipo, y
+ * verificacion de pertenencia (BOLA). El servicio opera con el modelo de dominio; el resto de
+ * colaboradores (repositorio de empleado, resolutor de recursos, publicador de eventos) se mockean.
+ * No toca la base de datos.
  */
 @ExtendWith(MockitoExtension.class)
 class FixedAssignmentServiceTest {
@@ -49,8 +52,8 @@ class FixedAssignmentServiceTest {
     private static final Long OTHER_ID = 99L;
     private static final Long SPACE_ID = 8L;
 
-    @Mock
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private final InMemoryFixedAssignmentRepository fixedAssignmentRepository =
+            new InMemoryFixedAssignmentRepository();
 
     @Mock
     private EmployeeRepository employeeRepository;
@@ -60,9 +63,6 @@ class FixedAssignmentServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
-
-    @Captor
-    private ArgumentCaptor<List<FixedAssignment>> savedCaptor;
 
     private final ClockPort clock = () -> NOW;
 
@@ -77,23 +77,15 @@ class FixedAssignmentServiceTest {
         // Arrange
         givenEmployeeAndSpaceExist();
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        given(fixedAssignmentRepository
-                .findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(EMP_ID, SPACE_ID, ResourceType.PARKING))
-                .willReturn(List.of());
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
-                .willReturn(List.of(
-                        active(1), active(2), active(3)));
 
         // Act
         List<FixedAssignmentResponse> result = newService()
                 .setAssignments(EMP_ID, request(1, 2, 3), ADMIN_LOGIN);
 
         // Assert: se crean 3 filas nuevas (dias 1,2,3) con el actor y el reloj fijo.
-        // saveAll se invoca dos veces (revocaciones, luego altas); la 2a es el alta.
         assertThat(result).hasSize(3);
-        verify(fixedAssignmentRepository, org.mockito.Mockito.times(2)).saveAll(savedCaptor.capture());
-        List<FixedAssignment> created = savedCaptor.getAllValues().get(1);
-        assertThat(created).hasSize(3)
+        assertThat(fixedAssignmentRepository.insertedCount()).isEqualTo(3);
+        assertThat(fixedAssignmentRepository.activeFor(EMP_ID))
                 .allSatisfy(a -> {
                     assertThat(a.getCreatedById()).isEqualTo(ADMIN_ID);
                     assertThat(a.getCreatedAt()).isEqualTo(NOW);
@@ -107,7 +99,7 @@ class FixedAssignmentServiceTest {
         // Act / Assert: dia 8 fuera de rango -> excepcion de validacion, sin tocar BD
         assertThatThrownBy(() -> newService().setAssignments(EMP_ID, request(1, 8), ADMIN_LOGIN))
                 .isInstanceOf(InvalidDayOfWeekException.class);
-        verify(fixedAssignmentRepository, never()).saveAll(any());
+        assertThat(fixedAssignmentRepository.saveInvocations()).isZero();
     }
 
     @Test
@@ -115,7 +107,7 @@ class FixedAssignmentServiceTest {
         // Act / Assert: dia 0 por debajo del rango minimo (1)
         assertThatThrownBy(() -> newService().setAssignments(EMP_ID, request(0), ADMIN_LOGIN))
                 .isInstanceOf(InvalidDayOfWeekException.class);
-        verify(fixedAssignmentRepository, never()).saveAll(any());
+        assertThat(fixedAssignmentRepository.saveInvocations()).isZero();
     }
 
     @Test
@@ -123,12 +115,9 @@ class FixedAssignmentServiceTest {
         // Arrange: el empleado ya tiene los dias 1,2,3 en la plaza; el PUT deja 1,2
         givenEmployeeAndSpaceExist();
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        FixedAssignment day3 = active(3);
-        given(fixedAssignmentRepository
-                .findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(EMP_ID, SPACE_ID, ResourceType.PARKING))
-                .willReturn(List.of(active(1), active(2), day3));
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
-                .willReturn(List.of(active(1), active(2)));
+        seededActive(101L, 1, ResourceType.PARKING);
+        seededActive(102L, 2, ResourceType.PARKING);
+        FixedAssignment day3 = seededActive(103L, 3, ResourceType.PARKING);
 
         // Act
         newService().setAssignments(EMP_ID, request(1, 2), ADMIN_LOGIN);
@@ -137,6 +126,7 @@ class FixedAssignmentServiceTest {
         assertThat(day3.isActive()).isFalse();
         assertThat(day3.getRevokedById()).isEqualTo(ADMIN_ID);
         assertThat(day3.getRevokedAt()).isEqualTo(NOW);
+        assertThat(fixedAssignmentRepository.insertedCount()).isZero();
     }
 
     @Test
@@ -144,28 +134,23 @@ class FixedAssignmentServiceTest {
         // Arrange: el conjunto solicitado coincide con el vigente
         givenEmployeeAndSpaceExist();
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        given(fixedAssignmentRepository
-                .findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(EMP_ID, SPACE_ID, ResourceType.PARKING))
-                .willReturn(List.of(active(1), active(2)));
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
-                .willReturn(List.of(active(1), active(2)));
+        seededActive(101L, 1, ResourceType.PARKING);
+        seededActive(102L, 2, ResourceType.PARKING);
 
         // Act
         newService().setAssignments(EMP_ID, request(1, 2), ADMIN_LOGIN);
 
-        // Assert: no se crea ninguna fila nueva (la 2a invocacion de saveAll es vacia)
-        verify(fixedAssignmentRepository, org.mockito.Mockito.times(2)).saveAll(savedCaptor.capture());
-        assertThat(savedCaptor.getAllValues().get(1)).isEmpty();
+        // Assert: no se crea ninguna fila nueva y siguen activos los dos dias
+        assertThat(fixedAssignmentRepository.insertedCount()).isZero();
+        assertThat(fixedAssignmentRepository.activeFor(EMP_ID)).hasSize(2);
     }
 
     @Test
     void shouldRevokeAll_whenAdminDeletesActiveAssignments() {
         // Arrange
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        FixedAssignment a1 = active(1);
-        FixedAssignment a2 = active(2);
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
-                .willReturn(List.of(a1, a2));
+        FixedAssignment a1 = seededActive(101L, 1, ResourceType.PARKING);
+        FixedAssignment a2 = seededActive(102L, 2, ResourceType.PARKING);
 
         // Act
         newService().revoke(EMP_ID, ADMIN_LOGIN);
@@ -180,8 +165,7 @@ class FixedAssignmentServiceTest {
     void shouldPublishRevokedEvent_whenAdminRevokesAssignments() {
         // Arrange
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
-                .willReturn(List.of(active(1)));
+        seededActive(101L, 1, ResourceType.PARKING);
 
         // Act
         newService().revoke(EMP_ID, ADMIN_LOGIN);
@@ -192,46 +176,40 @@ class FixedAssignmentServiceTest {
 
     @Test
     void shouldRevokeOnlyRequestedType_whenResourceTypeGiven() {
-        // Arrange: el empleado tiene puesto (DESK) activo; se revoca solo DESK
+        // Arrange: el empleado tiene puesto (DESK) y plaza (PARKING) activos; se revoca solo DESK
         givenActor(ADMIN_LOGIN, ADMIN_ID);
-        FixedAssignment desk = activeDesk(1);
-        given(fixedAssignmentRepository
-                .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(EMP_ID, ResourceType.DESK))
-                .willReturn(List.of(desk));
+        FixedAssignment desk = seededActive(201L, 1, ResourceType.DESK);
+        FixedAssignment parking = seededActive(202L, 1, ResourceType.PARKING);
 
         // Act
         newService().revoke(EMP_ID, ResourceType.DESK, ADMIN_LOGIN);
 
         // Assert: solo se revoca el DESK; NUNCA se consulta la vista de todos los tipos
-        // (la plaza del empleado, si la tiene, queda intacta) y se notifica una vez.
+        // (la plaza del empleado queda intacta) y se notifica una vez.
         assertThat(desk.isActive()).isFalse();
         assertThat(desk.getRevokedById()).isEqualTo(ADMIN_ID);
-        verify(fixedAssignmentRepository, never())
-                .findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(anyLong());
+        assertThat(parking.isActive()).isTrue();
+        assertThat(fixedAssignmentRepository.allTypesQueried()).isFalse();
         verify(eventPublisher).publishEvent(new FixedAssignmentRevokedEvent(EMP_ID));
     }
 
     @Test
     void shouldThrowNotFound_whenRevokingTypeWithoutActiveOfThatType() {
         // Arrange: el empleado no tiene ninguna asignacion activa del tipo solicitado
-        given(fixedAssignmentRepository
-                .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(EMP_ID, ResourceType.DESK))
-                .willReturn(List.of());
+        // (store vacio de DESK)
 
         // Act / Assert
         assertThatThrownBy(() -> newService().revoke(EMP_ID, ResourceType.DESK, ADMIN_LOGIN))
                 .isInstanceOf(EntityNotFoundException.class);
 
         // Assert: sin filas del tipo no se revoca ni se notifica nada
-        verify(fixedAssignmentRepository, never()).saveAll(any());
+        assertThat(fixedAssignmentRepository.saveInvocations()).isZero();
         verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
     void shouldThrowNotFound_whenRevokingEmployeeWithoutActiveAssignment() {
-        // Arrange
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
-                .willReturn(List.of());
+        // Arrange: store vacio
 
         // Act / Assert
         assertThatThrownBy(() -> newService().revoke(EMP_ID, ADMIN_LOGIN))
@@ -245,8 +223,7 @@ class FixedAssignmentServiceTest {
     void shouldReturnOwnAssignments_whenEmployeeQueriesSelf() {
         // Arrange
         givenActor(EMP_LOGIN, EMP_ID);
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
-                .willReturn(List.of(active(1)));
+        seededActive(101L, 1, ResourceType.PARKING);
 
         // Act
         List<FixedAssignmentResponse> result =
@@ -264,8 +241,7 @@ class FixedAssignmentServiceTest {
         // Act / Assert (BOLA)
         assertThatThrownBy(() -> newService().getEmployeeAssignments(OTHER_ID, EMP_LOGIN, false))
                 .isInstanceOf(AccessDeniedException.class);
-        verify(fixedAssignmentRepository, never())
-                .findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(anyLong());
+        assertThat(fixedAssignmentRepository.allTypesQueried()).isFalse();
     }
 
     @Test
@@ -276,7 +252,7 @@ class FixedAssignmentServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().setAssignments(EMP_ID, request(1), ADMIN_LOGIN))
                 .isInstanceOf(EntityNotFoundException.class);
-        verify(fixedAssignmentRepository, never()).saveAll(any());
+        assertThat(fixedAssignmentRepository.saveInvocations()).isZero();
     }
 
     @Test
@@ -288,7 +264,7 @@ class FixedAssignmentServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().setAssignments(EMP_ID, request(1), ADMIN_LOGIN))
                 .isInstanceOf(EntityNotFoundException.class);
-        verify(fixedAssignmentRepository, never()).saveAll(any());
+        assertThat(fixedAssignmentRepository.saveInvocations()).isZero();
     }
 
     @Test
@@ -297,7 +273,7 @@ class FixedAssignmentServiceTest {
         assertThatThrownBy(() -> newService().setAssignments(
                 EMP_ID, new FixedAssignmentPutRequest(SPACE_ID, java.util.Arrays.asList(1, null), null), ADMIN_LOGIN))
                 .isInstanceOf(InvalidDayOfWeekException.class);
-        verify(fixedAssignmentRepository, never()).saveAll(any());
+        assertThat(fixedAssignmentRepository.saveInvocations()).isZero();
     }
 
     @Test
@@ -313,8 +289,7 @@ class FixedAssignmentServiceTest {
     @Test
     void shouldReturnAnyAssignments_whenAdminQueriesWithoutOwnershipCheck() {
         // Arrange: ADMIN no resuelve pertenencia; consulta directa
-        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(OTHER_ID))
-                .willReturn(List.of(active(1)));
+        seededActiveFor(OTHER_ID, 301L, 1, ResourceType.PARKING);
 
         // Act
         List<FixedAssignmentResponse> result =
@@ -336,15 +311,129 @@ class FixedAssignmentServiceTest {
         given(employeeRepository.findByLogin(login)).willReturn(Optional.of(actor));
     }
 
-    private FixedAssignment active(int day) {
-        return FixedAssignment.create(SPACE_ID, EMP_ID, day, ADMIN_ID, NOW);
+    private FixedAssignment seededActive(long id, int day, ResourceType type) {
+        return seededActiveFor(EMP_ID, id, day, type);
     }
 
-    private FixedAssignment activeDesk(int day) {
-        return FixedAssignment.create(SPACE_ID, ResourceType.DESK, EMP_ID, day, ADMIN_ID, NOW);
+    private FixedAssignment seededActiveFor(Long employeeId, long id, int day, ResourceType type) {
+        FixedAssignment fa = FixedAssignment.restore(
+                id, SPACE_ID, type, employeeId, day, true, ADMIN_ID, NOW, null, null);
+        fixedAssignmentRepository.seed(fa);
+        return fa;
     }
 
     private FixedAssignmentPutRequest request(Integer... days) {
         return new FixedAssignmentPutRequest(SPACE_ID, List.of(days), null);
+    }
+
+    /**
+     * Fake in-memory del puerto de persistencia de asignaciones fijas: sustituye a un mock de
+     * Spring Data en los tests unitarios del servicio. {@link #seed(FixedAssignment)} precarga
+     * estado (con id) sin contar como escritura; los finder derivan de las filas del store y
+     * devuelven las referencias vivas (de modo que la revocacion en memoria del servicio se
+     * observa en el objeto sembrado); {@code saveAll}/{@code saveAllAndFlush} asignan id a las
+     * altas (id nulo) y registran la invocacion para verificar los caminos que NO deben persistir.
+     */
+    private static final class InMemoryFixedAssignmentRepository
+            implements FixedAssignmentRepositoryPort {
+
+        private final List<FixedAssignment> store = new ArrayList<>();
+        private long sequence = 1000L;
+        private int saveInvocations;
+        private int insertedCount;
+        private boolean allTypesQueried;
+
+        void seed(FixedAssignment assignment) {
+            store.add(assignment);
+        }
+
+        int saveInvocations() {
+            return saveInvocations;
+        }
+
+        int insertedCount() {
+            return insertedCount;
+        }
+
+        boolean allTypesQueried() {
+            return allTypesQueried;
+        }
+
+        List<FixedAssignment> activeFor(Long employeeId) {
+            return store.stream()
+                    .filter(FixedAssignment::isActive)
+                    .filter(a -> employeeId.equals(a.getEmployeeId()))
+                    .toList();
+        }
+
+        @Override
+        public Page<FixedAssignment> findByActiveTrue(Pageable pageable) {
+            return new PageImpl<>(store.stream().filter(FixedAssignment::isActive).toList());
+        }
+
+        @Override
+        public List<FixedAssignment> findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(Long employeeId) {
+            allTypesQueried = true;
+            return store.stream()
+                    .filter(FixedAssignment::isActive)
+                    .filter(a -> employeeId.equals(a.getEmployeeId()))
+                    .sorted(java.util.Comparator.comparing(FixedAssignment::getDayOfWeek))
+                    .toList();
+        }
+
+        @Override
+        public List<FixedAssignment> findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+                Long employeeId, ResourceType resourceType) {
+            return store.stream()
+                    .filter(FixedAssignment::isActive)
+                    .filter(a -> employeeId.equals(a.getEmployeeId()))
+                    .filter(a -> resourceType == a.getResourceType())
+                    .sorted(java.util.Comparator.comparing(FixedAssignment::getDayOfWeek))
+                    .toList();
+        }
+
+        @Override
+        public List<FixedAssignment> findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(
+                Long employeeId, Long resourceId, ResourceType resourceType) {
+            return store.stream()
+                    .filter(FixedAssignment::isActive)
+                    .filter(a -> employeeId.equals(a.getEmployeeId()))
+                    .filter(a -> resourceId.equals(a.getResourceId()))
+                    .filter(a -> resourceType == a.getResourceType())
+                    .toList();
+        }
+
+        @Override
+        public List<FixedAssignment> saveAll(List<FixedAssignment> assignments) {
+            return upsert(assignments);
+        }
+
+        @Override
+        public List<FixedAssignment> saveAllAndFlush(List<FixedAssignment> assignments) {
+            return upsert(assignments);
+        }
+
+        private List<FixedAssignment> upsert(List<FixedAssignment> assignments) {
+            saveInvocations++;
+            List<FixedAssignment> result = new ArrayList<>();
+            for (FixedAssignment assignment : assignments) {
+                FixedAssignment persisted = assignment;
+                if (assignment.getId() == null) {
+                    persisted = withId(assignment, ++sequence);
+                    insertedCount++;
+                    store.add(persisted);
+                }
+                result.add(persisted);
+            }
+            return result;
+        }
+
+        private static FixedAssignment withId(FixedAssignment assignment, long id) {
+            return FixedAssignment.restore(
+                    id, assignment.getResourceId(), assignment.getResourceType(),
+                    assignment.getEmployeeId(), assignment.getDayOfWeek(), assignment.isActive(),
+                    assignment.getCreatedById(), assignment.getCreatedAt(),
+                    assignment.getRevokedById(), assignment.getRevokedAt());
+        }
     }
 }

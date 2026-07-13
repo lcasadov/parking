@@ -1,4 +1,4 @@
-package com.aleatica.parking.fixedassignment;
+package com.aleatica.parking.fixedassignment.infrastructure;
 
 import com.aleatica.parking.resource.ResourceType;
 import java.util.Collection;
@@ -8,14 +8,21 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * Adaptador de salida de persistencia de asignaciones fijas (Spring Data JPA).
+ * Repositorio Spring Data JPA de asignaciones fijas (adaptador de salida de infraestructura,
+ * change {@code hexagonal-persistence}).
  *
- * <p>Todas las consultas se derivan del nombre del metodo (parametros vinculados,
- * sin concatenacion), eliminando la inyeccion SQL por construccion (OWASP API /
- * security-design §4). El filtro {@code ActiveTrue} restringe siempre a las filas
- * vigentes, coherente con los indices unicos filtrados de la tabla.</p>
+ * <p>Opera con la entidad JPA {@link FixedAssignmentEntity}. El agregado
+ * {@code fixedassignment} accede a el a traves de {@link FixedAssignmentPersistenceAdapter}
+ * (que mapea a/desde el modelo de dominio); los casos de uso vecinos aun no migrados
+ * ({@code availability}, {@code floor-plan}, {@code visitor}, {@code release}) lo consultan
+ * directamente hasta su propia fase de migracion.</p>
+ *
+ * <p>Todas las consultas se derivan del nombre del metodo (parametros vinculados, sin
+ * concatenacion), eliminando la inyeccion SQL por construccion (OWASP API / security-design §4).
+ * El filtro {@code ActiveTrue} restringe siempre a las filas vigentes, coherente con los indices
+ * unicos filtrados de la tabla.</p>
  */
-public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment, Long> {
+public interface FixedAssignmentJpaRepository extends JpaRepository<FixedAssignmentEntity, Long> {
 
     /**
      * Asignaciones fijas activas de un empleado, ordenadas por dia de la semana.
@@ -23,7 +30,7 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * @param employeeId empleado titular
      * @return lista de asignaciones activas (posiblemente vacia)
      */
-    List<FixedAssignment> findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(Long employeeId);
+    List<FixedAssignmentEntity> findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(Long employeeId);
 
     /**
      * Asignaciones fijas activas de un empleado para un tipo de recurso, ordenadas por dia
@@ -34,7 +41,7 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
      * @return lista de asignaciones activas de ese empleado y tipo (posiblemente vacia)
      */
-    List<FixedAssignment> findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+    List<FixedAssignmentEntity> findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
             Long employeeId, ResourceType resourceType);
 
     /**
@@ -46,7 +53,7 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * @param resourceType tipo de recurso (PARKING en el nucleo de parking)
      * @return lista de asignaciones activas de ese empleado y recurso
      */
-    List<FixedAssignment> findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(
+    List<FixedAssignmentEntity> findByEmployeeIdAndResourceIdAndResourceTypeAndActiveTrue(
             Long employeeId, Long resourceId, ResourceType resourceType);
 
     /**
@@ -64,22 +71,18 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * @param pageable pagina y orden solicitados
      * @return pagina de asignaciones activas
      */
-    Page<FixedAssignment> findByActiveTrue(Pageable pageable);
+    Page<FixedAssignmentEntity> findByActiveTrue(Pageable pageable);
 
     /**
      * Asignaciones fijas activas de un empleado para un dia de la semana (soporte de la
      * resolucion de plaza al liberar: init-releases).
      *
-     * <p>Una liberacion opera sobre una asignacion fija activa del recurso para el dia
-     * de la semana de la fecha a liberar. Si el empleado tiene mas de una asignacion
-     * activa ese dia, la resolucion implicita de plaza es ambigua (409); si no tiene
-     * ninguna, no hay recurso fijo que liberar (409).</p>
-     *
      * @param employeeId empleado titular
      * @param dayOfWeek  dia de la semana (1=Lunes … 7=Domingo)
      * @return lista de asignaciones activas de ese empleado y dia (posiblemente vacia)
      */
-    List<FixedAssignment> findByEmployeeIdAndDayOfWeekAndActiveTrue(Long employeeId, Integer dayOfWeek);
+    List<FixedAssignmentEntity> findByEmployeeIdAndDayOfWeekAndActiveTrue(
+            Long employeeId, Integer dayOfWeek);
 
     /**
      * Asignaciones fijas activas de un empleado para un tipo de recurso y un dia de la
@@ -91,16 +94,12 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
      * @param dayOfWeek    dia de la semana (1=Lunes … 7=Domingo)
      * @return lista de asignaciones activas de ese empleado, tipo y dia (posiblemente vacia)
      */
-    List<FixedAssignment> findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+    List<FixedAssignmentEntity> findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
             Long employeeId, ResourceType resourceType, Integer dayOfWeek);
 
     /**
-     * Indica si una plaza tiene una asignacion fija activa para un dia de la semana.
-     *
-     * <p>Soporte de la comprobacion de disponibilidad al aprobar una solicitud
-     * (init-requests): una plaza con asignacion fija activa ese dia de la semana no
-     * esta disponible para una solicitud puntual esa fecha. Logica temporal que
-     * consolidara la capability {@code availability-calendar} (B7).</p>
+     * Indica si una plaza tiene una asignacion fija activa para un dia de la semana (soporte
+     * de la comprobacion de disponibilidad al aprobar una solicitud y al reservar visitante).
      *
      * @param resourceId   recurso a comprobar
      * @param resourceType tipo de recurso (PARKING en el nucleo de parking)
@@ -111,17 +110,13 @@ public interface FixedAssignmentRepository extends JpaRepository<FixedAssignment
             Long resourceId, ResourceType resourceType, Integer dayOfWeek);
 
     /**
-     * Asignaciones fijas activas de un conjunto de plazas (carga por bloque para el
-     * calendario semanal: una sola consulta para todas las plazas, evitando N+1).
-     *
-     * <p>Soporte de la capability {@code availability-calendar}: el ensamblado del
-     * calendario cruza en memoria estas asignaciones con las liberaciones, solicitudes
-     * aprobadas y reservas del rango, sin una consulta por celda.</p>
+     * Asignaciones fijas activas de un conjunto de recursos (carga por bloque para el
+     * calendario/plano semanal: una sola consulta para todos los recursos, evitando N+1).
      *
      * @param resourceIds  recursos a cargar; si esta vacio la consulta no devuelve filas
-     * @param resourceType tipo de recurso (PARKING en el nucleo de parking)
+     * @param resourceType tipo de recurso (PARKING/DESK)
      * @return lista de asignaciones activas de esos recursos (posiblemente vacia)
      */
-    List<FixedAssignment> findByResourceIdInAndResourceTypeAndActiveTrue(
+    List<FixedAssignmentEntity> findByResourceIdInAndResourceTypeAndActiveTrue(
             Collection<Long> resourceIds, ResourceType resourceType);
 }

@@ -14,16 +14,16 @@ import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.FloorPlanDeskResponse;
 import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
@@ -59,9 +59,9 @@ class FloorPlanQueryServiceTest {
     private static final int WITHIN_DOW = WITHIN.getDayOfWeek().getValue();
 
     private DeskRepository deskRepository;
-    private FixedAssignmentRepository fixedAssignmentRepository;
-    private ReleaseRepository releaseRepository;
-    private RequestRepository requestRepository;
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
+    private ReleaseJpaRepository releaseRepository;
+    private RequestJpaRepository requestRepository;
     private EmployeeRepository employeeRepository;
     private ClockPort clock;
 
@@ -70,9 +70,9 @@ class FloorPlanQueryServiceTest {
     @BeforeEach
     void setUp() {
         deskRepository = mock(DeskRepository.class);
-        fixedAssignmentRepository = mock(FixedAssignmentRepository.class);
-        releaseRepository = mock(ReleaseRepository.class);
-        requestRepository = mock(RequestRepository.class);
+        fixedAssignmentRepository = mock(FixedAssignmentJpaRepository.class);
+        releaseRepository = mock(ReleaseJpaRepository.class);
+        requestRepository = mock(RequestJpaRepository.class);
         employeeRepository = mock(EmployeeRepository.class);
         clock = mock(ClockPort.class);
         given(clock.now()).willReturn(NOW);
@@ -164,20 +164,20 @@ class FloorPlanQueryServiceTest {
         return desk;
     }
 
-    private static Request deskRequest(Long resourceId, Long employeeId) {
-        return Request.createForResource(employeeId, ResourceType.DESK, resourceId, WITHIN, NOW);
+    private static RequestEntity deskRequest(Long resourceId, Long employeeId) {
+        return RequestEntity.createForResource(employeeId, ResourceType.DESK, resourceId, WITHIN, NOW);
     }
 
-    private static Request genericRequest(Long employeeId) {
-        return Request.create(employeeId, ResourceType.DESK, WITHIN, NOW);
+    private static RequestEntity genericRequest(Long employeeId) {
+        return RequestEntity.create(employeeId, ResourceType.DESK, WITHIN, NOW);
     }
 
-    private static FixedAssignment deskFixed(Long resourceId, Long employeeId, int dow) {
-        return FixedAssignment.create(
+    private static FixedAssignmentEntity deskFixed(Long resourceId, Long employeeId, int dow) {
+        return FixedAssignmentEntity.create(
                 resourceId, ResourceType.DESK, employeeId, dow, ADMIN_ID, NOW);
     }
 
-    private static Release deskRelease(Long resourceId) {
-        return Release.voluntary(resourceId, ResourceType.DESK, OTHER_ID, WITHIN, NOW);
+    private static ReleaseEntity deskRelease(Long resourceId) {
+        return ReleaseEntity.voluntary(resourceId, ResourceType.DESK, OTHER_ID, WITHIN, NOW);
     }
 }

@@ -1,7 +1,7 @@
 package com.aleatica.parking.release.dto;
 
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseType;
+import com.aleatica.parking.release.domain.Release;
+import com.aleatica.parking.release.domain.ReleaseType;
 import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;

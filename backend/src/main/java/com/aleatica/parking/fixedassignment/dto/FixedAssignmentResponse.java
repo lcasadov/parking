@@ -1,6 +1,6 @@
 package com.aleatica.parking.fixedassignment.dto;
 
-import com.aleatica.parking.fixedassignment.FixedAssignment;
+import com.aleatica.parking.fixedassignment.domain.FixedAssignment;
 import com.aleatica.parking.resource.ResourceType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;

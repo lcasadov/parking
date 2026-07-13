@@ -4,12 +4,12 @@ import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
-import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.VisitorRepository;
 import com.aleatica.parking.visitor.VisitorReservation;
@@ -59,9 +59,9 @@ public class VisitorReservationService {
     private final VisitorReservationRepository reservationRepository;
     private final VisitorRepository visitorRepository;
     private final ParkingSpaceRepository parkingSpaceRepository;
-    private final FixedAssignmentRepository fixedAssignmentRepository;
-    private final RequestRepository requestRepository;
-    private final ReleaseRepository releaseRepository;
+    private final FixedAssignmentJpaRepository fixedAssignmentRepository;
+    private final RequestJpaRepository requestRepository;
+    private final ReleaseJpaRepository releaseRepository;
     private final EmployeeRepository employeeRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
@@ -81,9 +81,9 @@ public class VisitorReservationService {
             VisitorReservationRepository reservationRepository,
             VisitorRepository visitorRepository,
             ParkingSpaceRepository parkingSpaceRepository,
-            FixedAssignmentRepository fixedAssignmentRepository,
-            RequestRepository requestRepository,
-            ReleaseRepository releaseRepository,
+            FixedAssignmentJpaRepository fixedAssignmentRepository,
+            RequestJpaRepository requestRepository,
+            ReleaseJpaRepository releaseRepository,
             EmployeeRepository employeeRepository,
             ApplicationEventPublisher eventPublisher,
             ClockPort clock) {

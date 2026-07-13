@@ -1,4 +1,4 @@
-package com.aleatica.parking.request;
+package com.aleatica.parking.request.domain;
 
 /**
  * Catalogo de motivos de rechazo de una solicitud (schema {@code RejectionReasonCode}
@@ -8,6 +8,9 @@ package com.aleatica.parking.request;
  * el texto libre {@code rejection_reason} (&ge;5 caracteres) es obligatorio; en los
  * demas codigos es opcional. Conjunto inicial pendiente de confirmar con negocio
  * (ver {@code docs/data-model.md} §3.5).</p>
+ *
+ * <p>Value object del dominio (arquitectura hexagonal, change {@code hexagonal-persistence}):
+ * vive en {@code request.domain}, libre de framework.</p>
  */
 public enum RejectionReasonCode {
 

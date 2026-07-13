@@ -18,15 +18,15 @@ import com.aleatica.parking.availability.dto.MyWeekResponse;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
-import com.aleatica.parking.fixedassignment.FixedAssignment;
-import com.aleatica.parking.fixedassignment.FixedAssignmentRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
-import com.aleatica.parking.release.Release;
-import com.aleatica.parking.release.ReleaseRepository;
-import com.aleatica.parking.request.Request;
-import com.aleatica.parking.request.RequestRepository;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.release.infrastructure.ReleaseEntity;
+import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
+import com.aleatica.parking.request.infrastructure.RequestEntity;
+import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.support.EmployeeTestFactory;
 import com.aleatica.parking.visitor.VisitorReservation;
@@ -73,11 +73,11 @@ class AvailabilityServiceTest {
     @Mock
     private com.aleatica.parking.desk.DeskRepository deskRepository;
     @Mock
-    private FixedAssignmentRepository fixedAssignmentRepository;
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
     @Mock
-    private ReleaseRepository releaseRepository;
+    private ReleaseJpaRepository releaseRepository;
     @Mock
-    private RequestRepository requestRepository;
+    private RequestJpaRepository requestRepository;
     @Mock
     private VisitorReservationRepository visitorReservationRepository;
     @Mock
@@ -418,18 +418,18 @@ class AvailabilityServiceTest {
                 .willReturn(List.of());
     }
 
-    private void givenFixedAssignments(FixedAssignment... assignments) {
+    private void givenFixedAssignments(FixedAssignmentEntity... assignments) {
         given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
                 anyCollection(), eq(ResourceType.PARKING)))
                 .willReturn(List.of(assignments));
     }
 
-    private void givenReleasesOnDate(Release... releases) {
+    private void givenReleasesOnDate(ReleaseEntity... releases) {
         given(releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, DATE, DATE))
                 .willReturn(List.of(releases));
     }
 
-    private void givenApprovedRequestsOnDate(Request... requests) {
+    private void givenApprovedRequestsOnDate(RequestEntity... requests) {
         given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
                 RequestStatus.APPROVED, ResourceType.PARKING, DATE, DATE))
                 .willReturn(List.of(requests));
@@ -453,28 +453,28 @@ class AvailabilityServiceTest {
         return space;
     }
 
-    private static FixedAssignment assignment(Long spaceId, Long employeeId, int dow) {
-        return FixedAssignment.create(spaceId, employeeId, dow, 1L, NOW);
+    private static FixedAssignmentEntity assignment(Long spaceId, Long employeeId, int dow) {
+        return FixedAssignmentEntity.create(spaceId, employeeId, dow, 1L, NOW);
     }
 
-    private static Release release(Long spaceId, LocalDate date) {
-        return Release.voluntary(spaceId, EMP_ID, date, NOW);
+    private static ReleaseEntity release(Long spaceId, LocalDate date) {
+        return ReleaseEntity.voluntary(spaceId, EMP_ID, date, NOW);
     }
 
-    private static Request approvedRequest(Long spaceId, Long employeeId, LocalDate date) {
-        Request request = Request.create(employeeId, date, NOW);
+    private static RequestEntity approvedRequest(Long spaceId, Long employeeId, LocalDate date) {
+        RequestEntity request = RequestEntity.create(employeeId, date, NOW);
         request.approve(spaceId, 1L, null, NOW);
         return request;
     }
 
-    private static Request approvedRequestWithId(Long id, Long spaceId, Long employeeId, LocalDate date) {
-        Request request = approvedRequest(spaceId, employeeId, date);
+    private static RequestEntity approvedRequestWithId(Long id, Long spaceId, Long employeeId, LocalDate date) {
+        RequestEntity request = approvedRequest(spaceId, employeeId, date);
         setField(request, "id", id);
         return request;
     }
 
-    private static Request pendingRequest(Long employeeId, LocalDate date) {
-        return Request.create(employeeId, date, NOW);
+    private static RequestEntity pendingRequest(Long employeeId, LocalDate date) {
+        return RequestEntity.create(employeeId, date, NOW);
     }
 
     private static VisitorReservation reservation(Long spaceId, LocalDate date) {

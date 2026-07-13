@@ -24,6 +24,7 @@ import com.aleatica.parking.release.application.PastReleaseCancellationException
 import com.aleatica.parking.release.application.ReleaseDateInPastException;
 import com.aleatica.parking.release.application.ReleaseService;
 import com.aleatica.parking.release.application.ResourceAlreadyReleasedException;
+import com.aleatica.parking.release.domain.ReleaseType;
 import com.aleatica.parking.release.dto.ReleaseResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;

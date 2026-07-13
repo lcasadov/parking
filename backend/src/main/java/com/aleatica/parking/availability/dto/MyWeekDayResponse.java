@@ -1,7 +1,7 @@
 package com.aleatica.parking.availability.dto;
 
 import com.aleatica.parking.availability.MyWeekDayState;
-import com.aleatica.parking.request.RequestStatus;
+import com.aleatica.parking.request.domain.RequestStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
