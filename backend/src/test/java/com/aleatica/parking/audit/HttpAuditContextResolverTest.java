@@ -76,7 +76,8 @@ class HttpAuditContextResolverTest {
     private static Employee employee() {
         Employee employee = Employee.register(
                 "Ada", "Admin", LOGIN, "admin@aleatica.com", Role.ADMIN,
-                com.aleatica.parking.employee.AuthOrigin.LOCAL);
+                com.aleatica.parking.employee.AuthOrigin.LOCAL,
+                com.aleatica.parking.employee.EmployeeCategory.EMPLEADO);
         org.springframework.test.util.ReflectionTestUtils.setField(employee, "id", 42L);
         return employee;
     }

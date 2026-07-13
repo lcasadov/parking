@@ -18,6 +18,7 @@ import com.aleatica.parking.request.application.RequestStateException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.visitor.application.PastVisitorReservationCancellationException;
 import com.aleatica.parking.visitor.application.SpaceNotAvailableForReservationException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -203,6 +205,28 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         Map<String, String> fields = Map.of(ex.getName(), MSG_PARAM_MALFORMED);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, MSG_VALIDATION, fields));
+    }
+
+    /**
+     * Traduce un cuerpo de peticion no parseable (JSON malformado o valor de enum invalido,
+     * p. ej. una {@code category} fuera del dominio) a {@code 400}. Sin este manejador, un
+     * enum invalido escaparia como {@code 500}. Si Jackson identifica el campo en conflicto
+     * (via {@link InvalidFormatException}), se incluye en {@code fields}.
+     *
+     * @param ex excepcion de cuerpo no legible
+     * @return {@link ApiError} con estado 400 (y el campo malformado si se conoce)
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        Map<String, String> fields = Map.of();
+        if (ex.getCause() instanceof InvalidFormatException ife && !ife.getPath().isEmpty()) {
+            String field = ife.getPath().get(ife.getPath().size() - 1).getFieldName();
+            if (field != null) {
+                fields = Map.of(field, MSG_PARAM_MALFORMED);
+            }
+        }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_VALIDATION, MSG_VALIDATION, fields));
     }

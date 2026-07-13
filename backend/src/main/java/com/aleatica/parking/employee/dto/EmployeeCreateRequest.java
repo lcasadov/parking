@@ -1,6 +1,7 @@
 package com.aleatica.parking.employee.dto;
 
 import com.aleatica.parking.employee.AuthOrigin;
+import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.Role;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -26,6 +27,7 @@ import jakarta.validation.constraints.Size;
  * @param corporate   si es empleado corporativo
  * @param authOrigin  origen de autenticacion (por defecto {@code LOCAL})
  * @param role        rol funcional (obligatorio)
+ * @param category    categoria jerarquica (obligatorio)
  */
 @Schema(description = "Datos para dar de alta un empleado")
 public record EmployeeCreateRequest(
@@ -57,7 +59,10 @@ public record EmployeeCreateRequest(
         AuthOrigin authOrigin,
 
         @Schema(description = "Rol funcional")
-        @NotNull Role role) {
+        @NotNull Role role,
+
+        @Schema(description = "Categoria jerarquica (rango organizativo)")
+        @NotNull EmployeeCategory category) {
 
     /**
      * @return el origen de autenticacion indicado o {@link AuthOrigin#LOCAL} por defecto

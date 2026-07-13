@@ -49,10 +49,10 @@ class EmployeeControllerTest {
 
     private static final String CREATE_BODY = """
             {"firstName":"Juan","lastName":"Perez","login":"jperez",
-             "email":"jperez@aleatica.com","role":"EMPLOYEE"}""";
+             "email":"jperez@aleatica.com","role":"EMPLOYEE","category":"DIRECTOR_N1"}""";
     private static final String UPDATE_BODY = """
             {"firstName":"Juan","lastName":"Perez",
-             "email":"jperez@aleatica.com","role":"ADMIN"}""";
+             "email":"jperez@aleatica.com","role":"ADMIN","category":"GERENTE"}""";
 
     @Autowired
     private MockMvc mockMvc;
@@ -92,6 +92,7 @@ class EmployeeControllerTest {
         mockMvc.perform(get(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].login").value(LOGIN))
+                .andExpect(jsonPath("$.content[0].category").value("DIRECTOR_N1"))
                 .andExpect(jsonPath("$.totalElements").value(1));
     }
 
@@ -104,7 +105,35 @@ class EmployeeControllerTest {
         mockMvc.perform(post(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.login").value(LOGIN));
+                .andExpect(jsonPath("$.login").value(LOGIN))
+                .andExpect(jsonPath("$.category").value("DIRECTOR_N1"));
+    }
+
+    @Test
+    void shouldReturn400_whenCreatingEmployeeWithoutCategory() throws Exception {
+        // Arrange: cuerpo valido salvo por la ausencia de 'category' (@NotNull)
+        String noCategory = "{\"firstName\":\"Juan\",\"lastName\":\"Perez\","
+                + "\"login\":\"jperez\",\"email\":\"jperez@aleatica.com\",\"role\":\"EMPLOYEE\"}";
+
+        // Act / Assert
+        mockMvc.perform(post(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(noCategory))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fields.category").exists());
+    }
+
+    @Test
+    void shouldReturn400_whenCreatingEmployeeWithInvalidCategory() throws Exception {
+        // Arrange: 'category' fuera del dominio del enum
+        String badCategory = "{\"firstName\":\"Juan\",\"lastName\":\"Perez\","
+                + "\"login\":\"jperez\",\"email\":\"jperez@aleatica.com\","
+                + "\"role\":\"EMPLOYEE\",\"category\":\"JEFAZO\"}";
+
+        // Act / Assert
+        mockMvc.perform(post(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(badCategory))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -176,7 +205,8 @@ class EmployeeControllerTest {
     private EmployeeResponse sample() {
         return new EmployeeResponse(
                 5L, "Juan", "Perez", LOGIN, EMAIL, "IT", "600100200", "1234ABC",
-                true, AuthOrigin.LOCAL, Role.EMPLOYEE, true, true, false,
+                true, AuthOrigin.LOCAL, Role.EMPLOYEE, EmployeeCategory.DIRECTOR_N1,
+                true, true, false,
                 Instant.parse("2026-01-01T00:00:00Z"), null);
     }
 }

@@ -3,6 +3,7 @@ package com.aleatica.parking.employee.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.aleatica.parking.employee.AuthOrigin;
+import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.Role;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -30,7 +31,7 @@ class EmployeeCorporateJsonTest {
         EmployeeResponse response = new EmployeeResponse(
                 1L, "Juan", "Perez", "jperez", "jperez@aleatica.com",
                 "IT", "600100200", "1234ABC", true, AuthOrigin.ENTRA_ID,
-                Role.EMPLOYEE, true, true, false,
+                Role.EMPLOYEE, EmployeeCategory.EMPLEADO, true, true, false,
                 Instant.parse("2026-01-01T00:00:00Z"), null);
 
         // Act

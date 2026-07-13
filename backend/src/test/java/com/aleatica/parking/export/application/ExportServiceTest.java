@@ -170,7 +170,8 @@ class ExportServiceTest {
 
     private static Employee employee() {
         Employee employee = Employee.register(
-                "Juan", "Perez", LOGIN, "jperez@aleatica.com", Role.EMPLOYEE, AuthOrigin.LOCAL);
+                "Juan", "Perez", LOGIN, "jperez@aleatica.com", Role.EMPLOYEE, AuthOrigin.LOCAL,
+                com.aleatica.parking.employee.EmployeeCategory.EMPLEADO);
         employee.setDepartment("IT");
         employee.setMobilePhone("600100200");
         employee.setLicensePlate("1234ABC");

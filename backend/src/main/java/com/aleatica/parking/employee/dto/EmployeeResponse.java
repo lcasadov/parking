@@ -2,6 +2,7 @@ package com.aleatica.parking.employee.dto;
 
 import com.aleatica.parking.employee.AuthOrigin;
 import com.aleatica.parking.employee.Employee;
+import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.Role;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,6 +26,7 @@ import java.time.Instant;
  * @param corporate          si es empleado corporativo (con EntraID)
  * @param authOrigin         origen de autenticacion
  * @param role               rol funcional
+ * @param category           categoria jerarquica (rango organizativo)
  * @param enabled            si la cuenta puede iniciar sesion
  * @param active             si no esta dado de baja logicamente
  * @param passwordMustChange si debe cambiar la contrasena en el proximo acceso
@@ -45,6 +47,7 @@ public record EmployeeResponse(
         @JsonProperty("isCorporate") boolean corporate,
         @Schema(description = "Origen de autenticacion") AuthOrigin authOrigin,
         @Schema(description = "Rol funcional") Role role,
+        @Schema(description = "Categoria jerarquica (rango organizativo)") EmployeeCategory category,
         @Schema(description = "Cuenta habilitada para login") boolean enabled,
         @Schema(description = "No dado de baja logicamente") boolean active,
         @Schema(description = "Debe cambiar la contrasena al acceder") boolean passwordMustChange,
@@ -70,6 +73,7 @@ public record EmployeeResponse(
                 employee.isCorporate(),
                 employee.getAuthOrigin(),
                 employee.getRole(),
+                employee.getCategory(),
                 employee.isEnabled(),
                 employee.isActive(),
                 employee.isPasswordMustChange(),
