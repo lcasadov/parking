@@ -1267,6 +1267,35 @@ body.theme-dark .segmented button.active {
   box-shadow: 0 0 0 2px var(--exec-ring), 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
+/* Realce del puesto elegido en el plano-selector (estado visual SELECTED, solo UI):
+   azul de selección que prevalece sobre el color semántico del estado. La condición
+   se refuerza con aria-pressed + sufijo textual (no depende solo del color, WCAG 1.4.1). */
+.floor-marker-selected {
+  background: var(--blue-soft);
+  border-color: var(--blue-darker);
+  color: var(--blue-darker);
+  box-shadow: 0 0 0 3px var(--blue-border), 0 1px 3px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+}
+
+/* Bloque "Seleccionar puesto" del modal de solicitud unificada. */
+.desk-pick {
+  margin: var(--space-2) 0 var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.desk-pick-chosen {
+  margin: 0;
+  font-weight: 500;
+  color: var(--blue-darker);
+}
+.desk-pick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 /* Puestos sin posición (coordenadas nulas): listado atenuado aparte. */
 .floor-unplaced {
   padding: var(--space-4);

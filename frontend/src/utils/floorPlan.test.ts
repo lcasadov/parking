@@ -8,9 +8,11 @@ import {
   countByState,
   isOutsideWindowError,
   isPlaced,
+  markerColorClass,
   markerStateClass,
   matchesDeskSearch,
   nextCoord,
+  SELECTED_MARKER_CLASS,
 } from './floorPlan';
 import type { DeskState, FloorPlanDesk } from '../types/floorPlan';
 
@@ -35,6 +37,11 @@ const deskWith = (deskNumber: number, state: DeskState): FloorPlanDesk => ({
 describe('floorPlan utils', () => {
   it('should_build_kebab_state_class_when_given_a_state', () => {
     expect(markerStateClass('MINE')).toBe('floor-marker-mine');
+  });
+
+  it('should_use_selected_class_when_marker_is_chosen_otherwise_state_color', () => {
+    expect(markerColorClass('FREE', true)).toBe(SELECTED_MARKER_CLASS);
+    expect(markerColorClass('FREE', false)).toBe('floor-marker-free');
   });
 
   it('should_flag_placed_only_when_both_coordinates_present', () => {

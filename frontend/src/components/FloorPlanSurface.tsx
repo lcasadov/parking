@@ -20,6 +20,8 @@ interface FloorPlanSurfaceProps {
   filter: FloorPlanFilterValue | null;
   viewport: FloorPlanViewport;
   surfaceRef: RefObject<HTMLDivElement>;
+  // Puesto elegido en el plano-selector: se realza (SELECTED) y se marca accesible.
+  selectedDeskId?: number | null;
   onRequest: (desk: FloorPlanDesk) => void;
   onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
@@ -34,6 +36,7 @@ export function FloorPlanSurface({
   filter,
   viewport,
   surfaceRef,
+  selectedDeskId = null,
   onRequest,
   onDragStart,
 }: FloorPlanSurfaceProps) {
@@ -41,8 +44,9 @@ export function FloorPlanSurface({
   const placed = desks.filter(isPlaced);
   const unplaced = desks.filter((desk) => !isPlaced(desk));
 
-  function labelFor(desk: FloorPlanDesk): string {
-    return t('floorPlan.markerLabel', {
+  function labelFor(desk: FloorPlanDesk, selected: boolean): string {
+    const key = selected ? 'floorPlan.markerLabelSelected' : 'floorPlan.markerLabel';
+    return t(key, {
       number: desk.deskNumber,
       state: t(`floorPlan.states.${desk.state}`),
     });
@@ -82,13 +86,15 @@ export function FloorPlanSurface({
           <img src={floorPlanImage} alt={t('floorPlan.imageAlt')} className="floor-plan-image" />
           {placed.map((desk) => {
             const dragging = dragPos !== null && dragPos.deskId === desk.deskId;
+            const selected = desk.deskId === selectedDeskId;
             return (
               <FloorPlanMarker
                 key={desk.deskId}
                 desk={desk}
-                label={labelFor(desk)}
+                label={labelFor(desk, selected)}
                 editMode={editMode}
                 dimmed={!matchesFilter(desk, filter)}
+                selected={selected}
                 left={dragging ? dragPos.x : (desk.coordX ?? 0)}
                 top={dragging ? dragPos.y : (desk.coordY ?? 0)}
                 onRequest={onRequest}

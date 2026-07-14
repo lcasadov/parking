@@ -89,7 +89,6 @@ public class RequestService {
             "No hay ninguna plaza libre para la fecha solicitada";
     private static final String MSG_REASON_REQUIRED =
             "El motivo libre es obligatorio (>=5 caracteres) cuando el codigo es OTHER";
-    private static final String AUTO_APPROVAL_NOTE = "auto";
 
     private final RequestRepositoryPort requestRepository;
     private final EmployeeRepository employeeRepository;
@@ -209,7 +208,7 @@ public class RequestService {
             LocalDate requestedDate, Instant now) {
         Request request = Request.createForResource(employeeId, resourceType, resourceId, requestedDate, now);
         // El actor de una auto-aprobacion es el propio sistema: resolvedById nulo, nota "auto".
-        request.approve(resourceId, null, AUTO_APPROVAL_NOTE, now);
+        request.approve(resourceId, null, Request.AUTO_APPROVAL_NOTE, now);
         Request saved = requestRepository.saveAndFlush(request);
         RequestResponse response = RequestResponse.from(saved);
         eventPublisher.publishEvent(new RequestApprovedEvent(response));

@@ -1,6 +1,6 @@
 import { type PointerEvent as ReactPointerEvent } from 'react';
 import type { FloorPlanDesk } from '../types/floorPlan';
-import { EXECUTIVE_SYMBOL, markerStateClass } from '../utils/floorPlan';
+import { EXECUTIVE_SYMBOL, markerColorClass } from '../utils/floorPlan';
 
 interface FloorPlanMarkerProps {
   desk: FloorPlanDesk;
@@ -11,6 +11,8 @@ interface FloorPlanMarkerProps {
   top: number;
   // Resalte por filtro activo (atenúa los que no coinciden).
   dimmed?: boolean;
+  // Realce "puesto elegido" en el plano-selector (estado visual SELECTED, solo UI).
+  selected?: boolean;
   onRequest: (desk: FloorPlanDesk) => void;
   onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
@@ -25,13 +27,15 @@ export function FloorPlanMarker({
   left,
   top,
   dimmed = false,
+  selected = false,
   onRequest,
   onDragStart,
 }: FloorPlanMarkerProps) {
   const isExecutive = desk.category === 'EXECUTIVE';
   // En modo edición los marcadores se pintan neutros (gris uniforme) para
-  // enfocar el reposicionamiento; fuera de él, el color semántico de estado.
-  const colorClass = editMode ? 'floor-marker-neutral' : markerStateClass(desk.state);
+  // enfocar el reposicionamiento; fuera de él, el color semántico de estado, o el
+  // realce de selección (SELECTED) cuando el puesto está elegido en el selector.
+  const colorClass = editMode ? 'floor-marker-neutral' : markerColorClass(desk.state, selected);
   const classes = [
     'floor-marker',
     colorClass,
@@ -63,6 +67,7 @@ export function FloorPlanMarker({
       className={classes}
       style={{ left: `${left}%`, top: `${top}%` }}
       aria-label={label}
+      aria-pressed={selected ? true : undefined}
       disabled={!editMode && desk.state !== 'FREE'}
       onClick={handleClick}
       onPointerDown={handlePointerDown}

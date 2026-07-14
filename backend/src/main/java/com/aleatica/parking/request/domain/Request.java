@@ -25,6 +25,15 @@ import java.util.Objects;
  */
 public class Request {
 
+    /**
+     * Nota de resolucion que identifica una auto-aprobacion del sistema (no de un ADMIN humano):
+     * la solicitud nace {@code APPROVED} con {@code resolvedById = null} y esta nota. Se comparte
+     * entre las dos vias que auto-aprueban un puesto elegido -{@code RequestService} (POST
+     * /requests) y {@code FloorPlanCommandService} (POST /floor-plan/.../request)- para garantizar
+     * paridad de actor/nota/evento y evitar el literal duplicado (S1192).
+     */
+    public static final String AUTO_APPROVAL_NOTE = "auto";
+
     private Long id;
     private Long employeeId;
     private LocalDate requestedDate;

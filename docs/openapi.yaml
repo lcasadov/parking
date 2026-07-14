@@ -1899,11 +1899,15 @@ components:
         date: { type: string, format: date }
     DeskRequestResponse:
       type: object
-      description: Resultado de solicitar un puesto desde el plano.
+      description: >-
+        Resultado de solicitar un puesto desde el plano. El campo `status` ramifica por el modo
+        de aprobación global: PENDING en modo MANUAL, APPROVED en modo AUTOMATIC (auto-aprobación
+        del puesto pinchado).
       properties:
         requestId: { type: integer, format: int64 }
         deskId: { type: integer, format: int64 }
         state: { $ref: '#/components/schemas/FloorPlanDeskState' }
+        status: { $ref: '#/components/schemas/RequestStatus' }
     DeskPositionRequest:
       type: object
       required: [coordX, coordY]

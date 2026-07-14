@@ -24,6 +24,7 @@ import com.aleatica.parking.floorplan.dto.FloorPlanResponse;
 import com.aleatica.parking.request.application.DuplicatePendingRequestException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
+import com.aleatica.parking.request.domain.RequestStatus;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -129,7 +130,8 @@ class FloorPlanControllerTest {
     void shouldReturn201_whenEmployeeRequestsFreeDesk() throws Exception {
         // Arrange
         given(floorPlanCommandService.requestDesk(anyString(), eq(42L), any()))
-                .willReturn(new DeskRequestResponse(128L, 42L, FloorPlanDeskState.MINE));
+                .willReturn(new DeskRequestResponse(
+                        128L, 42L, FloorPlanDeskState.MINE, RequestStatus.PENDING));
 
         // Act / Assert
         mockMvc.perform(post(REQUEST_URL).with(user(EMP).roles(ROLE_EMPLOYEE))

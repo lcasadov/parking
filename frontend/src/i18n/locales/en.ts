@@ -496,6 +496,11 @@ export const en = {
       resourceDesk: 'Office desk',
       submit: 'Submit request',
       cancel: 'Cancel',
+      chooseDesk: 'Select desk',
+      changeDesk: 'Change desk',
+      removeDesk: 'Remove',
+      chosenDesk: 'Chosen desk: {{number}}',
+      chooseDeskDateHint: 'Pick a date within the window first to select a desk.',
       requiredDate: 'Select a date.',
       requiredResource: 'Select at least one resource (space or desk).',
       outsideWindow: 'The date must be between today and the next 14 days.',
@@ -759,6 +764,7 @@ export const en = {
     unplacedHint: 'These desks are not placed on the plan yet.',
     deskNumber: 'Desk {{number}}',
     markerLabel: 'Desk {{number}} — {{state}}',
+    markerLabelSelected: 'Desk {{number}} — {{state}} (selected)',
     legendLabel: 'State legend',
     legendExecutive: 'Executive',
     states: {
@@ -800,6 +806,12 @@ export const en = {
       title: 'Available to request',
       empty: 'No free desks for this date.',
       request: 'Request',
+    },
+    select: {
+      title: 'Select desk',
+      hint: 'Click a free desk to choose it. The request is not created until you submit it.',
+      confirmation: 'Desk {{number}} selected',
+      close: 'Close',
     },
   },
   availability: {

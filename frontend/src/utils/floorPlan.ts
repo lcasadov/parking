@@ -13,9 +13,20 @@ export const ZOOM_MIN = 0.6;
 export const ZOOM_MAX = 2.5;
 export const ZOOM_STEP = 0.2;
 
+// Clase del realce visual de "puesto elegido" en el plano-selector. Es solo de UI
+// (estado `SELECTED`): prevalece sobre el color semantico mientras el puesto esta
+// elegido; el backend nunca devuelve `SELECTED` (design D2, sin hex suelto).
+export const SELECTED_MARKER_CLASS = 'floor-marker-selected';
+
 // Devuelve la clase de estado del marcador (kebab-case): FREE -> floor-marker-free.
 export function markerStateClass(state: DeskState): string {
   return `floor-marker-${state.toLowerCase()}`;
+}
+
+// Clase de color efectiva de un marcador: si esta elegido en el selector gana el
+// realce `SELECTED`; en caso contrario, el color semantico de su estado (design D2).
+export function markerColorClass(state: DeskState, selected: boolean): string {
+  return selected ? SELECTED_MARKER_CLASS : markerStateClass(state);
 }
 
 // Clase de pill del design-system (§6.3) para el estado de un puesto, usada en
