@@ -2,13 +2,12 @@ package com.aleatica.parking.notification.application;
 
 import com.aleatica.parking.notification.EmailOutbox;
 import com.aleatica.parking.notification.EmailOutboxRepository;
-import java.time.Instant;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Persiste un email pendiente de reintento en una transaccion NUEVA
+ * Persiste una notificacion pendiente de reintento en una transaccion NUEVA
  * ({@code REQUIRES_NEW}).
  *
  * <p>El encolado ocurre en la fase {@code AFTER_COMMIT} del evento origen, cuando la
@@ -31,14 +30,12 @@ public class PendingEmailStore {
     }
 
     /**
-     * Encola el mensaje como {@code PENDING} en una transaccion nueva.
+     * Encola la entrada {@code PENDING} en una transaccion nueva.
      *
-     * @param message mensaje que no pudo enviarse
-     * @param error   detalle del fallo
-     * @param now     instante actual (UTC)
+     * @param outbox entrada del outbox (datos del evento) que no pudo enviarse
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void queue(EmailMessage message, String error, Instant now) {
-        outboxRepository.save(EmailOutbox.pending(message, error, now));
+    public void queue(EmailOutbox outbox) {
+        outboxRepository.save(outbox);
     }
 }

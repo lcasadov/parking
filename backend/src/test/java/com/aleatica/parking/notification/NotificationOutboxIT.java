@@ -172,7 +172,7 @@ class NotificationOutboxIT extends BaseIntegrationTest {
     @Test
     void shouldRetryPendingEmailsAndMarkSent_whenScheduledJobRuns() {
         // Arrange: una entrada PENDING sembrada; el SMTP ahora responde (mock ok por defecto)
-        insertOutbox("emp@aleatica.com", EmailOutboxStatus.PENDING);
+        insertOutbox(empId, EmailOutboxStatus.PENDING);
 
         // Act
         deliveryService.retryPending();
@@ -186,7 +186,7 @@ class NotificationOutboxIT extends BaseIntegrationTest {
     @Test
     void shouldNotResendAlreadySentEmail_whenRetryJobRunsAgain() {
         // Arrange: una entrada ya SENT (terminal)
-        insertOutbox("emp@aleatica.com", EmailOutboxStatus.SENT);
+        insertOutbox(empId, EmailOutboxStatus.SENT);
 
         // Act
         deliveryService.retryPending();
@@ -338,11 +338,14 @@ class NotificationOutboxIT extends BaseIntegrationTest {
         return id == null ? 0L : id;
     }
 
-    private void insertOutbox(String recipient, EmailOutboxStatus status) {
+    private void insertOutbox(long recipientEmployeeId, EmailOutboxStatus status) {
+        // Modelo por evento: se guarda el tipo de evento + destinatario (no HTML renderizado);
+        // el reintento re-renderiza la plantilla vigente. ASSIGNMENT_REVOKED no requiere payload.
         jdbcTemplate.update(
-                "INSERT INTO dbo.email_outbox (recipient, subject, body_html, status, attempts, created_at) "
-                        + "VALUES (?, 'asunto', '<p>cuerpo</p>', ?, 1, ?)",
-                recipient, status.name(), Timestamp.from(Instant.now()));
+                "INSERT INTO dbo.email_outbox "
+                        + "(event_type, recipient_employee_id, status, attempts, created_at) "
+                        + "VALUES ('ASSIGNMENT_REVOKED', ?, ?, 1, ?)",
+                recipientEmployeeId, status.name(), Timestamp.from(Instant.now()));
     }
 
     private List<String> activeAdminEmails() {
