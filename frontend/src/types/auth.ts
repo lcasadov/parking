@@ -1,6 +1,6 @@
 // Tipos derivados del contrato docs/openapi.yaml (componentes Auth).
 
-export type Role = 'ADMIN' | 'EMPLOYEE';
+export type Role = 'ADMIN' | 'EMPLOYEE' | 'AGENCIA';
 
 // CurrentUser: schema #/components/schemas/CurrentUser.
 // passwordMustChange se trata como SIEMPRE presente (decision de bootstrap).

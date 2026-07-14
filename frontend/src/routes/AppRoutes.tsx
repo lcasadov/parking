@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { AgencyLayout } from '../layouts/AgencyLayout';
 import { EmployeeLayout } from '../layouts/EmployeeLayout';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
 import { EmployeesPage } from '../pages/EmployeesPage';
@@ -68,6 +69,17 @@ export function AppRoutes() {
         <Route path="releases" element={<MyReleasesPage />} />
         <Route path="my-week" element={<MyWeekPage />} />
         <Route path="floor-plan" element={<FloorPlanPage />} />
+      </Route>
+      <Route
+        path={ROUTES.agency}
+        element={
+          <ProtectedRoute requiredRole="AGENCIA">
+            <AgencyLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to={ROUTES.agencyReleases} replace />} />
+        <Route path="releases" element={<AdministrativeReleasesPage />} />
       </Route>
       <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
     </Routes>

@@ -23,3 +23,12 @@ export const employeeMustChange: CurrentUser = {
   ...employeeUser,
   passwordMustChange: true,
 };
+
+export const agencyUser: CurrentUser = {
+  employeeId: 3,
+  login: 'agency',
+  firstName: 'Agatha',
+  lastName: 'Agency',
+  role: 'AGENCIA',
+  passwordMustChange: false,
+};

@@ -212,6 +212,7 @@ function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanel
           >
             <option value="EMPLOYEE">{t('employees.role.EMPLOYEE')}</option>
             <option value="ADMIN">{t('employees.role.ADMIN')}</option>
+            <option value="AGENCIA">{t('employees.role.AGENCIA')}</option>
           </select>
         </div>
       </FieldRow>

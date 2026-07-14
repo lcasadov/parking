@@ -77,11 +77,13 @@ export const en = {
     role: {
       ADMIN: 'Administrator',
       EMPLOYEE: 'Employee',
+      AGENCIA: 'Agency',
     },
   },
   layout: {
     adminArea: 'Administration',
     employeeArea: 'My space',
+    agencyArea: 'Agency',
   },
   exports: {
     groupLabel: 'Export options',
@@ -117,6 +119,7 @@ export const en = {
     role: {
       ADMIN: 'Administrator',
       EMPLOYEE: 'Employee',
+      AGENCIA: 'Agency',
     },
     category: {
       CEO: 'CEO',
