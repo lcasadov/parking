@@ -323,6 +323,7 @@ class RequestControllerTest {
     private RequestResponse sample(RequestStatus status) {
         return new RequestResponse(
                 42L, 15L, LocalDate.of(2026, 7, 10), status,
-                null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
+                null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING,
+                null, null);
     }
 }

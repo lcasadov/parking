@@ -20,6 +20,7 @@ import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
@@ -31,9 +32,11 @@ import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -286,10 +289,53 @@ public class RequestService {
     public PageResponse<RequestResponse> listMine(
             String requesterLogin, RequestStatus status, Pageable pageable) {
         Long employeeId = resolveEmployeeId(requesterLogin);
-        var page = status == null
+        Page<Request> page = status == null
                 ? requestRepository.findByEmployeeId(employeeId, pageable)
                 : requestRepository.findByEmployeeIdAndStatus(employeeId, status, pageable);
-        return PageResponse.from(page, RequestResponse::from);
+        return enrichWithResourceNumber(page);
+    }
+
+    /**
+     * Convierte la pagina de solicitudes a DTO resolviendo, para las {@code APPROVED} con recurso
+     * asignado, el NUMERO humano del recurso (plaza/puesto) y su planta, de modo que el empleado
+     * vea "Plaza 3005"/"Puesto 12" y nunca el {@code resource_id} interno de BD. La resolucion es
+     * en lote por tipo (una consulta por {@code PARKING}/{@code DESK}, sin N+1); las solicitudes
+     * {@code PENDING}/{@code REJECTED}/{@code CANCELLED} o cuyo recurso ya no exista degradan a
+     * {@code resourceNumber = null} (el frontend muestra "&mdash;").
+     */
+    private PageResponse<RequestResponse> enrichWithResourceNumber(Page<Request> page) {
+        List<Request> requests = page.getContent();
+        Map<Long, BookableResource> parking = resolveApprovedResources(requests, ResourceType.PARKING);
+        Map<Long, BookableResource> desks = resolveApprovedResources(requests, ResourceType.DESK);
+        return PageResponse.from(page, request -> toResponse(request, parking, desks));
+    }
+
+    private Map<Long, BookableResource> resolveApprovedResources(
+            List<Request> requests, ResourceType resourceType) {
+        List<Long> ids = requests.stream()
+                .filter(request -> request.getStatus() == RequestStatus.APPROVED)
+                .filter(request -> request.getResourceType() == resourceType
+                        && request.getResourceId() != null)
+                .map(Request::getResourceId)
+                .distinct()
+                .toList();
+        return resourceResolvers.resolveAll(ids, resourceType);
+    }
+
+    private static RequestResponse toResponse(
+            Request request, Map<Long, BookableResource> parking, Map<Long, BookableResource> desks) {
+        RequestResponse base = RequestResponse.from(request);
+        if (request.getStatus() != RequestStatus.APPROVED
+                || request.getResourceId() == null || request.getResourceType() == null) {
+            return base;
+        }
+        Map<Long, BookableResource> source =
+                request.getResourceType() == ResourceType.PARKING ? parking : desks;
+        BookableResource resource = source.get(request.getResourceId());
+        if (resource == null) {
+            return base;
+        }
+        return base.withResource(resource.getNumber(), resource.getFloor());
     }
 
     /**

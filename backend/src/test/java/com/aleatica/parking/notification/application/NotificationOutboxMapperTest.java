@@ -34,7 +34,7 @@ class NotificationOutboxMapperTest {
         // Arrange
         RequestResponse request = new RequestResponse(
                 42L, RECIPIENT_ID, LocalDate.of(2026, 7, 10), RequestStatus.APPROVED,
-                3005L, "Bienvenido", null, null, 1L, NOW, NOW, ResourceType.PARKING);
+                3005L, "Bienvenido", null, null, 1L, NOW, NOW, ResourceType.PARKING, null, null);
         NotificationCommand original =
                 new NotificationCommand(NotificationEventType.REQUEST_APPROVED, RECIPIENT_ID, request);
 

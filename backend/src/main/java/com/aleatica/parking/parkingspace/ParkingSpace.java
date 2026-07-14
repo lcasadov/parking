@@ -136,6 +136,16 @@ public class ParkingSpace implements BookableResource {
         return number == null ? null : number / 1000;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Para una plaza la planta es la derivada del numero ({@link #floor()}).</p>
+     */
+    @Override
+    public Integer getFloor() {
+        return floor();
+    }
+
     @Override
     public String getLabel() {
         return label;

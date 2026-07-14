@@ -1,5 +1,7 @@
 package com.aleatica.parking.resource;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -27,6 +29,19 @@ public interface ResourceResolverPort {
      * @return el recurso reservable, o vacio si no existe
      */
     Optional<BookableResource> resolve(Long resourceId);
+
+    /**
+     * Resuelve en lote los recursos concretos de este tipo por sus identificadores.
+     *
+     * <p>Materializa el numero humano de una lista de referencias en una unica consulta
+     * (evita el N+1 que provocaria invocar {@link #resolve(Long)} por cada elemento al
+     * pintar, p. ej., "Mis solicitudes"). Los identificadores inexistentes se omiten del
+     * mapa resultante.</p>
+     *
+     * @param resourceIds identificadores a resolver
+     * @return mapa {@code resource_id -> recurso}; vacio si {@code resourceIds} lo esta
+     */
+    Map<Long, BookableResource> resolveAll(Collection<Long> resourceIds);
 
     /**
      * Indica si existe un recurso con ese identificador (comprobacion de integridad

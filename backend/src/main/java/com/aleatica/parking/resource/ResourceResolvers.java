@@ -1,5 +1,6 @@
 package com.aleatica.parking.resource;
 
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +54,22 @@ public class ResourceResolvers {
      */
     public Optional<BookableResource> resolve(Long resourceId, ResourceType resourceType) {
         return resolverFor(resourceType).resolve(resourceId);
+    }
+
+    /**
+     * Resuelve en lote los recursos de un mismo tipo por sus identificadores, delegando en el
+     * adaptador correspondiente (una unica consulta por tipo, sin N+1).
+     *
+     * @param resourceIds  identificadores del recurso (todos del mismo {@code resourceType})
+     * @param resourceType tipo de los recursos
+     * @return mapa {@code resource_id -> recurso}; vacio si {@code resourceIds} es nulo o vacio
+     */
+    public Map<Long, BookableResource> resolveAll(
+            Collection<Long> resourceIds, ResourceType resourceType) {
+        if (resourceIds == null || resourceIds.isEmpty()) {
+            return Map.of();
+        }
+        return resolverFor(resourceType).resolveAll(resourceIds);
     }
 
     private ResourceResolverPort resolverFor(ResourceType resourceType) {

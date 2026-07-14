@@ -28,6 +28,25 @@ public interface BookableResource {
     String getLabel();
 
     /**
+     * Numero humano del recurso, el que el usuario reconoce (p. ej. {@code 3005} para una
+     * plaza o {@code 12} para un puesto). Es distinto del {@code resource_id} interno de BD
+     * ({@link #getResourceId()}); es este numero el que se muestra al empleado, no la PK.
+     *
+     * @return numero humano del recurso
+     */
+    Integer getNumber();
+
+    /**
+     * Planta a la que pertenece el recurso cuando su tipo la define; {@code null} para los
+     * tipos sin planta derivada (p. ej. puestos de oficina).
+     *
+     * @return la planta del recurso, o {@code null} si no aplica
+     */
+    default Integer getFloor() {
+        return null;
+    }
+
+    /**
      * @return {@code true} si el recurso esta activo (elegible para reserva)
      */
     boolean isActive();

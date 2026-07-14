@@ -192,16 +192,16 @@ class NotificationRendererTest {
 
     private RequestResponse createdRequest() {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.PENDING,
-                null, null, null, null, null, null, NOW, ResourceType.PARKING);
+                null, null, null, null, null, null, NOW, ResourceType.PARKING, null, null);
     }
 
     private RequestResponse approvedParking() {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.APPROVED,
-                PARKING_RESOURCE_ID, "nota", null, null, 1L, NOW, NOW, ResourceType.PARKING);
+                PARKING_RESOURCE_ID, "nota", null, null, 1L, NOW, NOW, ResourceType.PARKING, null, null);
     }
 
     private RequestResponse approvedDesk() {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.APPROVED,
-                DESK_RESOURCE_ID, "nota", null, null, 1L, NOW, NOW, ResourceType.DESK);
+                DESK_RESOURCE_ID, "nota", null, null, 1L, NOW, NOW, ResourceType.DESK, null, null);
     }
 }

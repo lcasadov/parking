@@ -2,7 +2,10 @@ package com.aleatica.parking.request.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -24,6 +27,7 @@ import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
@@ -501,8 +505,90 @@ class RequestServiceTest {
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
+    // ---- Listado propio: numero humano del recurso (no el resource_id interno) ----
+
+    @Test
+    void shouldExposeParkingNumberAndFloor_whenListingApprovedParkingRequest() {
+        // Arrange: una solicitud APPROVED de plaza; el recurso 8 (id interno) es la plaza 3005
+        requestRepository.seed(approvedWithResource(REQUEST_ID, ResourceType.PARKING, SPACE_ID));
+        givenActor(EMP_LOGIN, EMP_ID);
+        BookableResource space = mock(BookableResource.class);
+        given(space.getNumber()).willReturn(3005);
+        given(space.getFloor()).willReturn(3);
+        // lenient: resolveApprovedResources consulta AMBOS tipos; la llamada del tipo hermano
+        // (DESK, lista vacia) no debe activar el strict-stubbing sobre este stub de PARKING.
+        lenient().when(resourceResolvers.resolveAll(any(), eq(ResourceType.PARKING)))
+                .thenReturn(Map.of(SPACE_ID, space));
+
+        // Act
+        RequestResponse result = newService()
+                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+
+        // Assert: se muestra el NUMERO real de la plaza (3005) y su planta, no el id interno (8)
+        assertThat(result.resourceNumber()).isEqualTo(3005);
+        assertThat(result.floor()).isEqualTo(3);
+        assertThat(result.parkingSpaceId()).isEqualTo(SPACE_ID);
+    }
+
+    @Test
+    void shouldExposeDeskNumberWithoutFloor_whenListingApprovedDeskRequest() {
+        // Arrange: una solicitud APPROVED de puesto; el recurso 8 es el puesto numero 12
+        requestRepository.seed(approvedWithResource(REQUEST_ID, ResourceType.DESK, SPACE_ID));
+        givenActor(EMP_LOGIN, EMP_ID);
+        BookableResource desk = mock(BookableResource.class);
+        given(desk.getNumber()).willReturn(12);
+        given(desk.getFloor()).willReturn(null);
+        lenient().when(resourceResolvers.resolveAll(any(), eq(ResourceType.DESK)))
+                .thenReturn(Map.of(SPACE_ID, desk));
+
+        // Act
+        RequestResponse result = newService()
+                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+
+        // Assert: numero del puesto sin planta (los puestos no tienen planta derivada)
+        assertThat(result.resourceNumber()).isEqualTo(12);
+        assertThat(result.floor()).isNull();
+    }
+
+    @Test
+    void shouldNotExposeResourceNumber_whenRequestNotApproved() {
+        // Arrange: una PENDING no tiene recurso asignado -> no se resuelve numero
+        requestRepository.seed(pending());
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        RequestResponse result = newService()
+                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+
+        // Assert: sin numero (el frontend degrada a "—")
+        assertThat(result.resourceNumber()).isNull();
+        assertThat(result.floor()).isNull();
+    }
+
+    @Test
+    void shouldNotExposeResourceNumber_whenApprovedResourceNoLongerResolves() {
+        // Arrange: APPROVED con recurso que ya no se resuelve (mapa vacio) -> degrada a null
+        requestRepository.seed(approvedWithResource(REQUEST_ID, ResourceType.PARKING, SPACE_ID));
+        givenActor(EMP_LOGIN, EMP_ID);
+        lenient().when(resourceResolvers.resolveAll(any(), eq(ResourceType.PARKING)))
+                .thenReturn(Map.of());
+
+        // Act
+        RequestResponse result = newService()
+                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+
+        // Assert
+        assertThat(result.resourceNumber()).isNull();
+    }
+
     private Request pending() {
         return pendingWithId(REQUEST_ID, EMP_ID, WITHIN);
+    }
+
+    private static Request approvedWithResource(Long id, ResourceType type, Long resourceId) {
+        return Request.restore(
+                id, EMP_ID, WITHIN, RequestStatus.APPROVED, resourceId, type,
+                "nota", null, null, ADMIN_ID, NOW, NOW);
     }
 
     private static Request pendingWithId(Long id, Long employeeId, LocalDate date) {
