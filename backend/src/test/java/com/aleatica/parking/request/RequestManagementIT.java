@@ -186,14 +186,28 @@ class RequestManagementIT extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldReturn409_whenCancellingResolvedRequest() throws Exception {
-        // Arrange: solicitud ya aprobada
+    void shouldCancelApprovedFutureRequest_andReleaseResource() throws Exception {
+        // Arrange: solicitud APPROVED propia de fecha futura, con plaza ocupando disponibilidad
         long id = insertApproved(empAId, WITHIN, spaceX);
+        assertThat(approvedRowsForSpaceDate(spaceX, WITHIN)).isEqualTo(1);
+
+        // Act / Assert: 200 CANCELLED y la plaza deja de contar como APPROVED (recurso liberado)
+        mockMvc.perform(post(BASE_URL + "/" + id + "/cancel").cookie(empASession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+        assertThat(statusOf(empAId, WITHIN)).isEqualTo("CANCELLED");
+        assertThat(approvedRowsForSpaceDate(spaceX, WITHIN)).isZero();
+    }
+
+    @Test
+    void shouldReturn409_whenCancellingApprovedPastRequest() throws Exception {
+        // Arrange: solicitud APPROVED propia de fecha pasada (no se libera un recurso transcurrido)
+        long id = insertApproved(empAId, OUTSIDE_PAST, spaceX);
 
         // Act / Assert
         mockMvc.perform(post(BASE_URL + "/" + id + "/cancel").cookie(empASession))
                 .andExpect(status().isConflict());
-        assertThat(statusOf(empAId, WITHIN)).isEqualTo("APPROVED");
+        assertThat(statusOf(empAId, OUTSIDE_PAST)).isEqualTo("APPROVED");
     }
 
     @Test

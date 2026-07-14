@@ -178,6 +178,29 @@ public class Request {
     }
 
     /**
+     * Indica si la solicitud admite la cancelacion por su dueno a fecha {@code today} (change
+     * {@code cancel-approved-request}). Una solicitud {@code PENDING} siempre puede cancelarse
+     * (no ocupa recurso, comportamiento clasico). Una solicitud {@code APPROVED} solo puede
+     * cancelarse cuando su {@code requestedDate} es futura (hoy inclusive): la cancelacion libera
+     * el recurso, que reaparece en disponibilidad. Una {@code APPROVED} con fecha pasada no es
+     * cancelable (no se libera un recurso de una fecha ya transcurrida). Los estados terminales
+     * {@code REJECTED}/{@code CANCELLED} no admiten cancelacion.
+     *
+     * @param today fecha de referencia ("hoy"), derivada del mismo reloj/zona que la ventana de
+     *              creacion ({@code ZoneOffset.UTC}) por el caso de uso
+     * @return {@code true} si el estado y la fecha permiten cancelar
+     */
+    public boolean canBeCancelledBy(LocalDate today) {
+        if (status == RequestStatus.PENDING) {
+            return true;
+        }
+        if (status == RequestStatus.APPROVED) {
+            return !requestedDate.isBefore(today);
+        }
+        return false;
+    }
+
+    /**
      * Aprueba la solicitud asignando recurso, resolutor y nota opcional.
      *
      * @param resourceId   recurso asignado (plaza en el nucleo de parking)
@@ -222,10 +245,24 @@ public class Request {
     }
 
     /**
-     * Cancela la solicitud (transicion a {@link RequestStatus#CANCELLED}) a peticion
-     * del propio empleado.
+     * Cancela la solicitud (transicion a {@link RequestStatus#CANCELLED}) a peticion del propio
+     * empleado. Admite la cancelacion desde {@link RequestStatus#PENDING} (cancelacion clasica) y
+     * desde {@link RequestStatus#APPROVED} (cancelacion que <strong>libera el recurso</strong>:
+     * al pasar a {@code CANCELLED} la fila deja de cumplir el filtro {@code status = 'APPROVED'}
+     * del indice unico y la plaza/puesto reaparece en disponibilidad, change
+     * {@code cancel-approved-request}). El {@code resourceId} se conserva como traza del recurso
+     * liberado (la disponibilidad se recalcula solo sobre filas {@code APPROVED}, no hace falta
+     * limpiarlo). La guarda de fecha ({@code APPROVED} solo si es futura) la impone el caso de uso
+     * via {@link #canBeCancelledBy(LocalDate)} antes de invocar este metodo.
+     *
+     * @throws IllegalStateException si la solicitud esta en un estado terminal
+     *                               ({@code REJECTED}/{@code CANCELLED})
      */
     public void cancel() {
+        if (status == RequestStatus.REJECTED || status == RequestStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    "Solo se puede cancelar una solicitud PENDING o APPROVED; estado actual: " + status);
+        }
         this.status = RequestStatus.CANCELLED;
     }
 

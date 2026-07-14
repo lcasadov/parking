@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.aleatica.parking.audit.AuditEntry;
+import com.aleatica.parking.audit.AuditRecorder;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
@@ -90,15 +93,21 @@ class RequestServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private AuditRecorder auditRecorder;
+
     @Captor
     private ArgumentCaptor<Object> eventCaptor;
+
+    @Captor
+    private ArgumentCaptor<AuditEntry> auditCaptor;
 
     private final ClockPort clock = () -> NOW;
 
     private RequestService newService() {
         return new RequestService(
                 requestRepository, employeeRepository, resourceResolvers,
-                availabilityService, systemSettingsService, eventPublisher, clock);
+                availabilityService, systemSettingsService, eventPublisher, auditRecorder, clock);
     }
 
     private void givenManualMode() {
@@ -219,11 +228,61 @@ class RequestServiceTest {
     }
 
     @Test
-    void shouldThrowState_whenCancellingResolvedRequest() {
-        // Arrange: solicitud ya aprobada (estado terminal)
+    void shouldCancelApprovedFutureRequest_andRecordRelease() {
+        // Arrange: APPROVED propia con fecha futura (WITHIN > TODAY) -> cancelable, libera recurso
         Request approved = pending();
-        approved.approve(SPACE_ID, ADMIN_ID, null, NOW);
+        approved.approve(SPACE_ID, ADMIN_ID, "auto", NOW);
         requestRepository.seed(approved);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        RequestResponse result = newService().cancel(REQUEST_ID, EMP_LOGIN);
+
+        // Assert: CANCELLED y auditoria de liberacion registrada con actor, accion y entidad
+        assertThat(result.status()).isEqualTo(RequestStatus.CANCELLED);
+        verify(auditRecorder).record(auditCaptor.capture());
+        AuditEntry entry = auditCaptor.getValue();
+        assertThat(entry.actorEmployeeId()).isEqualTo(EMP_ID);
+        assertThat(entry.action()).isEqualTo("CANCEL_APPROVED_REQUEST");
+        assertThat(entry.entityType()).isEqualTo("Request");
+        assertThat(entry.entityId()).isEqualTo(REQUEST_ID);
+    }
+
+    @Test
+    void shouldNotRecordRelease_whenCancellingPending() {
+        // Arrange: cancelar una PENDING no libera recurso -> no se audita liberacion
+        requestRepository.seed(pending());
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        newService().cancel(REQUEST_ID, EMP_LOGIN);
+
+        // Assert
+        verifyNoInteractions(auditRecorder);
+    }
+
+    @Test
+    void shouldThrowState_whenCancellingApprovedPastRequest() {
+        // Arrange: APPROVED propia con fecha pasada -> no cancelable (recurso ya transcurrido)
+        Request approvedPast = Request.restore(
+                REQUEST_ID, EMP_ID, BEFORE, RequestStatus.APPROVED, SPACE_ID, ResourceType.PARKING,
+                "auto", null, null, ADMIN_ID, NOW, NOW);
+        requestRepository.seed(approvedPast);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().cancel(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(RequestStateException.class);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(auditRecorder);
+    }
+
+    @Test
+    void shouldThrowState_whenCancellingTerminalRequest() {
+        // Arrange: solicitud ya cancelada (estado terminal)
+        Request cancelled = pending();
+        cancelled.cancel();
+        requestRepository.seed(cancelled);
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act / Assert

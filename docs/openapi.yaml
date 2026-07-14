@@ -1024,10 +1024,17 @@ paths:
     post:
       tags: [Requests]
       operationId: cancelRequest
-      summary: Cancela la propia solicitud en PENDING (EMPLOYEE)
+      summary: Cancela la propia solicitud PENDING o APPROVED futura (EMPLOYEE)
+      description: >
+        Cancela una solicitud `PENDING` (cualquier fecha) o una solicitud `APPROVED`
+        cuya `requestedDate` es hoy o posterior, en cuyo caso la cancelación libera el
+        recurso asignado (plaza/puesto), que vuelve a estar disponible para esa fecha.
+        Una solicitud `APPROVED` de fecha pasada, o en estado terminal
+        (`REJECTED`/`CANCELLED`), devuelve 409.
       responses:
         '200':
-          description: Solicitud cancelada
+          description: >
+            Solicitud cancelada (PENDING, o APPROVED de fecha futura con el recurso liberado)
           content:
             application/json:
               schema:
@@ -1035,7 +1042,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: >
+            La solicitud es APPROVED de fecha pasada o está en estado terminal
+            (REJECTED/CANCELLED); no admite cancelación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '500': { $ref: '#/components/responses/ServerError' }
 
   /requests/{id}/approve:

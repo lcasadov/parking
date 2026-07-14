@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.aleatica.parking.audit.AuditRecorder;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
@@ -76,6 +77,9 @@ class RequestAutoAssignmentServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private AuditRecorder auditRecorder;
+
     @Captor
     private ArgumentCaptor<Object> eventCaptor;
 
@@ -84,7 +88,7 @@ class RequestAutoAssignmentServiceTest {
     private RequestService newService() {
         return new RequestService(
                 requestRepository, employeeRepository, resourceResolvers,
-                availabilityService, systemSettingsService, eventPublisher, clock);
+                availabilityService, systemSettingsService, eventPublisher, auditRecorder, clock);
     }
 
     // ---- Algoritmo de auto-asignacion ----
