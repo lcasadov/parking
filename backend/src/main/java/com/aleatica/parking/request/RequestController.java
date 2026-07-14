@@ -169,24 +169,31 @@ public class RequestController {
     }
 
     /**
-     * Cancela la propia solicitud del empleado, solo mientras esta en {@code PENDING}
-     * (solo {@code EMPLOYEE}; verificacion de pertenencia en el servicio).
+     * Cancela la propia solicitud del empleado (solo {@code EMPLOYEE}; verificacion de pertenencia
+     * en el servicio). Admite cancelar una solicitud {@code PENDING} (cualquier fecha) o una
+     * {@code APPROVED} de fecha futura (hoy inclusive), en cuyo caso libera el recurso asignado
+     * (change {@code cancel-approved-request}).
      *
      * @param id             identificador de la solicitud
      * @param authentication autenticacion resuelta de la sesion (propietario)
      * @return {@code 200} con la solicitud en estado {@code CANCELLED}
      */
-    @Operation(summary = "Cancela la propia solicitud en PENDING (EMPLOYEE)",
+    @Operation(summary = "Cancela la propia solicitud PENDING o APPROVED futura (EMPLOYEE)",
+            description = "Cancela una solicitud PENDING (cualquier fecha) o una APPROVED cuya "
+                    + "fecha es hoy o posterior, liberando el recurso. Una APPROVED de fecha "
+                    + "pasada o un estado terminal (REJECTED/CANCELLED) responden 409.",
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Solicitud cancelada"),
+            @ApiResponse(responseCode = "200",
+                    description = "Solicitud cancelada (PENDING, o APPROVED futura con recurso liberado)"),
             @ApiResponse(responseCode = "401", description = "No autenticado",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "403", description = "Sin permisos o solicitud ajena",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "Solicitud no encontrada",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "409", description = "La solicitud no esta en PENDING",
+            @ApiResponse(responseCode = "409",
+                    description = "APPROVED de fecha pasada o estado terminal (REJECTED/CANCELLED)",
                     content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
     @PostMapping("/{id}/cancel")

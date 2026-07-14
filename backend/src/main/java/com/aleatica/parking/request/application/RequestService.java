@@ -1,5 +1,7 @@
 package com.aleatica.parking.request.application;
 
+import com.aleatica.parking.audit.AuditEntry;
+import com.aleatica.parking.audit.AuditRecorder;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
@@ -79,6 +81,8 @@ public class RequestService {
     private static final String MSG_NOT_OWNER = "No puede operar sobre la solicitud de otro empleado";
     private static final String MSG_NOT_PENDING =
             "La solicitud no esta pendiente; no admite esta transicion";
+    private static final String MSG_NOT_CANCELLABLE =
+            "La solicitud no admite cancelacion; solo se cancela una PENDING o una APPROVED de fecha futura";
     private static final String MSG_NOT_REJECTABLE =
             "La solicitud no admite rechazo; solo se rechaza una solicitud PENDING o APPROVED";
     private static final String MSG_SPACE_UNAVAILABLE =
@@ -90,12 +94,18 @@ public class RequestService {
     private static final String MSG_REASON_REQUIRED =
             "El motivo libre es obligatorio (>=5 caracteres) cuando el codigo es OTHER";
 
+    /** Accion de auditoria: el empleado cancela una solicitud APPROVED y libera el recurso. */
+    private static final String AUDIT_ACTION_RELEASE = "CANCEL_APPROVED_REQUEST";
+    /** Tipo de entidad auditada en la liberacion por cancelacion. */
+    private static final String AUDIT_ENTITY_REQUEST = "Request";
+
     private final RequestRepositoryPort requestRepository;
     private final EmployeeRepository employeeRepository;
     private final ResourceResolvers resourceResolvers;
     private final AvailabilityService availabilityService;
     private final SystemSettingsService systemSettingsService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditRecorder auditRecorder;
     private final ClockPort clock;
 
     /**
@@ -107,6 +117,8 @@ public class RequestService {
      *                              y auto-asignacion de plaza)
      * @param systemSettingsService ajuste global (modo de aprobacion MANUAL/AUTOMATIC)
      * @param eventPublisher        publicador de eventos de notificacion
+     * @param auditRecorder         puerto de auditoria para trazar la liberacion por cancelacion
+     *                              de una solicitud APPROVED (change {@code cancel-approved-request})
      * @param clock                 reloj inyectable para ventana y marcas de tiempo
      */
     public RequestService(
@@ -116,6 +128,7 @@ public class RequestService {
             AvailabilityService availabilityService,
             SystemSettingsService systemSettingsService,
             ApplicationEventPublisher eventPublisher,
+            AuditRecorder auditRecorder,
             ClockPort clock) {
         this.requestRepository = requestRepository;
         this.employeeRepository = employeeRepository;
@@ -123,6 +136,7 @@ public class RequestService {
         this.availabilityService = availabilityService;
         this.systemSettingsService = systemSettingsService;
         this.eventPublisher = eventPublisher;
+        this.auditRecorder = auditRecorder;
         this.clock = clock;
     }
 
@@ -305,14 +319,22 @@ public class RequestService {
     }
 
     /**
-     * Cancela la solicitud propia del empleado, solo mientras esta en {@code PENDING}.
+     * Cancela la solicitud propia del empleado. Admite dos casos (change
+     * {@code cancel-approved-request}): una solicitud {@code PENDING} para cualquier fecha
+     * (comportamiento clasico) y una solicitud {@code APPROVED} cuya {@code requestedDate} es
+     * futura (hoy inclusive), en cuyo caso la cancelacion <strong>libera el recurso</strong> (la
+     * fila deja de contar como {@code APPROVED} y la plaza/puesto reaparece en disponibilidad) y
+     * queda trazada en auditoria. No se puede cancelar una {@code APPROVED} de fecha pasada ni una
+     * solicitud en estado terminal ({@code REJECTED}/{@code CANCELLED}), que responden 409. El
+     * "hoy" se deriva del mismo reloj y zona ({@code ZoneOffset.UTC}) que la ventana de creacion.
      *
      * @param id             identificador de la solicitud
      * @param requesterLogin login del empleado (principal de la sesion)
      * @return la solicitud cancelada (DTO)
      * @throws EntityNotFoundException si no existe
      * @throws AccessDeniedException   si el solicitante no es el propietario (BOLA)
-     * @throws RequestStateException   si la solicitud no esta en {@code PENDING}
+     * @throws RequestStateException   si la solicitud no admite cancelacion (terminal o
+     *                                 {@code APPROVED} de fecha pasada)
      */
     @Transactional
     public RequestResponse cancel(Long id, String requesterLogin) {
@@ -321,9 +343,26 @@ public class RequestService {
         if (!request.getEmployeeId().equals(employeeId)) {
             throw new AccessDeniedException(MSG_NOT_OWNER);
         }
-        requirePending(request);
+        LocalDate today = LocalDate.ofInstant(clock.now(), ZoneOffset.UTC);
+        requireCancellable(request, today);
+        boolean releasesResource = request.isApproved();
         request.cancel();
-        return RequestResponse.from(requestRepository.save(request));
+        RequestResponse response = RequestResponse.from(requestRepository.save(request));
+        if (releasesResource) {
+            recordRelease(employeeId, response);
+        }
+        return response;
+    }
+
+    /**
+     * Registra en auditoria la cancelacion de una solicitud {@code APPROVED} como liberacion del
+     * recurso por el empleado (change {@code cancel-approved-request} §D4). Reutiliza el puerto de
+     * auditoria generico {@link AuditRecorder}, que persiste en su propia transaccion
+     * ({@code REQUIRES_NEW}, best-effort): un fallo de registro no revierte la cancelacion.
+     */
+    private void recordRelease(Long employeeId, RequestResponse response) {
+        auditRecorder.record(new AuditEntry(
+                employeeId, AUDIT_ACTION_RELEASE, AUDIT_ENTITY_REQUEST, response.id(), null));
     }
 
     /**
@@ -418,6 +457,12 @@ public class RequestService {
     private void requirePending(Request request) {
         if (!request.isPending()) {
             throw new RequestStateException(MSG_NOT_PENDING);
+        }
+    }
+
+    private void requireCancellable(Request request, LocalDate today) {
+        if (!request.canBeCancelledBy(today)) {
+            throw new RequestStateException(MSG_NOT_CANCELLABLE);
         }
     }
 

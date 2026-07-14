@@ -11,9 +11,47 @@ import {
   requestApproved,
   requestPending1,
   requestPendingDesk,
+  requestRejected,
 } from '../mocks/requestFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { todayIso } from '../utils/requests';
+import { addDaysIso } from '../utils/calendar';
+import type { Request } from '../types/request';
+
+// Fixtures con fechas DISTINTAS dentro de la ventana para poder localizar cada
+// fila por su fecha en la tabla (change cancel-approved-request §5.1).
+
+// PENDING con fecha propia (siempre cancelable).
+const pendingDistinct: Request = {
+  ...requestPending1,
+  id: 600,
+  requestedDate: addDaysIso(todayIso(), 1),
+  status: 'PENDING',
+};
+
+// APPROVED con fecha futura (>= hoy): cancelable, libera el recurso.
+const approvedFuture: Request = {
+  ...requestApproved,
+  id: 601,
+  requestedDate: addDaysIso(todayIso(), 5),
+  status: 'APPROVED',
+};
+
+// APPROVED con fecha de hoy: cancelable (hoy inclusive, D1).
+const approvedToday: Request = {
+  ...requestApproved,
+  id: 602,
+  requestedDate: todayIso(),
+  status: 'APPROVED',
+};
+
+// CANCELLED (terminal): sin boton Cancelar.
+const requestCancelled: Request = {
+  ...requestApproved,
+  id: 603,
+  requestedDate: addDaysIso(todayIso(), 10),
+  status: 'CANCELLED',
+};
 
 const CONFLICT_BODY = {
   error: 'REQUEST_ALREADY_PENDING',
@@ -59,6 +97,82 @@ describe('MyRequestsPage (EMPLOYEE)', () => {
     expect(
       within(approvedRow).queryByRole('button', { name: /cancelar|cancel/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('should_show_cancel_when_approved_future_or_today_and_hide_otherwise', async () => {
+    // Un caso por estado/fecha: PENDING y APPROVED futura/hoy muestran Cancelar;
+    // APPROVED pasada, REJECTED y CANCELLED no (change cancel-approved-request §5.1).
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () =>
+        HttpResponse.json(
+          pageOfRequests([
+            pendingDistinct,
+            approvedFuture,
+            approvedToday,
+            requestApproved, // APPROVED con fecha pasada (2026-03-05)
+            requestRejected,
+            requestCancelled,
+          ]),
+        ),
+      ),
+    );
+    renderWithProviders(<MyRequestsPage />);
+
+    function rowFor(request: Request): HTMLElement {
+      return screen.getByText(request.requestedDate).closest('tr') as HTMLElement;
+    }
+
+    // Espera al render de la tabla antes de inspeccionar filas.
+    await screen.findByText(pendingDistinct.requestedDate);
+
+    // Filas donde el boton Cancelar DEBE aparecer.
+    for (const shown of [pendingDistinct, approvedFuture, approvedToday]) {
+      expect(
+        within(rowFor(shown)).getByRole('button', { name: /cancelar|cancel/i }),
+      ).toBeInTheDocument();
+    }
+
+    // Filas donde el boton Cancelar NO debe aparecer.
+    for (const hidden of [requestApproved, requestRejected, requestCancelled]) {
+      expect(
+        within(rowFor(hidden)).queryByRole('button', { name: /cancelar|cancel/i }),
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  it('should_cancel_approved_future_via_same_modal_and_invalidate_query', async () => {
+    const user = userEvent.setup();
+    let cancelledId = 0;
+    let mineCalls = 0;
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () => {
+        mineCalls += 1;
+        // Tras cancelar, la solicitud pasa a CANCELLED (recurso liberado).
+        const row = cancelledId === approvedFuture.id
+          ? { ...approvedFuture, status: 'CANCELLED' as const }
+          : approvedFuture;
+        return HttpResponse.json(pageOfRequests([row]));
+      }),
+      http.post(`${MSW_BASE}/requests/:id/cancel`, ({ params }) => {
+        cancelledId = Number(params.id);
+        return HttpResponse.json({ ...approvedFuture, status: 'CANCELLED' });
+      }),
+    );
+    renderWithProviders(<MyRequestsPage />);
+
+    const approvedRow = (await screen.findByText(approvedFuture.requestedDate)).closest(
+      'tr',
+    ) as HTMLElement;
+    await user.click(within(approvedRow).getByRole('button', { name: /cancelar|cancel/i }));
+
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.click(dialog.getByRole('button', { name: /cancelar solicitud|cancel request/i }));
+
+    // Se invoca la misma mutacion/endpoint que en PENDING sobre la APPROVED.
+    await waitFor(() => expect(cancelledId).toBe(approvedFuture.id));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // La invalidacion de "Mis solicitudes" refetchea (>1 llamada al listado).
+    await waitFor(() => expect(mineCalls).toBeGreaterThan(1));
   });
 
   it('should_create_pending_request_when_date_within_window', async () => {

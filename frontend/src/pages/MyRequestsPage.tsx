@@ -8,6 +8,7 @@ import { ResourceTypePill } from '../components/ResourceTypePill';
 import { Spinner } from '../components/Spinner';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useMyRequestsQuery } from '../hooks/useRequests';
+import { canCancelRequest } from '../utils/requests';
 import type { Request } from '../types/request';
 
 const PAGE_SIZE = 20;
@@ -18,7 +19,8 @@ interface CancelTarget {
 }
 
 // Vista EMPLOYEE: lista paginada de las solicitudes propias + alta de solicitud
-// + cancelacion cuando estan en PENDING (tasks §4.1).
+// + cancelacion cuando estan en PENDING o APPROVED con fecha futura (>= hoy),
+// esta ultima libera el recurso (change cancel-approved-request §5).
 export function MyRequestsPage() {
   const { t } = useTranslation();
   const [page, setPage] = useState(0);
@@ -96,7 +98,7 @@ export function MyRequestsPage() {
                     </td>
                     <td>{spaceLabel(request)}</td>
                     <td className="table-actions">
-                      {request.status === 'PENDING' ? (
+                      {canCancelRequest(request) ? (
                         <Button
                           variant="red"
                           icon="x"

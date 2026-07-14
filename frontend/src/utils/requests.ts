@@ -1,4 +1,4 @@
-import type { RejectionReasonCode } from '../types/request';
+import type { RejectionReasonCode, Request } from '../types/request';
 
 // Ventana de solicitud: hoy..hoy+14 dias naturales (README / ux-flows).
 export const REQUEST_WINDOW_DAYS = 14;
@@ -39,4 +39,20 @@ export function maxRequestDateIso(now: Date = new Date()): string {
 // lexicografica valida por el formato YYYY-MM-DD).
 export function isWithinWindow(dateIso: string, now: Date = new Date()): boolean {
   return dateIso >= todayIso(now) && dateIso <= maxRequestDateIso(now);
+}
+
+// Determina si el empleado dueño puede cancelar la solicitud (change
+// cancel-approved-request, D1/D2): siempre en PENDING (no ocupa recurso); en
+// APPROVED solo cuando la fecha es futura (>= hoy, hoy inclusive), lo que libera
+// el recurso. REJECTED/CANCELLED son terminales. "Hoy" se deriva del mismo
+// formato ISO local (YYYY-MM-DD) usado por la ventana de creacion, evitando
+// desfases de zona; la comparacion lexicografica es valida por ese formato.
+export function canCancelRequest(request: Request, now: Date = new Date()): boolean {
+  if (request.status === 'PENDING') {
+    return true;
+  }
+  if (request.status === 'APPROVED') {
+    return request.requestedDate >= todayIso(now);
+  }
+  return false;
 }
