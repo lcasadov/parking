@@ -456,6 +456,7 @@ export const en = {
       },
       cancel: 'Cancel',
       created: 'Request created.',
+      createdApproved: 'Request approved: resource assigned instantly.',
     },
     inbox: {
       title: 'Pending requests',
@@ -556,6 +557,7 @@ export const en = {
       duplicate: 'You already have a pending request for that date.',
       alreadyResolved: 'The request is no longer pending.',
       unavailable: 'The space is not available for that date.',
+      noAvailability: 'No spaces available for that date.',
       rejectInvalid: 'Check the rejection reason.',
       generic: 'The operation could not be completed.',
     },
@@ -930,6 +932,28 @@ export const en = {
     },
     errors: {
       window: 'The "From" date must be before or equal to the "To" date.',
+    },
+  },
+  settings: {
+    navLabel: 'Settings',
+    title: 'System settings',
+    loadError: 'Settings could not be loaded.',
+    save: 'Save',
+    saved: 'Settings updated.',
+    saveError: 'Settings could not be updated.',
+    approvalMode: {
+      label: 'Request approval mode',
+      description:
+        'Defines how new space or desk requests from employees are resolved.',
+      options: {
+        MANUAL: 'Manual (administrator approves)',
+        AUTOMATIC: 'Automatic (instant assignment)',
+      },
+      hints: {
+        MANUAL: 'Each request stays pending until an administrator resolves it.',
+        AUTOMATIC:
+          'Requests are approved instantly by assigning a free resource; if none is available, they are rejected.',
+      },
     },
   },
   errors: {

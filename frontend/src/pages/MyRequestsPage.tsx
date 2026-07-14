@@ -6,7 +6,6 @@ import { CreateRequestModal } from '../components/CreateRequestModal';
 import { ExportMenu } from '../components/ExportMenu';
 import { ResourceTypePill } from '../components/ResourceTypePill';
 import { Spinner } from '../components/Spinner';
-import { emitApiErrorToast } from '../api/events';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useMyRequestsQuery } from '../hooks/useRequests';
 import type { Request } from '../types/request';
@@ -33,8 +32,9 @@ export function MyRequestsPage() {
   const isLast = query.data?.last ?? true;
 
   function handleCreated(): void {
+    // El toast de exito (aprobada al instante vs. pendiente) lo emite el propio
+    // CreateRequestModal segun el estado con que nace la solicitud (tasks §6.4).
     setIsCreateOpen(false);
-    emitApiErrorToast('requests.mine.created');
   }
 
   function spaceLabel(request: Request): string {

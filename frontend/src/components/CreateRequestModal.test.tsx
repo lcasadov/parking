@@ -5,11 +5,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { CreateRequestModal } from './CreateRequestModal';
 import { server } from '../mocks/server';
 import { MSW_BASE } from '../mocks/handlers';
-import { requestPending1 } from '../mocks/requestFixtures';
+import { requestApproved, requestPending1 } from '../mocks/requestFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { todayIso } from '../utils/requests';
+import { API_ERROR_TOAST, type ApiErrorToastDetail } from '../api/events';
 
 const REQUESTS_URL = `${MSW_BASE}/requests`;
+
+// Captura los mensajes (claves i18n) de los toasts emitidos por el modal.
+function captureToasts(): { messages: string[] } {
+  const captured = { messages: [] as string[] };
+  window.addEventListener(API_ERROR_TOAST, (event) => {
+    captured.messages.push((event as CustomEvent<ApiErrorToastDetail>).detail.message);
+  });
+  return captured;
+}
 
 // Captura los cuerpos de cada POST /requests para comprobar los resourceType.
 function captureRequestBodies(): { bodies: Array<{ resourceType?: string }> } {
@@ -98,5 +108,45 @@ describe('CreateRequestModal (unified request)', () => {
       await screen.findByText(/al menos un recurso|at least one resource/i),
     ).toBeInTheDocument();
     expect(captured.bodies).toHaveLength(0);
+  });
+
+  it('should_show_instant_approval_feedback_when_request_is_born_approved', async () => {
+    const toasts = captureToasts();
+    server.use(
+      http.post(REQUESTS_URL, () =>
+        HttpResponse.json({ ...requestApproved, id: 777 }, { status: 201 }),
+      ),
+    );
+    const onCreated = vi.fn();
+    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+    await fillDate();
+    await submit();
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(toasts.messages).toContain('requests.mine.createdApproved');
+    expect(toasts.messages).not.toContain('requests.mine.created');
+  });
+
+  it('should_show_no_availability_message_when_automatic_has_no_free_space', async () => {
+    const toasts = captureToasts();
+    server.use(
+      http.post(REQUESTS_URL, () =>
+        HttpResponse.json(
+          { error: 'NO_AVAILABILITY', message: 'no free space', timestamp: '2026-03-02T10:00:00Z' },
+          { status: 409 },
+        ),
+      ),
+    );
+    const onCreated = vi.fn();
+    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+    await fillDate();
+    await submit();
+
+    await waitFor(() =>
+      expect(toasts.messages).toContain('requests.errors.noAvailability'),
+    );
+    expect(onCreated).not.toHaveBeenCalled();
   });
 });

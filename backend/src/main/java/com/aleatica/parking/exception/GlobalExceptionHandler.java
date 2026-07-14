@@ -12,6 +12,7 @@ import com.aleatica.parking.release.application.PastReleaseCancellationException
 import com.aleatica.parking.release.application.ReleaseDateInPastException;
 import com.aleatica.parking.release.application.ResourceAlreadyReleasedException;
 import com.aleatica.parking.request.application.DuplicatePendingRequestException;
+import com.aleatica.parking.request.application.NoAvailabilityException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.RejectionReasonRequiredException;
 import com.aleatica.parking.request.application.RequestStateException;
@@ -63,6 +64,7 @@ public class GlobalExceptionHandler {
     private static final String CODE_OUTSIDE_WINDOW = "OUTSIDE_REQUEST_WINDOW";
     private static final String CODE_REQUEST_PENDING = "REQUEST_ALREADY_PENDING";
     private static final String CODE_SPACE_UNAVAILABLE = "SPACE_NOT_AVAILABLE";
+    private static final String CODE_NO_AVAILABILITY = "NO_AVAILABILITY";
     private static final String CODE_RELEASE_IN_PAST = "RELEASE_DATE_IN_PAST";
     private static final String CODE_NO_FIXED_ASSIGNMENT = "NO_FIXED_ASSIGNMENT";
     private static final String CODE_RESOURCE_RELEASED = "RESOURCE_ALREADY_RELEASED";
@@ -459,6 +461,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleSpaceUnavailable(SpaceUnavailableException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_SPACE_UNAVAILABLE, ex.getMessage()));
+    }
+
+    /**
+     * Traduce la ausencia de plaza libre en el alta automatica (modo {@code AUTOMATIC}) a
+     * {@code 409} con {@code error = NO_AVAILABILITY}: no hay ninguna plaza libre para la fecha
+     * y la solicitud no se crea (design §D4).
+     *
+     * @param ex excepcion de falta de disponibilidad en auto-asignacion
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(NoAvailabilityException.class)
+    public ResponseEntity<ApiError> handleNoAvailability(NoAvailabilityException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_NO_AVAILABILITY, ex.getMessage()));
     }
 
     /**

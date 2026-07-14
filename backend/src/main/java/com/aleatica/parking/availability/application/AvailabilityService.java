@@ -192,6 +192,45 @@ public class AvailabilityService {
         return new AvailabilityResponse(date, items);
     }
 
+    /**
+     * Devuelve las plazas de parking LIBRES para una fecha (misma regla consolidada de
+     * disponibilidad que {@link #availabilityForDate(LocalDate)}: activa, sin asignacion fija
+     * vigente/liberada, sin solicitud {@code APPROVED}, sin reserva de visitante), como
+     * entidades de dominio para que el consumidor pueda agrupar por planta
+     * ({@code number / 1000}).
+     *
+     * <p>Uso interno servicio-a-servicio (auto-asignacion de plaza por categoria/planta, change
+     * {@code request-auto-assignment}): NO se expone en la capa web, por lo que devolver la
+     * entidad de plaza aqui no viola S4684 (la frontera web sigue trabajando con DTOs). Carga
+     * por rango (una consulta por entidad) para evitar N+1. El orden dentro de la lista lo fija
+     * el consumidor de forma determinista.</p>
+     *
+     * @param date fecha a consultar
+     * @return las plazas activas disponibles para la fecha (posiblemente vacia)
+     */
+    @Transactional(readOnly = true)
+    public List<ParkingSpace> freeParkingSpacesForDate(LocalDate date) {
+        List<ParkingSpace> spaces = parkingSpaceRepository.findByActiveTrueOrderByIdAsc();
+        List<Long> spaceIds = spaces.stream().map(ParkingSpace::getId).toList();
+        int dow = date.getDayOfWeek().getValue();
+
+        Set<Long> fixedAssigned = activeFixedResourceIdsForDay(spaceIds, ResourceType.PARKING, dow);
+        Set<Long> released = spaceIds(
+                releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, date, date),
+                ReleaseEntity::getResourceId);
+        Set<Long> approved = spaceIds(
+                requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                        RequestStatus.APPROVED, ResourceType.PARKING, date, date),
+                RequestEntity::getResourceId);
+        Set<Long> reserved = spaceIds(
+                visitorReservationRepository.findByReservationDateBetween(date, date),
+                VisitorReservation::getParkingSpaceId);
+
+        return spaces.stream()
+                .filter(space -> isAvailable(space.getId(), fixedAssigned, released, approved, reserved))
+                .toList();
+    }
+
     private List<ResourceRef> activeResources(ResourceType resourceType) {
         if (resourceType == ResourceType.DESK) {
             return deskRepository.findByActiveTrueOrderByNumberAsc().stream()

@@ -91,6 +91,13 @@ export function AdminLayout() {
             <i className="ti ti-login" aria-hidden="true" />
             {t('loginLogs.navLabel')}
           </NavLink>
+          <NavLink
+            to={ROUTES.adminSettings}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-settings" aria-hidden="true" />
+            {t('settings.navLabel')}
+          </NavLink>
         </Sidebar>
         <main className="main">
           <Outlet />

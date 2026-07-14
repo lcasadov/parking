@@ -456,6 +456,7 @@ export const es = {
       },
       cancel: 'Cancelar',
       created: 'Solicitud creada.',
+      createdApproved: 'Solicitud aprobada: recurso asignado al instante.',
     },
     inbox: {
       title: 'Solicitudes pendientes',
@@ -557,6 +558,7 @@ export const es = {
       duplicate: 'Ya tienes una solicitud pendiente para esa fecha.',
       alreadyResolved: 'La solicitud ya no está pendiente.',
       unavailable: 'La plaza no está disponible para esa fecha.',
+      noAvailability: 'No hay plazas disponibles para esa fecha.',
       rejectInvalid: 'Revisa el motivo del rechazo.',
       generic: 'No se pudo completar la operación.',
     },
@@ -931,6 +933,28 @@ export const es = {
     },
     errors: {
       window: 'La fecha «Desde» debe ser anterior o igual a la fecha «Hasta».',
+    },
+  },
+  settings: {
+    navLabel: 'Configuración',
+    title: 'Configuración del sistema',
+    loadError: 'No se pudo cargar la configuración.',
+    save: 'Guardar',
+    saved: 'Configuración actualizada.',
+    saveError: 'No se pudo actualizar la configuración.',
+    approvalMode: {
+      label: 'Modo de aprobación de solicitudes',
+      description:
+        'Define cómo se resuelven las nuevas solicitudes de plaza o puesto de los empleados.',
+      options: {
+        MANUAL: 'Manual (el administrador aprueba)',
+        AUTOMATIC: 'Automático (asignación inmediata)',
+      },
+      hints: {
+        MANUAL: 'Cada solicitud queda pendiente hasta que un administrador la resuelve.',
+        AUTOMATIC:
+          'Las solicitudes se aprueban al instante asignando un recurso libre; si no hay disponibilidad, se rechazan.',
+      },
     },
   },
   errors: {
