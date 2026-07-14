@@ -8,9 +8,11 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.DeskRequestResponse;
+import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.request.domain.Request;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.DuplicatePendingRequestException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
@@ -18,6 +20,8 @@ import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.request.dto.RequestResponse;
 import com.aleatica.parking.request.infrastructure.RequestMapper;
 import com.aleatica.parking.resource.ResourceType;
+import com.aleatica.parking.systemsettings.application.SystemSettingsService;
+import com.aleatica.parking.systemsettings.domain.ApprovalMode;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -42,6 +46,15 @@ import org.springframework.transaction.annotation.Transactional;
  * garantiza el indice unico filtrado {@code UX_requests_desk_date_pending} frente a
  * concurrencia; la comprobacion previa es la primera capa (design §Decisions: unicidad en
  * dos capas). Editar posiciones es exclusivo del {@code ADMIN} (RBAC en el controlador).</p>
+ *
+ * <p>La creacion ramifica por el <strong>modo de aprobacion global</strong>
+ * ({@link ApprovalMode}, change {@code request-desk-selection}, supersede #98): en
+ * {@code MANUAL} la solicitud nace {@code PENDING} y la resuelve el ADMIN; en {@code AUTOMATIC}
+ * el puesto pinchado se auto-aprueba y la solicitud nace {@code APPROVED} con ese puesto, de
+ * forma coherente con {@code RequestService.create()} (mismo actor {@code null}, misma nota
+ * {@link Request#AUTO_APPROVAL_NOTE}, mismo {@link RequestApprovedEvent}). La red de concurrencia
+ * no cambia: el indice unico filtrado {@code UX_requests_..._approved} rechaza con 409 la segunda
+ * auto-aprobacion del mismo puesto/fecha.</p>
  */
 @Service
 public class FloorPlanCommandService {
@@ -61,40 +74,47 @@ public class FloorPlanCommandService {
     private final RequestJpaRepository requestRepository;
     private final EmployeeRepository employeeRepository;
     private final AvailabilityService availabilityService;
+    private final SystemSettingsService systemSettingsService;
     private final ApplicationEventPublisher eventPublisher;
     private final ClockPort clock;
 
     /**
-     * @param deskRepository      repositorio de puestos (existencia/estado y coordenadas)
-     * @param requestRepository   repositorio de solicitudes (alta puesto-especifica, unicidad)
-     * @param employeeRepository  repositorio de empleados (resolucion de la sesion)
-     * @param availabilityService servicio de disponibilidad consolidado (regla unica, issue #43)
-     * @param eventPublisher      publicador de eventos de notificacion (solicitud creada)
-     * @param clock               reloj inyectable (ventana hoy..+14d y marcas de tiempo)
+     * @param deskRepository        repositorio de puestos (existencia/estado y coordenadas)
+     * @param requestRepository     repositorio de solicitudes (alta puesto-especifica, unicidad)
+     * @param employeeRepository    repositorio de empleados (resolucion de la sesion)
+     * @param availabilityService   servicio de disponibilidad consolidado (regla unica, issue #43)
+     * @param systemSettingsService ajuste global (modo de aprobacion MANUAL/AUTOMATIC)
+     * @param eventPublisher        publicador de eventos de notificacion (solicitud creada/aprobada)
+     * @param clock                 reloj inyectable (ventana hoy..+14d y marcas de tiempo)
      */
     public FloorPlanCommandService(
             DeskRepository deskRepository,
             RequestJpaRepository requestRepository,
             EmployeeRepository employeeRepository,
             AvailabilityService availabilityService,
+            SystemSettingsService systemSettingsService,
             ApplicationEventPublisher eventPublisher,
             ClockPort clock) {
         this.deskRepository = deskRepository;
         this.requestRepository = requestRepository;
         this.employeeRepository = employeeRepository;
         this.availabilityService = availabilityService;
+        this.systemSettingsService = systemSettingsService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
     /**
-     * Solicita un puesto pinchado en el plano para una fecha, creando una solicitud
-     * {@code PENDING} puesto-especifica solo si el puesto esta libre esa fecha.
+     * Solicita un puesto pinchado en el plano para una fecha, creando la solicitud puesto-especifica
+     * solo si el puesto esta libre esa fecha. El estado inicial ramifica por el modo de aprobacion
+     * global: en {@code MANUAL} nace {@code PENDING}; en {@code AUTOMATIC} el puesto pinchado se
+     * auto-aprueba y nace {@code APPROVED} con ese puesto.
      *
      * @param requesterLogin login del empleado solicitante (principal de la sesion)
      * @param deskId         identificador del puesto pinchado
      * @param date           fecha solicitada (debe estar en la ventana hoy..hoy+14)
-     * @return el identificador de la solicitud creada y el nuevo estado del puesto
+     * @return el identificador de la solicitud creada, el nuevo estado del puesto y el estado de la
+     *         solicitud ({@code PENDING}/{@code APPROVED})
      * @throws OutsideRequestWindowException    si la fecha esta fuera de la ventana
      * @throws EntityNotFoundException          si el puesto no existe (o el login de sesion)
      * @throws DuplicatePendingRequestException si el empleado ya tiene un puesto pendiente esa fecha
@@ -112,11 +132,41 @@ public class FloorPlanCommandService {
                 employeeId, ResourceType.DESK, date, RequestStatus.PENDING)) {
             throw new DuplicatePendingRequestException(MSG_ALREADY_PENDING);
         }
+        if (systemSettingsService.approvalMode() == ApprovalMode.AUTOMATIC) {
+            return autoApproveDesk(employeeId, desk, date, now);
+        }
+        return createPendingDesk(employeeId, desk, date, now);
+    }
+
+    /**
+     * Modo {@code MANUAL}: la solicitud del puesto pinchado nace {@code PENDING} y publica
+     * {@link RequestCreatedEvent} (comportamiento clasico).
+     */
+    private DeskRequestResponse createPendingDesk(
+            Long employeeId, Desk desk, LocalDate date, Instant now) {
         RequestEntity saved = requestRepository.saveAndFlush(
                 RequestEntity.createForResource(employeeId, ResourceType.DESK, desk.getId(), date, now));
         eventPublisher.publishEvent(
                 new RequestCreatedEvent(RequestResponse.from(RequestMapper.toDomain(saved))));
-        return new DeskRequestResponse(saved.getId(), desk.getId(), FloorPlanDeskState.MINE);
+        return new DeskRequestResponse(saved.getId(), desk.getId(), FloorPlanDeskState.MINE, saved.getStatus());
+    }
+
+    /**
+     * Modo {@code AUTOMATIC}: el puesto pinchado se auto-aprueba (actor {@code null}, nota
+     * {@link Request#AUTO_APPROVAL_NOTE}), la solicitud nace {@code APPROVED} y publica
+     * {@link RequestApprovedEvent}, en paridad con {@code RequestService.autoApprove}. La segunda
+     * auto-aprobacion concurrente del mismo puesto/fecha la rechaza el indice unico filtrado
+     * {@code APPROVED} (409).
+     */
+    private DeskRequestResponse autoApproveDesk(
+            Long employeeId, Desk desk, LocalDate date, Instant now) {
+        RequestEntity entity =
+                RequestEntity.createForResource(employeeId, ResourceType.DESK, desk.getId(), date, now);
+        entity.approve(desk.getId(), null, Request.AUTO_APPROVAL_NOTE, now);
+        RequestEntity saved = requestRepository.saveAndFlush(entity);
+        eventPublisher.publishEvent(
+                new RequestApprovedEvent(RequestResponse.from(RequestMapper.toDomain(saved))));
+        return new DeskRequestResponse(saved.getId(), desk.getId(), FloorPlanDeskState.MINE, saved.getStatus());
     }
 
     /**

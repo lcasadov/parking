@@ -35,9 +35,23 @@ export async function listMyRequests(params: RequestListParams = {}): Promise<Pa
   return data;
 }
 
+// Serializa el cuerpo de creacion omitiendo los campos indefinidos: la solicitud
+// de PUESTO con puesto elegido incluye `resourceId`; la de PLAZA (o de PUESTO sin
+// elegir) no lo incluye (retrocompatibilidad, tasks §3.1).
+function buildCreateBody(body: RequestCreateRequest): RequestCreateRequest {
+  const payload: RequestCreateRequest = { requestedDate: body.requestedDate };
+  if (body.resourceType !== undefined) {
+    payload.resourceType = body.resourceType;
+  }
+  if (body.resourceId !== undefined) {
+    payload.resourceId = body.resourceId;
+  }
+  return payload;
+}
+
 // POST /requests (EMPLOYEE): crea una solicitud en estado PENDING.
 export async function createRequest(body: RequestCreateRequest): Promise<Request> {
-  const { data } = await apiClient.post<Request>(REQUESTS, body);
+  const { data } = await apiClient.post<Request>(REQUESTS, buildCreateBody(body));
   return data;
 }
 

@@ -496,6 +496,11 @@ export const es = {
       resourceDesk: 'Puesto de oficina',
       submit: 'Enviar solicitud',
       cancel: 'Cancelar',
+      chooseDesk: 'Seleccionar puesto',
+      changeDesk: 'Cambiar puesto',
+      removeDesk: 'Quitar',
+      chosenDesk: 'Puesto elegido: {{number}}',
+      chooseDeskDateHint: 'Elige primero una fecha dentro de la ventana para seleccionar un puesto.',
       requiredDate: 'Selecciona una fecha.',
       requiredResource: 'Selecciona al menos un recurso (plaza o puesto).',
       outsideWindow: 'La fecha debe estar entre hoy y los próximos 14 días.',
@@ -760,6 +765,7 @@ export const es = {
     unplacedHint: 'Estos puestos aún no están colocados en el plano.',
     deskNumber: 'Puesto {{number}}',
     markerLabel: 'Puesto {{number}} — {{state}}',
+    markerLabelSelected: 'Puesto {{number}} — {{state}} (seleccionado)',
     legendLabel: 'Leyenda de estados',
     legendExecutive: 'Dirección',
     states: {
@@ -801,6 +807,12 @@ export const es = {
       title: 'Disponibles para solicitar',
       empty: 'No hay puestos libres para esta fecha.',
       request: 'Solicitar',
+    },
+    select: {
+      title: 'Seleccionar puesto',
+      hint: 'Pincha un puesto libre para elegirlo. No se creará la solicitud hasta que la envíes.',
+      confirmation: 'Puesto {{number}} seleccionado',
+      close: 'Cerrar',
     },
   },
   availability: {

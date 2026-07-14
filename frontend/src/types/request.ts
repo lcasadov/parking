@@ -34,6 +34,10 @@ export interface Request {
 export interface RequestCreateRequest {
   requestedDate: string;
   resourceType?: ResourceType;
+  // Puesto concreto elegido en el plano (solo DESK). En modo AUTOMATIC el backend
+  // auto-aprueba ese puesto; en MANUAL lo ignora. Opcional: sin puesto elegido la
+  // solicitud se envia sin `resourceId` (retrocompatibilidad con el flujo actual).
+  resourceId?: number;
 }
 
 // RequestApproveRequest: schema #/components/schemas/RequestApproveRequest.

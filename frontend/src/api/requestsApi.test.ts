@@ -52,6 +52,35 @@ describe('requestsApi', () => {
     expect(result.status).toBe('PENDING');
   });
 
+  it('should_include_resourceId_when_desk_request_has_chosen_desk', async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${MSW_BASE}/requests`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(requestPending1, { status: 201 });
+      }),
+    );
+
+    await createRequest({ requestedDate: '2026-07-10', resourceType: 'DESK', resourceId: 42 });
+
+    expect(body).toEqual({ requestedDate: '2026-07-10', resourceType: 'DESK', resourceId: 42 });
+  });
+
+  it('should_omit_resourceId_when_parking_request_has_no_chosen_desk', async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${MSW_BASE}/requests`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(requestPending1, { status: 201 });
+      }),
+    );
+
+    await createRequest({ requestedDate: '2026-07-10', resourceType: 'PARKING' });
+
+    expect(body).toEqual({ requestedDate: '2026-07-10', resourceType: 'PARKING' });
+    expect(body).not.toHaveProperty('resourceId');
+  });
+
   it('should_request_pending_page_when_listPendingRequests_called', async () => {
     const page = await listPendingRequests({ page: 0, size: 20 });
     expect(Array.isArray(page.content)).toBe(true);

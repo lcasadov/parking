@@ -105,6 +105,11 @@ public abstract class BaseIntegrationTest {
                 "UPDATE dbo.employees SET failed_login_attempts = 0, locked_until = NULL, "
                         + "active = 1 WHERE login = ?",
                 SEED_ADMIN_LOGIN);
+        // El modo de aprobacion global es un singleton persistente: se restaura al defecto MANUAL
+        // para que ningun IT herede el AUTOMATIC de otro segun el orden (change request-desk-selection).
+        baseJdbcTemplate.update(
+                "UPDATE dbo.system_settings SET approval_mode = 'MANUAL', updated_by_id = NULL, "
+                        + "updated_at = NULL WHERE id = 1");
         // El limitador de exportaciones mantiene estado por usuario en memoria: se vacia entre
         // tests para que el conteo de un IT no filtre a otro segun el orden (issue #29 / exports).
         exportRateLimiter.reset();

@@ -223,6 +223,56 @@ class FloorPlanIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }
 
+    @Test
+    void shouldCreatePendingRequest_whenClickingAFreeDeskInManualMode() throws Exception {
+        // Arrange: modo por defecto MANUAL (garantizado por resetDomainState)
+        long deskId = insertDesk(45, "STANDARD", 7, 7);
+
+        // Act / Assert: la solicitud nace PENDING (status en el cuerpo)
+        requestDesk(empASession, deskId, WITHIN)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.state").value("MINE"))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+        assertThat(approvedDeskRequests(deskId, WITHIN)).isZero();
+    }
+
+    @Test
+    void shouldAutoApproveDesk_whenClickingAFreeDeskInAutomaticMode() throws Exception {
+        // Arrange: conmutar el modo global a AUTOMATIC
+        setApprovalMode("AUTOMATIC");
+        long deskId = insertDesk(46, "STANDARD", 8, 8);
+
+        // Act / Assert: el puesto pinchado se auto-aprueba (nace APPROVED con el puesto asignado)
+        requestDesk(empASession, deskId, WITHIN)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.deskId").value(deskId))
+                .andExpect(jsonPath("$.state").value("MINE"))
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+        // Existe una unica solicitud DESK APPROVED de A para ese puesto/fecha, sin resolutor humano
+        assertThat(approvedDeskRequests(deskId, WITHIN)).isEqualTo(1);
+        assertThat(pendingDeskRequests(deskId, WITHIN)).isZero();
+        // El plano lo marca MINE para A (lo tiene asignado)
+        String body = getFloorPlan(empASession, WITHIN).andReturn().getResponse().getContentAsString();
+        assertThat(deskNode(body, deskId).get(STATE).asText()).isEqualTo("MINE");
+    }
+
+    @Test
+    void shouldReturn409ForSecondAutoApproval_whenTwoEmployeesClickSameDeskInAutomaticMode() throws Exception {
+        // Arrange: modo AUTOMATIC; A auto-aprueba primero el puesto libre (gana)
+        setApprovalMode("AUTOMATIC");
+        long deskId = insertDesk(47, "STANDARD", 9, 9);
+        requestDesk(empASession, deskId, WITHIN)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        // Act / Assert: B pincha el mismo puesto -> 409 (ya asignado; la 2a auto-aprobacion no procede)
+        requestDesk(empBSession, deskId, WITHIN)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("SPACE_NOT_AVAILABLE"));
+        // Solo la solicitud de A sobrevive APPROVED para ese puesto/fecha (indice unico filtrado)
+        assertThat(approvedDeskRequests(deskId, WITHIN)).isEqualTo(1);
+    }
+
     // ---- Requirement 3: edicion de posiciones ----
 
     @Test
@@ -361,6 +411,19 @@ class FloorPlanIT extends BaseIntegrationTest {
                         + "AND resource_type = 'DESK' AND status = 'PENDING'",
                 Integer.class, deskId, Date.valueOf(date));
         return value == null ? 0 : value;
+    }
+
+    private int approvedDeskRequests(long deskId, LocalDate date) {
+        Integer value = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM dbo.requests WHERE resource_id = ? AND requested_date = ? "
+                        + "AND resource_type = 'DESK' AND status = 'APPROVED' AND resolved_by_id IS NULL",
+                Integer.class, deskId, Date.valueOf(date));
+        return value == null ? 0 : value;
+    }
+
+    private void setApprovalMode(String mode) {
+        jdbcTemplate.update(
+                "UPDATE dbo.system_settings SET approval_mode = ? WHERE id = 1", mode);
     }
 
     private java.math.BigDecimal coordX(long deskId) {

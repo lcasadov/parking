@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -16,6 +17,7 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.floorplan.FloorPlanDeskState;
 import com.aleatica.parking.floorplan.dto.DeskRequestResponse;
+import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
@@ -24,6 +26,8 @@ import com.aleatica.parking.request.application.DuplicatePendingRequestException
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.resource.ResourceType;
+import com.aleatica.parking.systemsettings.application.SystemSettingsService;
+import com.aleatica.parking.systemsettings.domain.ApprovalMode;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,6 +36,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 /**
@@ -53,6 +58,7 @@ class FloorPlanCommandServiceTest {
     private RequestJpaRepository requestRepository;
     private EmployeeRepository employeeRepository;
     private AvailabilityService availabilityService;
+    private SystemSettingsService systemSettingsService;
     private ApplicationEventPublisher eventPublisher;
     private ClockPort clock;
 
@@ -64,16 +70,94 @@ class FloorPlanCommandServiceTest {
         requestRepository = mock(RequestJpaRepository.class);
         employeeRepository = mock(EmployeeRepository.class);
         availabilityService = mock(AvailabilityService.class);
+        systemSettingsService = mock(SystemSettingsService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
         clock = mock(ClockPort.class);
         given(clock.now()).willReturn(NOW);
+        // Modo por defecto MANUAL (retrocompatible); los tests de AUTOMATIC lo sobreescriben.
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
         service = new FloorPlanCommandService(deskRepository, requestRepository,
-                employeeRepository, availabilityService, eventPublisher, clock);
+                employeeRepository, availabilityService, systemSettingsService, eventPublisher, clock);
     }
 
     @Test
-    void shouldCreatePendingRequestAndReturnMine_whenDeskIsFree() {
+    void shouldCreatePendingRequestAndReturnMine_whenDeskIsFreeInManualMode() {
         // Arrange
+        stubFreeRequestableDesk();
+        RequestEntity saved = mock(RequestEntity.class);
+        given(saved.getId()).willReturn(128L);
+        given(saved.getStatus()).willReturn(RequestStatus.PENDING);
+        given(requestRepository.saveAndFlush(any(RequestEntity.class))).willReturn(saved);
+
+        // Act
+        DeskRequestResponse response = service.requestDesk(LOGIN, DESK_ID, WITHIN);
+
+        // Assert: nace PENDING con evento de creacion (comportamiento clasico intacto)
+        assertThat(response.requestId()).isEqualTo(128L);
+        assertThat(response.deskId()).isEqualTo(DESK_ID);
+        assertThat(response.state()).isEqualTo(FloorPlanDeskState.MINE);
+        assertThat(response.status()).isEqualTo(RequestStatus.PENDING);
+
+        ArgumentCaptor<RequestEntity> captor = forClass(RequestEntity.class);
+        verify(requestRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(RequestStatus.PENDING);
+        assertThat(captor.getValue().getResourceId()).isEqualTo(DESK_ID);
+        verify(eventPublisher).publishEvent(any(RequestCreatedEvent.class));
+        verify(eventPublisher, never()).publishEvent(any(RequestApprovedEvent.class));
+    }
+
+    @Test
+    void shouldAutoApproveDeskAndReturnApproved_whenDeskIsFreeInAutomaticMode() {
+        // Arrange: modo AUTOMATIC + puesto libre y solicitable
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        stubFreeRequestableDesk();
+        RequestEntity saved = mock(RequestEntity.class);
+        given(saved.getId()).willReturn(200L);
+        given(saved.getStatus()).willReturn(RequestStatus.APPROVED);
+        given(requestRepository.saveAndFlush(any(RequestEntity.class))).willReturn(saved);
+
+        // Act
+        DeskRequestResponse response = service.requestDesk(LOGIN, DESK_ID, WITHIN);
+
+        // Assert: el puesto pinchado se auto-aprueba (nace APPROVED, actor null, nota "auto")
+        assertThat(response.requestId()).isEqualTo(200L);
+        assertThat(response.deskId()).isEqualTo(DESK_ID);
+        assertThat(response.state()).isEqualTo(FloorPlanDeskState.MINE);
+        assertThat(response.status()).isEqualTo(RequestStatus.APPROVED);
+
+        ArgumentCaptor<RequestEntity> captor = forClass(RequestEntity.class);
+        verify(requestRepository).saveAndFlush(captor.capture());
+        RequestEntity persisted = captor.getValue();
+        assertThat(persisted.getStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(persisted.getResourceId()).isEqualTo(DESK_ID);
+        assertThat(persisted.getResolvedById()).isNull();
+        assertThat(persisted.getApprovalNote()).isEqualTo("auto");
+        assertThat(persisted.getResolvedAt()).isEqualTo(NOW);
+        // Mismo evento y semantica que RequestService.autoApprove (paridad)
+        verify(eventPublisher).publishEvent(any(RequestApprovedEvent.class));
+        verify(eventPublisher, never()).publishEvent(any(RequestCreatedEvent.class));
+    }
+
+    @Test
+    void shouldThrowUnavailableAndNotPersist_whenDeskTakenInAutomaticMode() {
+        // Arrange: la disponibilidad se valida igual en ambos modos (antes de ramificar)
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        stubEmployee();
+        stubActiveDesk();
+        given(availabilityService.isSpaceTakenForDate(DESK_ID, ResourceType.DESK, WITHIN))
+                .willReturn(true);
+
+        // Act / Assert
+        assertThatThrownBy(() -> service.requestDesk(LOGIN, DESK_ID, WITHIN))
+                .isInstanceOf(SpaceUnavailableException.class);
+        verify(requestRepository, never()).saveAndFlush(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void shouldThrowDuplicatePendingAndNotPersist_whenEmployeeHasPendingInAutomaticMode() {
+        // Arrange: el no-duplicado se valida igual en ambos modos (antes de ramificar)
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
         stubEmployee();
         stubActiveDesk();
         given(availabilityService.isSpaceTakenForDate(DESK_ID, ResourceType.DESK, WITHIN))
@@ -81,20 +165,13 @@ class FloorPlanCommandServiceTest {
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 DESK_ID, ResourceType.DESK, WITHIN, RequestStatus.PENDING)).willReturn(false);
         given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
-                EMPLOYEE_ID, ResourceType.DESK, WITHIN, RequestStatus.PENDING)).willReturn(false);
-        RequestEntity saved = mock(RequestEntity.class);
-        given(saved.getId()).willReturn(128L);
-        given(requestRepository.saveAndFlush(any(RequestEntity.class))).willReturn(saved);
+                EMPLOYEE_ID, ResourceType.DESK, WITHIN, RequestStatus.PENDING)).willReturn(true);
 
-        // Act
-        DeskRequestResponse response = service.requestDesk(LOGIN, DESK_ID, WITHIN);
-
-        // Assert
-        assertThat(response.requestId()).isEqualTo(128L);
-        assertThat(response.deskId()).isEqualTo(DESK_ID);
-        assertThat(response.state()).isEqualTo(FloorPlanDeskState.MINE);
-        verify(requestRepository).saveAndFlush(any(RequestEntity.class));
-        verify(eventPublisher).publishEvent(any(RequestCreatedEvent.class));
+        // Act / Assert
+        assertThatThrownBy(() -> service.requestDesk(LOGIN, DESK_ID, WITHIN))
+                .isInstanceOf(DuplicatePendingRequestException.class);
+        verify(requestRepository, never()).saveAndFlush(any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -203,6 +280,18 @@ class FloorPlanCommandServiceTest {
         assertThatThrownBy(() -> service.updatePosition(DESK_ID, BigDecimal.ONE, BigDecimal.TEN))
                 .isInstanceOf(EntityNotFoundException.class);
         verify(deskRepository, never()).save(any());
+    }
+
+    /** Puesto libre, activo y solicitable por el empleado (sin ocupacion ni duplicado pendiente). */
+    private void stubFreeRequestableDesk() {
+        stubEmployee();
+        stubActiveDesk();
+        given(availabilityService.isSpaceTakenForDate(DESK_ID, ResourceType.DESK, WITHIN))
+                .willReturn(false);
+        given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
+                DESK_ID, ResourceType.DESK, WITHIN, RequestStatus.PENDING)).willReturn(false);
+        given(requestRepository.existsByEmployeeIdAndResourceTypeAndRequestedDateAndStatus(
+                EMPLOYEE_ID, ResourceType.DESK, WITHIN, RequestStatus.PENDING)).willReturn(false);
     }
 
     private void stubEmployee() {

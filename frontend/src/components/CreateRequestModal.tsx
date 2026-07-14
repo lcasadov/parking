@@ -2,12 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Modal } from './Modal';
+import { DeskPickerModal, type PickedDesk } from './DeskPickerModal';
 import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getApiError, getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRequest } from '../hooks/useRequests';
 import { isWithinWindow, maxRequestDateIso, todayIso } from '../utils/requests';
-import type { Request, ResourceType } from '../types/request';
+import type { Request, RequestCreateRequest, ResourceType } from '../types/request';
 
 interface CreateRequestModalProps {
   onClose: () => void;
@@ -50,8 +51,28 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
   const [date, setDate] = useState('');
   const [parkingSelected, setParkingSelected] = useState(true);
   const [deskSelected, setDeskSelected] = useState(false);
+  const [selectedDesk, setSelectedDesk] = useState<PickedDesk | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const createMutation = useCreateRequest();
+
+  // El selector solo tiene sentido con una fecha valida dentro de la ventana: usa
+  // esa fecha para colorear la disponibilidad de los puestos.
+  const canPickDesk = date !== '' && isWithinWindow(date);
+
+  // Al desmarcar PUESTO se descarta el puesto elegido para no enviar un resourceId
+  // obsoleto (el envio de plaza nunca lleva resourceId).
+  function handleDeskToggle(checked: boolean): void {
+    setDeskSelected(checked);
+    if (!checked) {
+      setSelectedDesk(null);
+    }
+  }
+
+  function handleDeskPicked(desk: PickedDesk): void {
+    setSelectedDesk(desk);
+    setPickerOpen(false);
+  }
 
   function selectedResources(): ResourceType[] {
     const resources: ResourceType[] = [];
@@ -77,6 +98,16 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
     return null;
   }
 
+  // Cuerpo del POST /requests por recurso: la solicitud de PUESTO con puesto
+  // elegido incluye `resourceId`; la de PLAZA (o de puesto sin elegir) no.
+  function buildBody(resourceType: ResourceType): RequestCreateRequest {
+    const body: RequestCreateRequest = { requestedDate: date, resourceType };
+    if (resourceType === 'DESK' && selectedDesk) {
+      body.resourceId = selectedDesk.deskId;
+    }
+    return body;
+  }
+
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     const resources = selectedResources();
@@ -88,9 +119,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
     setError(null);
     try {
       const created = await Promise.all(
-        resources.map((resourceType) =>
-          createMutation.mutateAsync({ requestedDate: date, resourceType }),
-        ),
+        resources.map((resourceType) => createMutation.mutateAsync(buildBody(resourceType))),
       );
       emitApiErrorToast(successToastKey(created));
       onCreated();
@@ -116,6 +145,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
   );
 
   return (
+    <>
     <Modal title={t('requests.create.title')} onClose={onClose} footer={footer}>
       <form id="create-request-form" onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="create-request-date">
@@ -148,12 +178,42 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
             <input
               type="checkbox"
               checked={deskSelected}
-              onChange={(event) => setDeskSelected(event.target.checked)}
+              onChange={(event) => handleDeskToggle(event.target.checked)}
             />
             <i className="ti ti-armchair" aria-hidden="true" />
             {t('requests.create.resourceDesk')}
           </label>
           <ResourceAvailabilityBanner date={date} resourceType="DESK" />
+
+          {deskSelected ? (
+            <div className="desk-pick">
+              {selectedDesk ? (
+                <p className="desk-pick-chosen">
+                  {t('requests.create.chosenDesk', { number: selectedDesk.deskNumber })}
+                </p>
+              ) : null}
+              <div className="desk-pick-actions">
+                <Button
+                  variant="white"
+                  icon="map-pin"
+                  disabled={!canPickDesk}
+                  onClick={() => setPickerOpen(true)}
+                >
+                  {selectedDesk
+                    ? t('requests.create.changeDesk')
+                    : t('requests.create.chooseDesk')}
+                </Button>
+                {selectedDesk ? (
+                  <Button variant="white" icon="x" onClick={() => setSelectedDesk(null)}>
+                    {t('requests.create.removeDesk')}
+                  </Button>
+                ) : null}
+              </div>
+              {canPickDesk ? null : (
+                <p className="hint">{t('requests.create.chooseDeskDateHint')}</p>
+              )}
+            </div>
+          ) : null}
         </fieldset>
 
         {error ? (
@@ -163,5 +223,13 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
         ) : null}
       </form>
     </Modal>
+    {pickerOpen ? (
+      <DeskPickerModal
+        date={date}
+        onPick={handleDeskPicked}
+        onClose={() => setPickerOpen(false)}
+      />
+    ) : null}
+    </>
   );
 }
