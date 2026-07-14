@@ -6,6 +6,7 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.Role;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.support.EmployeeTestFactory;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -60,19 +61,64 @@ class EmailContentRendererTest {
         assertThat(message.htmlBody()).contains(String.valueOf(REQUEST_ID));
     }
 
+    private static final EmailAttachment FLOOR_PLAN =
+            new EmailAttachment("floor-plan.png", "image/png", new byte[] {1, 2, 3});
+
     @Test
-    void shouldCarryApprovalNoteInBody_whenRenderingRequestApproved() {
+    void shouldRenderFormalApprovalWithParkingNumberFloorAndPlan_whenRenderingRequestApproved() {
         // Arrange
         Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
         String approvalNote = "Plaza asignada junto al ascensor";
         RequestResponse request = approvedRequest(approvalNote);
+        ResolvedResource resolved = new ResolvedResource(ResourceType.PARKING, 3005, 3);
 
         // Act
-        EmailMessage message = renderer.renderRequestApproved(employee, request);
+        EmailMessage message = renderer.renderRequestApproved(employee, request, resolved, FLOOR_PLAN);
 
-        // Assert: el cuerpo incluye la nota del administrador (spec §aprobacion)
+        // Assert: saludo formal con nombre+apellidos, aprobacion, numero+planta, nota y adjunto
         assertThat(message.to()).isEqualTo(EMP_EMAIL);
-        assertThat(message.htmlBody()).contains(approvalNote);
+        assertThat(message.htmlBody())
+                .contains("Estimado/a Sr./Sra. Test User")
+                .contains("APROBADA")
+                .contains("plaza n")
+                .contains("3005")
+                .contains("planta")
+                .contains(approvalNote);
+        // NO muestra el requestId como referencia del recurso
+        assertThat(message.htmlBody()).doesNotContain(String.valueOf(REQUEST_ID));
+        assertThat(message.attachments()).containsExactly(FLOOR_PLAN);
+    }
+
+    @Test
+    void shouldRenderDeskNumberWithoutFloor_whenRenderingRequestApprovedForDesk() {
+        // Arrange
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = approvedRequest(null);
+        ResolvedResource resolved = new ResolvedResource(ResourceType.DESK, 12, null);
+
+        // Act
+        EmailMessage message = renderer.renderRequestApproved(employee, request, resolved, FLOOR_PLAN);
+
+        // Assert: puesto por numero, sin planta
+        assertThat(message.htmlBody())
+                .contains("puesto n")
+                .contains("12")
+                .doesNotContain("en la planta");
+        assertThat(message.attachments()).containsExactly(FLOOR_PLAN);
+    }
+
+    @Test
+    void shouldRenderWithoutAttachmentOrNumber_whenResourceNotResolved() {
+        // Arrange: recurso no localizado (resolved null) y plano no cargado (floorPlan null)
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = approvedRequest(null);
+
+        // Act
+        EmailMessage message = renderer.renderRequestApproved(employee, request, null, null);
+
+        // Assert: se degrada sin numero ni adjunto, conservando la comunicacion de aprobacion
+        assertThat(message.htmlBody()).contains("APROBADA");
+        assertThat(message.attachments()).isEmpty();
     }
 
     @Test

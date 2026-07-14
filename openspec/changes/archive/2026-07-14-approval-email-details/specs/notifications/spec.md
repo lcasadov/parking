@@ -1,8 +1,5 @@
-# notifications Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change init-notifications. Update Purpose after archive.
-## Requirements
 ### Requirement: Envío de email tras evento confirmado (AFTER_COMMIT)
 **El sistema DEBE (MUST) enviar el email correspondiente a cada evento de dominio una vez confirmada (`AFTER_COMMIT`) la transacción que lo origina, usando la plantilla Thymeleaf y los destinatarios definidos, y NO debe enviarlo si la transacción se revierte. El correo de aprobación al empleado DEBE usar un tono formal, identificar el recurso asignado por su NÚMERO real (no por referencia/id interno) y su planta cuando aplique, y adjuntar el plano de la planta.**
 
@@ -44,38 +41,7 @@ TBD - created by archiving change init-notifications. Update Purpose after archi
 - **THEN** el sistema NO envía ningún email
 - **AND** no registra intento de envío para ese evento
 
-### Requirement: Resiliencia ante fallo SMTP con reintento programado
-**El sistema DEBE (MUST), cuando el envío SMTP falla, registrar el fallo en log y encolar el email para reintento mediante un job programado, sin revertir nunca la operación funcional ya confirmada.**
-
-#### Scenario: Fallo SMTP no revierte la operación funcional
-- **GIVEN** una `Request` ya pasada a `APPROVED` con commit confirmado
-- **WHEN** el servidor SMTP rechaza o no responde al enviar `request-approved.html`
-- **THEN** el sistema registra el fallo en log y deja el email pendiente de reintento
-- **AND** la `Request` permanece `APPROVED` (la operación funcional NO se revierte)
-
-#### Scenario: Job programado reintenta los emails fallidos
-- **GIVEN** uno o más emails marcados como fallidos pendientes de reintento
-- **WHEN** se ejecuta el job programado de reintento de notificaciones
-- **THEN** el sistema reintenta el envío SMTP de cada email pendiente
-- **AND** marca como enviado el que tiene éxito y conserva pendiente el que vuelve a fallar
-
-### Requirement: Exclusiones de notificación
-**El sistema DEBE (MUST) NO enviar email en los eventos excluidos: liberación voluntaria de recurso, cancelación de la propia solicitud por el empleado, y reservas/eventos de visitante.**
-
-#### Scenario: Liberación voluntaria no genera email
-- **GIVEN** un `Employee` con asignación fija que libera voluntariamente su recurso para una fecha (`Release` de tipo `VOLUNTARY`)
-- **WHEN** se confirma la transacción de creación del `Release`
-- **THEN** el sistema NO envía ningún email
-
-#### Scenario: Cancelación de la propia solicitud no genera email
-- **GIVEN** un `Employee` con una `Request` en estado `PENDING`
-- **WHEN** el empleado cancela su propia solicitud (`Request` pasa a `CANCELLED`)
-- **THEN** el sistema NO envía ningún email
-
-#### Scenario: Revocación de asignación fija sí notifica al empleado afectado
-- **GIVEN** un admin que revoca una `FixedAssignment` (`active = false`, `revoked_*`)
-- **WHEN** se confirma (`AFTER_COMMIT`) la transacción de revocación
-- **THEN** el sistema envía el email `assignment-revoked.html` al `Employee` afectado
+## ADDED Requirements
 
 ### Requirement: Soporte de adjuntos binarios en el envío de email
 **El sistema DEBE (MUST) permitir que un `EmailMessage` transporte cero o más adjuntos binarios (nombre de fichero, tipo MIME y contenido) y el adaptador SMTP DEBE enviarlos como un mensaje MIME multipart, sin alterar el envío de los correos que no llevan adjunto.**
@@ -97,4 +63,3 @@ TBD - created by archiving change init-notifications. Update Purpose after archi
 - **WHEN** el asset del plano no puede cargarse o el envío del adjunto falla
 - **THEN** el sistema registra el fallo en log y encola el email para reintento (o envía sin adjunto según la política de resiliencia), sin revertir nunca la aprobación
 - **AND** la `Request` permanece `APPROVED`
-

@@ -2,6 +2,7 @@ package com.aleatica.parking.notification.application;
 
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.request.dto.RequestResponse;
+import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.ITemplateEngine;
@@ -34,11 +35,16 @@ public class EmailContentRenderer {
     private static final String SUBJECT_PASSWORD_RESET = "Tu contrasena temporal de parking";
 
     private static final String VAR_RECIPIENT_NAME = "recipientName";
+    private static final String VAR_RECIPIENT_FULL_NAME = "recipientFullName";
     private static final String VAR_REQUEST_ID = "requestId";
     private static final String VAR_REQUESTED_DATE = "requestedDate";
     private static final String VAR_APPROVAL_NOTE = "approvalNote";
     private static final String VAR_REJECTION_REASON = "rejectionReason";
     private static final String VAR_TEMPORARY_PASSWORD = "temporaryPassword";
+    private static final String VAR_RESOURCE_TYPE = "resourceType";
+    private static final String VAR_RESOURCE_NUMBER = "resourceNumber";
+    private static final String VAR_FLOOR = "floor";
+    private static final String VAR_FLOOR_PLAN_ATTACHED = "floorPlanAttached";
 
     private final ITemplateEngine templateEngine;
 
@@ -64,19 +70,34 @@ public class EmailContentRenderer {
     }
 
     /**
-     * Renderiza el email de "solicitud aprobada" dirigido al empleado solicitante, con la
-     * nota del administrador.
+     * Renderiza el email formal de "solicitud aprobada" dirigido al empleado solicitante:
+     * saludo con nombre y apellidos, comunicacion de APROBADA, el NUMERO real del recurso
+     * asignado (plaza + planta o puesto), la nota del administrador si existe, y el plano de
+     * la planta como adjunto. No muestra el {@code requestId} como referencia del recurso.
      *
-     * @param employee empleado solicitante destinatario
-     * @param request  solicitud aprobada (con {@code approvalNote})
-     * @return el mensaje renderizado
+     * <p>Degrada con elegancia: si {@code resolved} es {@code null} (recurso no localizado) se
+     * omite el bloque del numero; si {@code floorPlan} es {@code null} se envia sin adjunto.</p>
+     *
+     * @param employee  empleado solicitante destinatario
+     * @param request   solicitud aprobada (con {@code approvalNote})
+     * @param resolved  recurso resuelto a su numero/planta; {@code null} si no se localizo
+     * @param floorPlan adjunto del plano de la planta; {@code null} si no se pudo cargar
+     * @return el mensaje renderizado (con el adjunto si {@code floorPlan} no es {@code null})
      */
-    public EmailMessage renderRequestApproved(Employee employee, RequestResponse request) {
+    public EmailMessage renderRequestApproved(
+            Employee employee, RequestResponse request,
+            ResolvedResource resolved, EmailAttachment floorPlan) {
         Context ctx = baseContext(employee);
-        ctx.setVariable(VAR_REQUEST_ID, request.id());
-        ctx.setVariable(VAR_REQUESTED_DATE, request.requestedDate());
+        ctx.setVariable(VAR_RECIPIENT_FULL_NAME, fullName(employee));
         ctx.setVariable(VAR_APPROVAL_NOTE, request.approvalNote());
-        return render(employee, SUBJECT_REQUEST_APPROVED, TEMPLATE_REQUEST_APPROVED, ctx);
+        ctx.setVariable(VAR_FLOOR_PLAN_ATTACHED, floorPlan != null);
+        if (resolved != null) {
+            ctx.setVariable(VAR_RESOURCE_TYPE, resolved.type().name());
+            ctx.setVariable(VAR_RESOURCE_NUMBER, resolved.number());
+            ctx.setVariable(VAR_FLOOR, resolved.floor());
+        }
+        EmailMessage message = render(employee, SUBJECT_REQUEST_APPROVED, TEMPLATE_REQUEST_APPROVED, ctx);
+        return floorPlan == null ? message : message.withAttachments(List.of(floorPlan));
     }
 
     /**
@@ -123,6 +144,10 @@ public class EmailContentRenderer {
         Context ctx = new Context(LOCALE_ES);
         ctx.setVariable(VAR_RECIPIENT_NAME, recipient.getFirstName());
         return ctx;
+    }
+
+    private static String fullName(Employee employee) {
+        return employee.getFirstName() + " " + employee.getLastName();
     }
 
     private EmailMessage render(Employee recipient, String subject, String template, Context ctx) {

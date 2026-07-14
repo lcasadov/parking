@@ -1,11 +1,13 @@
 package com.aleatica.parking.notification.infrastructure;
 
+import com.aleatica.parking.notification.application.EmailAttachment;
 import com.aleatica.parking.notification.application.EmailDeliveryException;
 import com.aleatica.parking.notification.application.EmailMessage;
 import com.aleatica.parking.notification.application.EmailSenderPort;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -44,11 +46,16 @@ public class SmtpEmailSender implements EmailSenderPort {
     public void send(EmailMessage message) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, CHARSET_UTF8);
+            boolean multipart = !message.attachments().isEmpty();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, multipart, CHARSET_UTF8);
             helper.setFrom(fromAddress);
             helper.setTo(message.to());
             helper.setSubject(message.subject());
             helper.setText(message.htmlBody(), true);
+            for (EmailAttachment attachment : message.attachments()) {
+                helper.addAttachment(attachment.filename(),
+                        new ByteArrayResource(attachment.content()), attachment.contentType());
+            }
             mailSender.send(mimeMessage);
         } catch (MessagingException | MailException ex) {
             throw new EmailDeliveryException(MSG_DELIVERY_FAILED, ex);
