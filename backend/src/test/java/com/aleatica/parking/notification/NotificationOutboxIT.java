@@ -232,6 +232,29 @@ class NotificationOutboxIT extends BaseIntegrationTest {
         verify(emailSenderPort, never()).send(any());
     }
 
+    // ---- cancel-approved-request: cancelar una APROBADA avisa a los admins con el recurso liberado ----
+
+    @Test
+    void shouldNotifyActiveAdminsWithReleasedResource_whenApprovedRequestCancelled() throws Exception {
+        // Arrange: solicitud APPROVED del empleado con una plaza asignada (recurso reservado)
+        long requestId = insertApprovedRequest(empId, WITHIN, spaceId);
+        List<String> activeAdminEmails = activeAdminEmails();
+        int spaceNumber = spaceNumber(spaceId);
+
+        // Act: el empleado cancela su solicitud aprobada -> libera el recurso y avisa a los admins
+        mockMvc.perform(post(REQUESTS_URL + "/" + requestId + "/cancel").cookie(empSession))
+                .andExpect(status().isOk());
+
+        // Assert: un aviso por admin activo, con el numero real de la plaza liberada en el cuerpo
+        ArgumentCaptor<EmailMessage> captor = ArgumentCaptor.forClass(EmailMessage.class);
+        verify(emailSenderPort, times(activeAdminEmails.size())).send(captor.capture());
+        List<EmailMessage> messages = captor.getAllValues();
+        assertThat(messages).extracting(EmailMessage::to)
+                .containsExactlyInAnyOrderElementsOf(activeAdminEmails);
+        assertThat(messages).allSatisfy(message ->
+                assertThat(message.htmlBody()).contains(String.valueOf(spaceNumber)));
+    }
+
     // ---- 2.10(c): las reservas de visitante no notifican ----
 
     @Test
@@ -320,6 +343,26 @@ class NotificationOutboxIT extends BaseIntegrationTest {
                         + "AND status = ? ORDER BY id DESC",
                 Long.class, employeeId, Date.valueOf(date), status);
         return id == null ? 0L : id;
+    }
+
+    private long insertApprovedRequest(long employeeId, LocalDate date, long resourceId) {
+        jdbcTemplate.update(
+                "INSERT INTO dbo.requests (employee_id, requested_date, status, resource_id, "
+                        + "resource_type, approval_note, resolved_by_id, resolved_at, created_at) "
+                        + "VALUES (?, ?, 'APPROVED', ?, 'PARKING', 'auto', ?, ?, ?)",
+                employeeId, Date.valueOf(date), resourceId, adminId(),
+                Timestamp.from(Instant.now()), Timestamp.from(Instant.now()));
+        Long id = jdbcTemplate.queryForObject(
+                "SELECT TOP 1 id FROM dbo.requests WHERE employee_id = ? AND requested_date = ? "
+                        + "AND status = 'APPROVED' ORDER BY id DESC",
+                Long.class, employeeId, Date.valueOf(date));
+        return id == null ? 0L : id;
+    }
+
+    private int spaceNumber(long id) {
+        Integer number = jdbcTemplate.queryForObject(
+                "SELECT number FROM dbo.parking_spaces WHERE id = ?", Integer.class, id);
+        return number == null ? 0 : number;
     }
 
     private void insertFixedAssignment(long space, long employeeId, int dayOfWeek) {

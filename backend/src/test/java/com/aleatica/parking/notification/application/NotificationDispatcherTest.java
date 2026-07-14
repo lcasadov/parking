@@ -84,6 +84,39 @@ class NotificationDispatcherTest {
     }
 
     @Test
+    void shouldDispatchOneCommandPerActiveAdmin_whenRequestCancelled() {
+        // Arrange: la query ya filtra active = true (excluye admins inactivos por construccion)
+        Employee admin1 = EmployeeTestFactory.active(1L, "admin1", "a1@aleatica.com", null, Role.ADMIN);
+        Employee admin2 = EmployeeTestFactory.active(2L, "admin2", "a2@aleatica.com", null, Role.ADMIN);
+        given(employeeRepository.findByRoleAndActiveTrue(Role.ADMIN)).willReturn(List.of(admin1, admin2));
+        RequestResponse request = approvedParking();
+
+        // Act
+        dispatcher().requestCancelled(request);
+
+        // Assert: una orden REQUEST_CANCELLED por admin activo, con su id de destinatario
+        List<NotificationCommand> commands = captureCommands(2);
+        assertThat(commands).allSatisfy(command -> {
+            assertThat(command.eventType()).isEqualTo(NotificationEventType.REQUEST_CANCELLED);
+            assertThat(command.request()).isEqualTo(request);
+        });
+        assertThat(commands).extracting(NotificationCommand::recipientEmployeeId)
+                .containsExactlyInAnyOrder(1L, 2L);
+    }
+
+    @Test
+    void shouldDispatchNothing_whenNoActiveAdminsExistOnRequestCancelled() {
+        // Arrange: no hay admins activos
+        given(employeeRepository.findByRoleAndActiveTrue(Role.ADMIN)).willReturn(List.of());
+
+        // Act
+        dispatcher().requestCancelled(approvedParking());
+
+        // Assert: el flujo no falla y no se emite ninguna orden
+        verify(deliveryService, never()).dispatch(any());
+    }
+
+    @Test
     void shouldDispatchApprovedCommandToRequester_whenRequestApproved() {
         // Arrange
         RequestResponse request = approvedParking();

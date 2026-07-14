@@ -9,6 +9,7 @@ import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import com.aleatica.parking.parkingspace.ParkingSpace;
@@ -396,6 +397,11 @@ public class RequestService {
      * solicitud en estado terminal ({@code REJECTED}/{@code CANCELLED}), que responden 409. El
      * "hoy" se deriva del mismo reloj y zona ({@code ZoneOffset.UTC}) que la ventana de creacion.
      *
+     * <p>Cuando el estado previo era {@code APPROVED} (se libera recurso) se publica un
+     * {@link RequestCancelledEvent} para avisar {@code AFTER_COMMIT} a los administradores activos
+     * (change {@code cancel-notice-and-auto-note}); cancelar una {@code PENDING} no publica el
+     * aviso (no reservaba recurso). Un fallo del correo no revierte la cancelacion (best-effort).</p>
+     *
      * @param id             identificador de la solicitud
      * @param requesterLogin login del empleado (principal de la sesion)
      * @return la solicitud cancelada (DTO)
@@ -418,6 +424,9 @@ public class RequestService {
         RequestResponse response = RequestResponse.from(requestRepository.save(request));
         if (releasesResource) {
             recordRelease(employeeId, response);
+            // Solo la cancelacion de una APPROVED libera recurso y avisa a los admins (design §D2);
+            // AFTER_COMMIT garantiza que el aviso solo sale si el commit de la cancelacion tiene exito.
+            eventPublisher.publishEvent(new RequestCancelledEvent(response));
         }
         return response;
     }

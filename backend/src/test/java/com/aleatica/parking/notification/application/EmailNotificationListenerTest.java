@@ -4,6 +4,7 @@ import static org.mockito.Mockito.verify;
 
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import com.aleatica.parking.request.domain.RequestStatus;
@@ -51,6 +52,12 @@ class EmailNotificationListenerTest {
     void shouldRouteToRequestRejected_whenRequestRejectedEvent() {
         listener().onRequestRejected(new RequestRejectedEvent(REQUEST));
         verify(dispatcher).requestRejected(REQUEST);
+    }
+
+    @Test
+    void shouldRouteToRequestCancelled_whenRequestCancelledEvent() {
+        listener().onRequestCancelled(new RequestCancelledEvent(REQUEST));
+        verify(dispatcher).requestCancelled(REQUEST);
     }
 
     @Test

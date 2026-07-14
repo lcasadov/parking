@@ -87,6 +87,7 @@ public class NotificationRenderer {
             case REQUEST_CREATED -> renderer.renderRequestCreated(employee, request);
             case REQUEST_APPROVED -> renderApproved(employee, request);
             case REQUEST_REJECTED -> renderer.renderRequestRejected(employee, request);
+            case REQUEST_CANCELLED -> renderCancelled(employee, request);
             case ASSIGNMENT_REVOKED -> renderer.renderAssignmentRevoked(employee);
         };
     }
@@ -95,6 +96,19 @@ public class NotificationRenderer {
         ResolvedResource resolved = resolveResource(request);
         EmailAttachment floorPlan = loadFloorPlan().orElse(null);
         return renderer.renderRequestApproved(employee, request, resolved, floorPlan);
+    }
+
+    /**
+     * Renderiza el aviso de cancelacion dirigido a un administrador ({@code employee} es el admin
+     * destinatario). El NOMBRE que aparece en el cuerpo es el del empleado SOLICITANTE, resuelto
+     * por separado via {@code request.employeeId()}; degrada a {@code null} si el solicitante ya no
+     * existe (borrado), sin romper el envio (manejo seguro de {@code Optional}, S3655/S2259). El
+     * numero del recurso liberado se resuelve igual que en el correo de aprobacion.
+     */
+    private EmailMessage renderCancelled(Employee admin, RequestResponse request) {
+        Employee requester = employeeRepository.findById(request.employeeId()).orElse(null);
+        ResolvedResource resolved = resolveResource(request);
+        return renderer.renderRequestCancelled(admin, request, requester, resolved);
     }
 
     /**

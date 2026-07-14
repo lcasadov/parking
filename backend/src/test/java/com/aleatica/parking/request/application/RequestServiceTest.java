@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -17,6 +18,7 @@ import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import com.aleatica.parking.request.domain.RejectionReasonCode;
@@ -263,6 +265,39 @@ class RequestServiceTest {
 
         // Assert
         verifyNoInteractions(auditRecorder);
+    }
+
+    @Test
+    void shouldPublishCancelledEvent_whenCancellingApprovedFutureRequest() {
+        // Arrange: APPROVED propia con fecha futura -> al cancelar se libera recurso y se avisa
+        Request approved = pending();
+        approved.approve(SPACE_ID, ADMIN_ID, "auto", NOW);
+        requestRepository.seed(approved);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        newService().cancel(REQUEST_ID, EMP_LOGIN);
+
+        // Assert: se publica exactamente un RequestCancelledEvent con la solicitud cancelada
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue()).isInstanceOfSatisfying(RequestCancelledEvent.class,
+                event -> {
+                    assertThat(event.request().id()).isEqualTo(REQUEST_ID);
+                    assertThat(event.request().status()).isEqualTo(RequestStatus.CANCELLED);
+                });
+    }
+
+    @Test
+    void shouldNotPublishCancelledEvent_whenCancellingPending() {
+        // Arrange: cancelar una PENDING no libera recurso -> no se avisa a los admins
+        requestRepository.seed(pending());
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        newService().cancel(REQUEST_ID, EMP_LOGIN);
+
+        // Assert: no se publica ningun evento de cancelacion
+        verify(eventPublisher, never()).publishEvent(any(RequestCancelledEvent.class));
     }
 
     @Test

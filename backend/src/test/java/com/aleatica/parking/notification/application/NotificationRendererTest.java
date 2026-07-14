@@ -147,6 +147,50 @@ class NotificationRendererTest {
     }
 
     @Test
+    void shouldResolveRequesterAndReleasedResource_whenCommandIsRequestCancelled() {
+        // Arrange: el destinatario es el admin, pero el cuerpo nombra al solicitante (employeeId)
+        Employee admin = EmployeeTestFactory.active(1L, "admin", "admin@aleatica.com", null, Role.ADMIN);
+        Employee requester = EmployeeTestFactory.active(EMP_ID, "emp", "emp@aleatica.com", null, Role.EMPLOYEE);
+        given(employeeRepository.findById(1L)).willReturn(Optional.of(admin));
+        given(employeeRepository.findById(EMP_ID)).willReturn(Optional.of(requester));
+        given(parkingSpaceRepository.findById(PARKING_RESOURCE_ID))
+                .willReturn(Optional.of(ParkingSpace.create(3005)));
+        given(renderer.renderRequestCancelled(any(), any(), any(), any())).willReturn(RENDERED);
+
+        // Act: la orden va dirigida al admin (destinatario = 1L), la solicitud es del empleado 15
+        Optional<EmailMessage> message = notificationRenderer().render(
+                new NotificationCommand(NotificationEventType.REQUEST_CANCELLED, 1L, approvedParking()));
+
+        // Assert: se pasa el admin como destinatario, el solicitante como nombre y el recurso liberado
+        assertThat(message).contains(RENDERED);
+        ArgumentCaptor<ResolvedResource> resolvedCaptor = ArgumentCaptor.forClass(ResolvedResource.class);
+        verify(renderer).renderRequestCancelled(eq(admin), any(), eq(requester), resolvedCaptor.capture());
+        ResolvedResource resolved = resolvedCaptor.getValue();
+        assertThat(resolved.type()).isEqualTo(ResourceType.PARKING);
+        assertThat(resolved.number()).isEqualTo(3005);
+        assertThat(resolved.floor()).isEqualTo(3);
+    }
+
+    @Test
+    void shouldDegradeWithNullRequester_whenRequesterNotFoundOnCancelled() {
+        // Arrange: el solicitante ya no existe (borrado); no debe romper el envio
+        Employee admin = EmployeeTestFactory.active(1L, "admin", "admin@aleatica.com", null, Role.ADMIN);
+        given(employeeRepository.findById(1L)).willReturn(Optional.of(admin));
+        given(employeeRepository.findById(EMP_ID)).willReturn(Optional.empty());
+        given(parkingSpaceRepository.findById(PARKING_RESOURCE_ID))
+                .willReturn(Optional.of(ParkingSpace.create(3005)));
+        given(renderer.renderRequestCancelled(any(), any(), isNull(), any())).willReturn(RENDERED);
+
+        // Act
+        Optional<EmailMessage> message = notificationRenderer().render(
+                new NotificationCommand(NotificationEventType.REQUEST_CANCELLED, 1L, approvedParking()));
+
+        // Assert: renderiza con solicitante null (degradacion), sin lanzar excepcion
+        assertThat(message).contains(RENDERED);
+        verify(renderer).renderRequestCancelled(eq(admin), any(), isNull(), any());
+    }
+
+    @Test
     void shouldRenderAssignmentRevoked_whenCommandIsAssignmentRevoked() {
         // Arrange
         Employee employee = employee();

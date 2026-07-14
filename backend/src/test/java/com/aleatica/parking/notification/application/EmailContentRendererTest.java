@@ -122,6 +122,167 @@ class EmailContentRendererTest {
     }
 
     @Test
+    void shouldNameParkingInSubject_whenApprovingParkingRequest() {
+        // Arrange: recurso PARKING -> el asunto debe decir "plaza"
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = approvedRequest("Nota real del admin");
+        ResolvedResource resolved = new ResolvedResource(ResourceType.PARKING, 3005, 3);
+
+        // Act
+        EmailMessage message = renderer.renderRequestApproved(employee, request, resolved, FLOOR_PLAN);
+
+        // Assert
+        assertThat(message.subject()).isEqualTo("Tu solicitud de plaza ha sido aprobada");
+    }
+
+    @Test
+    void shouldNameDeskInSubject_whenApprovingDeskRequest() {
+        // Arrange: recurso DESK -> el asunto debe decir "puesto" (no "plaza")
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = approvedDeskRequest();
+        ResolvedResource resolved = new ResolvedResource(ResourceType.DESK, 12, null);
+
+        // Act
+        EmailMessage message = renderer.renderRequestApproved(employee, request, resolved, FLOOR_PLAN);
+
+        // Assert
+        assertThat(message.subject()).isEqualTo("Tu solicitud de puesto ha sido aprobada");
+    }
+
+    @Test
+    void shouldNameParkingInSubject_whenRejectingParkingRequest() {
+        // Arrange: rechazo de un recurso PARKING
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = rejectedRequest("No hay plazas");
+
+        // Act
+        EmailMessage message = renderer.renderRequestRejected(employee, request);
+
+        // Assert
+        assertThat(message.subject()).isEqualTo("Tu solicitud de plaza ha sido rechazada");
+    }
+
+    @Test
+    void shouldNameDeskInSubject_whenRejectingDeskRequest() {
+        // Arrange: rechazo de un recurso DESK -> el asunto debe decir "puesto"
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = rejectedDeskRequest("No hay puestos");
+
+        // Act
+        EmailMessage message = renderer.renderRequestRejected(employee, request);
+
+        // Assert
+        assertThat(message.subject()).isEqualTo("Tu solicitud de puesto ha sido rechazada");
+    }
+
+    @Test
+    void shouldNameDeskInSubject_whenCancellingDeskRequest() {
+        // Arrange: aviso al admin de la cancelacion de una solicitud DESK aprobada
+        Employee admin = EmployeeTestFactory.active(1L, "admin", ADMIN_EMAIL, null, Role.ADMIN);
+        Employee requester = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = cancelledDeskRequest();
+        ResolvedResource resolved = new ResolvedResource(ResourceType.DESK, 12, null);
+
+        // Act
+        EmailMessage message = renderer.renderRequestCancelled(admin, request, requester, resolved);
+
+        // Assert
+        assertThat(message.subject())
+                .isEqualTo("Un empleado ha cancelado una solicitud de puesto aprobada (recurso liberado)");
+    }
+
+    @Test
+    void shouldHideAdminNoteLine_whenApprovalNoteIsAutoApproval() {
+        // Arrange: auto-aprobacion -> nota interna "auto", que NO debe mostrarse
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = approvedRequest(
+                com.aleatica.parking.request.domain.Request.AUTO_APPROVAL_NOTE);
+        ResolvedResource resolved = new ResolvedResource(ResourceType.PARKING, 3005, 3);
+
+        // Act
+        EmailMessage message = renderer.renderRequestApproved(employee, request, resolved, FLOOR_PLAN);
+
+        // Assert: se comunica la aprobacion y el numero, pero sin la linea de nota del administrador
+        assertThat(message.htmlBody())
+                .contains("APROBADA")
+                .contains("3005")
+                .doesNotContain("Nota del administrador");
+    }
+
+    @Test
+    void shouldShowAdminNoteLine_whenApprovalNoteIsRealAdminNote() {
+        // Arrange: aprobacion manual con nota real de admin -> debe mostrarse
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        String realNote = "Plaza asignada junto al ascensor";
+        RequestResponse request = approvedRequest(realNote);
+        ResolvedResource resolved = new ResolvedResource(ResourceType.PARKING, 3005, 3);
+
+        // Act
+        EmailMessage message = renderer.renderRequestApproved(employee, request, resolved, FLOOR_PLAN);
+
+        // Assert
+        assertThat(message.htmlBody())
+                .contains("Nota del administrador")
+                .contains(realNote);
+    }
+
+    @Test
+    void shouldNameRequesterAndReleasedParking_whenRenderingRequestCancelled() {
+        // Arrange: aviso al admin de que el solicitante cancelo su solicitud aprobada de una plaza
+        Employee admin = EmployeeTestFactory.active(1L, "admin", ADMIN_EMAIL, null, Role.ADMIN);
+        Employee requester = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = cancelledRequest();
+        ResolvedResource resolved = new ResolvedResource(ResourceType.PARKING, 3005, 3);
+
+        // Act
+        EmailMessage message = renderer.renderRequestCancelled(admin, request, requester, resolved);
+
+        // Assert: dirigido al admin, nombra al solicitante y la plaza liberada con su numero y planta
+        assertThat(message.to()).isEqualTo(ADMIN_EMAIL);
+        assertThat(message.htmlBody())
+                .contains("Test User")
+                .contains("plaza n")
+                .contains("3005")
+                .contains("planta")
+                .contains("liberado");
+    }
+
+    @Test
+    void shouldReleaseDeskWithoutFloor_whenRenderingRequestCancelledForDesk() {
+        // Arrange: recurso liberado de tipo puesto (sin planta)
+        Employee admin = EmployeeTestFactory.active(1L, "admin", ADMIN_EMAIL, null, Role.ADMIN);
+        Employee requester = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = cancelledRequest();
+        ResolvedResource resolved = new ResolvedResource(ResourceType.DESK, 12, null);
+
+        // Act
+        EmailMessage message = renderer.renderRequestCancelled(admin, request, requester, resolved);
+
+        // Assert
+        assertThat(message.htmlBody())
+                .contains("puesto n")
+                .contains("12")
+                .doesNotContain("en la planta");
+    }
+
+    @Test
+    void shouldDegradeWithoutRequesterName_whenRequesterMissingOnCancelled() {
+        // Arrange: solicitante ya borrado (requester null) -> el correo se envia sin su nombre
+        Employee admin = EmployeeTestFactory.active(1L, "admin", ADMIN_EMAIL, null, Role.ADMIN);
+        RequestResponse request = cancelledRequest();
+        ResolvedResource resolved = new ResolvedResource(ResourceType.PARKING, 3005, 3);
+
+        // Act
+        EmailMessage message = renderer.renderRequestCancelled(admin, request, null, resolved);
+
+        // Assert: se avisa de la liberacion sin romper, aunque sin nombre del solicitante
+        assertThat(message.htmlBody())
+                .contains("un empleado")
+                .contains("3005")
+                .contains("liberado");
+    }
+
+    @Test
     void shouldCarryRejectionReasonInBody_whenRenderingRequestRejected() {
         // Arrange
         Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
@@ -156,6 +317,28 @@ class EmailContentRendererTest {
     private RequestResponse approvedRequest(String approvalNote) {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.APPROVED,
                 SPACE_ID, approvalNote, null, null, 1L, NOW, NOW, com.aleatica.parking.resource.ResourceType.PARKING, null, null);
+    }
+
+    private RequestResponse cancelledRequest() {
+        return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.CANCELLED,
+                SPACE_ID, null, null, null, 1L, NOW, NOW,
+                com.aleatica.parking.resource.ResourceType.PARKING, null, null);
+    }
+
+    private RequestResponse cancelledDeskRequest() {
+        return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.CANCELLED,
+                SPACE_ID, null, null, null, 1L, NOW, NOW, ResourceType.DESK, null, null);
+    }
+
+    private RequestResponse approvedDeskRequest() {
+        return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.APPROVED,
+                SPACE_ID, null, null, null, 1L, NOW, NOW, ResourceType.DESK, null, null);
+    }
+
+    private RequestResponse rejectedDeskRequest(String reason) {
+        return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.REJECTED,
+                null, null, com.aleatica.parking.request.domain.RejectionReasonCode.NO_AVAILABILITY,
+                reason, 1L, NOW, NOW, ResourceType.DESK, null, null);
     }
 
     private RequestResponse rejectedRequest(String reason) {

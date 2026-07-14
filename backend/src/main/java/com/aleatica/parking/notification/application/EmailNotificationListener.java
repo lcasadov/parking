@@ -2,6 +2,7 @@ package com.aleatica.parking.notification.application;
 
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import org.springframework.stereotype.Component;
@@ -53,6 +54,14 @@ public class EmailNotificationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRequestRejected(RequestRejectedEvent event) {
         dispatcher.requestRejected(event.request());
+    }
+
+    /**
+     * @param event evento de cancelacion de una solicitud aprobada (recurso liberado)
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRequestCancelled(RequestCancelledEvent event) {
+        dispatcher.requestCancelled(event.request());
     }
 
     /**

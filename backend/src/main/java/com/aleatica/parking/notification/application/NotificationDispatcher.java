@@ -51,6 +51,21 @@ public class NotificationDispatcher {
     }
 
     /**
+     * Notifica a todos los administradores activos que un empleado ha cancelado una solicitud
+     * {@code APPROVED} (recurso liberado). Emite una orden {@code REQUEST_CANCELLED} por cada
+     * {@code Employee} con {@code role = ADMIN} y {@code active = true}; si no hay ninguno no se
+     * emite ninguna orden (el flujo no falla), igual que {@link #requestCreated(RequestResponse)}.
+     *
+     * @param request solicitud cancelada (estado previo {@code APPROVED})
+     */
+    public void requestCancelled(RequestResponse request) {
+        for (Employee admin : employeeRepository.findByRoleAndActiveTrue(Role.ADMIN)) {
+            deliveryService.dispatch(
+                    new NotificationCommand(NotificationEventType.REQUEST_CANCELLED, admin.getId(), request));
+        }
+    }
+
+    /**
      * Notifica la aprobacion de una solicitud a su empleado solicitante (con tono formal, el
      * numero real del recurso, la nota del admin y el plano adjunto, resueltos al renderizar).
      * Cubre por igual la aprobacion manual y la auto-aprobacion (ambas emiten

@@ -26,6 +26,12 @@ public enum NotificationEventType {
     /** Solicitud rechazada; se notifica al empleado solicitante con el motivo. */
     REQUEST_REJECTED,
 
+    /**
+     * Solicitud {@code APPROVED} cancelada por el empleado (recurso liberado); se notifica a cada
+     * administrador activo. La cancelacion de una {@code PENDING} no genera este evento.
+     */
+    REQUEST_CANCELLED,
+
     /** Asignacion fija revocada; se notifica al empleado afectado. */
     ASSIGNMENT_REVOKED
 }
