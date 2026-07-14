@@ -15,6 +15,7 @@ export const ROUTES = {
   adminAvailability: '/admin/availability',
   adminAudit: '/admin/audit',
   adminLoginLogs: '/admin/login-logs',
+  adminSettings: '/admin/settings',
   employee: '/employee',
   employeeFixedAssignments: '/employee/fixed-assignments',
   employeeRequests: '/employee/requests',

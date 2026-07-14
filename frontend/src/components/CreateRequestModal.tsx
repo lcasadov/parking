@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
-import { getStatus } from '../api/apiError';
+import { getApiError, getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRequest } from '../hooks/useRequests';
 import { isWithinWindow, maxRequestDateIso, todayIso } from '../utils/requests';
-import type { ResourceType } from '../types/request';
+import type { Request, ResourceType } from '../types/request';
 
 interface CreateRequestModalProps {
   onClose: () => void;
@@ -16,18 +16,30 @@ interface CreateRequestModalProps {
 
 const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
+const NO_AVAILABILITY = 'NO_AVAILABILITY';
 
-// Traduce el error del servidor (400 ventana / 409 duplicado) a la clave i18n del
-// toast correspondiente (tasks §4.4).
+// Traduce el error del servidor a la clave i18n del toast (tasks §4.4 y §6.4).
+// El 409 distingue entre solicitud duplicada y NO_AVAILABILITY (modo automatico sin
+// plaza libre para la fecha).
 function toastKeyForError(error: unknown): string {
   const status = getStatus(error);
   if (status === HTTP_CONFLICT) {
-    return 'requests.errors.duplicate';
+    return getApiError(error)?.error === NO_AVAILABILITY
+      ? 'requests.errors.noAvailability'
+      : 'requests.errors.duplicate';
   }
   if (status === HTTP_BAD_REQUEST) {
     return 'requests.errors.window';
   }
   return 'requests.errors.generic';
+}
+
+// Clave i18n del toast de exito: en modo automatico la solicitud nace APPROVED
+// (asignacion inmediata); en modo manual queda PENDING (tasks §6.4).
+function successToastKey(created: Request[]): string {
+  return created.some((request) => request.status === 'APPROVED')
+    ? 'requests.mine.createdApproved'
+    : 'requests.mine.created';
 }
 
 // Modal EMPLOYEE: solicitud unificada. Para una misma fecha (ventana hoy..hoy+14)
@@ -75,11 +87,12 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
     }
     setError(null);
     try {
-      await Promise.all(
+      const created = await Promise.all(
         resources.map((resourceType) =>
           createMutation.mutateAsync({ requestedDate: date, resourceType }),
         ),
       );
+      emitApiErrorToast(successToastKey(created));
       onCreated();
     } catch (mutationError) {
       emitApiErrorToast(toastKeyForError(mutationError));

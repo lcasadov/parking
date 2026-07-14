@@ -373,6 +373,20 @@ export const handlers = [
   http.get(`${BASE}/audit`, () => HttpResponse.json(defaultAuditPage)),
 
   http.get(`${BASE}/login-logs`, () => HttpResponse.json(defaultLoginLogPage)),
+
+  // ---- System settings (defaults; cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/admin/settings`, () =>
+    HttpResponse.json({ approvalMode: 'MANUAL', updatedById: null, updatedAt: null }),
+  ),
+
+  http.put(`${BASE}/admin/settings`, async ({ request }) => {
+    const body = (await request.json()) as { approvalMode: string };
+    return HttpResponse.json({
+      approvalMode: body.approvalMode,
+      updatedById: 1,
+      updatedAt: '2026-03-02T10:00:00Z',
+    });
+  }),
 ];
 
 export { BASE as MSW_BASE };
