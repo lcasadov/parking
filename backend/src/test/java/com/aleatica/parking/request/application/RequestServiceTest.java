@@ -581,8 +581,61 @@ class RequestServiceTest {
         assertThat(result.resourceNumber()).isNull();
     }
 
+    // ---- Listado admin por estado (aprobadas / rechazadas / todas) ----
+
+    @Test
+    void shouldListOnlyApproved_whenAdminListsByApprovedStatus() {
+        // Arrange: una APPROVED, una PENDING y una REJECTED en el store
+        requestRepository.seed(approvedWithResource(601L, ResourceType.PARKING, SPACE_ID));
+        requestRepository.seed(pendingWithId(602L, EMP_ID, WITHIN));
+        requestRepository.seed(rejectedWithId(603L));
+        lenient().when(resourceResolvers.resolveAll(any(), eq(ResourceType.PARKING))).thenReturn(Map.of());
+
+        // Act / Assert: solo la solicitud APPROVED
+        assertThat(newService().listByStatus(RequestStatus.APPROVED, Pageable.unpaged()).content())
+                .singleElement()
+                .satisfies(r -> assertThat(r.status()).isEqualTo(RequestStatus.APPROVED));
+    }
+
+    @Test
+    void shouldListAllStatuses_whenAdminListsWithoutStatusFilter() {
+        // Arrange: tres solicitudes de estados distintos
+        requestRepository.seed(approvedWithResource(601L, ResourceType.PARKING, SPACE_ID));
+        requestRepository.seed(pendingWithId(602L, EMP_ID, WITHIN));
+        requestRepository.seed(rejectedWithId(603L));
+        lenient().when(resourceResolvers.resolveAll(any(), eq(ResourceType.PARKING))).thenReturn(Map.of());
+
+        // Act / Assert: status nulo devuelve todas
+        assertThat(newService().listByStatus(null, Pageable.unpaged()).content()).hasSize(3);
+    }
+
+    @Test
+    void shouldExposeApprovedResourceNumber_whenAdminListsApproved() {
+        // Arrange: la APPROVED (recurso interno 8) es la plaza 3005 planta 3
+        requestRepository.seed(approvedWithResource(601L, ResourceType.PARKING, SPACE_ID));
+        BookableResource space = mock(BookableResource.class);
+        given(space.getNumber()).willReturn(3005);
+        given(space.getFloor()).willReturn(3);
+        lenient().when(resourceResolvers.resolveAll(any(), eq(ResourceType.PARKING)))
+                .thenReturn(Map.of(SPACE_ID, space));
+
+        // Act
+        RequestResponse result = newService()
+                .listByStatus(RequestStatus.APPROVED, Pageable.unpaged()).content().get(0);
+
+        // Assert: numero humano de la plaza (3005) y planta, no el id interno (8)
+        assertThat(result.resourceNumber()).isEqualTo(3005);
+        assertThat(result.floor()).isEqualTo(3);
+    }
+
     private Request pending() {
         return pendingWithId(REQUEST_ID, EMP_ID, WITHIN);
+    }
+
+    private static Request rejectedWithId(Long id) {
+        return Request.restore(
+                id, EMP_ID, WITHIN, RequestStatus.REJECTED, null, ResourceType.PARKING,
+                null, RejectionReasonCode.NO_AVAILABILITY, null, ADMIN_ID, NOW, NOW);
     }
 
     private static Request approvedWithResource(Long id, ResourceType type, Long resourceId) {
@@ -685,6 +738,21 @@ class RequestServiceTest {
             return new PageImpl<>(store.values().stream()
                     .filter(r -> status == r.getStatus())
                     .sorted(Comparator.comparing(Request::getCreatedAt))
+                    .collect(java.util.stream.Collectors.toList()));
+        }
+
+        @Override
+        public Page<Request> findByStatusOrderByCreatedAtDesc(RequestStatus status, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> status == r.getStatus())
+                    .sorted(Comparator.comparing(Request::getCreatedAt).reversed())
+                    .collect(java.util.stream.Collectors.toList()));
+        }
+
+        @Override
+        public Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .sorted(Comparator.comparing(Request::getCreatedAt).reversed())
                     .collect(java.util.stream.Collectors.toList()));
         }
     }

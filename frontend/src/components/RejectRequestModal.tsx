@@ -11,10 +11,17 @@ import { REJECTION_FREE_TEXT_MIN, REJECTION_REASON_CODES } from '../utils/reques
 import type { Employee } from '../types/employee';
 import type { RejectionReasonCode, Request, ResourceType } from '../types/request';
 
+// Modo del modal: rechazo clásico de una PENDING, o cancelación (por el ADMIN) de una
+// solicitud APPROVED para liberar el recurso. Ambos usan el mismo endpoint reject en el
+// backend (una APPROVED que pasa a REJECTED libera la plaza/puesto), pero cambian la copia.
+type RejectMode = 'reject' | 'cancel';
+
 interface RejectRequestModalProps {
   request: Request;
   // Empleado solicitante (contexto del banner); opcional si no está en el lookup.
   employee?: Employee;
+  // 'reject' (por defecto) rechaza una PENDING; 'cancel' cancela una APPROVED liberando el recurso.
+  mode?: RejectMode;
   onClose: () => void;
   onRejected: () => void;
 }
@@ -35,6 +42,7 @@ function toastKeyForError(error: unknown): string {
 export function RejectRequestModal({
   request,
   employee,
+  mode = 'reject',
   onClose,
   onRejected,
 }: RejectRequestModalProps) {
@@ -44,6 +52,8 @@ export function RejectRequestModal({
   const [error, setError] = useState<string | null>(null);
   const rejectMutation = useRejectRequest();
 
+  const isCancel = mode === 'cancel';
+  const copyKey = isCancel ? 'requests.cancelApproved' : 'requests.reject';
   const requiresDetail = reasonCode === 'OTHER';
   const resourceType: ResourceType = request.resourceType ?? 'PARKING';
   const employeeName = employee
@@ -90,14 +100,14 @@ export function RejectRequestModal({
         {t('requests.reject.cancel')}
       </Button>
       <Button variant="red" icon="x" submit form={FORM_ID} disabled={rejectMutation.isPending}>
-        {t('requests.reject.submit')}
+        {t(`${copyKey}.submit`)}
       </Button>
     </>
   );
 
   return (
     <Modal
-      title={t('requests.reject.title')}
+      title={t(`${copyKey}.title`)}
       icon="alert-triangle"
       onClose={onClose}
       variant="red"
@@ -105,7 +115,7 @@ export function RejectRequestModal({
       footer={footer}
     >
       <InfoBanner variant="red">
-        {t('requests.reject.intro', {
+        {t(`${copyKey}.intro`, {
           resource: t(`requests.resourceType.${resourceType}`).toLowerCase(),
           name: employeeName,
           date: longDate(request.requestedDate, i18n.language),
@@ -151,7 +161,7 @@ export function RejectRequestModal({
       </form>
 
       <InfoBanner variant="blue" icon="mail">
-        {t('requests.reject.emailNotice')}
+        {t(`${copyKey}.emailNotice`)}
       </InfoBanner>
     </Modal>
   );

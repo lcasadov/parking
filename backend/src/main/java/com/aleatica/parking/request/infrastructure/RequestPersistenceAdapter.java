@@ -74,4 +74,15 @@ public class RequestPersistenceAdapter implements RequestRepositoryPort {
         return jpaRepository.findByStatusOrderByCreatedAtAsc(status, pageable)
                 .map(RequestMapper::toDomain);
     }
+
+    @Override
+    public Page<Request> findByStatusOrderByCreatedAtDesc(RequestStatus status, Pageable pageable) {
+        return jpaRepository.findByStatusOrderByCreatedAtDesc(status, pageable)
+                .map(RequestMapper::toDomain);
+    }
+
+    @Override
+    public Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable) {
+        return jpaRepository.findAllByOrderByCreatedAtDesc(pageable).map(RequestMapper::toDomain);
+    }
 }

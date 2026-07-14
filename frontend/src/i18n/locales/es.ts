@@ -481,17 +481,18 @@ export const es = {
         label: 'Buscar empleado',
         placeholder: 'Buscar empleado…',
       },
-      resolvedUnavailable:
-        'La consulta de solicitudes resueltas no está disponible en esta vista. Usa la exportación para revisar el histórico.',
+      emptyByStatus: 'No hay solicitudes en este estado.',
       columns: {
         employee: 'Empleado',
         resource: 'Recurso',
         date: 'Fecha',
         created: 'Solicitada',
+        status: 'Estado',
         actions: 'Acciones',
       },
       approve: 'Aprobar',
       reject: 'Rechazar',
+      cancel: 'Cancelar',
     },
     create: {
       title: 'Nueva solicitud',
@@ -563,6 +564,13 @@ export const es = {
       intro:
         'Estás a punto de rechazar la solicitud de {{resource}} de {{name}} para el {{date}}.',
       emailNotice: 'El empleado recibirá un email con el motivo del rechazo.',
+    },
+    cancelApproved: {
+      title: 'Cancelar solicitud aprobada',
+      submit: 'Confirmar cancelación',
+      intro:
+        'Vas a cancelar la solicitud aprobada de {{resource}} de {{name}} para el {{date}}. El recurso quedará libre.',
+      emailNotice: 'El empleado recibirá un email informándole de la cancelación.',
     },
     errors: {
       window: 'La fecha está fuera de la ventana permitida (hoy..hoy+14 días).',

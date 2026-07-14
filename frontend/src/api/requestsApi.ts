@@ -63,6 +63,15 @@ export async function listPendingRequests(params: RequestListParams = {}): Promi
   return data;
 }
 
+// GET /requests (ADMIN, paginado): solicitudes por estado (aprobadas / rechazadas / todas)
+// en orden de actividad reciente. `status` opcional: si se omite, devuelve todas.
+export async function listRequestsByStatus(params: RequestListParams = {}): Promise<PageRequest> {
+  const { data } = await apiClient.get<PageRequest>(REQUESTS, {
+    params: buildListParams(params),
+  });
+  return data;
+}
+
 // GET /requests/{id} (ADMIN): detalle de una solicitud.
 export async function getRequest(id: number): Promise<Request> {
   const { data } = await apiClient.get<Request>(`${REQUESTS}/${id}`);

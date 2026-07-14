@@ -89,11 +89,23 @@ class RequestControllerTest {
         mockMvc.perform(get(PENDING_URL)).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void shouldReturn401_whenListingByStatusWithoutSession() throws Exception {
+        mockMvc.perform(get(BASE_URL)).andExpect(status().isUnauthorized());
+    }
+
     // ---- 403 por rol ----
 
     @Test
     void shouldReturn403_whenEmployeeListsPending() throws Exception {
         mockMvc.perform(get(PENDING_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath(ERROR_PATH).value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldReturn403_whenEmployeeListsByStatus() throws Exception {
+        mockMvc.perform(get(BASE_URL).param("status", "APPROVED").with(user(EMP).roles(ROLE_EMPLOYEE)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath(ERROR_PATH).value("FORBIDDEN"));
     }
@@ -168,6 +180,30 @@ class RequestControllerTest {
         mockMvc.perform(get(PENDING_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].status").value("PENDING"));
+    }
+
+    @Test
+    void shouldReturn200_whenAdminListsByStatus() throws Exception {
+        // Arrange
+        given(requestService.listByStatus(eq(RequestStatus.APPROVED), any()))
+                .willReturn(new PageResponse<>(List.of(sample(RequestStatus.APPROVED)), 1, 1, 20, 0, true, true));
+
+        // Act / Assert
+        mockMvc.perform(get(BASE_URL).param("status", "APPROVED").with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].status").value("APPROVED"));
+    }
+
+    @Test
+    void shouldReturn200_whenAdminListsAllWithoutStatusFilter() throws Exception {
+        // Arrange: sin filtro de estado -> el servicio recibe status nulo
+        given(requestService.listByStatus(eq(null), any()))
+                .willReturn(new PageResponse<>(List.of(sample(RequestStatus.REJECTED)), 1, 1, 20, 0, true, true));
+
+        // Act / Assert
+        mockMvc.perform(get(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].status").value("REJECTED"));
     }
 
     @Test

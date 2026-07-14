@@ -12,6 +12,7 @@ import {
   requestPending1,
   requestPending2,
   requestPendingDesk,
+  requestRejected,
 } from '../mocks/requestFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 
@@ -27,6 +28,12 @@ async function openRejectModal(): Promise<void> {
   const buttons = await screen.findAllByRole('button', { name: /rechazar|reject/i });
   await user.click(buttons[0]);
   await screen.findByRole('dialog');
+}
+
+// Cambia a una pestaña por su etiqueta (Pendientes / Aprobadas / Rechazadas / Todas).
+async function selectTab(name: RegExp): Promise<void> {
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('tab', { name }));
 }
 
 describe('PendingRequestsPage (ADMIN)', () => {
@@ -234,6 +241,66 @@ describe('PendingRequestsPage (ADMIN)', () => {
     // Una fila de plaza y una de puesto: cada tipo visible como pill.
     expect(await screen.findByText(/^puesto$|^desk$/i)).toBeInTheDocument();
     expect(screen.getByText(/^plaza$|^space$/i)).toBeInTheDocument();
+  });
+
+  it('should_list_approved_and_offer_cancel_when_approved_tab_selected', async () => {
+    renderWithProviders(<PendingRequestsPage />);
+    // Espera a que cargue la pestaña de pendientes antes de cambiar.
+    await screen.findByText(requestPending1.requestedDate);
+
+    await selectTab(/aprobadas|approved/i);
+
+    // La aprobada aparece con su fecha y un botón "Cancelar" (no "Aprobar").
+    expect(await screen.findByText(requestApproved.requestedDate)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^cancelar$|^cancel$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /aprobar|approve/i })).not.toBeInTheDocument();
+  });
+
+  it('should_cancel_approved_via_reject_when_admin_cancels', async () => {
+    const user = userEvent.setup();
+    let rejectBody: unknown = null;
+    let rejectedId: string | undefined;
+    server.use(
+      http.post(`${MSW_BASE}/requests/:id/reject`, async ({ request, params }) => {
+        rejectBody = await request.json();
+        rejectedId = String(params.id);
+        return HttpResponse.json({ ...requestApproved, status: 'REJECTED' });
+      }),
+    );
+    renderWithProviders(<PendingRequestsPage />);
+    await screen.findByText(requestPending1.requestedDate);
+    await selectTab(/aprobadas|approved/i);
+
+    // Abre el modal de cancelación (reutiliza RejectRequestModal en modo cancel).
+    await user.click(await screen.findByRole('button', { name: /^cancelar$|^cancel$/i }));
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(
+      dialog.getByText(/cancelar solicitud aprobada|cancel approved request/i),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(
+      dialog.getByLabelText(/motivo del rechazo|rejection reason/i),
+      'OUTSIDE_POLICY',
+    );
+    await user.click(
+      dialog.getByRole('button', { name: /confirmar cancelación|confirm cancellation/i }),
+    );
+
+    // Llama a reject sobre la solicitud aprobada (libera el recurso) y cierra el modal.
+    await waitFor(() => expect(rejectBody).toEqual({ reasonCode: 'OUTSIDE_POLICY' }));
+    expect(rejectedId).toBe(String(requestApproved.id));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('should_list_all_statuses_when_all_tab_selected', async () => {
+    renderWithProviders(<PendingRequestsPage />);
+    await screen.findByText(requestPending1.requestedDate);
+
+    await selectTab(/^todas$|^all$/i);
+
+    // La pestaña "todas" muestra aprobadas y rechazadas (listado por estado sin filtro).
+    expect(await screen.findByText(requestApproved.requestedDate)).toBeInTheDocument();
+    expect(screen.getByText(requestRejected.requestedDate)).toBeInTheDocument();
   });
 
   it('should_offer_desks_and_approve_desk_request_when_request_is_desk', async () => {

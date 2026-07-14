@@ -91,4 +91,23 @@ public interface RequestRepositoryPort {
      * @return pagina de solicitudes de dominio ordenadas por {@code created_at ASC}
      */
     Page<Request> findByStatusOrderByCreatedAtAsc(RequestStatus status, Pageable pageable);
+
+    /**
+     * Pagina de solicitudes en un estado, en orden de actividad reciente por fecha de creacion
+     * descendente (listado admin por estado: aprobadas / rechazadas).
+     *
+     * @param status   estado por el que filtrar
+     * @param pageable pagina y tamano solicitados
+     * @return pagina de solicitudes de dominio ordenadas por {@code created_at DESC}
+     */
+    Page<Request> findByStatusOrderByCreatedAtDesc(RequestStatus status, Pageable pageable);
+
+    /**
+     * Pagina de todas las solicitudes (cualquier estado) en orden de actividad reciente por
+     * fecha de creacion descendente (listado admin de la pestana "todas").
+     *
+     * @param pageable pagina y tamano solicitados
+     * @return pagina de solicitudes de dominio ordenadas por {@code created_at DESC}
+     */
+    Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }
