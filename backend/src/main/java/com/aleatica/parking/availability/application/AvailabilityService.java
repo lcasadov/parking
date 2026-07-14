@@ -3,6 +3,7 @@ package com.aleatica.parking.availability.application;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.CalendarCellState;
 import com.aleatica.parking.availability.MyWeekDayState;
+import com.aleatica.parking.availability.OccupancyOrigin;
 import com.aleatica.parking.availability.dto.AdminWeeklyCalendarResponse;
 import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
 import com.aleatica.parking.availability.dto.AvailabilityResponse;
@@ -10,7 +11,10 @@ import com.aleatica.parking.availability.dto.CalendarCellResponse;
 import com.aleatica.parking.availability.dto.CalendarRowResponse;
 import com.aleatica.parking.availability.dto.MyWeekDayResponse;
 import com.aleatica.parking.availability.dto.MyWeekResponse;
+import com.aleatica.parking.availability.dto.OccupancyItemResponse;
+import com.aleatica.parking.availability.dto.OccupancyResponse;
 import com.aleatica.parking.desk.DeskRepository;
+import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
@@ -34,10 +38,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -373,6 +379,98 @@ public class AvailabilityService {
                     names.get(assignment.getEmployeeId()), null);
         }
         return new CalendarCellResponse(day, CalendarCellState.FREE, null, null, null);
+    }
+
+    // -------------------------------------------------------------------------
+    // Ocupacion por fecha (Liberar por fecha)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Construye la ocupacion de una fecha para el {@code ADMIN}: los recursos (plazas y puestos)
+     * OCUPADOS esa fecha, cada uno con su titular y el origen de la ocupacion. Solo devuelve los
+     * ocupados (los libres se omiten).
+     *
+     * <p>Aplica, generalizada a ambos {@link ResourceType}, la misma regla de precedencia que
+     * {@link #cell} del calendario admin: una solicitud {@code APPROVED} para la fecha prevalece
+     * sobre la asignacion fija; en ausencia de aquella, la asignacion fija vigente ese dia de la
+     * semana ocupa el recurso salvo que exista una liberacion para la fecha. La reserva de
+     * visitante no entra en esta vista (no es un recurso liberable administrativamente). Carga por
+     * rango (una consulta por entidad y tipo) y resuelve los numeros humanos en lote, sin N+1.</p>
+     *
+     * @param date fecha a consultar
+     * @return la ocupacion de la fecha (recursos ocupados, posiblemente vacia)
+     */
+    @Transactional(readOnly = true)
+    public OccupancyResponse occupancyForDate(LocalDate date) {
+        List<OccupancyItemResponse> items = Stream
+                .concat(occupancyForType(date, ResourceType.PARKING).stream(),
+                        occupancyForType(date, ResourceType.DESK).stream())
+                .toList();
+        return new OccupancyResponse(date, items);
+    }
+
+    private List<OccupancyItemResponse> occupancyForType(LocalDate date, ResourceType resourceType) {
+        List<BookableResource> resources = activeBookableResources(resourceType);
+        if (resources.isEmpty()) {
+            return List.of();
+        }
+        List<Long> resourceIds = resources.stream().map(BookableResource::getResourceId).toList();
+        int dow = date.getDayOfWeek().getValue();
+
+        List<FixedAssignmentEntity> fixedForDay = activeFixed(resourceIds, resourceType).stream()
+                .filter(fa -> fa.getDayOfWeek() == dow)
+                .toList();
+        Map<Long, FixedAssignmentEntity> fixedByResource = fixedForDay.stream()
+                .collect(Collectors.toMap(
+                        FixedAssignmentEntity::getResourceId, Function.identity(), (a, b) -> a));
+        Set<Long> released = spaceIds(
+                releaseRepository.findByResourceTypeAndReleaseDateBetween(resourceType, date, date),
+                ReleaseEntity::getResourceId);
+        List<RequestEntity> approved = requestRepository
+                .findByStatusAndResourceTypeAndRequestedDateBetween(
+                        RequestStatus.APPROVED, resourceType, date, date);
+        Map<Long, RequestEntity> approvedByResource = approved.stream()
+                .collect(Collectors.toMap(
+                        RequestEntity::getResourceId, Function.identity(), (a, b) -> a));
+        Map<Long, String> names = employeeNames(fixedForDay, approved);
+
+        return resources.stream()
+                .map(resource -> occupancyItem(
+                        resource, fixedByResource, released, approvedByResource, names))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private OccupancyItemResponse occupancyItem(
+            BookableResource resource, Map<Long, FixedAssignmentEntity> fixedByResource,
+            Set<Long> released, Map<Long, RequestEntity> approvedByResource, Map<Long, String> names) {
+        Long resourceId = resource.getResourceId();
+        RequestEntity approved = approvedByResource.get(resourceId);
+        if (approved != null) {
+            return occupancyItemOf(resource, OccupancyOrigin.REQUEST_APPROVED,
+                    approved.getEmployeeId(), names, approved.getId());
+        }
+        FixedAssignmentEntity assignment = fixedByResource.get(resourceId);
+        if (assignment != null && !released.contains(resourceId)) {
+            return occupancyItemOf(resource, OccupancyOrigin.FIXED_ASSIGNMENT,
+                    assignment.getEmployeeId(), names, null);
+        }
+        return null;
+    }
+
+    private static OccupancyItemResponse occupancyItemOf(
+            BookableResource resource, OccupancyOrigin origin, Long employeeId,
+            Map<Long, String> names, Long requestId) {
+        return new OccupancyItemResponse(
+                resource.getResourceType(), resource.getResourceId(), resource.getNumber(),
+                resource.getFloor(), employeeId, names.get(employeeId), origin, requestId);
+    }
+
+    private List<BookableResource> activeBookableResources(ResourceType resourceType) {
+        List<? extends BookableResource> resources = resourceType == ResourceType.DESK
+                ? deskRepository.findByActiveTrueOrderByNumberAsc()
+                : parkingSpaceRepository.findByActiveTrueOrderByIdAsc();
+        return List.copyOf(resources);
     }
 
     // -------------------------------------------------------------------------

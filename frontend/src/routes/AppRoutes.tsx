@@ -12,6 +12,7 @@ import { MyFixedAssignmentsPage } from '../pages/MyFixedAssignmentsPage';
 import { PendingRequestsPage } from '../pages/PendingRequestsPage';
 import { MyRequestsPage } from '../pages/MyRequestsPage';
 import { AdministrativeReleasesPage } from '../pages/AdministrativeReleasesPage';
+import { ReleaseByDatePage } from '../pages/ReleaseByDatePage';
 import { MyReleasesPage } from '../pages/MyReleasesPage';
 import { VisitorsPage } from '../pages/VisitorsPage';
 import { AdminCalendarPage } from '../pages/AdminCalendarPage';
@@ -50,6 +51,7 @@ export function AppRoutes() {
         <Route path="floor-plan" element={<FloorPlanPage />} />
         <Route path="requests" element={<PendingRequestsPage />} />
         <Route path="releases" element={<AdministrativeReleasesPage />} />
+        <Route path="release-by-date" element={<ReleaseByDatePage />} />
         <Route path="visitors" element={<VisitorsPage />} />
         <Route path="calendar" element={<AdminCalendarPage />} />
         <Route path="availability" element={<AvailabilityPage />} />

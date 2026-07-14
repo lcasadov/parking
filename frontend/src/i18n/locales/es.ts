@@ -653,6 +653,33 @@ export const es = {
       requiredReason: 'Indica el motivo de la liberación.',
       created: 'Liberación administrativa creada.',
     },
+    byDate: {
+      navLabel: 'Liberar por fecha',
+      title: 'Liberar por fecha',
+      intro: 'Elige una fecha para ver los recursos ocupados y por qué empleado, y libéralos uno a uno.',
+      dateLabel: 'Fecha',
+      loadError: 'No se pudo cargar la ocupación de esa fecha.',
+      empty: 'No hay recursos ocupados esa fecha.',
+      release: 'Liberar',
+      summary: 'Resumen de la liberación',
+      resourcePark: 'Plaza {{number}} · Planta {{floor}}',
+      resourceDesk: 'Puesto {{number}}',
+      resourceType: {
+        PARKING: 'Plaza',
+        DESK: 'Puesto',
+      },
+      origin: {
+        FIXED_ASSIGNMENT: 'Asignación fija',
+        REQUEST_APPROVED: 'Solicitud aprobada',
+      },
+      columns: {
+        resource: 'Recurso',
+        type: 'Tipo',
+        employee: 'Empleado',
+        origin: 'Origen',
+        actions: 'Acciones',
+      },
+    },
     errors: {
       window: 'La fecha debe ser hoy o futura.',
       conflict: 'El recurso no tiene asignación fija ese día o ya está liberado.',
