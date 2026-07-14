@@ -5,14 +5,23 @@
     <title>Solicitud aprobada</title>
 </head>
 <body>
-<p>Hola <span th:text="${recipientName}">Empleado</span>,</p>
+<p th:text="|Estimado/a Sr./Sra. ${recipientFullName},|">Estimado/a Sr./Sra. Nombre Apellidos,</p>
 <p>
-    Tu solicitud de plaza (referencia <strong th:text="${requestId}">0</strong>)
-    para la fecha <strong th:text="${requestedDate}">2026-01-01</strong>
-    ha sido <strong>aprobada</strong>.
+    Le comunicamos que su solicitud de plaza de garaje y/o puesto de trabajo ha sido
+    <strong>APROBADA</strong>.
+</p>
+<p th:if="${resourceType == 'PARKING' and resourceNumber != null}">
+    Se le ha asignado la plaza nº <strong th:text="${resourceNumber}">0</strong>
+    en la planta <strong th:text="${floor}">0</strong>.
+</p>
+<p th:if="${resourceType == 'DESK' and resourceNumber != null}">
+    Se le ha asignado el puesto nº <strong th:text="${resourceNumber}">0</strong>.
 </p>
 <p th:if="${approvalNote != null and !approvalNote.isBlank()}">
     Nota del administrador: <span th:text="${approvalNote}">nota</span>
+</p>
+<p th:if="${floorPlanAttached}">
+    Adjuntamos el plano de la planta para ayudarle a localizar el recurso asignado.
 </p>
 <p>— parking ALEATICA</p>
 </body>
