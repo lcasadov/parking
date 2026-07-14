@@ -345,5 +345,15 @@ class RequestAutoAssignmentServiceTest {
         public Page<Request> findByStatusOrderByCreatedAtAsc(RequestStatus status, Pageable pageable) {
             return new PageImpl<>(List.copyOf(store.values()));
         }
+
+        @Override
+        public Page<Request> findByStatusOrderByCreatedAtDesc(RequestStatus status, Pageable pageable) {
+            return new PageImpl<>(List.copyOf(store.values()));
+        }
+
+        @Override
+        public Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable) {
+            return new PageImpl<>(List.copyOf(store.values()));
+        }
     }
 }

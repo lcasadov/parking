@@ -956,6 +956,9 @@ body.theme-dark .segmented button.active {
   background: var(--bg-muted, transparent);
   border-color: var(--border);
 }
+.table-actions-empty {
+  color: var(--text-muted);
+}
 
 /* ---- Availability / Calendar (init-availability-calendar) ---- */
 .sr-only {

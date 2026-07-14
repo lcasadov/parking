@@ -145,6 +145,35 @@ public class RequestController {
     }
 
     /**
+     * Lista de forma paginada las solicitudes por estado en orden de actividad reciente
+     * ({@code created_at DESC}); solo {@code ADMIN}. Habilita las pestanas "aprobadas",
+     * "rechazadas" y "todas" de la bandeja admin. Un {@code status} ausente devuelve todas las
+     * solicitudes (pestana "todas"). Para las {@code APPROVED} se resuelve el numero humano del
+     * recurso (plaza/puesto), igual que en el listado propio.
+     *
+     * @param status   filtro opcional por estado (ausente = todas)
+     * @param pageable pagina y tamano (parametros {@code page}/{@code size})
+     * @return {@code 200} con la pagina de solicitudes en ese estado
+     */
+    @Operation(summary = "Solicitudes por estado, orden actividad reciente (ADMIN)",
+            security = @SecurityRequirement(name = SESSION_COOKIE))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Pagina de solicitudes por estado"),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Sin permisos",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PageResponse<RequestResponse>> listRequestsByStatus(
+            @Parameter(description = "Filtro opcional por estado (ausente = todas)")
+            @RequestParam(name = "status", required = false) RequestStatus status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(requestService.listByStatus(status, pageable));
+    }
+
+    /**
      * Devuelve el detalle de una solicitud por su id (solo {@code ADMIN}).
      *
      * @param id identificador de la solicitud

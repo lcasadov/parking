@@ -353,6 +353,28 @@ public class RequestService {
     }
 
     /**
+     * Lista de forma paginada las solicitudes por estado para la bandeja del {@code ADMIN},
+     * en orden de actividad reciente ({@code created_at DESC}); reservado al {@code ADMIN}.
+     *
+     * <p>Complementa a {@link #listPending(Pageable)} (que sirve la pestana FIFO de pendientes)
+     * habilitando las pestanas "aprobadas", "rechazadas" y "todas" de la vista admin. Un
+     * {@code status} nulo devuelve todas las solicitudes (pestana "todas"). Igual que el listado
+     * propio, resuelve el numero humano del recurso para las {@code APPROVED} (plaza/puesto), de
+     * modo que el administrador vea "Plaza 3005"/"Puesto 12" y no el {@code resource_id} interno.</p>
+     *
+     * @param status   estado por el que filtrar; {@code null} para todas
+     * @param pageable pagina y tamano solicitados
+     * @return pagina de solicitudes en ese estado (o todas), enriquecida con el numero de recurso
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<RequestResponse> listByStatus(RequestStatus status, Pageable pageable) {
+        Page<Request> page = status == null
+                ? requestRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : requestRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
+        return enrichWithResourceNumber(page);
+    }
+
+    /**
      * Devuelve el detalle de una solicitud por su id; reservado al {@code ADMIN}.
      *
      * @param id identificador de la solicitud

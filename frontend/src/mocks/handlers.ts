@@ -13,6 +13,7 @@ import type { FixedAssignment, FixedAssignmentPutRequest } from '../types/fixedA
 import {
   defaultMyRequestsPage,
   defaultPendingRequestsPage,
+  pageOfRequests,
   requestApproved,
   requestPending1,
   requestRejected,
@@ -211,6 +212,14 @@ export const handlers = [
   }),
 
   http.get(`${BASE}/requests/pending`, () => HttpResponse.json(defaultPendingRequestsPage)),
+
+  // GET /requests?status=... (ADMIN): listado por estado (aprobadas / rechazadas / todas).
+  http.get(`${BASE}/requests`, ({ request }) => {
+    const status = new URL(request.url).searchParams.get('status');
+    const resolved = [requestApproved, requestRejected];
+    const content = status ? resolved.filter((r) => r.status === status) : resolved;
+    return HttpResponse.json(pageOfRequests(content));
+  }),
 
   http.get(`${BASE}/requests/export`, () =>
     HttpResponse.text('id,status\n1,APPROVED', {

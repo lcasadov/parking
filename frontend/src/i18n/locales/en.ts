@@ -481,17 +481,18 @@ export const en = {
         label: 'Search employee',
         placeholder: 'Search employee…',
       },
-      resolvedUnavailable:
-        'Browsing resolved requests is not available in this view. Use the export to review the history.',
+      emptyByStatus: 'There are no requests in this status.',
       columns: {
         employee: 'Employee',
         resource: 'Resource',
         date: 'Date',
         created: 'Requested',
+        status: 'Status',
         actions: 'Actions',
       },
       approve: 'Approve',
       reject: 'Reject',
+      cancel: 'Cancel',
     },
     create: {
       title: 'New request',
@@ -562,6 +563,13 @@ export const en = {
       requiredDetail: 'Provide the reason detail (minimum 5 characters).',
       intro: 'You are about to reject {{name}}’s {{resource}} request for {{date}}.',
       emailNotice: 'The employee will receive an email with the rejection reason.',
+    },
+    cancelApproved: {
+      title: 'Cancel approved request',
+      submit: 'Confirm cancellation',
+      intro:
+        'You are about to cancel {{name}}’s approved {{resource}} request for {{date}}. The resource will be freed.',
+      emailNotice: 'The employee will receive an email notifying them of the cancellation.',
     },
     errors: {
       window: 'The date is outside the allowed window (today..today+14 days).',

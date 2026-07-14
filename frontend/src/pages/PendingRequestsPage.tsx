@@ -4,26 +4,34 @@ import { ApproveRequestModal } from '../components/ApproveRequestModal';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { ExportMenu } from '../components/ExportMenu';
-import { InfoBanner } from '../components/InfoBanner';
 import { RejectRequestModal } from '../components/RejectRequestModal';
 import { ResourceTypePill } from '../components/ResourceTypePill';
 import { Spinner } from '../components/Spinner';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useEmployeesQuery } from '../hooks/useEmployees';
-import { usePendingRequestsQuery } from '../hooks/useRequests';
+import { usePendingRequestsQuery, useRequestsByStatusQuery } from '../hooks/useRequests';
 import { initialsOf } from '../utils/initials';
 import type { Employee } from '../types/employee';
-import type { Request } from '../types/request';
+import type { Request, RequestStatus } from '../types/request';
 
 const PAGE_SIZE = 20;
 const LOOKUP_SIZE = 100;
 
-// Pestañas de la bandeja. Solo PENDING dispone de listado server-side (ADMIN);
-// el resto quedan disponibles en la UI pero sin datos (ver informe / banner).
+// Pestañas de la bandeja. La de pendientes usa el listado FIFO (ADMIN); el resto
+// (aprobadas / rechazadas / todas) usa el listado admin por estado (GET /requests).
 type RequestTab = 'pending' | 'approved' | 'rejected' | 'all';
 const PENDING_TAB: RequestTab = 'pending';
 const TAB_ORDER: RequestTab[] = ['pending', 'approved', 'rejected', 'all'];
+
+// Estado por el que filtra cada pestaña en el listado por estado. 'all' no filtra
+// (status undefined = todas); 'pending' no usa este listado (tiene su cola FIFO).
+const STATUS_BY_TAB: Record<RequestTab, RequestStatus | undefined> = {
+  pending: undefined,
+  approved: 'APPROVED',
+  rejected: 'REJECTED',
+  all: undefined,
+};
 
 // Construye el mapa id -> empleado para resolver nombre y departamento.
 function buildEmployeeMap(employees: Employee[]): Map<number, Employee> {
@@ -65,15 +73,67 @@ function EmployeeCell({ request, employee }: { request: Request; employee?: Empl
   );
 }
 
+interface RowActionsProps {
+  request: Request;
+  onApprove: (id: number) => void;
+  onReject: (id: number) => void;
+  onCancel: (id: number) => void;
+}
+
+// Acciones por fila según el estado: una PENDING se aprueba/rechaza; una APPROVED se
+// cancela (libera el recurso vía reject en el backend); los estados terminales no ofrecen
+// acciones (— para mantener la celda alineada).
+function RowActions({ request, onApprove, onReject, onCancel }: RowActionsProps) {
+  const { t } = useTranslation();
+  if (request.status === 'PENDING') {
+    return (
+      <>
+        <Button variant="green" icon="check" onClick={() => onApprove(request.id)}>
+          {t('requests.inbox.approve')}
+        </Button>
+        <button
+          type="button"
+          className="btn-danger-outline"
+          onClick={() => onReject(request.id)}
+        >
+          <i className="ti ti-x" aria-hidden="true" /> {t('requests.inbox.reject')}
+        </button>
+      </>
+    );
+  }
+  if (request.status === 'APPROVED') {
+    return (
+      <button
+        type="button"
+        className="btn-danger-outline"
+        onClick={() => onCancel(request.id)}
+      >
+        <i className="ti ti-ban" aria-hidden="true" /> {t('requests.inbox.cancel')}
+      </button>
+    );
+  }
+  return <span className="table-actions-empty">—</span>;
+}
+
 interface RequestsTableProps {
   requests: Request[];
   employeeMap: Map<number, Employee>;
+  emptyLabel: string;
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
+  onCancel: (id: number) => void;
 }
 
-// Tabla de solicitudes pendientes (avatar + recurso + fechas + acciones).
-function RequestsTable({ requests, employeeMap, onApprove, onReject }: RequestsTableProps) {
+// Tabla de solicitudes (avatar + recurso + fechas + estado + acciones). Sirve a todas las
+// pestañas: las acciones por fila dependen del estado (ver RowActions).
+function RequestsTable({
+  requests,
+  employeeMap,
+  emptyLabel,
+  onApprove,
+  onReject,
+  onCancel,
+}: RequestsTableProps) {
   const { t } = useTranslation();
   return (
     <div className="table-scroll">
@@ -84,14 +144,15 @@ function RequestsTable({ requests, employeeMap, onApprove, onReject }: RequestsT
             <th scope="col">{t('requests.inbox.columns.resource')}</th>
             <th scope="col">{t('requests.inbox.columns.date')}</th>
             <th scope="col">{t('requests.inbox.columns.created')}</th>
+            <th scope="col">{t('requests.inbox.columns.status')}</th>
             <th scope="col">{t('requests.inbox.columns.actions')}</th>
           </tr>
         </thead>
         <tbody>
           {requests.length === 0 ? (
             <tr>
-              <td colSpan={5} className="table-empty">
-                {t('requests.inbox.empty')}
+              <td colSpan={6} className="table-empty">
+                {emptyLabel}
               </td>
             </tr>
           ) : (
@@ -105,17 +166,18 @@ function RequestsTable({ requests, employeeMap, onApprove, onReject }: RequestsT
                 </td>
                 <td>{request.requestedDate}</td>
                 <td>{request.createdAt}</td>
+                <td>
+                  <span className={`status-badge status-${request.status.toLowerCase()}`}>
+                    {t(`requests.status.${request.status}`)}
+                  </span>
+                </td>
                 <td className="table-actions">
-                  <Button variant="green" icon="check" onClick={() => onApprove(request.id)}>
-                    {t('requests.inbox.approve')}
-                  </Button>
-                  <button
-                    type="button"
-                    className="btn-danger-outline"
-                    onClick={() => onReject(request.id)}
-                  >
-                    <i className="ti ti-x" aria-hidden="true" /> {t('requests.inbox.reject')}
-                  </button>
+                  <RowActions
+                    request={request}
+                    onApprove={onApprove}
+                    onReject={onReject}
+                    onCancel={onCancel}
+                  />
                 </td>
               </tr>
             ))
@@ -161,10 +223,11 @@ interface InboxBodyProps {
   onPageChange: (updater: (previous: number) => number) => void;
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
+  onCancel: (id: number) => void;
 }
 
-// Cuerpo de la bandeja: spinner / error / banner (pestañas resueltas sin datos
-// server-side) / tabla / paginación. Aísla las ramas de render de la página.
+// Cuerpo de la bandeja: spinner / error / tabla / paginación. Sirve a todas las pestañas
+// (pendientes FIFO y aprobadas/rechazadas/todas por estado). Aísla las ramas de render.
 function InboxBody({
   isPendingTab,
   query,
@@ -174,6 +237,7 @@ function InboxBody({
   onPageChange,
   onApprove,
   onReject,
+  onCancel,
 }: InboxBodyProps) {
   const { t } = useTranslation();
 
@@ -187,22 +251,20 @@ function InboxBody({
       </p>
     );
   }
-  if (!isPendingTab) {
-    return (
-      <InfoBanner variant="blue" icon="info-circle">
-        {t('requests.inbox.resolvedUnavailable')}
-      </InfoBanner>
-    );
-  }
 
   const totalPages = query.data?.totalPages ?? 0;
+  const emptyLabel = isPendingTab
+    ? t('requests.inbox.empty')
+    : t('requests.inbox.emptyByStatus');
   return (
     <>
       <RequestsTable
         requests={visibleRequests}
         employeeMap={employeeMap}
+        emptyLabel={emptyLabel}
         onApprove={onApprove}
         onReject={onReject}
+        onCancel={onCancel}
       />
       {totalPages > 1 ? (
         <InboxPagination
@@ -220,18 +282,24 @@ function InboxBody({
 interface InboxModalsProps {
   approveTarget: Request | null;
   rejectTarget: Request | null;
+  cancelTarget: Request | null;
   employeeMap: Map<number, Employee>;
   onApproveClose: () => void;
   onRejectClose: () => void;
+  onCancelClose: () => void;
 }
 
-// Modales de aprobación/rechazo montados según la solicitud seleccionada.
+// Modales de aprobación / rechazo / cancelación montados según la solicitud seleccionada.
+// La cancelación de una APPROVED reutiliza RejectRequestModal en modo 'cancel' (mismo
+// endpoint reject en backend, que libera el recurso; copia adaptada).
 function InboxModals({
   approveTarget,
   rejectTarget,
+  cancelTarget,
   employeeMap,
   onApproveClose,
   onRejectClose,
+  onCancelClose,
 }: InboxModalsProps) {
   return (
     <>
@@ -251,6 +319,15 @@ function InboxModals({
           onRejected={onRejectClose}
         />
       ) : null}
+      {cancelTarget !== null ? (
+        <RejectRequestModal
+          request={cancelTarget}
+          employee={employeeMap.get(cancelTarget.employeeId)}
+          mode="cancel"
+          onClose={onCancelClose}
+          onRejected={onCancelClose}
+        />
+      ) : null}
     </>
   );
 }
@@ -265,16 +342,31 @@ export function PendingRequestsPage() {
   const [search, setSearch] = useState('');
   const [approveId, setApproveId] = useState<number | null>(null);
   const [rejectId, setRejectId] = useState<number | null>(null);
+  const [cancelId, setCancelId] = useState<number | null>(null);
 
-  const query = usePendingRequestsQuery({ page, size: PAGE_SIZE });
+  const isPendingTab = activeTab === PENDING_TAB;
+
+  // Pendientes: cola FIFO (y fuente del contador del badge). Resto de pestañas: listado
+  // por estado, sólo activo cuando la pestaña no es la de pendientes.
+  const pendingQuery = usePendingRequestsQuery({ page, size: PAGE_SIZE });
+  const byStatusQuery = useRequestsByStatusQuery(
+    { page, size: PAGE_SIZE, status: STATUS_BY_TAB[activeTab] },
+    !isPendingTab,
+  );
+  const query = isPendingTab ? pendingQuery : byStatusQuery;
   const employeesQuery = useEmployeesQuery({ page: 0, size: LOOKUP_SIZE });
 
   const employees = useMemo(() => employeesQuery.data?.content ?? [], [employeesQuery.data]);
   const employeeMap = useMemo(() => buildEmployeeMap(employees), [employees]);
   const requests = useMemo(() => query.data?.content ?? [], [query.data]);
 
-  const pendingCount = query.data?.totalElements ?? 0;
-  const isPendingTab = activeTab === PENDING_TAB;
+  const pendingCount = pendingQuery.data?.totalElements ?? 0;
+
+  // Al cambiar de pestaña, vuelve a la primera página (los listados no comparten paginación).
+  function handleTabChange(tab: RequestTab): void {
+    setActiveTab(tab);
+    setPage(0);
+  }
 
   const visibleRequests = useMemo(
     () =>
@@ -286,6 +378,7 @@ export function PendingRequestsPage() {
 
   const approveTarget = requests.find((request) => request.id === approveId) ?? null;
   const rejectTarget = requests.find((request) => request.id === rejectId) ?? null;
+  const cancelTarget = requests.find((request) => request.id === cancelId) ?? null;
 
   const tabs: TabItem[] = TAB_ORDER.map((id) => ({
     id,
@@ -308,7 +401,7 @@ export function PendingRequestsPage() {
         <Tabs
           tabs={tabs}
           active={activeTab}
-          onChange={(id) => setActiveTab(id as RequestTab)}
+          onChange={(id) => handleTabChange(id as RequestTab)}
           ariaLabel={t('requests.inbox.tabs.ariaLabel')}
         />
         <div className="search-box">
@@ -332,17 +425,22 @@ export function PendingRequestsPage() {
         onPageChange={setPage}
         onApprove={setApproveId}
         onReject={setRejectId}
+        onCancel={setCancelId}
       />
 
       <InboxModals
         approveTarget={approveTarget}
         rejectTarget={rejectTarget}
+        cancelTarget={cancelTarget}
         employeeMap={employeeMap}
         onApproveClose={() => {
           setApproveId(null);
         }}
         onRejectClose={() => {
           setRejectId(null);
+        }}
+        onCancelClose={() => {
+          setCancelId(null);
         }}
       />
     </section>

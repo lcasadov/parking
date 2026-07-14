@@ -11,6 +11,7 @@ import {
   createRequest,
   listMyRequests,
   listPendingRequests,
+  listRequestsByStatus,
   rejectRequest,
 } from '../api/requestsApi';
 import type {
@@ -26,6 +27,7 @@ import type {
 const REQUESTS_KEY = 'requests';
 const MINE_SCOPE = 'mine';
 const PENDING_SCOPE = 'pending';
+const BY_STATUS_SCOPE = 'byStatus';
 
 export function myRequestsQueryKey(
   params: RequestListParams,
@@ -53,6 +55,26 @@ export function usePendingRequestsQuery(
   return useQuery({
     queryKey: pendingRequestsQueryKey(params),
     queryFn: () => listPendingRequests(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function requestsByStatusQueryKey(
+  params: RequestListParams,
+): (string | RequestListParams)[] {
+  return [REQUESTS_KEY, BY_STATUS_SCOPE, params];
+}
+
+// Listado admin por estado (aprobadas / rechazadas / todas). `enabled` evita el fetch
+// cuando la pestaña activa es la de pendientes (que usa usePendingRequestsQuery, FIFO).
+export function useRequestsByStatusQuery(
+  params: RequestListParams,
+  enabled: boolean,
+): UseQueryResult<PageRequest> {
+  return useQuery({
+    queryKey: requestsByStatusQueryKey(params),
+    queryFn: () => listRequestsByStatus(params),
+    enabled,
     placeholderData: (previous) => previous,
   });
 }
