@@ -149,6 +149,26 @@ public class Request {
     }
 
     /**
+     * @return {@code true} si la solicitud esta en estado {@link RequestStatus#APPROVED}.
+     */
+    public boolean isApproved() {
+        return status == RequestStatus.APPROVED;
+    }
+
+    /**
+     * Indica si la solicitud admite la transicion a {@link RequestStatus#REJECTED}. Un ADMIN
+     * puede rechazar tanto una solicitud {@code PENDING} (rechazo clasico) como una
+     * {@code APPROVED} (rechazo posterior que libera el recurso, change
+     * {@code request-auto-assignment}). Los estados terminales {@code REJECTED}/{@code CANCELLED}
+     * no admiten transicion.
+     *
+     * @return {@code true} si el estado actual es {@code PENDING} o {@code APPROVED}
+     */
+    public boolean canBeRejected() {
+        return status == RequestStatus.PENDING || status == RequestStatus.APPROVED;
+    }
+
+    /**
      * Aprueba la solicitud asignando recurso, resolutor y nota opcional.
      *
      * @param resourceId   recurso asignado (plaza en el nucleo de parking)
@@ -165,14 +185,26 @@ public class Request {
     }
 
     /**
-     * Rechaza la solicitud con un codigo del catalogo y texto libre opcional.
+     * Rechaza la solicitud con un codigo del catalogo y texto libre opcional. Admite el rechazo
+     * desde {@link RequestStatus#PENDING} (rechazo clasico) o desde {@link RequestStatus#APPROVED}
+     * (rechazo posterior que libera el recurso): al pasar a {@code REJECTED} la fila deja de
+     * cumplir el filtro {@code status = 'APPROVED'} del indice unico y la plaza/puesto reaparece
+     * en disponibilidad (change {@code request-auto-assignment}). El {@code resourceId} se
+     * conserva como traza del recurso liberado (la disponibilidad se recalcula solo sobre filas
+     * {@code APPROVED}, no hace falta limpiarlo).
      *
      * @param reasonCode   codigo del catalogo de rechazo
      * @param reason       texto libre (obligatorio si {@code reasonCode = OTHER})
      * @param resolvedById empleado (ADMIN) que resuelve
      * @param now          instante de resolucion (UTC)
+     * @throws IllegalStateException si la solicitud esta en un estado terminal
+     *                               ({@code REJECTED}/{@code CANCELLED})
      */
     public void reject(RejectionReasonCode reasonCode, String reason, Long resolvedById, Instant now) {
+        if (!canBeRejected()) {
+            throw new IllegalStateException(
+                    "Solo se puede rechazar una solicitud PENDING o APPROVED; estado actual: " + status);
+        }
         this.status = RequestStatus.REJECTED;
         this.rejectionReasonCode = reasonCode;
         this.rejectionReason = reason;

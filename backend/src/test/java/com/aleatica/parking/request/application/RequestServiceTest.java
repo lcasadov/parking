@@ -23,6 +23,8 @@ import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
+import com.aleatica.parking.systemsettings.application.SystemSettingsService;
+import com.aleatica.parking.systemsettings.domain.ApprovalMode;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -83,6 +85,9 @@ class RequestServiceTest {
     private AvailabilityService availabilityService;
 
     @Mock
+    private SystemSettingsService systemSettingsService;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Captor
@@ -93,7 +98,11 @@ class RequestServiceTest {
     private RequestService newService() {
         return new RequestService(
                 requestRepository, employeeRepository, resourceResolvers,
-                availabilityService, eventPublisher, clock);
+                availabilityService, systemSettingsService, eventPublisher, clock);
+    }
+
+    private void givenManualMode() {
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
     }
 
     // ---- Creacion: ventana + unicidad ----
@@ -102,6 +111,7 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateWithinWindow() {
         // Arrange
         givenActor(EMP_LOGIN, EMP_ID);
+        givenManualMode();
 
         // Act
         RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null));
@@ -119,6 +129,7 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateExactlyToday() {
         // Arrange (frontera inferior inclusive)
         givenActor(EMP_LOGIN, EMP_ID);
+        givenManualMode();
 
         // Act / Assert
         assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(TODAY, null)).status())
@@ -129,6 +140,7 @@ class RequestServiceTest {
     void shouldCreatePendingRequest_whenDateExactlyMaxDay() {
         // Arrange (frontera superior inclusive: hoy+14)
         givenActor(EMP_LOGIN, EMP_ID);
+        givenManualMode();
 
         // Act / Assert
         assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(MAX_DAY, null)).status())
@@ -380,16 +392,34 @@ class RequestServiceTest {
     }
 
     @Test
-    void shouldThrowState_whenRejectingNonPendingRequest() {
-        // Arrange
+    void shouldRejectApprovedRequest_whenAdminRejectsAfterApproval() {
+        // Arrange (change request-auto-assignment §D5): rechazar una APPROVED la libera
         Request approved = pending();
         approved.approve(SPACE_ID, ADMIN_ID, null, NOW);
         requestRepository.seed(approved);
+        givenActor(ADMIN_LOGIN, ADMIN_ID);
+
+        // Act
+        RequestResponse result = newService().reject(
+                REQUEST_ID, new RequestRejectRequest(RejectionReasonCode.OUTSIDE_POLICY, null), ADMIN_LOGIN);
+
+        // Assert: la solicitud queda REJECTED (deja de contar como APPROVED -> recurso libre)
+        assertThat(result.status()).isEqualTo(RequestStatus.REJECTED);
+        verifyEventPublished(RequestRejectedEvent.class);
+    }
+
+    @Test
+    void shouldThrowState_whenRejectingTerminalRequest() {
+        // Arrange: solicitud ya cancelada (estado terminal, no admite rechazo)
+        Request cancelled = pending();
+        cancelled.cancel();
+        requestRepository.seed(cancelled);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().reject(
                 REQUEST_ID, new RequestRejectRequest(RejectionReasonCode.OUTSIDE_POLICY, null), ADMIN_LOGIN))
                 .isInstanceOf(RequestStateException.class);
+        assertThat(requestRepository.saves()).isZero();
     }
 
     // ---- Detalle ----
