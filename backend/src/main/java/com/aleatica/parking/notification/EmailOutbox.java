@@ -1,6 +1,5 @@
 package com.aleatica.parking.notification;
 
-import com.aleatica.parking.notification.application.EmailMessage;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,18 +13,22 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * Entidad de persistencia de un email pendiente de reintento (tabla
+ * Entidad de persistencia de una notificacion pendiente de reintento (tabla
  * {@code dbo.email_outbox}).
  *
- * <p>Se crea SOLO cuando el envio inmediato (tras el commit del evento origen) falla.
- * Guarda el mensaje ya renderizado ({@code recipient}, {@code subject}, {@code body_html})
- * para que el job de reintento reenvie sin re-resolver destinatarios ni re-renderizar
- * plantillas. Es un adaptador de salida: nunca se expone en la capa web (S4684).</p>
+ * <p>Se crea SOLO cuando el envio inmediato (tras el commit del evento origen) falla. A
+ * diferencia del diseno anterior (que congelaba el HTML ya renderizado en {@code body_html}),
+ * la fila guarda ahora los <strong>datos del evento</strong>: el {@code event_type} y el
+ * payload minimo ({@code recipient_employee_id} y, cuando aplica, la instantanea de la
+ * solicitud serializada en {@code request_payload}). Asi el job de reintento re-resuelve el
+ * destinatario y el recurso y <strong>re-renderiza con la plantilla vigente</strong>, sin
+ * reenviar jamas contenido obsoleto. Es un adaptador de salida: nunca se expone en la capa
+ * web (S4684).</p>
  *
  * <p>La maquina de estados es {@code PENDING -> SENT | FAILED}: el job de reintento solo
  * relee {@code PENDING}, por lo que un {@code SENT} no se reenvia jamas (idempotencia), y
- * al agotar la politica de maximo de reintentos la fila pasa a {@code FAILED} y deja de
- * reintentarse (evita el bucle infinito ante un destinatario sin email valido).</p>
+ * al agotar la politica de maximo de reintentos (o si el destinatario ya no es resoluble)
+ * la fila pasa a {@code FAILED} y deja de reintentarse (evita el bucle infinito).</p>
  */
 @Entity
 @Table(name = "email_outbox")
@@ -38,14 +41,15 @@ public class EmailOutbox {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "recipient", nullable = false, length = 255)
-    private String recipient;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "event_type", nullable = false, length = 30)
+    private NotificationEventType eventType;
 
-    @Column(name = "subject", nullable = false, length = 255)
-    private String subject;
+    @Column(name = "recipient_employee_id", nullable = false)
+    private Long recipientEmployeeId;
 
-    @Column(name = "body_html", nullable = false)
-    private String bodyHtml;
+    @Column(name = "request_payload")
+    private String requestPayload;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -75,34 +79,31 @@ public class EmailOutbox {
     }
 
     /**
-     * Crea una entrada {@code PENDING} para un email cuyo envio inmediato ha fallado
-     * (primer intento ya consumido: {@code attempts = 1}).
+     * Crea una entrada {@code PENDING} para una notificacion cuyo envio inmediato ha fallado
+     * (primer intento ya consumido: {@code attempts = 1}). Persiste los datos del evento (no
+     * el HTML) para que el reintento re-renderice con la plantilla vigente.
      *
-     * @param message mensaje renderizado que no pudo enviarse
-     * @param error   detalle del fallo (se trunca a 500 caracteres)
-     * @param now     instante actual (UTC), del reloj inyectable
+     * @param eventType           tipo de evento a re-renderizar en el reintento
+     * @param recipientEmployeeId identificador del empleado destinatario
+     * @param requestPayload      instantanea de la solicitud serializada (JSON); {@code null}
+     *                            si el evento no deriva de una solicitud
+     * @param error               detalle del fallo (se trunca a 500 caracteres)
+     * @param now                 instante actual (UTC), del reloj inyectable
      * @return la entrada pendiente de reintento, aun no persistida
      */
-    public static EmailOutbox pending(EmailMessage message, String error, Instant now) {
+    public static EmailOutbox pending(
+            NotificationEventType eventType, Long recipientEmployeeId,
+            String requestPayload, String error, Instant now) {
         EmailOutbox outbox = new EmailOutbox();
-        outbox.recipient = message.to();
-        outbox.subject = message.subject();
-        outbox.bodyHtml = message.htmlBody();
+        outbox.eventType = eventType;
+        outbox.recipientEmployeeId = recipientEmployeeId;
+        outbox.requestPayload = requestPayload;
         outbox.status = EmailOutboxStatus.PENDING;
         outbox.attempts = 1;
         outbox.lastError = truncateError(error);
         outbox.createdAt = now;
         outbox.lastAttemptAt = now;
         return outbox;
-    }
-
-    /**
-     * Reconstruye el mensaje renderizado para reenviarlo en un reintento.
-     *
-     * @return el mensaje equivalente a esta entrada
-     */
-    public EmailMessage toMessage() {
-        return new EmailMessage(recipient, subject, bodyHtml);
     }
 
     /**
@@ -134,6 +135,20 @@ public class EmailOutbox {
         }
     }
 
+    /**
+     * Descarta la entrada como {@code FAILED} (estado terminal) sin consumir un reintento,
+     * cuando ya no puede re-renderizarse (p. ej. el empleado destinatario fue eliminado y no
+     * es resoluble). Evita el reprocesado indefinido de una fila irrecuperable.
+     *
+     * @param now   instante del descarte (UTC)
+     * @param error motivo del descarte (se trunca a 500 caracteres)
+     */
+    public void markFailed(Instant now, String error) {
+        this.status = EmailOutboxStatus.FAILED;
+        this.lastAttemptAt = now;
+        this.lastError = truncateError(error);
+    }
+
     private static String truncateError(String error) {
         if (error == null) {
             return null;
@@ -145,16 +160,16 @@ public class EmailOutbox {
         return id;
     }
 
-    public String getRecipient() {
-        return recipient;
+    public NotificationEventType getEventType() {
+        return eventType;
     }
 
-    public String getSubject() {
-        return subject;
+    public Long getRecipientEmployeeId() {
+        return recipientEmployeeId;
     }
 
-    public String getBodyHtml() {
-        return bodyHtml;
+    public String getRequestPayload() {
+        return requestPayload;
     }
 
     public EmailOutboxStatus getStatus() {
