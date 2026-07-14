@@ -89,7 +89,7 @@ class NotificationRetryRerenderTest {
         RequestResponse approved = new RequestResponse(
                 REQUEST_ID, EMP_ID, LocalDate.of(2026, 7, 10), RequestStatus.APPROVED,
                 PARKING_RESOURCE_ID, "Plaza junto al ascensor", null, null, 1L, NOW, NOW,
-                ResourceType.PARKING);
+                ResourceType.PARKING, null, null);
         NotificationCommand command =
                 new NotificationCommand(NotificationEventType.REQUEST_APPROVED, EMP_ID, approved);
         EmailOutbox pending = mapper.toPendingOutbox(command, "smtp down", NOW);

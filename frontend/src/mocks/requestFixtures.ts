@@ -54,12 +54,34 @@ export const requestApproved: Request = {
   requestedDate: '2026-03-05',
   status: 'APPROVED',
   parkingSpaceId: 1,
+  // parkingSpaceId=1 es el id interno; resourceNumber=3005 es el numero REAL de la plaza.
+  resourceNumber: 3005,
+  floor: 3,
   approvalNote: 'Plaza junto a la entrada',
   rejectionReasonCode: null,
   rejectionReason: null,
   resolvedById: 1,
   resolvedAt: '2026-03-02T10:00:00Z',
   createdAt: '2026-03-01T07:00:00Z',
+};
+
+// Solicitud de PUESTO aprobada: el puesto interno (id 8) es el numero 12; sin planta.
+export const requestApprovedDesk: Request = {
+  id: 506,
+  employeeId: 2,
+  requestedDate: '2026-03-07',
+  status: 'APPROVED',
+  resourceType: 'DESK',
+  parkingSpaceId: 8,
+  deskId: 8,
+  resourceNumber: 12,
+  floor: null,
+  approvalNote: null,
+  rejectionReasonCode: null,
+  rejectionReason: null,
+  resolvedById: 1,
+  resolvedAt: '2026-03-02T10:00:00Z',
+  createdAt: '2026-03-01T07:30:00Z',
 };
 
 export const requestRejected: Request = {

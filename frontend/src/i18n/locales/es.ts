@@ -451,8 +451,14 @@ export const es = {
         date: 'Fecha',
         status: 'Estado',
         resource: 'Recurso',
-        space: 'Plaza',
+        space: 'Plaza/Puesto',
         actions: 'Acciones',
+      },
+      // Numero real del recurso asignado que ve el empleado (no el id interno).
+      resourceLabel: {
+        parking: 'Plaza {{number}}',
+        parkingWithFloor: 'Plaza {{number}} · Planta {{floor}}',
+        desk: 'Puesto {{number}}',
       },
       cancel: 'Cancelar',
       created: 'Solicitud creada.',

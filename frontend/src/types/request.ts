@@ -18,6 +18,12 @@ export interface Request {
   status: RequestStatus;
   resourceType?: ResourceType;
   parkingSpaceId?: number | null;
+  // Numero humano del recurso asignado (plaza/puesto). El backend solo lo resuelve
+  // para solicitudes APPROVED con recurso; null en el resto -> la UI muestra "—".
+  // Es el numero real (p.ej. 3005), NO el `parkingSpaceId` (resource_id interno).
+  resourceNumber?: number | null;
+  // Planta del recurso (solo PARKING); null para puestos o cuando no se resuelve.
+  floor?: number | null;
   deskId?: number | null;
   approvalNote?: string | null;
   rejectionReasonCode?: RejectionReasonCode | null;

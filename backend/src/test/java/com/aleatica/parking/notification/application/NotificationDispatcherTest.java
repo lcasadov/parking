@@ -136,11 +136,11 @@ class NotificationDispatcherTest {
 
     private RequestResponse createdRequest() {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.PENDING,
-                null, null, null, null, null, null, NOW, ResourceType.PARKING);
+                null, null, null, null, null, null, NOW, ResourceType.PARKING, null, null);
     }
 
     private RequestResponse approvedParking() {
         return new RequestResponse(REQUEST_ID, EMP_ID, REQUESTED_DATE, RequestStatus.APPROVED,
-                3005L, "nota", null, null, 1L, NOW, NOW, ResourceType.PARKING);
+                3005L, "nota", null, null, 1L, NOW, NOW, ResourceType.PARKING, null, null);
     }
 }

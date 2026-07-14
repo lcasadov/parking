@@ -9,6 +9,7 @@ import { MSW_BASE } from '../mocks/handlers';
 import {
   pageOfRequests,
   requestApproved,
+  requestApprovedDesk,
   requestPending1,
   requestPendingDesk,
   requestRejected,
@@ -303,6 +304,28 @@ describe('MyRequestsPage (EMPLOYEE)', () => {
     const next = await screen.findByRole('button', { name: /siguiente|next/i });
     expect(next).toBeEnabled();
     expect(screen.getByRole('button', { name: /anterior|previous/i })).toBeDisabled();
+  });
+
+  it('should_show_real_resource_number_not_internal_id_when_approved', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () =>
+        HttpResponse.json(
+          pageOfRequests([requestApproved, requestApprovedDesk, requestPending1]),
+        ),
+      ),
+    );
+    renderWithProviders(<MyRequestsPage />);
+
+    // La plaza aprobada muestra su NUMERO real (3005), no el parkingSpaceId interno (#1).
+    expect(await screen.findByText(/^plaza 3005|^space 3005/i)).toBeInTheDocument();
+    // El puesto aprobado muestra "Puesto 12" / "Desk 12" (id interno 8 oculto).
+    expect(screen.getByText(/^puesto 12$|^desk 12$/i)).toBeInTheDocument();
+    // Nunca se pinta el id interno de BD con el viejo formato "#<id>".
+    expect(screen.queryByText('#1')).not.toBeInTheDocument();
+    expect(screen.queryByText('#8')).not.toBeInTheDocument();
+    // La solicitud PENDING sin recurso degrada a "—".
+    const pendingRow = screen.getByText(requestPending1.requestedDate).closest('tr') as HTMLElement;
+    expect(within(pendingRow).getByText('—')).toBeInTheDocument();
   });
 
   it('should_show_resource_type_pill_when_listing_my_requests', async () => {

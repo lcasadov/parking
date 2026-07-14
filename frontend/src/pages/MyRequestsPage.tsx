@@ -39,8 +39,22 @@ export function MyRequestsPage() {
     setIsCreateOpen(false);
   }
 
+  // Muestra el NUMERO real del recurso asignado ("Plaza 3005" / "Puesto 12"), nunca el
+  // parkingSpaceId (id interno de BD). El backend solo resuelve resourceNumber para las
+  // solicitudes APPROVED con recurso; en el resto (PENDING/REJECTED/CANCELLED) es null -> "—".
   function spaceLabel(request: Request): string {
-    return request.parkingSpaceId ? `#${request.parkingSpaceId}` : '—';
+    if (typeof request.resourceNumber !== 'number') {
+      return '—';
+    }
+    if (request.resourceType === 'DESK') {
+      return t('requests.mine.resourceLabel.desk', { number: request.resourceNumber });
+    }
+    return typeof request.floor === 'number'
+      ? t('requests.mine.resourceLabel.parkingWithFloor', {
+          number: request.resourceNumber,
+          floor: request.floor,
+        })
+      : t('requests.mine.resourceLabel.parking', { number: request.resourceNumber });
   }
 
   return (

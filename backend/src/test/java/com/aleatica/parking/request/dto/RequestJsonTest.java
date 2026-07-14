@@ -31,7 +31,8 @@ class RequestJsonTest {
         // Arrange
         RequestResponse response = new RequestResponse(
                 42L, 15L, LocalDate.of(2026, 7, 10), RequestStatus.PENDING,
-                null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
+                null, null, null, null, null, null, Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING,
+                null, null);
 
         // Act
         String json = objectMapper.writeValueAsString(response);
@@ -52,7 +53,7 @@ class RequestJsonTest {
         RequestResponse response = new RequestResponse(
                 42L, 15L, LocalDate.of(2026, 7, 10), RequestStatus.APPROVED,
                 8L, "Bienvenido", null, null, 1L, Instant.parse("2026-07-04T11:00:00Z"),
-                Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
+                Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING, null, null);
 
         // Act
         String json = objectMapper.writeValueAsString(response);
@@ -67,12 +68,32 @@ class RequestJsonTest {
     }
 
     @Test
+    void shouldSerializeResourceNumberAndFloor_whenResourceResolved() throws Exception {
+        // Arrange: DTO con el numero humano de la plaza ya resuelto (via withResource)
+        RequestResponse response = new RequestResponse(
+                42L, 15L, LocalDate.of(2026, 7, 10), RequestStatus.APPROVED,
+                8L, "ok", null, null, 1L, Instant.parse("2026-07-04T11:00:00Z"),
+                Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING, null, null)
+                .withResource(3005, 3);
+
+        // Act
+        String json = objectMapper.writeValueAsString(response);
+
+        // Assert: se exponen las claves contractuales resourceNumber/floor con el numero real
+        assertThat(json)
+                .contains("\"resourceNumber\":3005")
+                .contains("\"floor\":3")
+                .contains("\"parkingSpaceId\":8");
+    }
+
+    @Test
     void shouldSerializeRejectionKeys_whenRequestRejected() throws Exception {
         // Arrange
         RequestResponse response = new RequestResponse(
                 42L, 15L, LocalDate.of(2026, 7, 10), RequestStatus.REJECTED,
                 null, null, RejectionReasonCode.OTHER, "Motivo detallado", 1L,
-                Instant.parse("2026-07-04T11:00:00Z"), Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING);
+                Instant.parse("2026-07-04T11:00:00Z"), Instant.parse("2026-07-04T10:00:00Z"), ResourceType.PARKING,
+                null, null);
 
         // Act
         String json = objectMapper.writeValueAsString(response);

@@ -30,6 +30,10 @@ import java.time.LocalDate;
  * @param resolvedById        empleado (ADMIN) que resolvio; {@code null} si sin resolver
  * @param resolvedAt          instante de resolucion (UTC); {@code null} si sin resolver
  * @param createdAt           instante de creacion (UTC)
+ * @param resourceType        tipo del recurso solicitado ({@code PARKING}/{@code DESK})
+ * @param resourceNumber      numero humano del recurso asignado (plaza/puesto); {@code null}
+ *                            salvo que la solicitud este {@code APPROVED} y el recurso se resuelva
+ * @param floor               planta del recurso (solo {@code PARKING}); {@code null} si no aplica
  */
 @Schema(description = "Datos de una solicitud puntual de plaza")
 public record RequestResponse(
@@ -67,7 +71,14 @@ public record RequestResponse(
         @JsonProperty("createdAt") Instant createdAt,
 
         @Schema(description = "Tipo de recurso solicitado", example = "PARKING")
-        @JsonProperty("resourceType") ResourceType resourceType) {
+        @JsonProperty("resourceType") ResourceType resourceType,
+
+        @Schema(description = "Numero humano del recurso asignado (plaza/puesto); null si no "
+                + "resuelto o la solicitud no esta APPROVED", example = "3005")
+        @JsonProperty("resourceNumber") Integer resourceNumber,
+
+        @Schema(description = "Planta del recurso (solo PARKING); null si no aplica", example = "3")
+        @JsonProperty("floor") Integer floor) {
 
     /**
      * Mapea el modelo de dominio a su DTO de salida (mapeo dominio&rarr;DTO en la capa web,
@@ -89,6 +100,24 @@ public record RequestResponse(
                 request.getResolvedById(),
                 request.getResolvedAt(),
                 request.getCreatedAt(),
-                request.getResourceType());
+                request.getResourceType(),
+                null,
+                null);
+    }
+
+    /**
+     * Devuelve una copia de este DTO con el numero humano del recurso (y su planta) ya
+     * resueltos, para exponer al empleado el numero real de la plaza/puesto en lugar del
+     * {@code resource_id} interno. El resto de campos se conservan intactos.
+     *
+     * @param resourceNumber numero humano del recurso asignado
+     * @param floor          planta del recurso; {@code null} si el tipo no la define
+     * @return una nueva instancia con {@code resourceNumber}/{@code floor} fijados
+     */
+    public RequestResponse withResource(Integer resourceNumber, Integer floor) {
+        return new RequestResponse(
+                id, employeeId, requestedDate, status, parkingSpaceId, approvalNote,
+                rejectionReasonCode, rejectionReason, resolvedById, resolvedAt, createdAt,
+                resourceType, resourceNumber, floor);
     }
 }

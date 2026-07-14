@@ -3,7 +3,10 @@ package com.aleatica.parking.parkingspace;
 import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.resource.ResourceResolverPort;
 import com.aleatica.parking.resource.ResourceType;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
@@ -35,6 +38,12 @@ public class ParkingSpaceResourceResolver implements ResourceResolverPort {
     @Override
     public Optional<BookableResource> resolve(Long resourceId) {
         return parkingSpaceRepository.findById(resourceId).map(BookableResource.class::cast);
+    }
+
+    @Override
+    public Map<Long, BookableResource> resolveAll(Collection<Long> resourceIds) {
+        return parkingSpaceRepository.findAllById(resourceIds).stream()
+                .collect(Collectors.toMap(ParkingSpace::getId, BookableResource.class::cast));
     }
 
     @Override
