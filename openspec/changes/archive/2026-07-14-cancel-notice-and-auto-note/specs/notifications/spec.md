@@ -1,8 +1,29 @@
-# notifications Specification
+## ADDED Requirements
 
-## Purpose
-TBD - created by archiving change init-notifications. Update Purpose after archive.
-## Requirements
+### Requirement: Aviso al administrador cuando el empleado cancela una solicitud APROBADA
+
+El sistema DEBE (MUST), cuando un empleado cancela una `Request` cuyo estado previo era `APPROVED` (con lo que el recurso reservado se libera), enviar tras `AFTER_COMMIT` el email `request-cancelled.html` a todos los `Employee` con `role = ADMIN` y `active = true`, informando de quién canceló (nombre y apellidos del empleado solicitante, resuelto por `request.employeeId()`), la fecha de la solicitud y el recurso liberado identificado por su NÚMERO real (plaza nº X en planta Y / puesto nº Z), resuelto igual que en el correo de aprobación. La cancelación de una `Request` en estado `PENDING` NO DEBE (MUST NOT) generar ningún email. Un fallo de envío NO DEBE (MUST NOT) revertir la cancelación ya confirmada.
+
+#### Scenario: Cancelación de solicitud APROBADA notifica a los admins activos con el número del recurso
+- **GIVEN** un `Employee` con una `Request` en estado `APPROVED` cuyo recurso es una `ParkingSpace` con `number = 3005`
+- **WHEN** el empleado cancela la solicitud (pasa a `CANCELLED`, se libera el recurso) y la transacción se confirma (`AFTER_COMMIT`)
+- **THEN** el sistema envía el email `request-cancelled.html` a todos los `Employee` con `role = ADMIN` y `active = true`
+- **AND** el cuerpo indica el nombre y apellidos del empleado solicitante (resuelto por `request.employeeId()`), la fecha de la solicitud y "la plaza nº 3005 en la planta 3"
+- **AND** no incluye a los admins con `active = false`
+
+#### Scenario: Cancelación de solicitud PENDING no genera aviso
+- **GIVEN** un `Employee` con una `Request` en estado `PENDING`
+- **WHEN** el empleado cancela la solicitud (pasa a `CANCELLED`, no se libera ningún recurso)
+- **THEN** el sistema NO envía ningún email a ningún administrador
+
+#### Scenario: Fallo SMTP del aviso no revierte la cancelación
+- **GIVEN** una `Request` previamente `APPROVED` que el empleado cancela y cuyo commit se confirma
+- **WHEN** el servidor SMTP rechaza o no responde al enviar `request-cancelled.html`
+- **THEN** el sistema registra el fallo y encola el email para reintento
+- **AND** la `Request` permanece `CANCELLED` y el recurso liberado (la operación funcional NO se revierte)
+
+## MODIFIED Requirements
+
 ### Requirement: Envío de email tras evento confirmado (AFTER_COMMIT)
 **El sistema DEBE (MUST) enviar el email correspondiente a cada evento de dominio una vez confirmada (`AFTER_COMMIT`) la transacción que lo origina, usando la plantilla Thymeleaf y los destinatarios definidos, y NO debe enviarlo si la transacción se revierte. El correo de aprobación al empleado DEBE usar un tono formal, identificar el recurso asignado por su NÚMERO real (no por referencia/id interno) y su planta cuando aplique, y adjuntar el plano de la planta. En las auto-aprobaciones, cuando la nota de aprobación es la constante interna de auto-aprobación (`Request.AUTO_APPROVAL_NOTE = "auto"`), el correo DEBE (MUST) tratarla como ausente y NO mostrar la línea "Nota del administrador"; las notas reales escritas por un admin se siguen mostrando.**
 
@@ -45,21 +66,6 @@ TBD - created by archiving change init-notifications. Update Purpose after archi
 - **THEN** el sistema NO envía ningún email
 - **AND** no registra intento de envío para ese evento
 
-### Requirement: Resiliencia ante fallo SMTP con reintento programado
-**El sistema DEBE (MUST), cuando el envío SMTP falla, registrar el fallo en log y encolar el email para reintento mediante un job programado, sin revertir nunca la operación funcional ya confirmada.**
-
-#### Scenario: Fallo SMTP no revierte la operación funcional
-- **GIVEN** una `Request` ya pasada a `APPROVED` con commit confirmado
-- **WHEN** el servidor SMTP rechaza o no responde al enviar `request-approved.html`
-- **THEN** el sistema registra el fallo en log y deja el email pendiente de reintento
-- **AND** la `Request` permanece `APPROVED` (la operación funcional NO se revierte)
-
-#### Scenario: Job programado reintenta los emails fallidos
-- **GIVEN** uno o más emails marcados como fallidos pendientes de reintento
-- **WHEN** se ejecuta el job programado de reintento de notificaciones
-- **THEN** el sistema reintenta el envío SMTP de cada email pendiente
-- **AND** marca como enviado el que tiene éxito y conserva pendiente el que vuelve a fallar
-
 ### Requirement: Exclusiones de notificación
 **El sistema DEBE (MUST) NO enviar email en los eventos excluidos: liberación voluntaria de recurso, cancelación por el empleado de una solicitud aún en estado `PENDING`, y reservas/eventos de visitante. La cancelación por el empleado de una solicitud ya `APPROVED` NO está excluida: se rige por el requisito de aviso al administrador (recurso liberado).**
 
@@ -77,47 +83,3 @@ TBD - created by archiving change init-notifications. Update Purpose after archi
 - **GIVEN** un admin que revoca una `FixedAssignment` (`active = false`, `revoked_*`)
 - **WHEN** se confirma (`AFTER_COMMIT`) la transacción de revocación
 - **THEN** el sistema envía el email `assignment-revoked.html` al `Employee` afectado
-
-### Requirement: Soporte de adjuntos binarios en el envío de email
-**El sistema DEBE (MUST) permitir que un `EmailMessage` transporte cero o más adjuntos binarios (nombre de fichero, tipo MIME y contenido) y el adaptador SMTP DEBE enviarlos como un mensaje MIME multipart, sin alterar el envío de los correos que no llevan adjunto.**
-
-#### Scenario: Correo con adjunto se envía como MIME multipart
-- **GIVEN** un `EmailMessage` renderizado con al menos un adjunto (p. ej. `floor-plan.png`, `image/png`)
-- **WHEN** el adaptador SMTP procesa el mensaje
-- **THEN** construye un `MimeMessage` multipart y añade cada adjunto con su nombre y tipo MIME
-- **AND** el destinatario recibe el correo con el/los adjunto(s)
-
-#### Scenario: Correo sin adjunto sigue enviándose igual que antes
-- **GIVEN** un `EmailMessage` sin adjuntos (p. ej. `request-created.html`, `request-rejected.html`)
-- **WHEN** el adaptador SMTP procesa el mensaje
-- **THEN** envía el correo HTML sin ninguna parte adjunta, con el mismo comportamiento previo a este cambio
-- **AND** no se produce ningún fallo por la ausencia de adjuntos
-
-#### Scenario: Fallo al cargar el adjunto no revierte la operación funcional
-- **GIVEN** una `Request` ya pasada a `APPROVED` con commit confirmado cuyo correo debe adjuntar el plano
-- **WHEN** el asset del plano no puede cargarse o el envío del adjunto falla
-- **THEN** el sistema registra el fallo en log y encola el email para reintento (o envía sin adjunto según la política de resiliencia), sin revertir nunca la aprobación
-- **AND** la `Request` permanece `APPROVED`
-
-### Requirement: Aviso al administrador cuando el empleado cancela una solicitud APROBADA
-
-El sistema DEBE (MUST), cuando un empleado cancela una `Request` cuyo estado previo era `APPROVED` (con lo que el recurso reservado se libera), enviar tras `AFTER_COMMIT` el email `request-cancelled.html` a todos los `Employee` con `role = ADMIN` y `active = true`, informando de quién canceló (nombre y apellidos del empleado solicitante, resuelto por `request.employeeId()`), la fecha de la solicitud y el recurso liberado identificado por su NÚMERO real (plaza nº X en planta Y / puesto nº Z), resuelto igual que en el correo de aprobación. La cancelación de una `Request` en estado `PENDING` NO DEBE (MUST NOT) generar ningún email. Un fallo de envío NO DEBE (MUST NOT) revertir la cancelación ya confirmada.
-
-#### Scenario: Cancelación de solicitud APROBADA notifica a los admins activos con el número del recurso
-- **GIVEN** un `Employee` con una `Request` en estado `APPROVED` cuyo recurso es una `ParkingSpace` con `number = 3005`
-- **WHEN** el empleado cancela la solicitud (pasa a `CANCELLED`, se libera el recurso) y la transacción se confirma (`AFTER_COMMIT`)
-- **THEN** el sistema envía el email `request-cancelled.html` a todos los `Employee` con `role = ADMIN` y `active = true`
-- **AND** el cuerpo indica el nombre y apellidos del empleado solicitante (resuelto por `request.employeeId()`), la fecha de la solicitud y "la plaza nº 3005 en la planta 3"
-- **AND** no incluye a los admins con `active = false`
-
-#### Scenario: Cancelación de solicitud PENDING no genera aviso
-- **GIVEN** un `Employee` con una `Request` en estado `PENDING`
-- **WHEN** el empleado cancela la solicitud (pasa a `CANCELLED`, no se libera ningún recurso)
-- **THEN** el sistema NO envía ningún email a ningún administrador
-
-#### Scenario: Fallo SMTP del aviso no revierte la cancelación
-- **GIVEN** una `Request` previamente `APPROVED` que el empleado cancela y cuyo commit se confirma
-- **WHEN** el servidor SMTP rechaza o no responde al enviar `request-cancelled.html`
-- **THEN** el sistema registra el fallo y encola el email para reintento
-- **AND** la `Request` permanece `CANCELLED` y el recurso liberado (la operación funcional NO se revierte)
-

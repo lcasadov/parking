@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Solicitud aprobada cancelada</title>
+</head>
+<body>
+<p th:text="|Estimado/a Sr./Sra. ${recipientName},|">Estimado/a Sr./Sra. Nombre,</p>
+<p th:if="${requesterFullName != null}">
+    Le informamos de que el empleado
+    <strong th:text="${requesterFullName}">Nombre Apellidos</strong>
+    ha cancelado su solicitud aprobada del
+    <strong th:text="${requestedDate}">fecha</strong>, por lo que el recurso reservado ha quedado
+    <strong>liberado</strong>.
+</p>
+<p th:if="${requesterFullName == null}">
+    Le informamos de que un empleado ha cancelado su solicitud aprobada del
+    <strong th:text="${requestedDate}">fecha</strong>, por lo que el recurso reservado ha quedado
+    <strong>liberado</strong>.
+</p>
+<p th:if="${resourceType == 'PARKING' and resourceNumber != null}">
+    Se ha liberado la plaza nº <strong th:text="${resourceNumber}">0</strong>
+    en la planta <strong th:text="${floor}">0</strong>.
+</p>
+<p th:if="${resourceType == 'DESK' and resourceNumber != null}">
+    Se ha liberado el puesto nº <strong th:text="${resourceNumber}">0</strong>.
+</p>
+<p>— parking ALEATICA</p>
+</body>
+</html>
