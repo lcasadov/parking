@@ -372,6 +372,15 @@ export const handlers = [
     );
   }),
 
+  // ---- Occupancy (Liberar por fecha; default vacio, cada test lo sobrescribe) ----
+  http.get(`${BASE}/occupancy`, ({ request }) => {
+    const date = new URL(request.url).searchParams.get('date');
+    if (!date) {
+      return HttpResponse.json(apiError('validation', 'date is required'), { status: 400 });
+    }
+    return HttpResponse.json({ date, occupiedResources: [] });
+  }),
+
   // ---- Audit / LoginLog (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/audit/export`, () =>
     HttpResponse.text('id,action\n1,LOGIN', {

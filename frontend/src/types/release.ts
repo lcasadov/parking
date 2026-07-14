@@ -1,5 +1,7 @@
 // Tipos derivados del contrato docs/openapi.yaml (componentes Release).
 
+import type { ResourceType } from './request';
+
 // ReleaseType: schema #/components/schemas/ReleaseType.
 export type ReleaseType = 'VOLUNTARY' | 'ADMINISTRATIVE';
 
@@ -24,11 +26,14 @@ export interface ReleaseCreateRequest {
 }
 
 // AdministrativeReleaseRequest: schema #/components/schemas/AdministrativeReleaseRequest.
+// resourceType es opcional (por defecto PARKING en el backend); se envia DESK al
+// liberar un puesto fijo.
 export interface AdministrativeReleaseRequest {
   employeeId: number;
   parkingSpaceId: number;
   releaseDate: string;
   reason: string;
+  resourceType?: ResourceType;
 }
 
 // PageMeta + PageRelease: schemas #/components/schemas/PageMeta y PageRelease.

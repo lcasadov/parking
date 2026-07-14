@@ -13,8 +13,13 @@ import com.aleatica.parking.availability.MyWeekDayState;
 import com.aleatica.parking.availability.dto.AdminWeeklyCalendarResponse;
 import com.aleatica.parking.availability.dto.AvailabilityResponse;
 import com.aleatica.parking.availability.dto.CalendarCellResponse;
+import com.aleatica.parking.availability.OccupancyOrigin;
 import com.aleatica.parking.availability.dto.MyWeekDayResponse;
 import com.aleatica.parking.availability.dto.MyWeekResponse;
+import com.aleatica.parking.availability.dto.OccupancyItemResponse;
+import com.aleatica.parking.availability.dto.OccupancyResponse;
+import com.aleatica.parking.desk.Desk;
+import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
@@ -33,6 +38,7 @@ import com.aleatica.parking.visitor.VisitorReservation;
 import com.aleatica.parking.visitor.VisitorReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -67,6 +73,11 @@ class AvailabilityServiceTest {
     private static final Long OTHER_ID = 99L;
     private static final Long SPACE_ID = 8L;
     private static final String SPACE_LABEL = "P-08";
+    private static final int SPACE_NUMBER = 3005;
+    private static final Long FREE_ID = 9L;
+    private static final int FREE_NUMBER = 3006;
+    private static final Long DESK_ID = 20L;
+    private static final int DESK_NUMBER = 12;
 
     @Mock
     private ParkingSpaceRepository parkingSpaceRepository;
@@ -406,6 +417,123 @@ class AvailabilityServiceTest {
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
+    // ---- Ocupacion por fecha (Liberar por fecha) ----
+
+    @Test
+    void shouldIncludeParkingOccupiedByFixedAssignment_withNumberAndEmployee() {
+        // Arrange: plaza con asignacion fija vigente ese dia, no liberada; sin puestos
+        given(parkingSpaceRepository.findByActiveTrueOrderByIdAsc())
+                .willReturn(List.of(spaceWithNumber(SPACE_ID, SPACE_NUMBER)));
+        given(deskRepository.findByActiveTrueOrderByNumberAsc()).willReturn(List.of());
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING)))
+                .willReturn(List.of(assignment(SPACE_ID, EMP_ID, DATE_DOW)));
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, DATE, DATE))
+                .willReturn(List.of());
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.PARKING, DATE, DATE)).willReturn(List.of());
+        given(employeeRepository.findAllById(any()))
+                .willReturn(List.of(employee(EMP_ID, "Ada", "Lovelace")));
+
+        // Act
+        OccupancyResponse response = service().occupancyForDate(DATE);
+
+        // Assert
+        assertThat(response.date()).isEqualTo(DATE);
+        assertThat(response.occupiedResources()).singleElement().satisfies(item -> {
+            assertThat(item.resourceType()).isEqualTo(ResourceType.PARKING);
+            assertThat(item.resourceId()).isEqualTo(SPACE_ID);
+            assertThat(item.resourceNumber()).isEqualTo(SPACE_NUMBER);
+            assertThat(item.floor()).isEqualTo(SPACE_NUMBER / 1000);
+            assertThat(item.employeeId()).isEqualTo(EMP_ID);
+            assertThat(item.employeeName()).isEqualTo("Ada Lovelace");
+            assertThat(item.origin()).isEqualTo(OccupancyOrigin.FIXED_ASSIGNMENT);
+            assertThat(item.requestId()).isNull();
+        });
+    }
+
+    @Test
+    void shouldIncludeParkingOccupiedByApprovedRequest_withRequestId() {
+        // Arrange: plaza sin asignacion fija pero con solicitud APPROVED esa fecha
+        given(parkingSpaceRepository.findByActiveTrueOrderByIdAsc())
+                .willReturn(List.of(spaceWithNumber(SPACE_ID, SPACE_NUMBER)));
+        given(deskRepository.findByActiveTrueOrderByNumberAsc()).willReturn(List.of());
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING))).willReturn(List.of());
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, DATE, DATE))
+                .willReturn(List.of());
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.PARKING, DATE, DATE))
+                .willReturn(List.of(approvedRequestWithId(7L, SPACE_ID, OTHER_ID, DATE)));
+        given(employeeRepository.findAllById(any()))
+                .willReturn(List.of(employee(OTHER_ID, "Grace", "Hopper")));
+
+        // Act
+        OccupancyResponse response = service().occupancyForDate(DATE);
+
+        // Assert
+        assertThat(response.occupiedResources()).singleElement().satisfies(item -> {
+            assertThat(item.resourceType()).isEqualTo(ResourceType.PARKING);
+            assertThat(item.origin()).isEqualTo(OccupancyOrigin.REQUEST_APPROVED);
+            assertThat(item.requestId()).isEqualTo(7L);
+            assertThat(item.employeeId()).isEqualTo(OTHER_ID);
+            assertThat(item.employeeName()).isEqualTo("Grace Hopper");
+        });
+    }
+
+    @Test
+    void shouldIncludeDeskOccupiedByFixedAssignment_withNullFloor() {
+        // Arrange: sin plazas; un puesto con asignacion fija vigente ese dia
+        given(parkingSpaceRepository.findByActiveTrueOrderByIdAsc()).willReturn(List.of());
+        given(deskRepository.findByActiveTrueOrderByNumberAsc())
+                .willReturn(List.of(desk(DESK_ID, DESK_NUMBER)));
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.DESK)))
+                .willReturn(List.of(deskAssignment(DESK_ID, EMP_ID, DATE_DOW)));
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.DESK, DATE, DATE))
+                .willReturn(List.of());
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.DESK, DATE, DATE)).willReturn(List.of());
+        given(employeeRepository.findAllById(any()))
+                .willReturn(List.of(employee(EMP_ID, "Ada", "Lovelace")));
+
+        // Act
+        OccupancyResponse response = service().occupancyForDate(DATE);
+
+        // Assert
+        assertThat(response.occupiedResources()).singleElement().satisfies(item -> {
+            assertThat(item.resourceType()).isEqualTo(ResourceType.DESK);
+            assertThat(item.resourceId()).isEqualTo(DESK_ID);
+            assertThat(item.resourceNumber()).isEqualTo(DESK_NUMBER);
+            assertThat(item.floor()).isNull();
+            assertThat(item.origin()).isEqualTo(OccupancyOrigin.FIXED_ASSIGNMENT);
+        });
+    }
+
+    @Test
+    void shouldExcludeReleasedAndFreeResources_fromOccupancy() {
+        // Arrange: SPACE_ID con asignacion fija pero liberada; FREE_ID libre; sin puestos
+        given(parkingSpaceRepository.findByActiveTrueOrderByIdAsc())
+                .willReturn(List.of(spaceWithNumber(SPACE_ID, SPACE_NUMBER),
+                        spaceWithNumber(FREE_ID, FREE_NUMBER)));
+        given(deskRepository.findByActiveTrueOrderByNumberAsc()).willReturn(List.of());
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING)))
+                .willReturn(List.of(assignment(SPACE_ID, EMP_ID, DATE_DOW)));
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, DATE, DATE))
+                .willReturn(List.of(release(SPACE_ID, DATE)));
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.PARKING, DATE, DATE)).willReturn(List.of());
+        given(employeeRepository.findAllById(any()))
+                .willReturn(List.of(employee(EMP_ID, "Ada", "Lovelace")));
+
+        // Act
+        OccupancyResponse response = service().occupancyForDate(DATE);
+
+        // Assert: la plaza liberada no ocupa y la libre tampoco
+        assertThat(response.occupiedResources()).isEmpty();
+    }
+
     // ---- Helpers de arreglo (given*) ----
 
     private void givenActiveSpaces(ParkingSpace... spaces) {
@@ -453,8 +581,24 @@ class AvailabilityServiceTest {
         return space;
     }
 
+    private static ParkingSpace spaceWithNumber(Long id, int number) {
+        ParkingSpace space = ParkingSpace.create(number);
+        setField(space, "id", id);
+        return space;
+    }
+
+    private static Desk desk(Long id, int number) {
+        Desk desk = Desk.create(number, DeskCategory.STANDARD, new BigDecimal("10.00"), new BigDecimal("20.00"));
+        setField(desk, "id", id);
+        return desk;
+    }
+
     private static FixedAssignmentEntity assignment(Long spaceId, Long employeeId, int dow) {
         return FixedAssignmentEntity.create(spaceId, employeeId, dow, 1L, NOW);
+    }
+
+    private static FixedAssignmentEntity deskAssignment(Long deskId, Long employeeId, int dow) {
+        return FixedAssignmentEntity.create(deskId, ResourceType.DESK, employeeId, dow, 1L, NOW);
     }
 
     private static ReleaseEntity release(Long spaceId, LocalDate date) {

@@ -10,6 +10,7 @@ export const ROUTES = {
   adminFloorPlan: '/admin/floor-plan',
   adminRequests: '/admin/requests',
   adminReleases: '/admin/releases',
+  adminReleaseByDate: '/admin/release-by-date',
   adminVisitors: '/admin/visitors',
   adminCalendar: '/admin/calendar',
   adminAvailability: '/admin/availability',

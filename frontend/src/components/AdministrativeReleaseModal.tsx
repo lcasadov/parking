@@ -8,10 +8,23 @@ import { useCreateAdministrativeRelease } from '../hooks/useReleases';
 import { todayIso } from '../utils/releases';
 import type { Employee } from '../types/employee';
 import type { ParkingSpace } from '../types/parkingSpace';
+import type { ResourceType } from '../types/request';
+
+// Datos pre-rellenados cuando el modal se abre desde la vista "Liberar por fecha":
+// empleado, recurso, fecha y tipo ya resueltos; el ADMIN solo confirma el motivo.
+export interface AdministrativeReleasePrefill {
+  employeeId: number;
+  employeeName: string;
+  parkingSpaceId: number;
+  resourceLabel: string;
+  releaseDate: string;
+  resourceType: ResourceType;
+}
 
 interface AdministrativeReleaseModalProps {
-  employees: Employee[];
-  spaces: ParkingSpace[];
+  employees?: Employee[];
+  spaces?: ParkingSpace[];
+  prefill?: AdministrativeReleasePrefill;
   onClose: () => void;
   onCreated: () => void;
 }
@@ -33,17 +46,20 @@ function toastKeyForError(error: unknown): string {
 }
 
 // Modal ADMIN: libera el recurso fijo de un empleado para una fecha concreta con
-// motivo obligatorio (POST /releases/administrative).
+// motivo obligatorio (POST /releases/administrative). Dos modos:
+//  - seleccion libre (empleado/plaza/fecha en desplegables), y
+//  - pre-rellenado (`prefill`) desde "Liberar por fecha": campos fijos, solo motivo.
 export function AdministrativeReleaseModal({
-  employees,
-  spaces,
+  employees = [],
+  spaces = [],
+  prefill,
   onClose,
   onCreated,
 }: AdministrativeReleaseModalProps) {
   const { t } = useTranslation();
-  const [employeeId, setEmployeeId] = useState<number | ''>('');
-  const [spaceId, setSpaceId] = useState<number | ''>('');
-  const [date, setDate] = useState('');
+  const [employeeId, setEmployeeId] = useState<number | ''>(prefill?.employeeId ?? '');
+  const [spaceId, setSpaceId] = useState<number | ''>(prefill?.parkingSpaceId ?? '');
+  const [date, setDate] = useState(prefill?.releaseDate ?? '');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const createMutation = useCreateAdministrativeRelease();
@@ -78,6 +94,7 @@ export function AdministrativeReleaseModal({
         parkingSpaceId: Number(spaceId),
         releaseDate: date,
         reason: reason.trim(),
+        ...(prefill ? { resourceType: prefill.resourceType } : {}),
       },
       {
         onSuccess: onCreated,
@@ -89,55 +106,74 @@ export function AdministrativeReleaseModal({
   return (
     <Modal title={t('releases.admin.title')} onClose={onClose} variant="red">
       <form id="administrative-release-form" onSubmit={handleSubmit} noValidate>
-        <label className="field-label" htmlFor="administrative-release-employee">
-          {t('releases.admin.employee')}
-        </label>
-        <select
-          id="administrative-release-employee"
-          className="field-input"
-          value={employeeId}
-          onChange={(event) =>
-            setEmployeeId(event.target.value === '' ? '' : Number(event.target.value))
-          }
-        >
-          <option value="">{t('releases.admin.selectEmployee')}</option>
-          {employees.map((employee) => (
-            <option key={employee.id} value={employee.id}>
-              {`${employee.firstName} ${employee.lastName}`}
-            </option>
-          ))}
-        </select>
+        {prefill ? (
+          <dl className="release-prefill" aria-label={t('releases.byDate.summary')}>
+            <div className="release-prefill-row">
+              <dt>{t('releases.admin.employee')}</dt>
+              <dd>{prefill.employeeName}</dd>
+            </div>
+            <div className="release-prefill-row">
+              <dt>{t('releases.admin.space')}</dt>
+              <dd>{prefill.resourceLabel}</dd>
+            </div>
+            <div className="release-prefill-row">
+              <dt>{t('releases.admin.date')}</dt>
+              <dd>{prefill.releaseDate}</dd>
+            </div>
+          </dl>
+        ) : (
+          <>
+            <label className="field-label" htmlFor="administrative-release-employee">
+              {t('releases.admin.employee')}
+            </label>
+            <select
+              id="administrative-release-employee"
+              className="field-input"
+              value={employeeId}
+              onChange={(event) =>
+                setEmployeeId(event.target.value === '' ? '' : Number(event.target.value))
+              }
+            >
+              <option value="">{t('releases.admin.selectEmployee')}</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {`${employee.firstName} ${employee.lastName}`}
+                </option>
+              ))}
+            </select>
 
-        <label className="field-label" htmlFor="administrative-release-space">
-          {t('releases.admin.space')}
-        </label>
-        <select
-          id="administrative-release-space"
-          className="field-input"
-          value={spaceId}
-          onChange={(event) =>
-            setSpaceId(event.target.value === '' ? '' : Number(event.target.value))
-          }
-        >
-          <option value="">{t('releases.admin.selectSpace')}</option>
-          {spaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.label}
-            </option>
-          ))}
-        </select>
+            <label className="field-label" htmlFor="administrative-release-space">
+              {t('releases.admin.space')}
+            </label>
+            <select
+              id="administrative-release-space"
+              className="field-input"
+              value={spaceId}
+              onChange={(event) =>
+                setSpaceId(event.target.value === '' ? '' : Number(event.target.value))
+              }
+            >
+              <option value="">{t('releases.admin.selectSpace')}</option>
+              {spaces.map((space) => (
+                <option key={space.id} value={space.id}>
+                  {space.label}
+                </option>
+              ))}
+            </select>
 
-        <label className="field-label" htmlFor="administrative-release-date">
-          {t('releases.admin.date')}
-        </label>
-        <input
-          id="administrative-release-date"
-          type="date"
-          className="field-input"
-          value={date}
-          min={todayIso()}
-          onChange={(event) => setDate(event.target.value)}
-        />
+            <label className="field-label" htmlFor="administrative-release-date">
+              {t('releases.admin.date')}
+            </label>
+            <input
+              id="administrative-release-date"
+              type="date"
+              className="field-input"
+              value={date}
+              min={todayIso()}
+              onChange={(event) => setDate(event.target.value)}
+            />
+          </>
+        )}
 
         <label className="field-label" htmlFor="administrative-release-reason">
           {t('releases.admin.reason')}

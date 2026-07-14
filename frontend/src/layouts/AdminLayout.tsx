@@ -71,6 +71,13 @@ export function AdminLayout() {
             {t('releases.admin.navLabel')}
           </NavLink>
           <NavLink
+            to={ROUTES.adminReleaseByDate}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <i className="ti ti-calendar-off" aria-hidden="true" />
+            {t('releases.byDate.navLabel')}
+          </NavLink>
+          <NavLink
             to={ROUTES.adminVisitors}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >

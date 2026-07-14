@@ -652,6 +652,33 @@ export const en = {
       requiredReason: 'Provide the reason for the release.',
       created: 'Administrative release created.',
     },
+    byDate: {
+      navLabel: 'Release by date',
+      title: 'Release by date',
+      intro: 'Pick a date to see which resources are occupied and by which employee, and release them one by one.',
+      dateLabel: 'Date',
+      loadError: 'Could not load the occupancy for that date.',
+      empty: 'No resources are occupied on that date.',
+      release: 'Release',
+      summary: 'Release summary',
+      resourcePark: 'Space {{number}} · Floor {{floor}}',
+      resourceDesk: 'Desk {{number}}',
+      resourceType: {
+        PARKING: 'Space',
+        DESK: 'Desk',
+      },
+      origin: {
+        FIXED_ASSIGNMENT: 'Fixed assignment',
+        REQUEST_APPROVED: 'Approved request',
+      },
+      columns: {
+        resource: 'Resource',
+        type: 'Type',
+        employee: 'Employee',
+        origin: 'Origin',
+        actions: 'Actions',
+      },
+    },
     errors: {
       window: 'The date must be today or later.',
       conflict: 'The resource has no fixed assignment that day or is already released.',
