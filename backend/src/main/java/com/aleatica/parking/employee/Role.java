@@ -13,5 +13,14 @@ public enum Role {
     ADMIN,
 
     /** Empleado: solicita y libera recursos propios. */
-    EMPLOYEE
+    EMPLOYEE,
+
+    /**
+     * Agencia externa con privilegio minimo: su unica capacidad es la liberacion
+     * administrativa ({@code POST /api/v1/releases/administrative}). No es un ADMIN
+     * reducido jerarquicamente, sino un rol lateral fail-closed: queda excluido por
+     * defecto de cualquier otro endpoint {@code hasRole('ADMIN')} o del portal de
+     * empleado.
+     */
+    AGENCIA
 }
