@@ -21,10 +21,18 @@ export const ROUTES = {
   employeeReleases: '/employee/releases',
   employeeMyWeek: '/employee/my-week',
   employeeFloorPlan: '/employee/floor-plan',
+  agency: '/agency',
+  agencyReleases: '/agency/releases',
 } as const;
 
-export type Role = 'ADMIN' | 'EMPLOYEE';
+export type Role = 'ADMIN' | 'EMPLOYEE' | 'AGENCIA';
 
 export function homePathForRole(role: Role): string {
-  return role === 'ADMIN' ? ROUTES.admin : ROUTES.employee;
+  if (role === 'ADMIN') {
+    return ROUTES.admin;
+  }
+  if (role === 'AGENCIA') {
+    return ROUTES.agency;
+  }
+  return ROUTES.employee;
 }

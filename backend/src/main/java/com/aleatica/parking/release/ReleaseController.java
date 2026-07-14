@@ -148,13 +148,13 @@ public class ReleaseController {
 
     /**
      * Crea una liberacion administrativa del recurso fijo de un empleado para una fecha
-     * presente o futura, con motivo obligatorio (solo {@code ADMIN}).
+     * presente o futura, con motivo obligatorio ({@code ADMIN} o {@code AGENCIA}).
      *
      * @param request        empleado, recurso, fecha y motivo
-     * @param authentication autenticacion resuelta de la sesion (ejecutor {@code ADMIN})
+     * @param authentication autenticacion resuelta de la sesion (ejecutor {@code ADMIN}/{@code AGENCIA})
      * @return {@code 201} con la liberacion creada de tipo {@code ADMINISTRATIVE}
      */
-    @Operation(summary = "Liberacion administrativa (ADMIN)",
+    @Operation(summary = "Liberacion administrativa (ADMIN/AGENCIA)",
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Liberacion administrativa creada"),
@@ -170,7 +170,7 @@ public class ReleaseController {
                     content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
     @PostMapping("/administrative")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','AGENCIA')")
     public ResponseEntity<ReleaseResponse> createAdministrativeRelease(
             @Valid @RequestBody AdministrativeReleaseRequest request, Authentication authentication) {
         ReleaseResponse created = concurrencyRetry.execute(
