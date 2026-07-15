@@ -49,3 +49,8 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 cov.log
+
+# Logs de arranque local (dev)
+*.log
+backend-dev.log
+frontend-dev.log

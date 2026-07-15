@@ -1,0 +1,16 @@
+# Fuera del contexto de build: dependencias y artefactos regenerables.
+node_modules/
+dist/
+coverage/
+.git/
+.gitignore
+*.log
+.idea/
+.vscode/
+# Los .env locales no deben entrar en la imagen (secretos / overrides de dev).
+.env
+.env.*
+!.env.example
+# Los e2e de Playwright no son necesarios para construir la imagen.
+playwright-report/
+test-results/

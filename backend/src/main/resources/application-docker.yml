@@ -1,0 +1,28 @@
+# Perfil DOCKER — ejecucion en contenedor Tomcat, tras nginx (Etapa A: local).
+# Igual que PRO pero HTTP: la cookie de sesion NO se marca Secure (no hay TLS aun).
+# La SPA y la API viven en el mismo origen (nginx hace reverse-proxy de /parking-api).
+# Se activa con SPRING_PROFILES_ACTIVE=docker.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  # Solo migraciones de esquema — NUNCA el seed de dev (classpath:db/seed/dev).
+  # Fijado explicitamente para que un cambio futuro del default no filtre en un
+  # contenedor la credencial del admin de desarrollo (bug #11, CWE-798).
+  flyway:
+    locations: classpath:db/migration
+
+# Cookie de sesion sin Secure: viaja por HTTP en el entorno local contenerizado.
+# Cuando la Etapa B (AWS) tenga TLS terminado, usar el perfil `pro` (secure=true).
+parking:
+  session:
+    cookie:
+      secure: false
+
+logging:
+  level:
+    root: WARN
+    com.aleatica.parking: INFO
