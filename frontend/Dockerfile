@@ -29,7 +29,10 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
+# Usa 127.0.0.1 (no `localhost`): dentro del contenedor `localhost` resuelve
+# primero a IPv6 ::1, pero nginx escucha solo en IPv4 (`listen 80;`), lo que
+# hacia fallar el healthcheck (connection refused) aunque la app respondia.
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=5 \
-  CMD ["sh", "-c", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+  CMD ["sh", "-c", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
 
 CMD ["nginx", "-g", "daemon off;"]
