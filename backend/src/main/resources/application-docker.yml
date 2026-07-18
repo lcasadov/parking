@@ -21,6 +21,18 @@ parking:
   session:
     cookie:
       secure: false
+  # Bootstrap del primer administrador por entorno (huevo y gallina en un despliegue
+  # limpio: employees vacia y sin seed de dev). Idempotente: solo crea el admin si no
+  # existe ninguno. Credenciales SIEMPRE por variables de entorno, nunca en el YAML.
+  bootstrap:
+    admin:
+      enabled: ${PARKING_BOOTSTRAP_ADMIN_ENABLED:false}
+      email: ${PARKING_BOOTSTRAP_ADMIN_EMAIL:}
+      password: ${PARKING_BOOTSTRAP_ADMIN_PASSWORD:}
+      first-name: ${PARKING_BOOTSTRAP_ADMIN_FIRST_NAME:Admin}
+      last-name: ${PARKING_BOOTSTRAP_ADMIN_LAST_NAME:Parking}
+      phone: ${PARKING_BOOTSTRAP_ADMIN_PHONE:}
+      login: ${PARKING_BOOTSTRAP_ADMIN_LOGIN:}
 
 logging:
   level:

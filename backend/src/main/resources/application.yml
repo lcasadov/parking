@@ -72,6 +72,14 @@ parking:
   auth:
     local-fallback:
       enabled: false          # fallback de emergencia desactivado por defecto
+  # Bootstrap idempotente del primer administrador en despliegues limpios
+  # (docker/pro), donde employees nace vacia y el seed de dev esta excluido.
+  # Opt-in y desactivado por defecto; credenciales SIEMPRE por entorno (jamas aqui).
+  bootstrap:
+    admin:
+      enabled: false          # crear admin inicial al arrancar (solo si no hay ADMIN)
+      # email/password se inyectan por entorno en el perfil que lo active:
+      #   PARKING_BOOTSTRAP_ADMIN_EMAIL / PARKING_BOOTSTRAP_ADMIN_PASSWORD
   retention:
     years: 2                  # purga de datos historicos a los 2 anos (RGPD)
     cron: "0 0 3 * * *"       # job diario de purga a las 03:00 (usar "-" para desactivar)

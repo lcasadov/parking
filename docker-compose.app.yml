@@ -77,6 +77,16 @@ services:
       DB_USERNAME: sa
       DB_PASSWORD: "${MSSQL_SA_PASSWORD:-Parking!Local2024}"
       MAIL_FROM: "${MAIL_FROM:-no-reply@parking.aleatica.com}"
+      # Bootstrap idempotente del primer admin (huevo y gallina en un despliegue limpio).
+      # Activalo poniendo PARKING_BOOTSTRAP_ADMIN_ENABLED=true + email/password en el .env.
+      # Nunca hardcodees credenciales aqui: solo referencias al .env (gitignored).
+      PARKING_BOOTSTRAP_ADMIN_ENABLED: "${PARKING_BOOTSTRAP_ADMIN_ENABLED:-false}"
+      PARKING_BOOTSTRAP_ADMIN_EMAIL: "${PARKING_BOOTSTRAP_ADMIN_EMAIL:-}"
+      PARKING_BOOTSTRAP_ADMIN_PASSWORD: "${PARKING_BOOTSTRAP_ADMIN_PASSWORD:-}"
+      PARKING_BOOTSTRAP_ADMIN_FIRST_NAME: "${PARKING_BOOTSTRAP_ADMIN_FIRST_NAME:-Admin}"
+      PARKING_BOOTSTRAP_ADMIN_LAST_NAME: "${PARKING_BOOTSTRAP_ADMIN_LAST_NAME:-Parking}"
+      PARKING_BOOTSTRAP_ADMIN_LOGIN: "${PARKING_BOOTSTRAP_ADMIN_LOGIN:-}"
+      PARKING_BOOTSTRAP_ADMIN_PHONE: "${PARKING_BOOTSTRAP_ADMIN_PHONE:-}"
     # Sin `ports`: solo lo consume nginx por la red interna.
     networks:
       - parking-app-net

@@ -306,25 +306,48 @@ curl -s http://<ELASTIC_IP>/parking-api/actuator/health        # → {"status":"
 
 ## 8. Bootstrap del primer administrador ⚠️ BLOQUEANTE
 
-**No existe ningún mecanismo automático para crear el primer administrador en los
-perfiles `docker`/`pro`.** Comprobado en el código:
+En un despliegue limpio la tabla `dbo.employees` nace **vacía** (el seed de desarrollo
+`V5__seed_dev_admin.sql` **solo** se carga en el perfil `des`; los perfiles `docker`/`pro`
+cargan `spring.flyway.locations: classpath:db/migration`, solo esquema, para no filtrar la
+credencial de dev — *bug #11 / CWE-798*). Como `POST /parking-api/employees` exige rol
+`ADMIN`, sin un admin previo **nadie puede iniciar sesión** (huevo y gallina).
 
-- El único admin sembrado por Flyway está en `backend/src/main/resources/db/seed/dev/V5__seed_dev_admin.sql`,
-  y **solo se carga en el perfil `des`** (`spring.flyway.locations: classpath:db/migration,classpath:db/seed/dev`).
-- Los perfiles `docker` y `pro` fijan `spring.flyway.locations: classpath:db/migration`
-  (**solo esquema**), deliberadamente, para que la credencial de desarrollo **no** se
-  filtre a entornos desplegados (referenciado en el código como *bug #11 / CWE-798*).
-- **No hay** `CommandLineRunner`/`ApplicationRunner`/`ApplicationReadyEvent`, **ni** endpoint
-  de setup (`/setup`, `/init`, `/bootstrap`), **ni** propiedad de admin inicial
-  (`parking.admin.*` o similar) que cree un admin.
-- El único endpoint de alta de usuarios, `POST /parking-api/employees`, está protegido con
-  `@PreAuthorize("hasRole('ADMIN')")` → **requiere un admin ya existente** (problema del
-  huevo y la gallina).
+### 8.1 Método recomendado — bootstrap por variables de entorno (idempotente)
 
-**Consecuencia:** en un despliegue limpio la tabla `dbo.employees` queda **vacía** y
-**nadie puede iniciar sesión**. Hay que crear el primer admin manualmente.
+La aplicación crea el **primer administrador al arrancar** a partir de configuración inyectada
+por entorno. Es **opt-in** (desactivado por defecto) e **idempotente**: solo crea el admin si
+**no existe ya ningún `ADMIN`**; si ya hay uno, es un no-op. La contraseña se persiste
+**hasheada con BCrypt** (el mismo encoder de la app, coste 12) y el admin nace con
+`password_must_change = true` (debe cambiarla en el primer login).
 
-### 8.1 Solución temporal (manual) — INSERT directo en la BD
+**Paso 1 — añade las variables al `.env`** de la instancia (ver §6.2). Ejemplo:
+
+```dotenv
+PARKING_BOOTSTRAP_ADMIN_ENABLED=true
+PARKING_BOOTSTRAP_ADMIN_EMAIL=admin@parking.aleatica.com
+PARKING_BOOTSTRAP_ADMIN_PASSWORD=<PASSWORD_FUERTE>   # ≥10, may+min+dígito+símbolo, ≠ login/email
+# Opcionales:
+PARKING_BOOTSTRAP_ADMIN_FIRST_NAME=Admin
+PARKING_BOOTSTRAP_ADMIN_LAST_NAME=Parking
+PARKING_BOOTSTRAP_ADMIN_LOGIN=            # vacío → se deriva de la parte local del email
+```
+
+**Paso 2 — arranca la pila** (§6.3). En el log del backend verás
+`[admin-bootstrap] Administrador inicial creado (...)`. Inicia sesión con ese admin, cambia la
+contraseña forzada y crea el resto de usuarios desde la UI.
+
+**Paso 3 — endurece (recomendado):** tras el primer arranque, pon
+`PARKING_BOOTSTRAP_ADMIN_ENABLED=false` (o vacía email/password) para no reintentar en cada
+reinicio. Aunque siga activo es un no-op si ya existe un admin, pero mantener la contraseña en
+el `.env` es innecesario una vez creado.
+
+> Si `ENABLED=true` pero faltan email/password, el arranque **no falla**: registra un WARN
+> `[admin-bootstrap] ... faltan email/password` y no crea nada.
+
+### 8.2 Alternativa de emergencia (manual) — INSERT directo en la BD
+
+> Úsalo solo si el bootstrap por entorno (§8.1) no es viable. Inserta un admin con un hash
+> **BCrypt** válido y `password_must_change = 1`.
 
 Inserta un admin con un hash **BCrypt** válido. El esquema exige los campos NOT NULL de
 `dbo.employees` (ver `V4__employees.sql`): `first_name`, `last_name`, `login`, `email`,
@@ -360,22 +383,6 @@ VALUES
 > `$MSSQL_SA_PASSWORD` debe estar disponible en tu shell (o sustitúyelo por el valor del
 > `.env`). Ajusta `email`/`login` a los reales. Tras esto, inicia sesión con ese admin y
 > crea el resto de usuarios desde la UI.
-
-### 8.2 Recomendación (TODO, fuera del alcance de esta guía)
-
-El INSERT manual es frágil y propenso a errores. Para producción conviene un mecanismo
-reproducible. Opciones propuestas (a decidir con el equipo backend):
-
-1. **Bootstrap por código idempotente** — un `ApplicationRunner` que, si `employees` está
-   vacío, cree un admin a partir de propiedades **obligatorias** en pro
-   (`PARKING_BOOTSTRAP_ADMIN_EMAIL`, `..._PASSWORD`) inyectadas por entorno, forzando
-   `password_must_change = 1`. Sin las propiedades, no crea nada.
-2. **Migración Flyway parametrizada** con Flyway *placeholders* (p. ej. `${admin_email}`,
-   `${admin_bcrypt}`) en una location cargada solo en pro, alimentada desde el entorno.
-   Evita hardcodear la credencial en el repo.
-
-En ambos casos: nunca una contraseña por defecto en el repositorio, y `password_must_change = 1`
-para forzar el cambio en el primer login.
 
 ---
 
@@ -448,7 +455,8 @@ IP entonces se factura), o una *Savings Plan*/Reserved Instance si el uso es est
    `build:` ni `latest`), para despliegues reproducibles y rollbacks limpios.
 5. **Backups del volumen de datos.** Snapshot periódico del EBS y/o `docker run --rm -v
    parking-app-mssql-data:/data ...` para copiar el volumen; o backups nativos de SQL Server.
-6. **Bootstrap del primer admin reproducible** (ver §8.2) — requisito para automatizar PRO.
+6. **Rotación de credenciales del admin inicial:** una vez creado el primer admin (§8.1),
+   retira `PARKING_BOOTSTRAP_ADMIN_*` del `.env`/gestor de secretos.
 7. **Observabilidad:** rotación/agregación de logs (CloudWatch Logs), alarmas de CPU/memoria/disco.
 
 ---

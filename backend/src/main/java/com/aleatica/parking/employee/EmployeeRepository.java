@@ -41,6 +41,17 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     boolean existsByEmail(String email);
 
     /**
+     * Indica si ya existe algun empleado con el rol dado (incluye inactivos).
+     *
+     * <p>Lo usa el bootstrap del primer administrador para garantizar idempotencia:
+     * solo crea el admin inicial cuando no existe todavia ningun {@code ADMIN}.</p>
+     *
+     * @param role rol a comprobar
+     * @return {@code true} si existe al menos un empleado con ese rol
+     */
+    boolean existsByRole(Role role);
+
+    /**
      * Indica si el email pertenece a un empleado distinto del indicado
      * (colision al editar, excluyendo al propio empleado).
      *
