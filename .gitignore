@@ -54,3 +54,6 @@ cov.log
 *.log
 backend-dev.log
 frontend-dev.log
+
+# Backups de BD (datos personales) — nunca versionar
+*.bak
