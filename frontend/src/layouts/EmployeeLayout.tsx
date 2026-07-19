@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
-import { AppHeader } from '../components/AppHeader';
 import { Sidebar, SidebarSection } from '../components/Sidebar';
 import { SidebarUserCard } from '../components/SidebarUserCard';
 import { ROUTES } from '../routes/paths';
@@ -8,13 +7,12 @@ import { ROUTES } from '../routes/paths';
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   `nav-item${isActive ? ' active' : ''}`;
 
-// Layout de empleado: header + sidebar ALEATICA (navegacion propia + tarjeta de
-// usuario) + <Outlet/>.
+// Layout de empleado: sidebar ALEATICA (navegacion propia + area de usuario al
+// pie con logout/preferencias) + <Outlet/>. Sin top-bar (prototipo aprobado).
 export function EmployeeLayout() {
   const { t } = useTranslation();
   return (
     <div className="app-shell">
-      <AppHeader pageTitle={t('layout.employeeArea')} />
       <div className="layout">
         <Sidebar footer={<SidebarUserCard />}>
           <SidebarSection label={t('layout.sections.navigation')} />

@@ -85,6 +85,7 @@ export const es = {
     },
   },
   layout: {
+    brandTagline: 'Gestión de parking',
     adminArea: 'Administración',
     employeeArea: 'Mi espacio',
     agencyArea: 'Agencia',

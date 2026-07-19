@@ -85,6 +85,7 @@ export const en = {
     },
   },
   layout: {
+    brandTagline: 'Parking management',
     adminArea: 'Administration',
     employeeArea: 'My space',
     agencyArea: 'Agency',
