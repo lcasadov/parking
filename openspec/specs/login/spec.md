@@ -1,7 +1,8 @@
-# login
+# login Specification
 
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change redesign-login. Update Purpose after archive.
+## Requirements
 ### Requirement: Presentación del login
 La pantalla de login DEBE (MUST) seguir la identidad ALEATICA definida en el design system,
 sin alterar el flujo de autenticación existente.
@@ -15,3 +16,4 @@ sin alterar el flujo de autenticación existente.
 - **WHEN** las credenciales son inválidas
 - **THEN** se muestra un banner de error con los intentos restantes
 - **AND** tras 5 intentos fallidos se comunica el bloqueo temporal
+
