@@ -36,6 +36,8 @@ export const es = {
   },
   auth: {
     loginTitle: 'Iniciar sesión',
+    loginSubtitle: 'Gestión de parking',
+    loginDescription: 'Acceso con tu usuario corporativo.',
     loginField: 'Usuario',
     passwordField: 'Contraseña',
     signIn: 'Entrar',

@@ -8,7 +8,6 @@ import { useAuth } from '../auth/useAuth';
 import { AuthShell } from '../components/AuthShell';
 import { Button } from '../components/Button';
 import { InfoBanner } from '../components/InfoBanner';
-import { Input } from '../components/Input';
 import { homePathForRole } from '../routes/paths';
 import type { ApiError, CurrentUser } from '../types/auth';
 
@@ -34,6 +33,7 @@ export function LoginPage() {
   const [loginValue, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const loginId = useId();
   const passwordId = useId();
 
   const mutation = useMutation<CurrentUser, unknown, void>({
@@ -54,8 +54,9 @@ export function LoginPage() {
     : null;
 
   return (
-    <AuthShell title={t('auth.loginTitle')}>
+    <AuthShell title={t('auth.loginTitle')} subtitle={t('auth.loginSubtitle')}>
       <form onSubmit={handleSubmit} noValidate>
+        <p className="auth-desc">{t('auth.loginDescription')}</p>
         {mutation.isError ? (
           <div role="alert">
             <InfoBanner variant="red" icon="alert-circle">
@@ -65,19 +66,29 @@ export function LoginPage() {
             </InfoBanner>
           </div>
         ) : null}
-        <Input
-          label={t('auth.loginField')}
-          name="login"
-          autoComplete="username"
-          value={loginValue}
-          onChange={(e) => setLoginValue(e.target.value)}
-          required
-        />
+        <div className="auth-field">
+          <label className="field-label" htmlFor={loginId}>
+            {t('auth.loginField')}
+          </label>
+          <div className="field-value with-icon">
+            <i className="ti ti-user field-icon" aria-hidden="true" />
+            <input
+              id={loginId}
+              className="field-input"
+              name="login"
+              autoComplete="username"
+              value={loginValue}
+              onChange={(e) => setLoginValue(e.target.value)}
+              required
+            />
+          </div>
+        </div>
         <div className="auth-field">
           <label className="field-label" htmlFor={passwordId}>
             {t('auth.passwordField')}
           </label>
           <div className="field-value with-icon">
+            <i className="ti ti-lock field-icon" aria-hidden="true" />
             <input
               id={passwordId}
               className="field-input"

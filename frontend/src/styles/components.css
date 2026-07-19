@@ -346,7 +346,7 @@ body.theme-dark .btn-white {
   padding: var(--space-6);
 }
 .auth-card {
-  width: 380px;
+  width: 400px;
   max-width: 100%;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -371,13 +371,23 @@ body.theme-dark .btn-white {
   top: 0;
   right: 0;
   height: 96px;
-  width: 380px;
+  width: 400px;
   z-index: 0;
 }
 .auth-title {
   font-size: var(--text-lg);
   color: var(--text);
   z-index: 1;
+}
+/* Subtitulo bajo el titulo en la cabecera de auth (login: "Gestión de parking"). */
+.auth-subtitle {
+  margin: 0;
+  z-index: 1;
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
 }
 .auth-body {
   padding: var(--space-6);
@@ -2249,6 +2259,23 @@ button.pop-row.pop-danger:disabled {
 .pw-toggle:focus-visible {
   outline: 2px solid var(--green-focus);
   outline-offset: 2px;
+}
+
+/* Descripcion bajo el titulo del login (mockup 12: "Acceso con tu usuario…"). */
+.auth-desc {
+  margin: 0 0 18px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Icono guia dentro de un campo con icono (login: ti-user / ti-lock).
+   El input crece (flex:1) y el icono queda a la izquierda. */
+.field-value.with-icon > .field-icon {
+  color: var(--text-muted);
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-right: 8px;
 }
 
 /* Textos de ayuda del login (mockup 12). */

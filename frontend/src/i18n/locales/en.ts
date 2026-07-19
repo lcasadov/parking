@@ -36,6 +36,8 @@ export const en = {
   },
   auth: {
     loginTitle: 'Sign in',
+    loginSubtitle: 'Parking management',
+    loginDescription: 'Sign in with your corporate account.',
     loginField: 'Username',
     passwordField: 'Password',
     signIn: 'Sign in',
