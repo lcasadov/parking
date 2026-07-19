@@ -1191,19 +1191,24 @@ body.theme-dark .segmented button.active {
 
 .calendar-cell {
   vertical-align: top;
-  min-width: 96px;
+  min-width: 104px;
 }
 
 .calendar-cell-state {
   display: block;
-  font-size: var(--text-xs);
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .calendar-cell-name {
   display: block;
+  margin-top: 2px;
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  font-weight: 600;
+  color: inherit;
+  opacity: 0.82;
 }
 
 /* Estados de celda (admin + mi-semana) */
@@ -2382,4 +2387,164 @@ button.pop-row.pop-danger:disabled {
   background: var(--state-free-bg);
   border: 1px dashed var(--state-free-border);
   color: var(--state-free-ink);
+}
+
+/* ============================================================
+   Asignación semanal — redesign (change redesign-weekly-assignment)
+   Cabecera + tarjetas resumen + navegador de semana + grid plaza x dia.
+   Reutiliza tokens ALEATICA (contrato §1–5) y el mapa estado->color (§4).
+   ============================================================ */
+
+/* Tarjetas resumen: numeral serif + etiqueta, color por métrica. */
+.calendar-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--taupe);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+.summary-card-value {
+  font-family: var(--font-serif);
+  font-size: var(--fs-num);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+}
+.summary-card-label {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+}
+.summary-card--green {
+  border-left-color: var(--brand-green);
+}
+.summary-card--green .summary-card-value {
+  color: var(--brand-green-deep);
+}
+.summary-card--blue {
+  border-left-color: var(--brand-blue);
+}
+.summary-card--blue .summary-card-value {
+  color: var(--brand-blue-deep);
+}
+.summary-card--orange {
+  border-left-color: var(--brand-orange);
+}
+.summary-card--orange .summary-card-value {
+  color: var(--orange-deep);
+}
+.summary-card--ink {
+  border-left-color: var(--taupe);
+}
+
+/* Navegador de semana: controles + rango serif + nº semana + leyenda. */
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+.week-nav-controls {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+.week-nav-range {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.week-range {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  text-transform: capitalize;
+}
+.week-number {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+}
+.week-nav .legend {
+  margin-top: 0;
+  margin-left: auto;
+}
+
+/* Panel de filtro por estado (reutiliza .chip-filter / .cf-dot del design system). */
+.calendar-state-filter {
+  margin-bottom: var(--space-4);
+}
+
+/* Grid plaza x dia. */
+.calendar-grid th[scope='col'] {
+  text-align: center;
+  white-space: nowrap;
+}
+.day-head-abbr {
+  display: block;
+  font-weight: 700;
+}
+.day-head-date {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 400;
+  opacity: 0.75;
+}
+/* Columna del dia actual resaltada (accent). */
+.table-header th.is-today {
+  background: var(--brand-green-deep);
+}
+.calendar-cell.is-today {
+  box-shadow: inset 2px 0 0 var(--brand-green), inset -2px 0 0 var(--brand-green);
+}
+.calendar-cell.is-dimmed {
+  opacity: 0.3;
+}
+
+/* Cabecera de fila: etiqueta de plaza + identificador secundario. */
+.calendar-space-cell {
+  vertical-align: middle;
+}
+.calendar-space-label {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink);
+}
+.calendar-space-zone {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 768px) {
+  .calendar-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .week-nav .legend {
+    margin-left: 0;
+  }
 }

@@ -880,13 +880,31 @@ export const es = {
   calendar: {
     admin: {
       navLabel: 'Asignación semanal',
-      title: 'Calendario semanal',
+      title: 'Asignación semanal',
+      eyebrow: 'Operativa',
+      description: 'Estado de cada plaza, día a día, de un vistazo.',
     },
     toolbar: {
       previous: 'Semana anterior',
       next: 'Semana siguiente',
       today: 'Hoy',
       weekOf: 'Semana del {{date}}',
+    },
+    actions: {
+      filter: 'Filtrar',
+      export: 'Exportar',
+    },
+    summary: {
+      spaces: 'Plazas activas',
+      assignments: 'Asignaciones',
+      releases: 'Liberadas',
+      requests: 'Solicitudes',
+    },
+    weekNav: {
+      week: 'Semana {{number}}',
+    },
+    export: {
+      filename: 'asignacion-semanal',
     },
     space: 'Plaza',
     loadError: 'No se pudo cargar el calendario.',

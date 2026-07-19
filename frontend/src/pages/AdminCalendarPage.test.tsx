@@ -56,6 +56,78 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     await waitFor(() => expect(requested).toContain(thisWeek));
   });
 
+  it('should_alignReleasedToBlueStateToken_when_rendered', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/calendar/admin`, ({ request }) =>
+        HttpResponse.json(
+          adminCalendarFor(new URL(request.url).searchParams.get('weekStart') ?? ''),
+        ),
+      ),
+    );
+    renderWithProviders(<AdminCalendarPage />);
+
+    const grid = await screen.findByRole('table');
+    const released = within(grid).getByText(/liberada|released/i);
+    const cell = released.closest('td');
+    // Liberado usa el token de estado del contrato (azul), no el pink previo.
+    expect(cell).toHaveClass('state-released');
+    expect(cell).not.toHaveClass('cell-released');
+  });
+
+  it('should_showSummaryCards_when_calendarLoaded', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/calendar/admin`, ({ request }) =>
+        HttpResponse.json(
+          adminCalendarFor(new URL(request.url).searchParams.get('weekStart') ?? ''),
+        ),
+      ),
+    );
+    renderWithProviders(<AdminCalendarPage />);
+
+    await screen.findByRole('table');
+    const assignments = screen.getByText(/asignaciones|assignments/i).closest('.summary-card');
+    expect(assignments).not.toBeNull();
+    // ASSIGNED (1) + REQUEST_APPROVED (1) = 2 asignaciones en la semana fixture.
+    expect(within(assignments as HTMLElement).getByText('2')).toBeInTheDocument();
+  });
+
+  it('should_toggleStateFilter_when_filterButtonClicked', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/calendar/admin`, ({ request }) =>
+        HttpResponse.json(
+          adminCalendarFor(new URL(request.url).searchParams.get('weekStart') ?? ''),
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<AdminCalendarPage />);
+
+    await screen.findByRole('table');
+    expect(screen.queryByRole('group', { name: /filtrar|filter/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /filtrar|filter/i }));
+    const group = screen.getByRole('group', { name: /filtrar|filter/i });
+    const freeChip = within(group).getByRole('button', { name: /libre|free/i });
+    expect(freeChip).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(freeChip);
+    expect(freeChip).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('should_enableExport_when_rowsPresent', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/calendar/admin`, ({ request }) =>
+        HttpResponse.json(
+          adminCalendarFor(new URL(request.url).searchParams.get('weekStart') ?? ''),
+        ),
+      ),
+    );
+    renderWithProviders(<AdminCalendarPage />);
+
+    await screen.findByRole('table');
+    expect(screen.getByRole('button', { name: /exportar|export/i })).toBeEnabled();
+  });
+
   it('should_showEmptyState_when_noSpacesConfigured', async () => {
     server.use(
       http.get(`${MSW_BASE}/calendar/admin`, () => HttpResponse.json(emptyAdminCalendar)),

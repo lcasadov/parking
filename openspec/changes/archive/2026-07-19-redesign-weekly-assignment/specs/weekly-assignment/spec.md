@@ -1,6 +1,6 @@
 # weekly-assignment
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Presentación de la asignación semanal
 La vista semanal DEBE (MUST) presentar el estado de cada plaza por día usando el mapa

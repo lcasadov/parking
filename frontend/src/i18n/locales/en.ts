@@ -879,13 +879,31 @@ export const en = {
   calendar: {
     admin: {
       navLabel: 'Weekly schedule',
-      title: 'Weekly calendar',
+      title: 'Weekly assignment',
+      eyebrow: 'Operations',
+      description: 'Every space, day by day, at a glance.',
     },
     toolbar: {
       previous: 'Previous week',
       next: 'Next week',
       today: 'Today',
       weekOf: 'Week of {{date}}',
+    },
+    actions: {
+      filter: 'Filter',
+      export: 'Export',
+    },
+    summary: {
+      spaces: 'Active spaces',
+      assignments: 'Assignments',
+      releases: 'Released',
+      requests: 'Requests',
+    },
+    weekNav: {
+      week: 'Week {{number}}',
+    },
+    export: {
+      filename: 'weekly-assignment',
     },
     space: 'Space',
     loadError: 'The calendar could not be loaded.',
