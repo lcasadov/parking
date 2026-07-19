@@ -1,0 +1,12 @@
+# Artefactos de build y ruido que no debe entrar en el contexto de Docker.
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.git/
+.gitignore
+*.log
+*.md
+.idea/
+.vscode/
+*.iml
+# La imagen resuelve dependencias con Maven; no arrastramos caches locales.
+.m2/

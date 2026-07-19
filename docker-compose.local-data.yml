@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------------
+# Override SOLO para desarrollo local.
+# Ejecuta la app en contenedores usando la BD de DEV existente (volumen
+# `parking-mssql-data`, con tus datos) en lugar del SQL Server vacio del stack.
+#
+# Requiere el SQL Server de dev corriendo (compose `docker-compose.yml`), que
+# crea la red `parking_default` y el contenedor `parking-sqlserver`:
+#   docker compose -f docker-compose.yml up -d sqlserver
+#
+# Arranque de la app contra esos datos (--no-deps: no levanta el sqlserver vacio):
+#   docker compose -f docker-compose.app.yml -f docker-compose.local-data.yml \
+#     up -d --no-deps --build backend frontend
+#
+# NO usar en AWS: se conecta a la red/contenedor de dev e incluye el seed de dev.
+# ---------------------------------------------------------------------------
+name: parking-app
+services:
+  backend:
+    environment:
+      # Alcanza el SQL Server de dev por su nombre de contenedor en la red de dev.
+      DB_URL: "jdbc:sqlserver://parking-sqlserver:1433;databaseName=parking;encrypt=true;trustServerCertificate=true"
+      # El historial Flyway de la BD de dev incluye migraciones de seed
+      # (classpath:db/seed/dev); hay que resolverlas o `validate` falla.
+      SPRING_FLYWAY_LOCATIONS: "classpath:db/migration,classpath:db/seed/dev"
+      # El admin ya existe en los datos de dev: no hace falta bootstrap.
+      PARKING_BOOTSTRAP_ADMIN_ENABLED: "false"
+    networks:
+      - parking-app-net   # para que nginx (frontend) siga alcanzando al backend
+      - devdb             # para alcanzar el SQL Server de dev
+
+networks:
+  devdb:
+    external: true
+    name: parking_default

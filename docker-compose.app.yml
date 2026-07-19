@@ -1,0 +1,114 @@
+# =====================================================================
+# docker-compose.app.yml — Etapa A: la aplicacion parking corriendo ENTERA
+# como contenedores en local (frontend nginx + backend Tomcat/WAR + SQL Server).
+#
+# NO sustituye a docker-compose.yml (ese es solo infra de dev para `mvn spring-boot:run`).
+# Aqui todo es interno salvo el frontend (puerto 80). SQL Server NO publica puerto
+# al host para no chocar con el `parking-sqlserver` de dev.
+#
+# Arranque:  docker compose -f docker-compose.app.yml up -d --build
+# Frontend:  http://localhost/
+# API health http://localhost/parking-api/actuator/health
+#
+# Correo: Ethereal. Credenciales SMTP en el .env de la raiz (gitignored):
+#   SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_AUTH, SMTP_STARTTLS
+# =====================================================================
+# Nombre de proyecto propio: aisla este stack del de dev (docker-compose.yml, que
+# usa el nombre por defecto `parking`). Sin esto, compose reconciliaria por nombre
+# de servicio (sqlserver/db-init) y recrearia los contenedores de dev.
+name: parking-app
+
+services:
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: parking-app-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Parking!Local2024}"
+      MSSQL_PID: "Developer"
+    # Sin `ports`: la BD solo es accesible dentro de la red de compose.
+    volumes:
+      - parking-app-mssql-data:/var/opt/mssql
+    networks:
+      - parking-app-net
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # Crea la BD `parking` (idempotente) cuando SQL Server esta sano. Termina tras ejecutar.
+  # Reutiliza la imagen del servidor (ya incluye sqlcmd); mismo patron que docker-compose.yml.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: parking-app-db-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Parking!Local2024}"
+    volumes:
+      - ./database/seed:/seed:ro
+    networks:
+      - parking-app-net
+    entrypoint: >
+      /bin/bash -c "/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa
+      -P \"$${MSSQL_SA_PASSWORD}\" -C -b -i /seed/00_create_database.sql"
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: parking-app-backend
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    # Variables SMTP (Ethereal) desde el .env de la raiz — no van en claro aqui.
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: "jdbc:sqlserver://sqlserver:1433;databaseName=parking;encrypt=true;trustServerCertificate=true"
+      DB_USERNAME: sa
+      DB_PASSWORD: "${MSSQL_SA_PASSWORD:-Parking!Local2024}"
+      MAIL_FROM: "${MAIL_FROM:-no-reply@parking.aleatica.com}"
+      # Bootstrap idempotente del primer admin (huevo y gallina en un despliegue limpio).
+      # Activalo poniendo PARKING_BOOTSTRAP_ADMIN_ENABLED=true + email/password en el .env.
+      # Nunca hardcodees credenciales aqui: solo referencias al .env (gitignored).
+      PARKING_BOOTSTRAP_ADMIN_ENABLED: "${PARKING_BOOTSTRAP_ADMIN_ENABLED:-false}"
+      PARKING_BOOTSTRAP_ADMIN_EMAIL: "${PARKING_BOOTSTRAP_ADMIN_EMAIL:-}"
+      PARKING_BOOTSTRAP_ADMIN_PASSWORD: "${PARKING_BOOTSTRAP_ADMIN_PASSWORD:-}"
+      PARKING_BOOTSTRAP_ADMIN_FIRST_NAME: "${PARKING_BOOTSTRAP_ADMIN_FIRST_NAME:-Admin}"
+      PARKING_BOOTSTRAP_ADMIN_LAST_NAME: "${PARKING_BOOTSTRAP_ADMIN_LAST_NAME:-Parking}"
+      PARKING_BOOTSTRAP_ADMIN_LOGIN: "${PARKING_BOOTSTRAP_ADMIN_LOGIN:-}"
+      PARKING_BOOTSTRAP_ADMIN_PHONE: "${PARKING_BOOTSTRAP_ADMIN_PHONE:-}"
+    # Sin `ports`: solo lo consume nginx por la red interna.
+    networks:
+      - parking-app-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: parking-app-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"   # unico puerto publico
+    networks:
+      - parking-app-net
+    restart: unless-stopped
+
+networks:
+  parking-app-net:
+    name: parking-app-net
+    driver: bridge
+
+volumes:
+  parking-app-mssql-data:
+    name: parking-app-mssql-data
