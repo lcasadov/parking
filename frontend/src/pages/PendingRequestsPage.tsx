@@ -11,6 +11,7 @@ import { Tabs, type TabItem } from '../components/Tabs';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useEmployeesQuery } from '../hooks/useEmployees';
 import { usePendingRequestsQuery, useRequestsByStatusQuery } from '../hooks/useRequests';
+import { weekdayIndex } from '../utils/calendar';
 import { initialsOf } from '../utils/initials';
 import type { Employee } from '../types/employee';
 import type { Request, RequestStatus } from '../types/request';
@@ -53,7 +54,9 @@ function matchesSearch(request: Request, employee: Employee | undefined, term: s
   return haystack.toLowerCase().includes(term.toLowerCase());
 }
 
-// Celda de empleado del mockup 02: avatar-sm + nombre + departamento.
+// Celda de empleado (contrato §Solicitudes): avatar de color + nombre (elipsis) +
+// sub-linea con el tipo de recurso (pill) y el departamento (elipsis). El tipo de
+// recurso se integra aqui porque la tabla ya no tiene columna "Recurso" propia.
 function EmployeeCell({ request, employee }: { request: Request; employee?: Employee }) {
   const { t } = useTranslation();
   const name = employee
@@ -63,10 +66,13 @@ function EmployeeCell({ request, employee }: { request: Request; employee?: Empl
   return (
     <div className="employee-cell">
       <Avatar size="sm" initials={initials} label={name} seed={name} />
-      <div>
+      <div className="employee-cell-text">
         <div className="employee-cell-name">{name}</div>
-        <div className="employee-cell-dept">
-          {employee?.department ?? t('requests.approve.context.noDepartment')}
+        <div className="employee-cell-sub">
+          <ResourceTypePill resourceType={request.resourceType} />
+          <span className="employee-cell-dept">
+            {employee?.department ?? t('requests.approve.context.noDepartment')}
+          </span>
         </div>
       </div>
     </div>
@@ -141,8 +147,8 @@ function RequestsTable({
         <thead>
           <tr className="table-header">
             <th scope="col">{t('requests.inbox.columns.employee')}</th>
-            <th scope="col">{t('requests.inbox.columns.resource')}</th>
             <th scope="col">{t('requests.inbox.columns.date')}</th>
+            <th scope="col">{t('requests.inbox.columns.day')}</th>
             <th scope="col">{t('requests.inbox.columns.created')}</th>
             <th scope="col">{t('requests.inbox.columns.status')}</th>
             <th scope="col">{t('requests.inbox.columns.actions')}</th>
@@ -162,9 +168,11 @@ function RequestsTable({
                   <EmployeeCell request={request} employee={employeeMap.get(request.employeeId)} />
                 </td>
                 <td>
-                  <ResourceTypePill resourceType={request.resourceType} />
+                  <span className="request-date">{request.requestedDate}</span>
                 </td>
-                <td>{request.requestedDate}</td>
+                <td className="request-weekday">
+                  {t(`calendar.weekdaysShort.${weekdayIndex(request.requestedDate)}`)}
+                </td>
                 <td>{request.createdAt}</td>
                 <td>
                   <span className={`status-badge status-${request.status.toLowerCase()}`}>
@@ -389,9 +397,13 @@ export function PendingRequestsPage() {
   return (
     <section className="pending-requests-page" aria-labelledby="pending-requests-title">
       <header className="page-header">
-        <h1 id="pending-requests-title" className="section-title">
-          {t('requests.inbox.title')}
-        </h1>
+        <div className="page-heading">
+          <span className="page-eyebrow">{t('requests.inbox.eyebrow')}</span>
+          <h1 id="pending-requests-title" className="section-title">
+            {t('requests.inbox.title')}
+          </h1>
+          <p className="page-description">{t('requests.inbox.description')}</p>
+        </div>
         <div className="page-actions">
           <ExportMenu path={EXPORT_PATHS.requests} fallbackBase="requests" requiredRole="ADMIN" />
         </div>

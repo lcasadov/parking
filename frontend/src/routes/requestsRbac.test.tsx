@@ -14,7 +14,7 @@ describe('Requests RBAC', () => {
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminRequests });
 
     expect(
-      await screen.findByRole('heading', { name: /solicitudes pendientes|pending requests/i }),
+      await screen.findByRole('heading', { name: /^solicitudes$|^requests$/i }),
     ).toBeInTheDocument();
   });
 
@@ -26,7 +26,7 @@ describe('Requests RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /solicitudes pendientes|pending requests/i }),
+      screen.queryByRole('heading', { name: /^solicitudes$|^requests$/i }),
     ).not.toBeInTheDocument();
   });
 

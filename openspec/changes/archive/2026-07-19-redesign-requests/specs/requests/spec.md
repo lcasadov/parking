@@ -1,6 +1,6 @@
 # requests
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Presentación de solicitudes
 La bandeja de solicitudes DEBE (MUST) seguir la identidad ALEATICA y permitir filtrar y resolver

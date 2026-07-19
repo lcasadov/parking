@@ -774,19 +774,52 @@ body.theme-dark .segmented button.active {
   margin-left: auto;
 }
 
-/* Celda de empleado con avatar + nombre + departamento (mockup 02). */
+/* Celda de empleado con avatar de color + nombre (elipsis) + sub-linea con el
+   tipo de recurso (pill) y el departamento (elipsis) (contrato §Solicitudes). */
 .employee-cell {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+.employee-cell-text {
+  min-width: 0;
+  max-width: 220px;
+}
 .employee-cell-name {
   font-weight: 500;
   color: var(--text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.employee-cell-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-top: 2px;
 }
 .employee-cell-dept {
   color: var(--text-muted);
   font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Fecha solicitada en tipografia serif editorial (contrato §3, numerales
+   Cormorant). El dia de la semana derivado la acompaña en tono atenuado. */
+.request-date {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.request-weekday {
+  color: var(--text-muted);
+  text-transform: capitalize;
+  white-space: nowrap;
 }
 
 /* Tabs estilo caja (mockup styles.css:113-115) */
