@@ -845,6 +845,7 @@ export const en = {
       label: 'Desk panel',
       title: 'Desks',
       occupancyTitle: 'Occupancy for the day',
+      countersLabel: 'Occupancy by state',
       searchLabel: 'Search desk by number',
       searchPlaceholder: 'Search no.…',
       empty: 'No desk matches the search.',

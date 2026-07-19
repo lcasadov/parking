@@ -12,6 +12,7 @@ import {
   markerStateClass,
   matchesDeskSearch,
   nextCoord,
+  occupancyCounts,
   SELECTED_MARKER_CLASS,
 } from './floorPlan';
 import type { DeskState, FloorPlanDesk } from '../types/floorPlan';
@@ -91,6 +92,21 @@ describe('floorPlan utils', () => {
     expect(matchesDeskSearch(deskWith(12, 'FREE'), '2')).toBe(true);
     expect(matchesDeskSearch(deskWith(12, 'FREE'), '3')).toBe(false);
     expect(matchesDeskSearch(deskWith(12, 'FREE'), '  ')).toBe(true);
+  });
+
+  it('should_group_occupancy_counts_folding_mine_into_occupied', () => {
+    const counts = occupancyCounts([
+      deskWith(1, 'ASSIGNED'),
+      deskWith(2, 'MINE'),
+      deskWith(3, 'FREE'),
+      deskWith(4, 'FREE'),
+      deskWith(5, 'RELEASED'),
+      deskWith(6, 'REQUESTED'),
+    ]);
+    expect(counts.occupied).toBe(2);
+    expect(counts.free).toBe(2);
+    expect(counts.released).toBe(1);
+    expect(counts.requested).toBe(1);
   });
 
   it('should_clamp_scale_to_zoom_bounds', () => {

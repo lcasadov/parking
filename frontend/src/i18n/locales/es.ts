@@ -846,6 +846,7 @@ export const es = {
       label: 'Panel de puestos',
       title: 'Puestos',
       occupancyTitle: 'Ocupación del día',
+      countersLabel: 'Ocupación por estado',
       searchLabel: 'Buscar puesto por número',
       searchPlaceholder: 'Buscar nº…',
       empty: 'Ningún puesto coincide con la búsqueda.',

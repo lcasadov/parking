@@ -1417,11 +1417,13 @@ body.theme-dark .segmented button.active {
   color: var(--exec-ring);
 }
 
-/* Colores pastel por estado (paleta semántica del design-system §2.4). */
+/* Color de marcador por estado: mapa único estado→color del contrato §4,
+   reutilizando los tokens --state-* del design-system (sin hex sueltos). */
 .floor-marker-free {
-  background: var(--neutral-soft);
-  border-color: var(--neutral-border);
-  color: var(--text-soft);
+  background: var(--state-free-bg);
+  border-style: dashed;
+  border-color: var(--state-free-border);
+  color: var(--state-free-ink);
 }
 /* Modo edición: gris uniforme para enfocar el reposicionamiento (WP5 §3). */
 .floor-marker-neutral {
@@ -1429,25 +1431,28 @@ body.theme-dark .segmented button.active {
   border-color: var(--border-strong);
   color: var(--text-soft);
 }
+/* Mi puesto: ocupado (verde §4) con anillo azul que lo distingue del ocupado
+   ajeno; la distinción no depende solo del color (aria-label del marcador). */
 .floor-marker-mine {
-  background: var(--blue-soft);
-  border-color: var(--blue-border);
-  color: var(--blue-darker);
+  background: var(--state-occupied-bg);
+  border-color: var(--blue-darker);
+  color: var(--state-occupied-ink);
+  box-shadow: 0 0 0 2px var(--blue-darker), 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 .floor-marker-assigned {
-  background: var(--green-soft);
-  border-color: var(--green-border);
-  color: var(--green-darker);
+  background: var(--state-occupied-bg);
+  border-color: var(--state-occupied-border);
+  color: var(--state-occupied-ink);
 }
 .floor-marker-requested {
-  background: var(--amber-soft);
-  border-color: var(--amber-border);
-  color: var(--amber-text);
+  background: var(--state-request-bg);
+  border-color: var(--state-request-border);
+  color: var(--state-request-ink);
 }
 .floor-marker-released {
-  background: var(--pink-soft);
-  border-color: var(--pink-border);
-  color: var(--pink-text);
+  background: var(--state-released-bg);
+  border-color: var(--state-released-border);
+  color: var(--state-released-ink);
 }
 /* Distinción visual EXECUTIVE: anillo ámbar sobre el color de estado. */
 .floor-marker-executive {
@@ -1626,6 +1631,47 @@ body.theme-dark .segmented button.active {
   font-size: var(--text-base);
   font-weight: 500;
   color: var(--text);
+}
+
+/* Cuadrícula de ocupación del día: 4 contadores con numeral serif y tinte por
+   estado (mapa único §4 vía .state-*). */
+.plano-occ {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+}
+.plano-occ-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.plano-occ-label {
+  margin: 0;
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  opacity: 0.85;
+}
+.plano-occ-num {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--fs-num);
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Dot de estado de una fila del listado (mismo color que el marcador del plano). */
+.plano-side-dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
 }
 .plano-side-search {
   margin-bottom: var(--space-3);

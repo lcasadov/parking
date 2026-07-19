@@ -1,6 +1,6 @@
 # floor-plan
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Presentación del plano del día
 El plano DEBE (MUST) mostrar la planta real con marcadores de puesto coloreados por estado,

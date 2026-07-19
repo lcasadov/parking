@@ -58,6 +58,25 @@ export function countByState(desks: FloorPlanDesk[]): Record<DeskState, number> 
   return counts;
 }
 
+// Contadores de "ocupación del día" para el panel lateral (contrato §Plano del día).
+// Ocupado agrupa los puestos con titular activo: ajenos (ASSIGNED) y propios (MINE).
+export interface OccupancyCounts {
+  occupied: number;
+  free: number;
+  released: number;
+  requested: number;
+}
+
+export function occupancyCounts(desks: FloorPlanDesk[]): OccupancyCounts {
+  const byState = countByState(desks);
+  return {
+    occupied: byState.ASSIGNED + byState.MINE,
+    free: byState.FREE,
+    released: byState.RELEASED,
+    requested: byState.REQUESTED,
+  };
+}
+
 // ¿Coincide el puesto con el filtro activo? `EXECUTIVE` filtra por categoría; el
 // resto por estado. `null` = sin filtro (coincide todo).
 export function matchesFilter(
