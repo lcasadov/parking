@@ -67,9 +67,10 @@ public class RequestService {
     private static final int MIN_OTHER_REASON_LENGTH = 5;
 
     /**
-     * Categorias de rango ALTO (hasta Director N2): prefieren las plantas MAS ALTAS en la
-     * auto-asignacion (design §D3). El resto (Gerente, Mando intermedio, Empleado) prefiere las
-     * mas bajas.
+     * Categorias de rango ALTO (hasta Director N2): en un garaje SUBTERRANEO prefieren las plantas
+     * fisicas MAS ALTAS en la auto-asignacion (planta {@code -1}, plazas {@code 1xxx}; design §D3).
+     * El resto (Gerente, Mando intermedio, Empleado) prefiere las mas bajas (planta {@code -5},
+     * plazas {@code 5xxx}).
      */
     private static final Set<EmployeeCategory> HIGH_CATEGORIES = EnumSet.of(
             EmployeeCategory.CEO, EmployeeCategory.CONSEJO,
@@ -234,9 +235,13 @@ public class RequestService {
     }
 
     /**
-     * Auto-asigna una plaza LIBRE para la fecha segun la preferencia de planta de la categoria:
-     * las categorias ALTAS (hasta Director N2) prefieren las plantas mas altas; el resto, las mas
-     * bajas. Recorre el espacio completo de plantas (fallback total): si existe cualquier plaza
+     * Auto-asigna una plaza LIBRE para la fecha segun la preferencia de planta de la categoria en un
+     * garaje SUBTERRANEO (la planta fisica es {@code -(number / 1000)}: {@code 1xxx} es la planta
+     * {@code -1}, la mas alta/cercana a superficie; {@code 5xxx} es la planta {@code -5}, la mas
+     * baja/profunda). Las categorias ALTAS (hasta Director N2) prefieren las plantas fisicas mas
+     * altas (planta {@code -1}, {@code 1xxx} primero, probando del millar mas bajo al mas alto); el
+     * resto prefiere las mas bajas (planta {@code -5}, {@code 5xxx} primero, del millar mas alto al
+     * mas bajo). Recorre el espacio completo de plantas (fallback total): si existe cualquier plaza
      * libre se asigna, la categoria solo fija el orden de preferencia. Dentro de una planta la
      * eleccion es determinista (menor {@code number}).
      *
@@ -258,7 +263,8 @@ public class RequestService {
 
     /**
      * Indica si la categoria pertenece al grupo de rango ALTO (CEO, Consejo, Director N1,
-     * Director N2), que prefiere las plantas mas altas en la auto-asignacion (design §D3).
+     * Director N2), que en el garaje subterraneo prefiere las plantas fisicas mas altas (planta
+     * {@code -1}, {@code 1xxx}) en la auto-asignacion (design §D3).
      *
      * @param category categoria del empleado
      * @return {@code true} si es una categoria alta
@@ -268,13 +274,21 @@ public class RequestService {
     }
 
     /**
-     * Clave de orden de planta segun la preferencia: para las categorias altas se niega la planta
-     * (mayor planta = clave menor = mas preferente); para el resto se usa la planta tal cual
-     * (menor planta = clave menor = mas preferente).
+     * Clave de orden de planta segun la preferencia, teniendo en cuenta que el aparcamiento es un
+     * garaje SUBTERRANEO: {@code space.floor()} devuelve el millar {@code number / 1000} (1..5),
+     * que se corresponde con la planta fisica {@code -(number / 1000)} (el millar 1 es la planta
+     * {@code -1}, la mas alta/cercana a superficie; el millar 5 es la planta {@code -5}, la mas
+     * baja/profunda). El comparador elige el minimo de esta clave:
+     * <ul>
+     *   <li>categorias ALTAS: clave = millar tal cual, de modo que el millar mas bajo ({@code 1xxx}
+     *       = planta {@code -1}, la mejor) es la clave menor = mas preferente;</li>
+     *   <li>resto de categorias: clave = millar negado, de modo que el millar mas alto ({@code 5xxx}
+     *       = planta {@code -5}) es la clave menor = mas preferente.</li>
+     * </ul>
      */
     private static int floorPreferenceKey(ParkingSpace space, boolean high) {
         int floor = space.floor() == null ? 0 : space.floor();
-        return high ? -floor : floor;
+        return high ? floor : -floor;
     }
 
     /**

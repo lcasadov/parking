@@ -94,8 +94,8 @@ class RequestAutoAssignmentServiceTest {
     // ---- Algoritmo de auto-asignacion ----
 
     @Test
-    void shouldAssignHighestFloor_whenCategoryIsHigh() {
-        // Arrange: plazas libres en plantas 1, 3 y 5
+    void shouldAssignHighestPhysicalFloor_whenCategoryIsHigh() {
+        // Arrange: garaje subterraneo, plazas libres en plantas -1 (1xxx), -3 (3xxx) y -5 (5xxx)
         given(availabilityService.freeParkingSpacesForDate(DATE))
                 .willReturn(List.of(space(1001), space(3001), space(5001)));
 
@@ -103,13 +103,13 @@ class RequestAutoAssignmentServiceTest {
         Optional<ParkingSpace> chosen = newService()
                 .autoAssignParkingSpace(EmployeeCategory.DIRECTOR_N1, DATE);
 
-        // Assert: categoria alta -> planta mas alta (5)
-        assertThat(chosen).map(ParkingSpace::getNumber).contains(5001);
+        // Assert: categoria alta -> planta fisica mas alta = planta -1 = 1xxx (1001)
+        assertThat(chosen).map(ParkingSpace::getNumber).contains(1001);
     }
 
     @Test
-    void shouldAssignLowestFloor_whenCategoryIsBase() {
-        // Arrange
+    void shouldAssignLowestPhysicalFloor_whenCategoryIsBase() {
+        // Arrange: garaje subterraneo, plazas libres en plantas -5 (5xxx), -3 (3xxx) y -1 (1xxx)
         given(availabilityService.freeParkingSpacesForDate(DATE))
                 .willReturn(List.of(space(5001), space(3001), space(1001)));
 
@@ -117,22 +117,22 @@ class RequestAutoAssignmentServiceTest {
         Optional<ParkingSpace> chosen = newService()
                 .autoAssignParkingSpace(EmployeeCategory.EMPLEADO, DATE);
 
-        // Assert: categoria base -> planta mas baja (1)
-        assertThat(chosen).map(ParkingSpace::getNumber).contains(1001);
+        // Assert: categoria base -> planta fisica mas baja = planta -5 = 5xxx (5001)
+        assertThat(chosen).map(ParkingSpace::getNumber).contains(5001);
     }
 
     @Test
     void shouldFallBackToNextFloor_whenPreferredFloorHasNoFreeSpace() {
-        // Arrange: no hay libres en la planta 5; la mas alta disponible es la 3
+        // Arrange: categoria alta sin libres en la planta -1 (1xxx); la mas alta disponible es -2 (2xxx)
         given(availabilityService.freeParkingSpacesForDate(DATE))
-                .willReturn(List.of(space(1002), space(3002)));
+                .willReturn(List.of(space(3002), space(2002)));
 
         // Act
         Optional<ParkingSpace> chosen = newService()
-                .autoAssignParkingSpace(EmployeeCategory.CEO, DATE);
+                .autoAssignParkingSpace(EmployeeCategory.DIRECTOR_N1, DATE);
 
-        // Assert: fallback a la siguiente planta segun preferencia alta (3)
-        assertThat(chosen).map(ParkingSpace::getNumber).contains(3002);
+        // Assert: fallback a la siguiente planta preferida por una categoria alta = planta -2 (2002)
+        assertThat(chosen).map(ParkingSpace::getNumber).contains(2002);
     }
 
     @Test
