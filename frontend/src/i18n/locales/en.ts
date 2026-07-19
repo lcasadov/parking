@@ -84,6 +84,11 @@ export const en = {
     adminArea: 'Administration',
     employeeArea: 'My space',
     agencyArea: 'Agency',
+    sections: {
+      management: 'Management',
+      operations: 'Operations',
+      navigation: 'Navigation',
+    },
   },
   exports: {
     groupLabel: 'Export options',

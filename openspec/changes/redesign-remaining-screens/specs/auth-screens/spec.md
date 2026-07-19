@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Pantallas de autenticación y preferencias con identidad ALEATICA
-Las pantallas de cambio de contraseña, preferencias y sesión expirada DEBEN seguir la
+Las pantallas de cambio de contraseña, preferencias y sesión expirada DEBEN (MUST) seguir la
 identidad ALEATICA con los patrones AuthCard/Field/Modal, sin cambiar la lógica de auth.
 
 #### Scenario: Cambiar contraseña

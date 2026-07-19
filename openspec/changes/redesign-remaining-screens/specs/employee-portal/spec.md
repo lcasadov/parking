@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Portal del empleado con identidad ALEATICA
-Las pantallas del Portal del Empleado (móvil-first y escritorio) DEBEN seguir la identidad
+Las pantallas del Portal del Empleado (móvil-first y escritorio) DEBEN (MUST) seguir la identidad
 ALEATICA usando los patrones compartidos y las variantes móviles, sin cambiar la lógica.
 
 #### Scenario: Mi semana
@@ -18,7 +18,7 @@ ALEATICA usando los patrones compartidos y las variantes móviles, sin cambiar l
 - **AND** el envío usa los endpoints existentes (una solicitud por recurso)
 
 ### Requirement: Plano del empleado consistente con el de admin
-El plano del empleado (escritorio y móvil) DEBE reutilizar el patrón de plano
+El plano del empleado (escritorio y móvil) DEBE (MUST) reutilizar el patrón de plano
 (imagen real + marcadores por coordenadas coloreados por estado) del design system.
 
 #### Scenario: Puestos disponibles

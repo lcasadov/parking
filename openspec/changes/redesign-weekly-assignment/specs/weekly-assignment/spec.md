@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Presentación de la asignación semanal
-La vista semanal DEBE presentar el estado de cada plaza por día usando el mapa
+La vista semanal DEBE (MUST) presentar el estado de cada plaza por día usando el mapa
 estado→color del design system, sin cambiar el origen de datos.
 
 #### Scenario: Lectura de estado por color

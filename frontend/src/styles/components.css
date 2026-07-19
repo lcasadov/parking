@@ -1,6 +1,6 @@
-/* Componentes — replica de docs/mockups/styles.css con tokens (§11 design-system). */
+/* Componentes — design system ALEATICA (autoridad: docs/aleatica-design-contract.md). */
 
-/* App shell / layout */
+/* App shell / layout (contrato §5–6: sidebar + header + contenido) */
 .app-shell {
   min-height: 100vh;
   background: var(--frame-bg);
@@ -11,8 +11,9 @@
 }
 .main {
   flex: 1;
+  min-width: 0;
   background: var(--bg-page);
-  padding: var(--space-6);
+  padding: var(--space-8);
 }
 
 /* App header */
@@ -24,7 +25,7 @@
   align-items: center;
   gap: var(--space-4);
   padding: 0 var(--space-6);
-  border-bottom: 0.5px solid var(--border);
+  border-bottom: 1px solid var(--line);
   overflow: hidden;
 }
 .app-header .curve {
@@ -42,9 +43,9 @@
   flex-shrink: 0;
   background: conic-gradient(
     from 200deg,
-    #97c459 0deg 140deg,
-    #1d9e75 140deg 260deg,
-    #378add 260deg 360deg
+    var(--brand-green) 0deg 130deg,
+    var(--brand-yellow) 130deg 230deg,
+    var(--brand-blue) 230deg 360deg
   );
 }
 .brand-block {
@@ -55,22 +56,25 @@
 }
 .brand-name {
   display: block;
+  font-family: var(--font-serif);
   font-size: var(--text-xl);
-  font-weight: 500;
-  color: var(--text);
+  font-weight: 600;
+  color: var(--ink);
   letter-spacing: 0.5px;
   line-height: 1;
 }
 .brand-sub {
   display: block;
   font-size: 9px;
-  color: var(--text-muted);
+  color: var(--ink-faint);
   letter-spacing: 2px;
   margin-top: 3px;
 }
 .page-title {
-  font-size: var(--text-xl);
-  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--ink);
   z-index: 1;
 }
 .header-controls {
@@ -91,86 +95,200 @@
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Sidebar */
+/* ============================================================
+   Sidebar ALEATICA (contrato §5): 252px, wordmark, secciones
+   (Gestión/Operativa), item activo con border-left 3px accent +
+   fondo accent-soft, tarjeta de usuario al pie.
+   ============================================================ */
 .sidebar {
-  width: 200px;
-  background: var(--bg-card);
-  border-right: 0.5px solid var(--border);
-  padding: var(--space-4) 0;
+  width: 252px;
   flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
+
+/* Wordmark / logo ALEATICA en la cabecera del sidebar. */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--line-soft);
+}
+/* NOTA: wordmark de texto estilizado como fallback. Cuando exista el asset
+   real frontend/src/assets/aleatica-logo.png, sustituir .sidebar-wordmark por
+   un <img> del logo (ver Sidebar.tsx). */
+.sidebar-wordmark {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  line-height: 1;
+}
+.sidebar-wordmark .wordmark-accent {
+  color: var(--brand-green);
+}
+.sidebar-tagline {
+  display: block;
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ink-faint);
+}
+
+/* Zona de navegacion desplazable (entre wordmark y tarjeta de usuario). */
+.sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Etiqueta de seccion (Gestión / Operativa). */
+.nav-section {
+  padding: var(--space-4) var(--space-5) var(--space-2);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+}
+.nav-section:first-child {
+  padding-top: var(--space-1);
+}
+
 .nav-item {
+  position: relative;
   padding: 10px var(--space-5);
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  font-size: var(--text-base);
+  font-weight: 500;
   cursor: pointer;
   text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: background 120ms ease, color 120ms ease;
+}
+.nav-item:hover {
+  background: var(--panel-2);
+  color: var(--ink);
 }
 .nav-item i {
   font-size: 18px;
 }
 .nav-item.active {
-  color: var(--text);
-  background: var(--green-soft);
-  border-left: 3px solid var(--green);
-  font-weight: 500;
+  color: var(--ink);
+  background: var(--brand-green-soft);
+  border-left-color: var(--brand-green);
+  font-weight: 700;
 }
 .nav-item.active i {
-  color: var(--green);
+  color: var(--brand-green-deep);
 }
+
+/* Tarjeta de usuario al pie del sidebar (contrato §5). */
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel-2);
+}
+.sidebar-user-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+.sidebar-user-name {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-role {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .badge-red {
   margin-left: auto;
   background: var(--red);
   color: #fff;
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 /* Botones */
 .btn {
-  height: 32px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   border: none;
   border-radius: var(--radius-md);
-  padding: 0 14px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 0 16px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition: filter 120ms ease, background 120ms ease;
+}
+.btn:hover:not(:disabled) {
+  filter: brightness(0.96);
 }
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 .btn-icon-only {
-  width: 32px;
+  width: 34px;
   padding: 0;
 }
+/* Boton primario (contrato §5): fondo green, texto #fff, peso 800. */
+.btn-primary,
+.btn-green {
+  background: var(--brand-green);
+  color: #fff;
+  font-weight: 800;
+}
+/* Boton secundario (contrato §5): panel + border line. */
 .btn-white {
-  background: var(--bg-card);
-  color: var(--text);
-  border: 0.5px solid var(--border);
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
 }
 .btn-blue {
-  background: var(--blue);
+  background: var(--brand-blue);
   color: #fff;
 }
 .btn-red {
   background: var(--red);
-  color: #fff;
-}
-.btn-green {
-  background: var(--teal);
   color: #fff;
 }
 .btn-block {
@@ -230,10 +348,11 @@ body.theme-dark .btn-white {
 .auth-card {
   width: 380px;
   max-width: 100%;
-  background: var(--bg-card);
-  border-radius: var(--radius-xl);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
   overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-panel);
 }
 .auth-head {
   position: relative;
@@ -563,21 +682,45 @@ body.theme-dark .segmented button.active {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
 }
 
-/* Employees: cabecera, toolbar, tabla, pills, paginacion (design-system §6) */
+/* Cabecera de pagina ALEATICA (contrato §5–6): eyebrow + titulo serif + descripcion. */
 .page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
 
+/* Bloque de titulo (eyebrow + titulo serif + descripcion) del PageHeader. */
+.page-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.page-eyebrow {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--brand-green-deep);
+}
+
 .section-title {
-  font-size: var(--text-2xl);
+  font-family: var(--font-serif);
+  font-size: var(--fs-h2);
   font-weight: 600;
-  color: var(--text);
+  line-height: 1.1;
+  color: var(--ink);
   margin: 0;
+}
+
+.page-description {
+  font-size: var(--text-base);
+  color: var(--ink-soft);
+  margin: 2px 0 0;
+  max-width: 640px;
 }
 
 .page-actions {
@@ -593,8 +736,8 @@ body.theme-dark .segmented button.active {
 }
 
 .page-intro {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
+  font-size: var(--text-base);
+  color: var(--ink-soft);
   margin: 0 0 var(--space-4);
   max-width: 640px;
 }
@@ -702,9 +845,10 @@ body.theme-dark .segmented button.active {
 }
 
 .config-card {
-  background: var(--bg-card);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
   padding: var(--space-5);
   margin-bottom: var(--space-5);
 }
@@ -761,9 +905,9 @@ body.theme-dark .segmented button.active {
 }
 
 .table-header th {
-  background: #444441;
-  color: #ffffff;
-  font-weight: 600;
+  background: var(--ink);
+  color: var(--panel);
+  font-weight: 700;
 }
 
 .table-row {
@@ -788,11 +932,11 @@ body.theme-dark .segmented button.active {
 
 .pill {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: var(--radius-sm);
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
   font-size: var(--text-xs);
-  font-weight: 600;
-  border: 0.5px solid transparent;
+  font-weight: 700;
+  border: 1px solid transparent;
 }
 
 .pill-green {
@@ -907,17 +1051,42 @@ body.theme-dark .segmented button.active {
   gap: var(--space-1);
 }
 
-/* Responsive (design-system §7) */
+/* Responsive: en movil el sidebar pasa a barra superior desplazable. */
 @media (max-width: 768px) {
   .layout {
     flex-direction: column;
   }
+  .main {
+    padding: var(--space-5);
+  }
   .sidebar {
     width: 100%;
-    display: flex;
-    overflow-x: auto;
+    flex-direction: column;
     border-right: none;
-    border-bottom: 0.5px solid var(--border);
+    border-bottom: 1px solid var(--line);
+  }
+  .sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--space-2);
+    gap: var(--space-1);
+  }
+  .nav-section {
+    display: none;
+  }
+  .nav-item {
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    border-radius: var(--radius-md);
+  }
+  .nav-item.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--brand-green);
+  }
+  .sidebar-user {
+    display: none;
   }
   .page-title {
     display: none;
@@ -2141,4 +2310,49 @@ button.pop-row.pop-danger:disabled {
   flex: 1;
   display: flex;
   justify-content: center;
+}
+
+/* ============================================================
+   ALEATICA · Primitivas del design system (contrato §5)
+   Panel y mapa estado->color reutilizables por todas las vistas.
+   ============================================================ */
+
+/* Panel base: radio 14px + sombra del contrato. */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+  padding: var(--space-5);
+}
+
+/* Mapa estado->color (contrato §4). Aplica fondo + borde + texto coherentes
+   a cualquier celda/tarjeta/chip que represente el estado de una plaza/puesto. */
+.state {
+  border: 1px solid transparent;
+}
+.state-occupied {
+  background: var(--state-occupied-bg);
+  border-color: var(--state-occupied-border);
+  color: var(--state-occupied-ink);
+}
+.state-released {
+  background: var(--state-released-bg);
+  border-color: var(--state-released-border);
+  color: var(--state-released-ink);
+}
+.state-pending {
+  background: var(--state-pending-bg);
+  border-color: var(--state-pending-border);
+  color: var(--state-pending-ink);
+}
+.state-request {
+  background: var(--state-request-bg);
+  border-color: var(--state-request-border);
+  color: var(--state-request-ink);
+}
+.state-free {
+  background: var(--state-free-bg);
+  border: 1px dashed var(--state-free-border);
+  color: var(--state-free-ink);
 }

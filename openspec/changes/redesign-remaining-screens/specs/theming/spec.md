@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Tema claro y oscuro
-El sistema DEBE ofrecer una variante oscura de todos los tokens, conmutable manualmente
+El sistema DEBE (MUST) ofrecer una variante oscura de todos los tokens, conmutable manualmente
 desde el menú de usuario, aplicable a todas las pantallas.
 
 #### Scenario: Conmutar a oscuro

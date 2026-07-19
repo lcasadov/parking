@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Presentación del login
-La pantalla de login DEBE seguir la identidad ALEATICA definida en el design system,
+La pantalla de login DEBE (MUST) seguir la identidad ALEATICA definida en el design system,
 sin alterar el flujo de autenticación existente.
 
 #### Scenario: Acceso correcto

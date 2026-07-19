@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Presentación del plano del día
-El plano DEBE mostrar la planta real con marcadores de puesto coloreados por estado,
+El plano DEBE (MUST) mostrar la planta real con marcadores de puesto coloreados por estado,
 usando las coordenadas y datos existentes.
 
 #### Scenario: Marcadores sobre la planta

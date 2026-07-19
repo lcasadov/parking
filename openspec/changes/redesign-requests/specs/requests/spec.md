@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Presentación de solicitudes
-La bandeja de solicitudes DEBE seguir la identidad ALEATICA y permitir filtrar y resolver
+La bandeja de solicitudes DEBE (MUST) seguir la identidad ALEATICA y permitir filtrar y resolver
 peticiones sin cambiar las mutaciones existentes.
 
 #### Scenario: Filtrar por estado
