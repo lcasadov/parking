@@ -2627,3 +2627,114 @@ button.pop-row.pop-danger:disabled {
     margin-left: 0;
   }
 }
+
+/* ============================================================
+   Patrones reutilizables — redesign-remaining-screens §1
+   (Toolbar/SearchBox usan clases ya existentes; aqui viven las
+   piezas nuevas: StatusPill de estado, skeleton y estados de datos.)
+   ============================================================ */
+
+/* ---- StatusPill: pill mapeada al color por estado del contrato §4 ----
+   Compone la forma .pill con el color del estado, todo desde tokens --state-*.
+   Unifica los pills de estado/categoria sin reescribir los pills existentes. */
+.pill i {
+  margin-right: 4px;
+  font-size: 12px;
+  vertical-align: -1px;
+}
+.pill-state-occupied {
+  background: var(--state-occupied-bg);
+  color: var(--state-occupied-ink);
+  border-color: var(--state-occupied-border);
+}
+.pill-state-released {
+  background: var(--state-released-bg);
+  color: var(--state-released-ink);
+  border-color: var(--state-released-border);
+}
+.pill-state-pending {
+  background: var(--state-pending-bg);
+  color: var(--state-pending-ink);
+  border-color: var(--state-pending-border);
+}
+.pill-state-request {
+  background: var(--state-request-bg);
+  color: var(--state-request-ink);
+  border-color: var(--state-request-border);
+}
+.pill-state-free {
+  background: var(--state-free-bg);
+  color: var(--state-free-ink);
+  border-color: var(--state-free-border);
+}
+
+/* ---- Skeleton de carga de tabla (§1.4) ---- */
+.table-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+.table-skeleton-row {
+  display: grid;
+  grid-template-columns: repeat(var(--skeleton-cols, 4), minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.skeleton-bar {
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 0%,
+    var(--line-soft) 50%,
+    var(--panel-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-bar {
+    animation: none;
+  }
+}
+
+/* ---- Estados de datos: vacio / error (§1.4) ---- */
+.data-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+.data-state-icon {
+  font-size: 34px;
+  color: var(--text-muted);
+}
+.data-state-message {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 42ch;
+}
+.data-state-action {
+  margin-top: var(--space-1);
+}
+.data-state-error .data-state-icon {
+  color: var(--amber-text);
+}

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '../components/Input';
-import { Spinner } from '../components/Spinner';
+import { PageHeader } from '../components/PageHeader';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
+import { Toolbar } from '../components/Toolbar';
 import { useAvailabilityQuery } from '../hooks/useCalendar';
 import { isValidIsoDate } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
@@ -17,14 +19,14 @@ export function AvailabilityPage() {
   const resources = query.data?.availableResources ?? [];
 
   return (
-    <section className="availability-page" aria-labelledby="availability-title">
-      <header className="page-header">
-        <h1 id="availability-title" className="section-title">
-          {t('availability.title')}
-        </h1>
-      </header>
+    <section className="availability-page" aria-label={t('availability.title')}>
+      <PageHeader
+        eyebrow={t('availability.eyebrow')}
+        title={t('availability.title')}
+        description={t('availability.description')}
+      />
 
-      <div className="availability-controls">
+      <Toolbar ariaLabel={t('availability.title')}>
         <Input
           id="availability-date"
           type="date"
@@ -32,7 +34,7 @@ export function AvailabilityPage() {
           value={date}
           onChange={(event) => setDate(event.target.value)}
         />
-      </div>
+      </Toolbar>
 
       {!isDateValid ? (
         <p className="form-hint" role="status">
@@ -40,12 +42,16 @@ export function AvailabilityPage() {
         </p>
       ) : null}
 
-      {isDateValid && query.isLoading ? <Spinner /> : null}
+      {isDateValid && query.isLoading ? (
+        <TableSkeleton label={t('common.loading')} columns={2} />
+      ) : null}
 
       {isDateValid && query.isError ? (
-        <p className="form-error" role="alert">
-          {t('availability.loadError')}
-        </p>
+        <TableError
+          message={t('availability.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
       {isDateValid && !query.isLoading && !query.isError ? (
@@ -53,32 +59,28 @@ export function AvailabilityPage() {
           <p className="availability-count" aria-live="polite">
             {t('availability.count', { count: resources.length })}
           </p>
-          <div className="table-scroll">
-            <table className="table">
-              <thead>
-                <tr className="table-header">
-                  <th scope="col">{t('availability.columns.space')}</th>
-                  <th scope="col">{t('availability.columns.id')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resources.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="table-empty">
-                      {t('availability.empty')}
-                    </td>
+          {resources.length === 0 ? (
+            <TableEmpty icon="parking-off" message={t('availability.empty')} />
+          ) : (
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr className="table-header">
+                    <th scope="col">{t('availability.columns.space')}</th>
+                    <th scope="col">{t('availability.columns.id')}</th>
                   </tr>
-                ) : (
-                  resources.map((resource) => (
+                </thead>
+                <tbody>
+                  {resources.map((resource) => (
                     <tr key={resource.parkingSpaceId} className="table-row">
                       <td>{resource.label}</td>
                       <td>{resource.parkingSpaceId}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       ) : null}
     </section>

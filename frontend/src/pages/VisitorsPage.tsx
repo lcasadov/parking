@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { InfoBanner } from '../components/InfoBanner';
+import { PageHeader } from '../components/PageHeader';
+import { Tabs, type TabItem } from '../components/Tabs';
 import { VisitorReservationsPanel } from '../components/VisitorReservationsPanel';
 import { VisitorsPanel } from '../components/VisitorsPanel';
 
@@ -11,40 +14,31 @@ export function VisitorsPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('visitors');
 
+  const tabs: TabItem[] = [
+    { id: 'visitors', label: t('visitors.tabs.visitors') },
+    { id: 'reservations', label: t('visitors.tabs.reservations') },
+  ];
+
   return (
-    <section className="visitors-page" aria-labelledby="visitors-title">
-      <header className="page-header">
-        <h1 id="visitors-title" className="section-title">
-          {t('visitors.title')}
-        </h1>
-      </header>
+    <section className="visitors-page" aria-label={t('visitors.title')}>
+      <PageHeader
+        eyebrow={t('visitors.eyebrow')}
+        title={t('visitors.title')}
+        description={t('visitors.description')}
+      />
 
-      <p className="hint">{t('visitors.emailNote')}</p>
+      <InfoBanner variant="blue" icon="info-circle">
+        {t('visitors.emailNote')}
+      </InfoBanner>
 
-      <div className="tabs" role="tablist" aria-label={t('visitors.title')}>
-        <button
-          type="button"
-          role="tab"
-          id="visitors-tab-visitors"
-          aria-selected={tab === 'visitors'}
-          className={`tab${tab === 'visitors' ? ' active' : ''}`}
-          onClick={() => setTab('visitors')}
-        >
-          {t('visitors.tabs.visitors')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="visitors-tab-reservations"
-          aria-selected={tab === 'reservations'}
-          className={`tab${tab === 'reservations' ? ' active' : ''}`}
-          onClick={() => setTab('reservations')}
-        >
-          {t('visitors.tabs.reservations')}
-        </button>
-      </div>
+      <Tabs
+        tabs={tabs}
+        active={tab}
+        onChange={(id) => setTab(id as Tab)}
+        ariaLabel={t('visitors.title')}
+      />
 
-      <div role="tabpanel" aria-labelledby={`visitors-tab-${tab}`}>
+      <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
         {tab === 'visitors' ? <VisitorsPanel /> : <VisitorReservationsPanel />}
       </div>
     </section>

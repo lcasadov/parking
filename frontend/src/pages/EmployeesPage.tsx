@@ -6,8 +6,12 @@ import { DayBadges } from '../components/DayBadges';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { ExportMenu } from '../components/ExportMenu';
 import { Legend } from '../components/Legend';
+import { PageHeader } from '../components/PageHeader';
 import { ResetPasswordModal } from '../components/ResetPasswordModal';
-import { Spinner } from '../components/Spinner';
+import { SearchBox } from '../components/SearchBox';
+import { StatusPill } from '../components/StatusPill';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
+import { Toolbar } from '../components/Toolbar';
 import { EXPORT_PATHS } from '../api/exportApi';
 import {
   useDeactivateEmployee,
@@ -52,7 +56,9 @@ function ResourceCell({
   }
   return (
     <div className="fixed-cell">
-      <span className="fixed-cell-label">{labels.get(group.parkingSpaceId) ?? `#${group.parkingSpaceId}`}</span>
+      <span className="fixed-cell-label">
+        {labels.get(group.parkingSpaceId) ?? `#${group.parkingSpaceId}`}
+      </span>
       <DayBadges days={group.days} />
     </div>
   );
@@ -121,6 +127,7 @@ export function EmployeesPage() {
   }
 
   const employees = query.data?.content ?? [];
+  const ready = !query.isLoading && !query.isError;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
@@ -131,41 +138,57 @@ export function EmployeesPage() {
   ];
 
   return (
-    <section className="employees-page" aria-labelledby="employees-title">
-      <header className="page-header">
-        <h1 id="employees-title" className="section-title">
-          {t('employees.title')}
-        </h1>
-        <div className="page-actions">
-          <ExportMenu path={EXPORT_PATHS.employees} fallbackBase="employees" requiredRole="ADMIN" />
-          <Button variant="green" icon="plus" onClick={openCreate}>
-            {t('employees.new')}
-          </Button>
-        </div>
-      </header>
+    <section className="employees-page" aria-label={t('employees.title')}>
+      <PageHeader
+        eyebrow={t('employees.eyebrow')}
+        title={t('employees.title')}
+        description={t('employees.description')}
+        actions={
+          <>
+            <ExportMenu
+              path={EXPORT_PATHS.employees}
+              fallbackBase="employees"
+              requiredRole="ADMIN"
+            />
+            <Button variant="green" icon="plus" onClick={openCreate}>
+              {t('employees.new')}
+            </Button>
+          </>
+        }
+      />
 
-      <div className="toolbar">
-        <div className="search-box">
-          <i className="ti ti-search" aria-hidden="true" />
-          <input
-            type="search"
-            aria-label={t('employees.searchLabel')}
-            placeholder={t('employees.searchPlaceholder')}
-            value={q}
-            onChange={(event) => handleSearch(event.target.value)}
-          />
-        </div>
-      </div>
+      <Toolbar ariaLabel={t('employees.searchLabel')}>
+        <SearchBox
+          label={t('employees.searchLabel')}
+          placeholder={t('employees.searchPlaceholder')}
+          value={q}
+          onValueChange={handleSearch}
+        />
+      </Toolbar>
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('employees.loading')} columns={8} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('employees.loadError')}
-        </p>
+        <TableError
+          message={t('employees.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
+      {ready && employees.length === 0 ? (
+        <TableEmpty
+          icon="users"
+          message={t('employees.empty')}
+          action={
+            <Button variant="green" icon="plus" onClick={openCreate}>
+              {t('employees.new')}
+            </Button>
+          }
+        />
+      ) : null}
+
+      {ready && employees.length > 0 ? (
         <div className="table-scroll">
           <table className="table">
             <thead>
@@ -181,81 +204,67 @@ export function EmployeesPage() {
               </tr>
             </thead>
             <tbody>
-              {employees.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="table-empty">
-                    {t('employees.empty')}
-                  </td>
-                </tr>
-              ) : (
-                employees.map((employee) => {
-                  const fullName = `${employee.firstName} ${employee.lastName}`;
-                  const resources = resourcesFor(employee.id);
-                  return (
-                    <tr key={employee.id} className="table-row">
-                      <td>
-                        <div className="employee-cell">
-                          <Avatar
-                            initials={initialsOf(employee)}
-                            label={fullName}
-                            size="sm"
-                            seed={fullName}
-                          />
-                          <div className="employee-cell-text">
-                            <span className="employee-cell-name">{fullName}</span>
-                            <span className="employee-cell-email">{employee.email}</span>
-                          </div>
+              {employees.map((employee) => {
+                const fullName = `${employee.firstName} ${employee.lastName}`;
+                const resources = resourcesFor(employee.id);
+                return (
+                  <tr key={employee.id} className="table-row">
+                    <td>
+                      <div className="employee-cell">
+                        <Avatar
+                          initials={initialsOf(employee)}
+                          label={fullName}
+                          size="sm"
+                          seed={fullName}
+                        />
+                        <div className="employee-cell-text">
+                          <span className="employee-cell-name">{fullName}</span>
+                          <span className="employee-cell-email">{employee.email}</span>
                         </div>
-                      </td>
-                      <td>{employee.department ?? NONE}</td>
-                      <td>
-                        <ResourceCell group={resources.parking} labels={spaceLabels} />
-                      </td>
-                      <td>
-                        <ResourceCell group={resources.desk} labels={deskLabels} />
-                      </td>
-                      <td>{t(`employees.role.${employee.role}`)}</td>
-                      <td>{t(`employees.category.${employee.category}`)}</td>
-                      <td>
-                        <span className={`pill ${employee.active ? 'pill-green' : 'pill-gray'}`}>
-                          {t(
-                            employee.active
-                              ? 'employees.status.active'
-                              : 'employees.status.inactive',
-                          )}
-                        </span>
-                      </td>
-                      <td className="table-actions">
-                        <Button
-                          variant="white"
-                          icon="pencil"
-                          aria-label={t('employees.actions.edit')}
-                          onClick={() => openEdit(employee)}
-                        >
-                          {t('employees.actions.edit')}
-                        </Button>
-                        <Button
-                          variant={employee.active ? 'red' : 'green'}
-                          onClick={() => toggleActive(employee)}
-                        >
-                          {t(
-                            employee.active
-                              ? 'employees.actions.deactivate'
-                              : 'employees.actions.reactivate',
-                          )}
-                        </Button>
-                        <Button
-                          variant="blue"
-                          icon="key"
-                          onClick={() => setResetEmployee(employee)}
-                        >
-                          {t('employees.actions.resetPassword')}
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                      </div>
+                    </td>
+                    <td>{employee.department ?? NONE}</td>
+                    <td>
+                      <ResourceCell group={resources.parking} labels={spaceLabels} />
+                    </td>
+                    <td>
+                      <ResourceCell group={resources.desk} labels={deskLabels} />
+                    </td>
+                    <td>{t(`employees.role.${employee.role}`)}</td>
+                    <td>{t(`employees.category.${employee.category}`)}</td>
+                    <td>
+                      <StatusPill tone={employee.active ? 'occupied' : 'free'}>
+                        {t(
+                          employee.active ? 'employees.status.active' : 'employees.status.inactive',
+                        )}
+                      </StatusPill>
+                    </td>
+                    <td className="table-actions">
+                      <Button
+                        variant="white"
+                        icon="pencil"
+                        aria-label={t('employees.actions.edit')}
+                        onClick={() => openEdit(employee)}
+                      >
+                        {t('employees.actions.edit')}
+                      </Button>
+                      <Button
+                        variant={employee.active ? 'red' : 'green'}
+                        onClick={() => toggleActive(employee)}
+                      >
+                        {t(
+                          employee.active
+                            ? 'employees.actions.deactivate'
+                            : 'employees.actions.reactivate',
+                        )}
+                      </Button>
+                      <Button variant="blue" icon="key" onClick={() => setResetEmployee(employee)}>
+                        {t('employees.actions.resetPassword')}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <Legend items={legendItems} />

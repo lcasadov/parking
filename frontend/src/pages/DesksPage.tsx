@@ -4,7 +4,11 @@ import { Button } from '../components/Button';
 import { DeskCategoryBadge } from '../components/DeskCategoryBadge';
 import { DeskFormModal } from '../components/DeskFormModal';
 import { Legend } from '../components/Legend';
-import { Spinner } from '../components/Spinner';
+import { PageHeader } from '../components/PageHeader';
+import { SearchBox } from '../components/SearchBox';
+import { StatusPill } from '../components/StatusPill';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
+import { Toolbar } from '../components/Toolbar';
 import { emitApiErrorToast } from '../api/events';
 import { useDesksQuery, useSetDeskActivation } from '../hooks/useDesks';
 import type { Desk } from '../types/desk';
@@ -78,34 +82,31 @@ export function DesksPage() {
   const visibleDesks = search
     ? desks.filter((desk) => String(desk.number).includes(search))
     : desks;
+  const ready = !query.isLoading && !query.isError;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
 
   return (
-    <section className="desks-page" aria-labelledby="desks-title">
-      <header className="page-header">
-        <h1 id="desks-title" className="section-title">
-          {t('desks.title')}
-        </h1>
-        <div className="page-actions">
+    <section className="desks-page" aria-label={t('desks.title')}>
+      <PageHeader
+        eyebrow={t('desks.eyebrow')}
+        title={t('desks.title')}
+        description={t('desks.description')}
+        actions={
           <Button variant="green" icon="plus" onClick={openCreate}>
             {t('desks.new')}
           </Button>
-        </div>
-      </header>
+        }
+      />
 
-      <div className="toolbar">
-        <div className="search-box">
-          <i className="ti ti-search" aria-hidden="true" />
-          <input
-            type="search"
-            aria-label={t('desks.searchLabel')}
-            placeholder={t('desks.searchPlaceholder')}
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-          />
-        </div>
+      <Toolbar ariaLabel={t('desks.searchLabel')}>
+        <SearchBox
+          label={t('desks.searchLabel')}
+          placeholder={t('desks.searchPlaceholder')}
+          value={q}
+          onValueChange={setQ}
+        />
         <label className="field-label" htmlFor="desks-filter">
           {t('desks.filterLabel')}
         </label>
@@ -119,17 +120,31 @@ export function DesksPage() {
           <option value="active">{t('desks.filter.active')}</option>
           <option value="inactive">{t('desks.filter.inactive')}</option>
         </select>
-      </div>
+      </Toolbar>
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('desks.loadError')}
-        </p>
+        <TableError
+          message={t('desks.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
+      {ready && visibleDesks.length === 0 ? (
+        <TableEmpty
+          icon="armchair"
+          message={t('desks.empty')}
+          action={
+            <Button variant="green" icon="plus" onClick={openCreate}>
+              {t('desks.new')}
+            </Button>
+          }
+        />
+      ) : null}
+
+      {ready && visibleDesks.length > 0 ? (
         <div className="table-scroll">
           <table className="table">
             <thead>
@@ -141,45 +156,37 @@ export function DesksPage() {
               </tr>
             </thead>
             <tbody>
-              {visibleDesks.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="table-empty">
-                    {t('desks.empty')}
+              {visibleDesks.map((desk) => (
+                <tr key={desk.id} className="table-row">
+                  <td>{desk.number}</td>
+                  <td>
+                    <DeskCategoryBadge category={desk.category} />
+                  </td>
+                  <td>
+                    <StatusPill tone={desk.active ? 'occupied' : 'free'}>
+                      {t(desk.active ? 'desks.status.active' : 'desks.status.inactive')}
+                    </StatusPill>
+                  </td>
+                  <td className="table-actions">
+                    <Button
+                      variant="white"
+                      icon="pencil"
+                      aria-label={t('desks.actions.edit')}
+                      onClick={() => openEdit(desk)}
+                    >
+                      {t('desks.actions.edit')}
+                    </Button>
+                    <Button
+                      variant={desk.active ? 'red' : 'green'}
+                      icon={desk.active ? 'circle-off' : 'circle-check'}
+                      disabled={activationMutation.isPending}
+                      onClick={() => toggleActivation(desk)}
+                    >
+                      {t(desk.active ? 'desks.actions.deactivate' : 'desks.actions.activate')}
+                    </Button>
                   </td>
                 </tr>
-              ) : (
-                visibleDesks.map((desk) => (
-                  <tr key={desk.id} className="table-row">
-                    <td>{desk.number}</td>
-                    <td>
-                      <DeskCategoryBadge category={desk.category} />
-                    </td>
-                    <td>
-                      <span className={`pill ${desk.active ? 'pill-green' : 'pill-gray'}`}>
-                        {t(desk.active ? 'desks.status.active' : 'desks.status.inactive')}
-                      </span>
-                    </td>
-                    <td className="table-actions">
-                      <Button
-                        variant="white"
-                        icon="pencil"
-                        aria-label={t('desks.actions.edit')}
-                        onClick={() => openEdit(desk)}
-                      >
-                        {t('desks.actions.edit')}
-                      </Button>
-                      <Button
-                        variant={desk.active ? 'red' : 'green'}
-                        icon={desk.active ? 'circle-off' : 'circle-check'}
-                        disabled={activationMutation.isPending}
-                        onClick={() => toggleActivation(desk)}
-                      >
-                        {t(desk.active ? 'desks.actions.deactivate' : 'desks.actions.activate')}
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
           <Legend

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CreateRequestModal } from '../components/CreateRequestModal';
 import { Legend } from '../components/Legend';
+import { PageHeader } from '../components/PageHeader';
 import { ReleaseResourceModal } from '../components/ReleaseResourceModal';
 import { Spinner } from '../components/Spinner';
 import { emitApiErrorToast } from '../api/events';
@@ -86,12 +87,12 @@ export function MyWeekPage() {
   }
 
   return (
-    <section className="my-week-page" aria-labelledby="my-week-title">
-      <header className="page-header">
-        <h1 id="my-week-title" className="section-title">
-          {t('calendar.myWeek.title')}
-        </h1>
-      </header>
+    <section className="my-week-page" aria-label={t('calendar.myWeek.title')}>
+      <PageHeader
+        eyebrow={t('calendar.myWeek.eyebrow')}
+        title={t('calendar.myWeek.title')}
+        description={t('calendar.myWeek.description')}
+      />
 
       <nav className="calendar-toolbar" aria-label={t('calendar.myWeek.title')}>
         <Button

@@ -190,6 +190,14 @@ body.theme-dark {
   --brand-green-soft: rgba(119, 184, 41, 0.22);
   --brand-blue-soft: rgba(0, 168, 226, 0.2);
   --orange-soft: rgba(246, 160, 22, 0.2);
+  /* Variantes "deep" (contrato §1): en claro son tonos oscuros usados como texto
+     de acento (eyebrow, numerales, tinta de estado). Sobre superficie oscura hay
+     que aclararlas para conservar contraste (WCAG AA en texto pequeño). */
+  --brand-green-deep: #cfe6a8;
+  --brand-blue-deep: #bcdcff;
+  --orange-deep: #f7c98a;
+  --amber-deep: #f0cf94;
+  --taupe-deep: #cbc3bb;
   --green-soft: var(--brand-green-soft);
   --green-darker: #cfe6a8;
   --blue-soft: var(--brand-blue-soft);
@@ -208,15 +216,22 @@ body.theme-dark {
   --exec-ring: #e6b34a;
   --frame-bg: #141413;
 
-  /* Estado -> color: recalcular soft/ink sobre superficie oscura */
+  /* Estado -> color: recalcular soft/ink/borde sobre superficie oscura. Los
+     bordes claros del tema claro (#c3e08f…) brillan demasiado sobre oscuro; se
+     sustituyen por bordes tintados translucidos coherentes con cada estado. */
   --state-occupied-bg: var(--brand-green-soft);
   --state-occupied-ink: #cfe6a8;
+  --state-occupied-border: rgba(119, 184, 41, 0.42);
   --state-released-bg: var(--brand-blue-soft);
   --state-released-ink: #bcdcff;
+  --state-released-border: rgba(0, 168, 226, 0.42);
   --state-pending-bg: rgba(250, 199, 117, 0.2);
   --state-pending-ink: #f0cf94;
+  --state-pending-border: rgba(250, 199, 117, 0.42);
   --state-request-bg: var(--orange-soft);
   --state-request-ink: #f7c98a;
+  --state-request-border: rgba(246, 160, 22, 0.42);
   --state-free-bg: var(--panel-2);
   --state-free-ink: var(--ink-soft);
+  --state-free-border: var(--line-strong);
 }
