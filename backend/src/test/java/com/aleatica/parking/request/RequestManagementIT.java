@@ -56,6 +56,7 @@ class RequestManagementIT extends BaseIntegrationTest {
 
     private static final LocalDate TODAY = LocalDate.now(ZoneOffset.UTC);
     private static final LocalDate WITHIN = TODAY.plusDays(3);
+    private static final LocalDate FAR_FUTURE = TODAY.plusDays(400);
     private static final LocalDate OUTSIDE_PAST = TODAY.minusDays(1);
 
     @Autowired
@@ -91,6 +92,15 @@ class RequestManagementIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.parkingSpaceId").doesNotExist());
         assertThat(statusOf(empAId, WITHIN)).isEqualTo("PENDING");
+    }
+
+    @Test
+    void shouldCreatePendingRequest_whenDateFarInFuture() throws Exception {
+        // Act / Assert: sin limite superior, una fecha muy lejana (hoy+400) crea la solicitud
+        createRequest(empASession, FAR_FUTURE)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+        assertThat(statusOf(empAId, FAR_FUTURE)).isEqualTo("PENDING");
     }
 
     @Test

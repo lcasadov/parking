@@ -1,8 +1,9 @@
 import type { PageRequest, Request } from '../types/request';
-import { maxRequestDateIso, todayIso } from '../utils/requests';
+import { addDaysIso } from '../utils/calendar';
+import { todayIso } from '../utils/requests';
 
 // Solicitudes de ejemplo (contrato #/components/schemas/Request).
-// Fechas dentro de la ventana para reflejar datos realistas en los tests.
+// Fechas de hoy en adelante para reflejar datos realistas en los tests.
 export const requestPending1: Request = {
   id: 501,
   employeeId: 2,
@@ -20,7 +21,7 @@ export const requestPending1: Request = {
 export const requestPending2: Request = {
   id: 502,
   employeeId: 10,
-  requestedDate: maxRequestDateIso(),
+  requestedDate: addDaysIso(todayIso(), 45),
   status: 'PENDING',
   parkingSpaceId: null,
   approvalNote: null,

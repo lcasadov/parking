@@ -61,8 +61,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RequestService {
 
-    /** Ventana de solicitud: hoy..hoy+14 dias naturales (extremos inclusive). */
-    private static final int WINDOW_DAYS = 14;
     /** Longitud minima del texto libre cuando el motivo de rechazo es {@code OTHER}. */
     private static final int MIN_OTHER_REASON_LENGTH = 5;
 
@@ -79,7 +77,7 @@ public class RequestService {
     private static final String MSG_REQUEST_NOT_FOUND = "Solicitud no encontrada: ";
     private static final String MSG_RESOURCE_NOT_FOUND = "Recurso no encontrado: ";
     private static final String MSG_OUTSIDE_WINDOW =
-            "La fecha solicitada debe estar entre hoy y hoy+14 dias";
+            "La fecha solicitada debe ser hoy o una fecha futura; no se permiten fechas pasadas";
     private static final String MSG_ALREADY_PENDING =
             "Ya existe una solicitud pendiente para esa fecha";
     private static final String MSG_NOT_OWNER = "No puede operar sobre la solicitud de otro empleado";
@@ -145,8 +143,9 @@ public class RequestService {
     }
 
     /**
-     * Crea una solicitud para el empleado de la sesion y una fecha dentro de la ventana
-     * hoy..hoy+14, garantizando una unica solicitud {@code PENDING} por empleado/tipo/fecha.
+     * Crea una solicitud para el empleado de la sesion y una fecha desde hoy en adelante
+     * (hoy o cualquier fecha futura, sin limite superior; no se permiten fechas pasadas),
+     * garantizando una unica solicitud {@code PENDING} por empleado/tipo/fecha.
      *
      * <p>El comportamiento se ramifica por el <strong>modo de aprobacion global</strong>
      * ({@link ApprovalMode}, change {@code request-auto-assignment}):</p>
@@ -164,7 +163,7 @@ public class RequestService {
      * @param requesterLogin login del empleado solicitante (principal de la sesion)
      * @param request        fecha solicitada, tipo de recurso y (opcional) puesto elegido
      * @return la solicitud creada (DTO)
-     * @throws OutsideRequestWindowException    si la fecha esta fuera de la ventana
+     * @throws OutsideRequestWindowException    si la fecha es anterior a hoy (fecha pasada)
      * @throws DuplicatePendingRequestException si ya hay una solicitud pendiente esa fecha
      * @throws NoAvailabilityException          si en modo automatico no hay ninguna plaza libre
      * @throws SpaceUnavailableException        si en modo automatico el puesto elegido no esta libre
@@ -176,7 +175,7 @@ public class RequestService {
         Instant now = clock.now();
         LocalDate requestedDate = request.requestedDate();
         ResourceType resourceType = request.resourceTypeOrDefault();
-        requireWithinWindow(requestedDate, now);
+        requireNotPastDate(requestedDate, now);
         requireNoPendingDuplicate(employeeId, resourceType, requestedDate);
         if (systemSettingsService.approvalMode() == ApprovalMode.AUTOMATIC) {
             return createAutomatic(employee, request, resourceType, requestedDate, now);
@@ -505,10 +504,14 @@ public class RequestService {
         return response;
     }
 
-    private void requireWithinWindow(LocalDate requestedDate, Instant now) {
+    /**
+     * Exige que la fecha solicitada sea hoy o una fecha futura (sin limite superior): solo se
+     * rechazan las fechas anteriores a hoy. El "hoy" se deriva del reloj inyectable y la zona
+     * {@code ZoneOffset.UTC}, la misma referencia que usa la cancelacion.
+     */
+    private void requireNotPastDate(LocalDate requestedDate, Instant now) {
         LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
-        LocalDate maxDate = today.plusDays(WINDOW_DAYS);
-        if (requestedDate.isBefore(today) || requestedDate.isAfter(maxDate)) {
+        if (requestedDate.isBefore(today)) {
             throw new OutsideRequestWindowException(MSG_OUTSIDE_WINDOW);
         }
     }

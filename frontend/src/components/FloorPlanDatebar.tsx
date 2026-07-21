@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { addDaysIso, longDate } from '../utils/calendar';
-import { REQUEST_WINDOW_DAYS, maxRequestDateIso, todayIso } from '../utils/requests';
+import { todayIso } from '../utils/requests';
 
 interface FloorPlanDatebarProps {
   date: string;
@@ -9,16 +9,14 @@ interface FloorPlanDatebarProps {
 }
 
 // Barra de fecha del plano: día anterior / "Hoy" / día siguiente, fecha larga
-// localizada y recordatorio de la ventana de reserva (14 días). La navegación
-// se restringe a la ventana hoy..hoy+14 (init-floor-plan).
+// localizada y recordatorio de reserva. La navegación permite cualquier fecha
+// futura (hoy en adelante); solo se acota el mínimo a hoy (no fechas pasadas).
 export function FloorPlanDatebar({ date, onChange }: FloorPlanDatebarProps) {
   const { t, i18n } = useTranslation();
   const min = todayIso();
-  const max = maxRequestDateIso();
   const prev = addDaysIso(date, -1);
   const next = addDaysIso(date, 1);
   const canPrev = prev >= min;
-  const canNext = next <= max;
   const isToday = date === min;
 
   return (
@@ -38,7 +36,6 @@ export function FloorPlanDatebar({ date, onChange }: FloorPlanDatebarProps) {
           variant="white"
           icon="chevron-right"
           aria-label={t('floorPlan.datebar.next')}
-          disabled={!canNext}
           onClick={() => onChange(next)}
         />
       </div>
@@ -46,7 +43,7 @@ export function FloorPlanDatebar({ date, onChange }: FloorPlanDatebarProps) {
         {longDate(date, i18n.language)}
       </p>
       <p className="plano-datebar-window">
-        {t('floorPlan.datebar.window', { days: REQUEST_WINDOW_DAYS })}
+        {t('floorPlan.datebar.window')}
       </p>
     </div>
   );

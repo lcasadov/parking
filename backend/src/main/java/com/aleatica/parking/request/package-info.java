@@ -16,8 +16,9 @@
  * </ul>
  *
  * <p>Una solicitud es la peticion de un empleado de un recurso para una fecha, con ciclo de vida
- * {@code PENDING} &rarr; {@code APPROVED} | {@code REJECTED} | {@code CANCELLED}. La ventana
- * temporal (hoy..hoy+14) vive en el caso de uso con {@code ClockPort}; la unicidad
+ * {@code PENDING} &rarr; {@code APPROVED} | {@code REJECTED} | {@code CANCELLED}. La validacion
+ * temporal (hoy o fecha futura; se rechaza la fecha pasada) vive en el caso de uso con
+ * {@code ClockPort}; la unicidad
  * {@code PENDING} por empleado/tipo/fecha y la de recurso {@code APPROVED} por fecha las
  * garantizan indices unicos filtrados de la BD (409, incluida la concurrencia entre
  * administradores). El listado y la cancelacion propios aplican verificacion de pertenencia

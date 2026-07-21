@@ -68,9 +68,8 @@ class RequestServiceTest {
     private static final Instant NOW = Instant.parse("2026-07-04T10:00:00Z");
     private static final LocalDate TODAY = LocalDate.of(2026, 7, 4);
     private static final LocalDate WITHIN = LocalDate.of(2026, 7, 10);
-    private static final LocalDate MAX_DAY = LocalDate.of(2026, 7, 18);
+    private static final LocalDate FAR_FUTURE = TODAY.plusDays(400);
     private static final LocalDate BEFORE = LocalDate.of(2026, 7, 3);
-    private static final LocalDate AFTER = LocalDate.of(2026, 7, 19);
 
     private static final String EMP_LOGIN = "employee";
     private static final String OTHER_LOGIN = "otheremployee";
@@ -152,34 +151,23 @@ class RequestServiceTest {
     }
 
     @Test
-    void shouldCreatePendingRequest_whenDateExactlyMaxDay() {
-        // Arrange (frontera superior inclusive: hoy+14)
+    void shouldCreatePendingRequest_whenDateFarInFuture() {
+        // Arrange: sin limite superior, una fecha muy lejana (hoy+400) es valida
         givenActor(EMP_LOGIN, EMP_ID);
         givenManualMode();
 
         // Act / Assert
-        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(MAX_DAY, null)).status())
+        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(FAR_FUTURE, null)).status())
                 .isEqualTo(RequestStatus.PENDING);
     }
 
     @Test
     void shouldThrowOutsideWindow_whenDateBeforeToday() {
-        // Arrange
+        // Arrange (unica fecha rechazada: anterior a hoy)
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(BEFORE, null)))
-                .isInstanceOf(OutsideRequestWindowException.class);
-        assertThat(requestRepository.saves()).isZero();
-    }
-
-    @Test
-    void shouldThrowOutsideWindow_whenDateAfterMaxDay() {
-        // Arrange
-        givenActor(EMP_LOGIN, EMP_ID);
-
-        // Act / Assert
-        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(AFTER, null)))
                 .isInstanceOf(OutsideRequestWindowException.class);
         assertThat(requestRepository.saves()).isZero();
     }

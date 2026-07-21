@@ -1,8 +1,5 @@
 import type { RejectionReasonCode, Request } from '../types/request';
 
-// Ventana de solicitud: hoy..hoy+14 dias naturales (README / ux-flows).
-export const REQUEST_WINDOW_DAYS = 14;
-
 // Catalogo de motivos de rechazo (contrato RejectionReasonCode). Usado para
 // pintar el select de motivos traducido; el texto libre es obligatorio en OTHER.
 export const REJECTION_REASON_CODES: RejectionReasonCode[] = [
@@ -28,17 +25,11 @@ export function todayIso(now: Date = new Date()): string {
   return toIsoDate(now);
 }
 
-// Ultimo dia seleccionable (hoy + 14 dias).
-export function maxRequestDateIso(now: Date = new Date()): string {
-  const max = new Date(now);
-  max.setDate(max.getDate() + REQUEST_WINDOW_DAYS);
-  return toIsoDate(max);
-}
-
-// Comprueba si una fecha ISO cae dentro de la ventana hoy..hoy+14 (comparacion
-// lexicografica valida por el formato YYYY-MM-DD).
-export function isWithinWindow(dateIso: string, now: Date = new Date()): boolean {
-  return dateIso >= todayIso(now) && dateIso <= maxRequestDateIso(now);
+// Comprueba si una fecha ISO es hoy o cualquier fecha futura (sin limite
+// superior): solo se rechazan fechas anteriores a hoy. La comparacion
+// lexicografica es valida por el formato YYYY-MM-DD.
+export function isTodayOrFuture(dateIso: string, now: Date = new Date()): boolean {
+  return dateIso >= todayIso(now);
 }
 
 // Determina si el empleado dueño puede cancelar la solicitud (change

@@ -497,7 +497,7 @@ export const en = {
     create: {
       title: 'New request',
       date: 'Request date',
-      hint: 'You can request any day between today and the next 14 days.',
+      hint: 'You can request any day from today onward.',
       resources: 'Resources to request',
       resourceParking: 'Parking space',
       resourceDesk: 'Office desk',
@@ -507,10 +507,10 @@ export const en = {
       changeDesk: 'Change desk',
       removeDesk: 'Remove',
       chosenDesk: 'Chosen desk: {{number}}',
-      chooseDeskDateHint: 'Pick a date within the window first to select a desk.',
+      chooseDeskDateHint: 'Pick a date (today or later) first to select a desk.',
       requiredDate: 'Select a date.',
       requiredResource: 'Select at least one resource (space or desk).',
-      outsideWindow: 'The date must be between today and the next 14 days.',
+      outsideWindow: 'The date cannot be earlier than today.',
       availability: {
         loading: 'Checking availability…',
         count: '{{count}} available for this date',
@@ -572,7 +572,7 @@ export const en = {
       emailNotice: 'The employee will receive an email notifying them of the cancellation.',
     },
     errors: {
-      window: 'The date is outside the allowed window (today..today+14 days).',
+      window: 'The date cannot be earlier than today.',
       duplicate: 'You already have a pending request for that date.',
       alreadyResolved: 'The request is no longer pending.',
       unavailable: 'The space is not available for that date.',
@@ -793,7 +793,7 @@ export const en = {
     dateLabel: 'Date',
     invalidDate: 'Enter a valid date.',
     loadError: 'The floor plan could not be loaded.',
-    outsideWindow: 'The date is outside the request window (today to +14 days).',
+    outsideWindow: 'The date cannot be earlier than today.',
     editPositions: 'Edit positions',
     editHint: 'Drag the markers to place each desk; the position is saved on drop.',
     savePositions: 'Save positions',
@@ -820,7 +820,7 @@ export const en = {
       previous: 'Previous day',
       next: 'Next day',
       today: 'Today',
-      window: 'Booking window: {{days}} days',
+      window: 'You can book from today onward',
     },
     filters: {
       label: 'Filters by state',

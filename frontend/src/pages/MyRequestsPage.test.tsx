@@ -206,7 +206,7 @@ describe('MyRequestsPage (EMPLOYEE)', () => {
     await submitCreate();
 
     expect(
-      await screen.findByText(/fuera de la ventana permitida|outside the allowed window/i),
+      await screen.findByText(/no puede ser anterior a hoy|cannot be earlier than today/i),
     ).toBeInTheDocument();
   });
 
