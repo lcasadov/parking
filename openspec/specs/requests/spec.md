@@ -4,17 +4,17 @@
 TBD - created by archiving change init-requests. Update Purpose after archive.
 ## Requirements
 ### Requirement: Creación de solicitud con ventana y unicidad
-**El sistema DEBE (MUST) crear una solicitud para un empleado y una fecha dentro de la ventana hoy..hoy+14 días, garantizando una única solicitud `PENDING` por empleado, tipo de recurso y fecha, y DEBE ramificar el estado inicial según el parámetro global `approvalMode`: en modo `MANUAL` la solicitud nace `PENDING` (con `resource_id = NULL`); en modo `AUTOMATIC` la solicitud nace `APPROVED` con recurso asignado (plaza auto-asignada o puesto elegido).**
+**El sistema DEBE (MUST) crear una solicitud para un empleado y una fecha DESDE HOY EN ADELANTE (hoy o cualquier fecha futura, sin límite superior; NO se permiten fechas anteriores a hoy), garantizando una única solicitud `PENDING` por empleado, tipo de recurso y fecha, y DEBE ramificar el estado inicial según el parámetro global `approvalMode`: en modo `MANUAL` la solicitud nace `PENDING` (con `resource_id = NULL`); en modo `AUTOMATIC` la solicitud nace `APPROVED` con recurso asignado (plaza auto-asignada o puesto elegido).**
 
-#### Scenario: Creación dentro de la ventana en modo MANUAL
+#### Scenario: Creación para cualquier fecha futura en modo MANUAL
 - **GIVEN** el parámetro global `approvalMode = MANUAL` y un `Employee` autenticado con rol `EMPLOYEE` sin solicitud `PENDING` para `requested_date`
-- **WHEN** envía `POST /requests` con `requested_date` entre hoy y hoy+14 días
+- **WHEN** envía `POST /requests` con `requested_date` igual a hoy o a cualquier fecha futura (sin límite superior)
 - **THEN** el sistema responde 201 con la solicitud en estado `PENDING` y `resource_id = NULL`
 - **AND** registra `created_at` con la marca temporal actual
 
-#### Scenario: Fecha fuera de la ventana
+#### Scenario: Fecha pasada rechazada
 - **GIVEN** un `Employee` autenticado con rol `EMPLOYEE`
-- **WHEN** envía `POST /requests` con `requested_date` anterior a hoy o posterior a hoy+14 días
+- **WHEN** envía `POST /requests` con `requested_date` anterior a hoy
 - **THEN** el sistema responde 400 con `error = OUTSIDE_REQUEST_WINDOW` y `fields` indicando `requested_date`
 - **AND** no crea ninguna solicitud
 

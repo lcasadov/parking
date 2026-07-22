@@ -519,7 +519,7 @@ export const es = {
     create: {
       title: 'Nueva solicitud',
       date: 'Fecha de la solicitud',
-      hint: 'Puedes solicitar cualquier día entre hoy y los próximos 14 días.',
+      hint: 'Puedes solicitar cualquier día desde hoy en adelante.',
       resources: 'Recursos a solicitar',
       resourceParking: 'Plaza de parking',
       resourceDesk: 'Puesto de oficina',
@@ -529,10 +529,10 @@ export const es = {
       changeDesk: 'Cambiar puesto',
       removeDesk: 'Quitar',
       chosenDesk: 'Puesto elegido: {{number}}',
-      chooseDeskDateHint: 'Elige primero una fecha dentro de la ventana para seleccionar un puesto.',
+      chooseDeskDateHint: 'Elige primero una fecha (hoy o futura) para seleccionar un puesto.',
       requiredDate: 'Selecciona una fecha.',
       requiredResource: 'Selecciona al menos un recurso (plaza o puesto).',
-      outsideWindow: 'La fecha debe estar entre hoy y los próximos 14 días.',
+      outsideWindow: 'La fecha no puede ser anterior a hoy.',
       availability: {
         loading: 'Comprobando disponibilidad…',
         count: '{{count}} disponible(s) para esta fecha',
@@ -595,7 +595,7 @@ export const es = {
       emailNotice: 'El empleado recibirá un email informándole de la cancelación.',
     },
     errors: {
-      window: 'La fecha está fuera de la ventana permitida (hoy..hoy+14 días).',
+      window: 'La fecha no puede ser anterior a hoy.',
       duplicate: 'Ya tienes una solicitud pendiente para esa fecha.',
       alreadyResolved: 'La solicitud ya no está pendiente.',
       unavailable: 'La plaza no está disponible para esa fecha.',
@@ -824,7 +824,7 @@ export const es = {
     dateLabel: 'Fecha',
     invalidDate: 'Introduce una fecha válida.',
     loadError: 'No se pudo cargar el plano.',
-    outsideWindow: 'La fecha está fuera de la ventana de solicitud (hoy a +14 días).',
+    outsideWindow: 'La fecha no puede ser anterior a hoy.',
     editPositions: 'Editar posiciones',
     editHint: 'Arrastra los marcadores para colocar cada puesto; la posición se guarda al soltar.',
     savePositions: 'Guardar posiciones',
@@ -851,7 +851,7 @@ export const es = {
       previous: 'Día anterior',
       next: 'Día siguiente',
       today: 'Hoy',
-      window: 'Ventana de reserva: {{days}} días',
+      window: 'Puedes reservar desde hoy en adelante',
     },
     filters: {
       label: 'Filtros por estado',

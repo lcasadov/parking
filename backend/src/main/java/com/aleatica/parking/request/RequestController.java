@@ -64,8 +64,9 @@ public class RequestController {
     }
 
     /**
-     * Crea una solicitud para una fecha dentro de la ventana hoy..hoy+14 (solo
-     * {@code EMPLOYEE}). Maximo una solicitud {@code PENDING} por empleado y fecha.
+     * Crea una solicitud para una fecha desde hoy en adelante (hoy o cualquier fecha futura,
+     * sin limite superior; no se permiten fechas pasadas; solo {@code EMPLOYEE}). Maximo una
+     * solicitud {@code PENDING} por empleado y fecha.
      *
      * @param request        fecha solicitada
      * @param authentication autenticacion resuelta de la sesion (solicitante)
@@ -75,7 +76,7 @@ public class RequestController {
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Solicitud creada en estado PENDING"),
-            @ApiResponse(responseCode = "400", description = "Fecha fuera de la ventana o invalida",
+            @ApiResponse(responseCode = "400", description = "Fecha pasada (anterior a hoy) o invalida",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "401", description = "No autenticado",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),

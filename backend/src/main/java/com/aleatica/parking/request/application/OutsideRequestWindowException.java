@@ -1,8 +1,9 @@
 package com.aleatica.parking.request.application;
 
 /**
- * Se lanza cuando la {@code requestedDate} de una solicitud cae fuera de la ventana
- * permitida (hoy..hoy+14 dias naturales, extremos inclusive).
+ * Se lanza cuando la {@code requestedDate} de una solicitud es una fecha pasada
+ * (anterior a hoy). Se admite hoy o cualquier fecha futura sin limite superior;
+ * solo se rechazan las fechas anteriores a hoy.
  *
  * <p>El manejador global la traduce a {@code 400 Bad Request} con
  * {@code error = OUTSIDE_REQUEST_WINDOW} y {@code fields.requestedDate} (design

@@ -10,9 +10,10 @@ import java.time.LocalDate;
  * Cuerpo de entrada de {@code POST createRequest} (schema {@code RequestCreateRequest}
  * de la API).
  *
- * <p>La validacion sintactica ({@code @NotNull}) es la primera capa (UX); la ventana
- * temporal hoy..hoy+14 la verifica el caso de uso con {@code ClockPort} (frontera de
- * seguridad, OWASP A04). La clave contractual {@code requestedDate} se fija con
+ * <p>La validacion sintactica ({@code @NotNull}) es la primera capa (UX); la validacion
+ * temporal (hoy o fecha futura; se rechaza la fecha pasada) la verifica el caso de uso con
+ * {@code ClockPort} (frontera de seguridad, OWASP A04). La clave contractual
+ * {@code requestedDate} se fija con
  * {@link JsonProperty}.</p>
  *
  * <p>{@code resourceType} es opcional y por defecto {@code PARKING} (compatibilidad con

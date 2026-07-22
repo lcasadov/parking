@@ -43,9 +43,9 @@ describe('ResourceAvailabilityBanner', () => {
     expect(seenType).toBe('DESK');
   });
 
-  it('should_render_nothing_when_date_is_outside_the_window', () => {
+  it('should_render_nothing_when_date_is_in_the_past', () => {
     const { container } = renderWithProviders(
-      <ResourceAvailabilityBanner date={addDaysIso(todayIso(), 60)} resourceType="PARKING" />,
+      <ResourceAvailabilityBanner date={addDaysIso(todayIso(), -1)} resourceType="PARKING" />,
     );
     expect(container).toBeEmptyDOMElement();
   });

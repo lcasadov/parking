@@ -9,7 +9,9 @@ import { todayIso } from '../utils/requests';
 describe('FloorPlanDatebar', () => {
   it('should_show_the_booking_window_hint', () => {
     renderWithProviders(<FloorPlanDatebar date={todayIso()} onChange={vi.fn()} />);
-    expect(screen.getByText(/ventana de reserva: 14 días|booking window: 14 days/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/desde hoy en adelante|from today onward/i),
+    ).toBeInTheDocument();
   });
 
   it('should_disable_previous_and_today_when_date_is_today', () => {
@@ -32,5 +34,18 @@ describe('FloorPlanDatebar', () => {
 
     await user.click(screen.getByRole('button', { name: /^hoy$|^today$/i }));
     expect(onChange).toHaveBeenCalledWith(todayIso());
+  });
+
+  it('should_allow_navigating_to_any_far_future_date_without_upper_cap', async () => {
+    const onChange = vi.fn();
+    const farFuture = addDaysIso(todayIso(), 90);
+    const user = userEvent.setup();
+    renderWithProviders(<FloorPlanDatebar date={farFuture} onChange={onChange} />);
+
+    const nextButton = screen.getByRole('button', { name: /día siguiente|next day/i });
+    expect(nextButton).toBeEnabled();
+
+    await user.click(nextButton);
+    expect(onChange).toHaveBeenCalledWith(addDaysIso(farFuture, 1));
   });
 });

@@ -39,7 +39,7 @@ describe('FloorPlanStatus', () => {
       <FloorPlanStatus isDateValid isLoading={false} isError error={outsideWindowError()} />,
     );
     expect(
-      screen.getByText(/fuera de la ventana|outside the request window/i),
+      screen.getByText(/no puede ser anterior a hoy|cannot be earlier than today/i),
     ).toBeInTheDocument();
   });
 
