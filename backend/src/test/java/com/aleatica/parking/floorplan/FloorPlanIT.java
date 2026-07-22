@@ -103,15 +103,14 @@ class FloorPlanIT extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldReturn400OutsideRequestWindow_whenDateIsPastOrBeyond14d() throws Exception {
-        // Fecha pasada
+    void shouldReturn400OutsideRequestWindow_whenDateIsInThePast() throws Exception {
+        // Fecha pasada: rechazada
         getFloorPlan(empASession, LocalDate.now(ZoneOffset.UTC).minusDays(1))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("OUTSIDE_REQUEST_WINDOW"));
-        // Fecha posterior a hoy+14
-        getFloorPlan(empASession, LocalDate.now(ZoneOffset.UTC).plusDays(15))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("OUTSIDE_REQUEST_WINDOW"));
+        // Fecha lejana futura: permitida (ya no hay tope superior de 14 dias)
+        getFloorPlan(empASession, LocalDate.now(ZoneOffset.UTC).plusDays(30))
+                .andExpect(status().isOk());
     }
 
     @Test
