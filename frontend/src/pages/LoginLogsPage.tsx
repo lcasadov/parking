@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { Spinner } from '../components/Spinner';
+import { PageHeader } from '../components/PageHeader';
+import { StatusPill } from '../components/StatusPill';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
+import { Toolbar } from '../components/Toolbar';
 import { getStatus } from '../api/apiError';
 import { useLoginLogsQuery } from '../hooks/useAudit';
 import {
@@ -39,14 +42,19 @@ function LoginLogsResults({ query, windowValid, page, onPageChange }: ResultsPro
     );
   }
   if (query.isLoading) {
-    return <Spinner />;
+    return <TableSkeleton label={t('common.loading')} columns={5} />;
   }
   if (query.isError) {
     return (
-      <p className="form-error" role="alert">
-        {t('loginLogs.loadError')}
-      </p>
+      <TableError
+        message={t('loginLogs.loadError')}
+        retryLabel={t('common.retry')}
+        onRetry={() => void query.refetch()}
+      />
     );
+  }
+  if (entries.length === 0) {
+    return <TableEmpty icon="login" message={t('loginLogs.empty')} />;
   }
 
   return (
@@ -63,27 +71,19 @@ function LoginLogsResults({ query, windowValid, page, onPageChange }: ResultsPro
             </tr>
           </thead>
           <tbody>
-            {entries.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="table-empty">
-                  {t('loginLogs.empty')}
+            {entries.map((entry) => (
+              <tr key={entry.id} className="table-row">
+                <td>{formatDateTime(entry.occurredAt)}</td>
+                <td>{entry.loginAttempted}</td>
+                <td>
+                  <StatusPill tone={entry.result === 'OK' ? 'occupied' : 'free'}>
+                    {t(`loginLogs.result.${entry.result}`)}
+                  </StatusPill>
                 </td>
+                <td>{t(`loginLogs.phase.${entry.phase}`)}</td>
+                <td>{entry.ipAddress ?? DASH}</td>
               </tr>
-            ) : (
-              entries.map((entry) => (
-                <tr key={entry.id} className="table-row">
-                  <td>{formatDateTime(entry.occurredAt)}</td>
-                  <td>{entry.loginAttempted}</td>
-                  <td>
-                    <span className={`pill ${entry.result === 'OK' ? 'pill-green' : 'pill-gray'}`}>
-                      {t(`loginLogs.result.${entry.result}`)}
-                    </span>
-                  </td>
-                  <td>{t(`loginLogs.phase.${entry.phase}`)}</td>
-                  <td>{entry.ipAddress ?? DASH}</td>
-                </tr>
-              ))
-            )}
+            ))}
           </tbody>
         </table>
       </div>
@@ -139,16 +139,16 @@ export function LoginLogsPage() {
   }
 
   return (
-    <section className="login-logs-page" aria-labelledby="login-logs-title">
-      <header className="page-header">
-        <h1 id="login-logs-title" className="section-title">
-          {t('loginLogs.title')}
-        </h1>
-      </header>
+    <section className="login-logs-page" aria-label={t('loginLogs.title')}>
+      <PageHeader
+        eyebrow={t('loginLogs.eyebrow')}
+        title={t('loginLogs.title')}
+        description={t('loginLogs.description')}
+      />
 
       <p className="form-hint">{t('loginLogs.retentionNote')}</p>
 
-      <div className="toolbar login-logs-filters" role="search">
+      <Toolbar ariaLabel={t('loginLogs.title')}>
         <div className="auth-field">
           <label className="field-label" htmlFor="login-logs-result">
             {t('loginLogs.filters.result')}
@@ -157,7 +157,9 @@ export function LoginLogsPage() {
             id="login-logs-result"
             className="field-input"
             value={result}
-            onChange={(event) => onFilterChange((v) => setResult(v as LoginResult | ''), event.target.value)}
+            onChange={(event) =>
+              onFilterChange((v) => setResult(v as LoginResult | ''), event.target.value)
+            }
           >
             <option value="">{t('loginLogs.filters.allResults')}</option>
             {LOGIN_RESULTS.map((value) => (
@@ -181,9 +183,14 @@ export function LoginLogsPage() {
           value={to}
           onChange={(event) => onFilterChange(setTo, event.target.value)}
         />
-      </div>
+      </Toolbar>
 
-      <LoginLogsResults query={query} windowValid={windowValid} page={page} onPageChange={setPage} />
+      <LoginLogsResults
+        query={query}
+        windowValid={windowValid}
+        page={page}
+        onPageChange={setPage}
+      />
     </section>
   );
 }

@@ -4,8 +4,9 @@ import { Button } from '../components/Button';
 import { CancelRequestModal } from '../components/CancelRequestModal';
 import { CreateRequestModal } from '../components/CreateRequestModal';
 import { ExportMenu } from '../components/ExportMenu';
+import { PageHeader } from '../components/PageHeader';
 import { ResourceTypePill } from '../components/ResourceTypePill';
-import { Spinner } from '../components/Spinner';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useMyRequestsQuery } from '../hooks/useRequests';
 import { canCancelRequest } from '../utils/requests';
@@ -29,6 +30,7 @@ export function MyRequestsPage() {
 
   const query = useMyRequestsQuery({ page, size: PAGE_SIZE });
   const requests = query.data?.content ?? [];
+  const ready = !query.isLoading && !query.isError;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
@@ -58,48 +60,56 @@ export function MyRequestsPage() {
   }
 
   return (
-    <section className="my-requests-page" aria-labelledby="my-requests-title">
-      <header className="page-header">
-        <h1 id="my-requests-title" className="section-title">
-          {t('requests.mine.title')}
-        </h1>
-        <div className="page-actions">
-          <ExportMenu path={EXPORT_PATHS.myRequests} fallbackBase="my-requests" />
-          <Button variant="green" icon="plus" onClick={() => setIsCreateOpen(true)}>
-            {t('requests.mine.new')}
-          </Button>
-        </div>
-      </header>
+    <section className="my-requests-page" aria-label={t('requests.mine.title')}>
+      <PageHeader
+        eyebrow={t('requests.mine.eyebrow')}
+        title={t('requests.mine.title')}
+        description={t('requests.mine.description')}
+        actions={
+          <>
+            <ExportMenu path={EXPORT_PATHS.myRequests} fallbackBase="my-requests" />
+            <Button variant="green" icon="plus" onClick={() => setIsCreateOpen(true)}>
+              {t('requests.mine.new')}
+            </Button>
+          </>
+        }
+      />
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={5} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('requests.mine.loadError')}
-        </p>
+        <TableError
+          message={t('requests.mine.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
-        <div className="table-scroll">
-          <table className="table">
-            <thead>
-              <tr className="table-header">
-                <th scope="col">{t('requests.mine.columns.date')}</th>
-                <th scope="col">{t('requests.mine.columns.status')}</th>
-                <th scope="col">{t('requests.mine.columns.resource')}</th>
-                <th scope="col">{t('requests.mine.columns.space')}</th>
-                <th scope="col">{t('requests.mine.columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="table-empty">
-                    {t('requests.mine.empty')}
-                  </td>
+      {ready ? (
+        requests.length === 0 ? (
+          <TableEmpty
+            icon="calendar-plus"
+            message={t('requests.mine.empty')}
+            action={
+              <Button variant="green" icon="plus" onClick={() => setIsCreateOpen(true)}>
+                {t('requests.mine.new')}
+              </Button>
+            }
+          />
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr className="table-header">
+                  <th scope="col">{t('requests.mine.columns.date')}</th>
+                  <th scope="col">{t('requests.mine.columns.status')}</th>
+                  <th scope="col">{t('requests.mine.columns.resource')}</th>
+                  <th scope="col">{t('requests.mine.columns.space')}</th>
+                  <th scope="col">{t('requests.mine.columns.actions')}</th>
                 </tr>
-              ) : (
-                requests.map((request) => (
+              </thead>
+              <tbody>
+                {requests.map((request) => (
                   <tr key={request.id} className="table-row">
                     <td>{request.requestedDate}</td>
                     <td>
@@ -128,11 +138,11 @@ export function MyRequestsPage() {
                       ) : null}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : null}
 
       {totalPages > 1 ? (

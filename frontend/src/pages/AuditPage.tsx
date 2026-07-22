@@ -4,12 +4,20 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { ExportMenu } from '../components/ExportMenu';
 import { Input } from '../components/Input';
-import { Spinner } from '../components/Spinner';
+import { PageHeader } from '../components/PageHeader';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
+import { Toolbar } from '../components/Toolbar';
 import { getStatus } from '../api/apiError';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useAuditQuery } from '../hooks/useAudit';
 import type { AuditListParams, AuditLogEntry, PageAuditLogEntry } from '../types/audit';
-import { auditPillClass, formatDateTime, isValidWindow, toIsoEnd, toIsoStart } from '../utils/audit';
+import {
+  auditPillClass,
+  formatDateTime,
+  isValidWindow,
+  toIsoEnd,
+  toIsoStart,
+} from '../utils/audit';
 
 const PAGE_SIZE = 20;
 const DASH = '—';
@@ -42,14 +50,19 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
     );
   }
   if (query.isLoading) {
-    return <Spinner />;
+    return <TableSkeleton label={t('common.loading')} columns={5} />;
   }
   if (query.isError) {
     return (
-      <p className="form-error" role="alert">
-        {t('audit.loadError')}
-      </p>
+      <TableError
+        message={t('audit.loadError')}
+        retryLabel={t('common.retry')}
+        onRetry={() => void query.refetch()}
+      />
     );
+  }
+  if (entries.length === 0) {
+    return <TableEmpty icon="history-off" message={t('audit.empty')} />;
   }
 
   return (
@@ -66,25 +79,17 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
             </tr>
           </thead>
           <tbody>
-            {entries.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="table-empty">
-                  {t('audit.empty')}
+            {entries.map((entry) => (
+              <tr key={entry.id} className="table-row">
+                <td>{formatDateTime(entry.occurredAt)}</td>
+                <td>{entry.actorEmployeeId ?? t('audit.systemActor')}</td>
+                <td>
+                  <span className={`pill ${auditPillClass(entry.action)}`}>{entry.action}</span>
                 </td>
+                <td>{entityLabel(entry)}</td>
+                <td>{entry.details ?? DASH}</td>
               </tr>
-            ) : (
-              entries.map((entry) => (
-                <tr key={entry.id} className="table-row">
-                  <td>{formatDateTime(entry.occurredAt)}</td>
-                  <td>{entry.actorEmployeeId ?? t('audit.systemActor')}</td>
-                  <td>
-                    <span className={`pill ${auditPillClass(entry.action)}`}>{entry.action}</span>
-                  </td>
-                  <td>{entityLabel(entry)}</td>
-                  <td>{entry.details ?? DASH}</td>
-                </tr>
-              ))
-            )}
+            ))}
           </tbody>
         </table>
       </div>
@@ -142,19 +147,17 @@ export function AuditPage() {
   }
 
   return (
-    <section className="audit-page" aria-labelledby="audit-title">
-      <header className="page-header">
-        <h1 id="audit-title" className="section-title">
-          {t('audit.title')}
-        </h1>
-        <div className="page-actions">
-          <ExportMenu path={EXPORT_PATHS.audit} fallbackBase="audit" requiredRole="ADMIN" />
-        </div>
-      </header>
+    <section className="audit-page" aria-label={t('audit.title')}>
+      <PageHeader
+        eyebrow={t('audit.eyebrow')}
+        title={t('audit.title')}
+        description={t('audit.description')}
+        actions={<ExportMenu path={EXPORT_PATHS.audit} fallbackBase="audit" requiredRole="ADMIN" />}
+      />
 
       <p className="form-hint">{t('audit.retentionNote')}</p>
 
-      <div className="toolbar audit-filters" role="search">
+      <Toolbar ariaLabel={t('audit.title')}>
         <Input
           id="audit-actor"
           type="number"
@@ -184,7 +187,7 @@ export function AuditPage() {
           value={to}
           onChange={(event) => onFilterChange(setTo, event.target.value)}
         />
-      </div>
+      </Toolbar>
 
       <AuditResults query={query} windowValid={windowValid} page={page} onPageChange={setPage} />
     </section>

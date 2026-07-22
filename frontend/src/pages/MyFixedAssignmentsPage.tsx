@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { DayBadges } from '../components/DayBadges';
+import { PageHeader } from '../components/PageHeader';
 import { ReleaseResourceModal } from '../components/ReleaseResourceModal';
-import { Spinner } from '../components/Spinner';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { emitApiErrorToast } from '../api/events';
 import { useAuth } from '../auth/useAuth';
 import { useEmployeeFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
@@ -25,6 +26,7 @@ export function MyFixedAssignmentsPage() {
 
   const query = useEmployeeFixedAssignmentsQuery(employeeId);
   const groups = useMemo(() => groupFixedAssignments(query.data ?? []), [query.data]);
+  const ready = !query.isLoading && !query.isError;
 
   function spaceLabel(group: FixedAssignmentGroup): string {
     return `#${group.parkingSpaceId}`;
@@ -36,40 +38,38 @@ export function MyFixedAssignmentsPage() {
   }
 
   return (
-    <section className="my-fixed-assignments-page" aria-labelledby="my-fixed-assignments-title">
-      <header className="page-header">
-        <h1 id="my-fixed-assignments-title" className="section-title">
-          {t('fixedAssignments.mine.title')}
-        </h1>
-      </header>
+    <section className="my-fixed-assignments-page" aria-label={t('fixedAssignments.mine.title')}>
+      <PageHeader
+        eyebrow={t('fixedAssignments.mine.eyebrow')}
+        title={t('fixedAssignments.mine.title')}
+        description={t('fixedAssignments.mine.description')}
+      />
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={3} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('fixedAssignments.mine.loadError')}
-        </p>
+        <TableError
+          message={t('fixedAssignments.mine.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
-        <div className="table-scroll">
-          <table className="table">
-            <thead>
-              <tr className="table-header">
-                <th scope="col">{t('fixedAssignments.mine.columns.space')}</th>
-                <th scope="col">{t('fixedAssignments.mine.columns.days')}</th>
-                <th scope="col">{t('releases.mine.columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="table-empty">
-                    {t('fixedAssignments.mine.empty')}
-                  </td>
+      {ready ? (
+        groups.length === 0 ? (
+          <TableEmpty icon="calendar-star" message={t('fixedAssignments.mine.empty')} />
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr className="table-header">
+                  <th scope="col">{t('fixedAssignments.mine.columns.space')}</th>
+                  <th scope="col">{t('fixedAssignments.mine.columns.days')}</th>
+                  <th scope="col">{t('releases.mine.columns.actions')}</th>
                 </tr>
-              ) : (
-                groups.map((group) => (
+              </thead>
+              <tbody>
+                {groups.map((group) => (
                   <tr key={group.key} className="table-row">
                     <td>{spaceLabel(group)}</td>
                     <td>
@@ -90,11 +90,11 @@ export function MyFixedAssignmentsPage() {
                       </Button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : null}
 
       {releaseTarget ? (

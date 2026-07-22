@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/Button';
-import { Spinner } from '../components/Spinner';
+import { InfoBanner } from '../components/InfoBanner';
+import { PageHeader } from '../components/PageHeader';
+import { StatusPill } from '../components/StatusPill';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import {
   AdministrativeReleaseModal,
   type AdministrativeReleasePrefill,
@@ -56,14 +59,16 @@ export function ReleaseByDatePage() {
   }
 
   return (
-    <section className="release-by-date-page" aria-labelledby="release-by-date-title">
-      <header className="page-header">
-        <h1 id="release-by-date-title" className="section-title">
-          {t('releases.byDate.title')}
-        </h1>
-      </header>
+    <section className="release-by-date-page" aria-label={t('releases.byDate.title')}>
+      <PageHeader
+        eyebrow={t('releases.byDate.eyebrow')}
+        title={t('releases.byDate.title')}
+        description={t('releases.byDate.description')}
+      />
 
-      <p className="page-intro">{t('releases.byDate.intro')}</p>
+      <InfoBanner variant="blue" icon="info-circle">
+        {t('releases.byDate.intro')}
+      </InfoBanner>
 
       <div className="filter-bar">
         <label className="field-label" htmlFor="release-by-date-date">
@@ -79,15 +84,21 @@ export function ReleaseByDatePage() {
         />
       </div>
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={5} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('releases.byDate.loadError')}
-        </p>
+        <TableError
+          message={t('releases.byDate.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
+      {!query.isLoading && !query.isError && occupied.length === 0 ? (
+        <TableEmpty icon="calendar-check" message={t('releases.byDate.empty')} />
+      ) : null}
+
+      {!query.isLoading && !query.isError && occupied.length > 0 ? (
         <div className="table-scroll">
           <table className="table">
             <thead>
@@ -100,35 +111,23 @@ export function ReleaseByDatePage() {
               </tr>
             </thead>
             <tbody>
-              {occupied.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="table-empty">
-                    {t('releases.byDate.empty')}
+              {occupied.map((item) => (
+                <tr key={`${item.resourceType}-${item.resourceId}`} className="table-row">
+                  <td>{resourceLabel(item)}</td>
+                  <td>{t(`releases.byDate.resourceType.${item.resourceType}`)}</td>
+                  <td>{item.employeeName}</td>
+                  <td>
+                    <StatusPill tone="released">
+                      {t(`releases.byDate.origin.${item.origin}`)}
+                    </StatusPill>
+                  </td>
+                  <td className="table-actions">
+                    <Button variant="red" icon="arrow-back-up" onClick={() => openRelease(item)}>
+                      {t('releases.byDate.release')}
+                    </Button>
                   </td>
                 </tr>
-              ) : (
-                occupied.map((item) => (
-                  <tr key={`${item.resourceType}-${item.resourceId}`} className="table-row">
-                    <td>{resourceLabel(item)}</td>
-                    <td>{t(`releases.byDate.resourceType.${item.resourceType}`)}</td>
-                    <td>{item.employeeName}</td>
-                    <td>
-                      <span className="pill pill-blue">
-                        {t(`releases.byDate.origin.${item.origin}`)}
-                      </span>
-                    </td>
-                    <td className="table-actions">
-                      <Button
-                        variant="red"
-                        icon="arrow-back-up"
-                        onClick={() => openRelease(item)}
-                      >
-                        {t('releases.byDate.release')}
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>

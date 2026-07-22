@@ -1,4 +1,4 @@
-/* Reset minimo + body + tipografia base. */
+/* Reset minimo + body + escala tipografica ALEATICA (contrato §3). */
 * {
   box-sizing: border-box;
 }
@@ -14,28 +14,72 @@ body {
   padding: 0;
   background: var(--frame-bg);
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body.theme-dark {
   background: var(--frame-bg);
 }
 
+/* Titulos y numerales: Cormorant Garamond (serif editorial, contrato §3). */
 h1,
 h2,
 h3 {
-  font-weight: 500;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: 0.01em;
   margin: 0;
+  color: var(--ink);
+}
+h1 {
+  font-size: var(--fs-h1);
+  line-height: 1.05;
+}
+h2 {
+  font-size: var(--fs-h2);
+  line-height: 1.1;
+}
+h3 {
+  font-size: 24px;
+  line-height: 1.2;
 }
 
-/* Focus visible accesible (design-system §9). */
+/* Numerales grandes (KPI / contadores) en serif, 34–42px. */
+.num,
+.num-lg {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+}
+.num {
+  font-size: var(--fs-num);
+}
+.num-lg {
+  font-size: var(--fs-num-lg);
+}
+
+/* Etiquetas: 11px uppercase, tracking amplio (contrato §3). */
+.label,
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+}
+
+/* Focus visible accesible. */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--green);
+  outline: 2px solid var(--brand-green);
   outline-offset: 2px;
 }
