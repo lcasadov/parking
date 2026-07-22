@@ -45,11 +45,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class FloorPlanQueryService {
 
-    /** Ventana de solicitud: hoy..hoy+14 dias naturales (extremos inclusive), como en requests. */
-    private static final int WINDOW_DAYS = 14;
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
     private static final String MSG_OUTSIDE_WINDOW =
-            "La fecha consultada debe estar entre hoy y hoy+14 dias";
+            "La fecha consultada no puede ser anterior a hoy";
 
     private final DeskRepository deskRepository;
     private final FixedAssignmentJpaRepository fixedAssignmentRepository;
@@ -170,8 +168,7 @@ public class FloorPlanQueryService {
 
     private void requireWithinWindow(LocalDate date) {
         LocalDate today = LocalDate.ofInstant(clock.now(), ZoneOffset.UTC);
-        LocalDate maxDate = today.plusDays(WINDOW_DAYS);
-        if (date.isBefore(today) || date.isAfter(maxDate)) {
+        if (date.isBefore(today)) {
             throw new OutsideRequestWindowException(MSG_OUTSIDE_WINDOW);
         }
     }
