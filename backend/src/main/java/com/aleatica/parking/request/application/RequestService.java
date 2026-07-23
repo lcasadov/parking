@@ -17,6 +17,7 @@ import com.aleatica.parking.request.domain.RejectionReasonCode;
 import com.aleatica.parking.request.domain.Request;
 import com.aleatica.parking.request.domain.RequestRepositoryPort;
 import com.aleatica.parking.request.domain.RequestStatus;
+import com.aleatica.parking.request.dto.RequestAdminAssignRequest;
 import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
@@ -75,6 +76,7 @@ public class RequestService {
             EmployeeCategory.DIRECTOR_N1, EmployeeCategory.DIRECTOR_N2);
 
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
+    private static final String MSG_EMPLOYEE_NOT_FOUND = "Empleado no encontrado: ";
     private static final String MSG_REQUEST_NOT_FOUND = "Solicitud no encontrada: ";
     private static final String MSG_RESOURCE_NOT_FOUND = "Recurso no encontrado: ";
     private static final String MSG_OUTSIDE_WINDOW =
@@ -98,6 +100,9 @@ public class RequestService {
             "No hay ninguna plaza libre para la fecha solicitada";
     private static final String MSG_REASON_REQUIRED =
             "El motivo libre es obligatorio (>=5 caracteres) cuando el codigo es OTHER";
+    private static final String MSG_DESK_RESOURCE_REQUIRED =
+            "Debe indicar el puesto a asignar (resourceId); la asignacion puntual no auto-asigna "
+                    + "puestos";
 
     /** Accion de auditoria: el empleado cancela una solicitud APPROVED y libera el recurso. */
     private static final String AUDIT_ACTION_RELEASE = "CANCEL_APPROVED_REQUEST";
@@ -106,6 +111,12 @@ public class RequestService {
      * recurso (change {@code release-occupied-resource}); el detalle guarda el motivo.
      */
     private static final String AUDIT_ACTION_ADMIN_RELEASE = "ADMIN_CANCEL_APPROVED_REQUEST";
+    /**
+     * Accion de auditoria: un ADMIN asigna puntualmente un recurso a un empleado para una fecha
+     * concreta (change {@code restructure-admin-workflows}, capability
+     * {@code admin-punctual-assignment}); el detalle guarda el empleado y el recurso asignados.
+     */
+    private static final String AUDIT_ACTION_ADMIN_ASSIGN = "ADMIN_PUNCTUAL_ASSIGNMENT";
     /** Tipo de entidad auditada en la liberacion por cancelacion. */
     private static final String AUDIT_ENTITY_REQUEST = "Request";
 
@@ -238,6 +249,96 @@ public class RequestService {
         RequestResponse response = RequestResponse.from(saved);
         eventPublisher.publishEvent(new RequestApprovedEvent(response));
         return response;
+    }
+
+    /**
+     * Asigna puntualmente un recurso a un empleado para una fecha concreta, a peticion de un
+     * {@code ADMIN} (change {@code restructure-admin-workflows}, capability
+     * {@code admin-punctual-assignment}, design §D1). La asignacion nace directamente
+     * {@code APPROVED} (sin pasar por {@code PENDING}), con {@code resolvedById} = admin actuante,
+     * de modo que aparece "gratis" en el calendario admin, en "Mi Semana" del empleado y en las
+     * exportaciones (misma entidad {@code Request} que el resto de solicitudes).
+     *
+     * <p>Si se indica {@code resourceId}, se valida su existencia y disponibilidad para la fecha
+     * (409 si no esta disponible). Si se omite: en {@code PARKING} se auto-asigna una plaza libre
+     * por categoria/planta del empleado destino (409 {@code NO_AVAILABILITY} si no hay ninguna); en
+     * {@code DESK} no hay auto-asignacion (no goal, design §Non-Goals) y se exige el puesto (400).
+     * No hereda la ventana de 14 dias del autoservicio (design §Open Questions) pero si la regla de
+     * no admitir una fecha pasada, igual que el resto de las vias de creacion.</p>
+     *
+     * @param adminLogin login del administrador actuante (principal de la sesion)
+     * @param request    empleado, fecha, tipo de recurso y (opcional) recurso elegido
+     * @return la asignacion creada, ya {@code APPROVED} (DTO)
+     * @throws EntityNotFoundException            si el admin o el empleado destino no existen, o el
+     *                                             recurso indicado no existe
+     * @throws OutsideRequestWindowException      si la fecha es anterior a hoy
+     * @throws SpaceUnavailableException          si el recurso indicado no esta disponible esa fecha
+     * @throws NoAvailabilityException             si en {@code PARKING} sin recurso indicado no hay
+     *                                             ninguna plaza libre
+     * @throws ResourceSelectionRequiredException si en {@code DESK} se omite el recurso
+     */
+    @Transactional
+    public RequestResponse adminAssign(String adminLogin, RequestAdminAssignRequest request) {
+        Long adminId = resolveEmployeeId(adminLogin);
+        Employee employee = loadEmployeeById(request.employeeId());
+        Instant now = clock.now();
+        LocalDate requestedDate = request.requestedDate();
+        requireNotPastDate(requestedDate, now);
+        ResourceType resourceType = request.resourceTypeOrDefault();
+        Long resourceId = resolveAdminAssignResource(
+                employee, resourceType, request.resourceId(), requestedDate);
+        RequestResponse response = createApprovedByAdmin(
+                employee.getId(), resourceType, resourceId, requestedDate, adminId, now);
+        recordAdminAssignment(adminId, employee.getId(), response);
+        return response;
+    }
+
+    private Long resolveAdminAssignResource(
+            Employee employee, ResourceType resourceType, Long requestedResourceId,
+            LocalDate requestedDate) {
+        if (requestedResourceId != null) {
+            requireResourceExists(requestedResourceId, resourceType);
+            requireResourceAvailable(requestedResourceId, resourceType, requestedDate);
+            return requestedResourceId;
+        }
+        if (resourceType == ResourceType.DESK) {
+            throw new ResourceSelectionRequiredException(MSG_DESK_RESOURCE_REQUIRED);
+        }
+        return autoAssignedSpaceId(employee.getCategory(), requestedDate);
+    }
+
+    private RequestResponse createApprovedByAdmin(
+            Long employeeId, ResourceType resourceType, Long resourceId, LocalDate requestedDate,
+            Long adminId, Instant now) {
+        Request request = Request.createForResource(employeeId, resourceType, resourceId, requestedDate, now);
+        request.approve(resourceId, adminId, Request.ADMIN_ASSIGNMENT_NOTE, now);
+        Request saved = requestRepository.saveAndFlush(request);
+        RequestResponse response = RequestResponse.from(saved);
+        eventPublisher.publishEvent(new RequestApprovedEvent(response));
+        return response;
+    }
+
+    /**
+     * Registra en auditoria la asignacion puntual del admin con el admin actuante como actor y el
+     * empleado y recurso destino en el detalle JSON (spec Req "Traza de auditoria de la asignacion
+     * puntual"). Reutiliza el puerto generico {@link AuditRecorder} (transaccion propia
+     * {@code REQUIRES_NEW}, best-effort: un fallo de registro no revierte la asignacion).
+     */
+    private void recordAdminAssignment(Long adminId, Long employeeId, RequestResponse response) {
+        auditRecorder.record(new AuditEntry(
+                adminId, AUDIT_ACTION_ADMIN_ASSIGN, AUDIT_ENTITY_REQUEST, response.id(),
+                adminAssignDetails(employeeId, response)));
+    }
+
+    private static String adminAssignDetails(Long employeeId, RequestResponse response) {
+        return "{\"employeeId\":" + employeeId + ",\"resourceType\":\"" + response.resourceType()
+                + "\",\"resourceId\":" + response.parkingSpaceId() + ",\"requestedDate\":\""
+                + response.requestedDate() + "\"}";
+    }
+
+    private Employee loadEmployeeById(Long employeeId) {
+        return employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException(MSG_EMPLOYEE_NOT_FOUND + employeeId));
     }
 
     /**

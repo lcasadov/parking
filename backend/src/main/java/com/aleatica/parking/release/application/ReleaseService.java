@@ -8,6 +8,7 @@ import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity
 import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.release.domain.Release;
 import com.aleatica.parking.release.domain.ReleaseRepositoryPort;
+import com.aleatica.parking.release.domain.ReleaseType;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.release.dto.AdministrativeReleaseRequest;
@@ -164,6 +165,25 @@ public class ReleaseService {
         Long employeeId = resolveEmployeeId(requesterLogin);
         return PageResponse.from(
                 releaseRepository.findByEmployeeId(employeeId, pageable), ReleaseResponse::from);
+    }
+
+    /**
+     * Lista de forma paginada las liberaciones administrativas ejecutadas por el actor de la
+     * sesion ({@code ADMIN} o {@code AGENCIA}), en orden de actividad reciente; historial de
+     * "mis liberaciones" del actor (change {@code restructure-admin-workflows}, capability
+     * {@code releases}, design §D5). Verificacion de pertenencia implicita por
+     * {@code releasedById}: cada actor solo ve las liberaciones que el mismo ha creado.
+     *
+     * @param actorLogin login del actor de la sesion (ADMIN/AGENCIA; principal de la sesion)
+     * @param pageable   pagina y tamano solicitados
+     * @return pagina de liberaciones administrativas propias del actor (DTO)
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ReleaseResponse> listMyAdministrativeReleases(String actorLogin, Pageable pageable) {
+        Long actorId = resolveEmployeeId(actorLogin);
+        return PageResponse.from(
+                releaseRepository.findByReleasedByIdAndType(actorId, ReleaseType.ADMINISTRATIVE, pageable),
+                ReleaseResponse::from);
     }
 
     /**

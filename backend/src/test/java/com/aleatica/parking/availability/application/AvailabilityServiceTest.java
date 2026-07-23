@@ -323,6 +323,50 @@ class AvailabilityServiceTest {
     }
 
     @Test
+    void shouldReturnAdminCalendarOfDesks_whenResourceTypeIsDesk() {
+        // Arrange (change restructure-admin-workflows, design D4): un puesto, asignado el lunes
+        given(deskRepository.findByActiveTrueOrderByNumberAsc()).willReturn(List.of(desk(DESK_ID, DESK_NUMBER)));
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.DESK)))
+                .willReturn(List.of(deskAssignment(DESK_ID, EMP_ID, 1)));
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(
+                ResourceType.DESK, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.DESK, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(employeeRepository.findAllById(any()))
+                .willReturn(List.of(employee(EMP_ID, "Ada", "Lovelace")));
+
+        // Act
+        AdminWeeklyCalendarResponse response = service().adminCalendar(MONDAY, ResourceType.DESK);
+
+        // Assert: la fila es el puesto (no la plaza) y el lunes esta ASSIGNED
+        assertThat(response.rows()).singleElement().satisfies(row -> {
+            assertThat(row.parkingSpaceId()).isEqualTo(DESK_ID);
+            assertThat(row.cells().get(0).state()).isEqualTo(CalendarCellState.ASSIGNED);
+            assertThat(row.cells().get(0).employeeName()).isEqualTo("Ada Lovelace");
+        });
+    }
+
+    @Test
+    void shouldDefaultToParking_whenAdminCalendarCalledWithoutResourceType() {
+        // Arrange (retrocompatibilidad design D4): el atajo de un solo parametro sigue siendo PARKING
+        givenActiveSpaces(space(SPACE_ID, SPACE_LABEL));
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING))).willReturn(List.of());
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(
+                ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+
+        // Act
+        AdminWeeklyCalendarResponse response = service().adminCalendar(MONDAY);
+
+        // Assert: la fila es la plaza
+        assertThat(response.rows()).singleElement()
+                .satisfies(row -> assertThat(row.parkingSpaceId()).isEqualTo(SPACE_ID));
+    }
+
+    @Test
     void shouldNormalizeWeekStartToMonday_whenAdminCalendarWeekStartIsNotMonday() {
         // Arrange: weekStart en miercoles -> normaliza al lunes de esa semana
         LocalDate wednesday = MONDAY.plusDays(2);
@@ -387,6 +431,41 @@ class AvailabilityServiceTest {
         assertThat(days.get(4).requestId()).isEqualTo(9L);
         // MyWeekResponse no expone ningun campo de identidad por diseno (privacidad)
         assertThat(response).hasNoNullFieldsOrProperties();
+    }
+
+    @Test
+    void shouldReturnDeskState_whenEmployeeHasApprovedDeskRequest() {
+        // Arrange (change restructure-admin-workflows, design D4): "Mi Semana" multi-recurso.
+        // Plaza: sin nada (FREE). Puesto: solicitud APPROVED el lunes.
+        LocalDate wednesday = MONDAY.plusDays(2);
+        givenActor();
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+                EMP_ID, ResourceType.PARKING)).willReturn(List.of());
+        given(requestRepository.findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
+                EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(releaseRepository.findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+                EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+                EMP_ID, ResourceType.DESK)).willReturn(List.of());
+        given(requestRepository.findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
+                EMP_ID, ResourceType.DESK, MONDAY, MONDAY.plusDays(6)))
+                .willReturn(List.of(deskApprovedRequestWithId(11L, DESK_ID, EMP_ID, wednesday)));
+        given(releaseRepository.findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+                EMP_ID, ResourceType.DESK, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(deskRepository.findAllById(any())).willReturn(List.of(desk(DESK_ID, DESK_NUMBER)));
+
+        // Act
+        MyWeekResponse response = service().myWeek(EMP_LOGIN, MONDAY);
+
+        // Assert: la plaza esta libre (por defecto) pero el puesto esta ASSIGNED el miercoles
+        List<MyWeekDayResponse> days = response.days();
+        assertThat(days.get(2).state()).isEqualTo(MyWeekDayState.FREE);
+        assertThat(days.get(2).deskState()).isEqualTo(MyWeekDayState.ASSIGNED);
+        assertThat(days.get(2).deskRequestStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(days.get(2).deskRequestId()).isEqualTo(11L);
+        // Otros dias sin puesto -> FREE
+        assertThat(days.get(0).deskState()).isEqualTo(MyWeekDayState.FREE);
     }
 
     @Test

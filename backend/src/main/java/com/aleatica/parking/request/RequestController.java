@@ -5,6 +5,7 @@ import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.exception.ApiError;
 import com.aleatica.parking.request.application.RequestService;
 import com.aleatica.parking.request.domain.RequestStatus;
+import com.aleatica.parking.request.dto.RequestAdminAssignRequest;
 import com.aleatica.parking.request.dto.RequestAdminCancelRequest;
 import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
@@ -91,6 +92,47 @@ public class RequestController {
     public ResponseEntity<RequestResponse> createRequest(
             @Valid @RequestBody RequestCreateRequest request, Authentication authentication) {
         RequestResponse created = requestService.create(authentication.getName(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * Asigna puntualmente un recurso a un empleado para una fecha concreta (solo {@code ADMIN});
+     * change {@code restructure-admin-workflows}, capability {@code admin-punctual-assignment}. La
+     * asignacion nace directamente {@code APPROVED} (sin pasar por {@code PENDING}), reutilizando
+     * la validacion de disponibilidad y la auto-asignacion por categoria/planta ya existentes en
+     * {@link RequestService}, y queda trazada en auditoria con el admin como actor.
+     *
+     * @param request        empleado, fecha, tipo de recurso y (opcional) recurso elegido
+     * @param authentication autenticacion resuelta de la sesion (admin actuante)
+     * @return {@code 201} con la asignacion creada en estado {@code APPROVED}
+     */
+    @Operation(summary = "Asignacion puntual de un recurso a un empleado (ADMIN)",
+            description = "Crea una asignacion para una fecha concreta que nace APPROVED, sin pasar "
+                    + "por PENDING. Si se omite resourceId en PARKING, auto-asigna una plaza libre "
+                    + "por categoria/planta; en DESK el puesto es obligatorio (400 si se omite). "
+                    + "Queda trazada en auditoria con el admin como actor.",
+            security = @SecurityRequirement(name = SESSION_COOKIE))
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Asignacion creada en estado APPROVED"),
+            @ApiResponse(responseCode = "400", description = "Datos invalidos, fecha pasada o "
+                    + "recurso obligatorio (DESK) no indicado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Sin permisos (rol distinto de ADMIN)",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Empleado o recurso no encontrado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "Recurso no disponible esa fecha, o "
+                    + "NO_AVAILABILITY (auto-asignacion sin plaza libre)",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @PostMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RequestResponse> adminAssignRequest(
+            @Valid @RequestBody RequestAdminAssignRequest request, Authentication authentication) {
+        RequestResponse created = concurrencyRetry.execute(
+                () -> requestService.adminAssign(authentication.getName(), request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

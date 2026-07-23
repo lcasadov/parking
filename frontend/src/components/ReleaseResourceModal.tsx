@@ -9,10 +9,16 @@ import { emitApiErrorToast } from '../api/events';
 import { useCreateRelease } from '../hooks/useReleases';
 import { todayIso } from '../utils/releases';
 import { longDate } from '../utils/calendar';
+import type { ResourceType } from '../types/request';
 
 interface ReleaseResourceModalProps {
   parkingSpaceId: number;
   spaceLabel: string;
+  // Tipo del recurso fijo a liberar. Default PARKING (retrocompatible): el bug
+  // #1.8 hacia que el puesto fijo se liberase siempre como PARKING porque el
+  // resourceType nunca se enviaba. Solo se incluye en el envio cuando es DESK
+  // (PARKING es el default del backend, se omite para no cambiar el contrato).
+  resourceType?: ResourceType;
   // Cuando se libera un dia concreto (vista "Mi Semana" por-dia) la fecha ya esta
   // fijada: se muestra bloqueada y sin selector. Omitido, el empleado elige la fecha.
   presetDate?: string;
@@ -42,6 +48,7 @@ function toastKeyForError(error: unknown): string {
 export function ReleaseResourceModal({
   parkingSpaceId,
   spaceLabel,
+  resourceType = 'PARKING',
   presetDate,
   onClose,
   onReleased,
@@ -60,7 +67,11 @@ export function ReleaseResourceModal({
     }
     setError(null);
     releaseMutation.mutate(
-      { releaseDate: date, parkingSpaceId },
+      {
+        releaseDate: date,
+        parkingSpaceId,
+        ...(resourceType === 'DESK' ? { resourceType } : {}),
+      },
       {
         onSuccess: onReleased,
         onError: (mutationError) => emitApiErrorToast(toastKeyForError(mutationError)),

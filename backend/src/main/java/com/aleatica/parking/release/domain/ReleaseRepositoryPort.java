@@ -69,4 +69,17 @@ public interface ReleaseRepositoryPort {
      * @return pagina de liberaciones de dominio del empleado
      */
     Page<Release> findByEmployeeId(Long employeeId, Pageable pageable);
+
+    /**
+     * Pagina de las liberaciones de un tipo ejecutadas por un actor concreto, en orden de
+     * actividad reciente: historial de "mis liberaciones administrativas" para
+     * {@code ADMIN}/{@code AGENCIA} (change {@code restructure-admin-workflows}, capability
+     * {@code releases}).
+     *
+     * @param releasedById empleado (ADMIN/AGENCIA) que ejecuto la liberacion
+     * @param type         tipo de liberacion ({@code ADMINISTRATIVE} para este historial)
+     * @param pageable     pagina y orden solicitados
+     * @return pagina de liberaciones de dominio ejecutadas por el actor
+     */
+    Page<Release> findByReleasedByIdAndType(Long releasedById, ReleaseType type, Pageable pageable);
 }

@@ -16,6 +16,7 @@ import com.aleatica.parking.request.application.NoAvailabilityException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.RejectionReasonRequiredException;
 import com.aleatica.parking.request.application.RequestStateException;
+import com.aleatica.parking.request.application.ResourceSelectionRequiredException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.visitor.application.PastVisitorReservationCancellationException;
 import com.aleatica.parking.visitor.application.SpaceNotAvailableForReservationException;
@@ -86,6 +87,7 @@ public class GlobalExceptionHandler {
     private static final String FIELD_EMPLOYEE_ID = "employeeId";
     private static final String FIELD_REQUESTED_DATE = "requestedDate";
     private static final String FIELD_REJECTION_REASON = "rejectionReason";
+    private static final String FIELD_RESOURCE_ID = "resourceId";
     private static final String FIELD_RELEASE_DATE = "releaseDate";
     private static final String FIELD_NATIONAL_ID = "nationalId";
     private static final String FIELD_DATE_WINDOW = "from";
@@ -487,6 +489,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RejectionReasonRequiredException.class)
     public ResponseEntity<ApiError> handleRejectionReasonRequired(RejectionReasonRequiredException ex) {
         Map<String, String> fields = Map.of(FIELD_REJECTION_REASON, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce la ausencia del recurso obligatorio en la asignacion puntual del admin para
+     * {@code DESK} a {@code 400} con {@code error = VALIDATION_ERROR} y el detalle en
+     * {@code resourceId} (capability {@code admin-punctual-assignment}).
+     *
+     * @param ex excepcion de recurso obligatorio no indicado
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(ResourceSelectionRequiredException.class)
+    public ResponseEntity<ApiError> handleResourceSelectionRequired(ResourceSelectionRequiredException ex) {
+        Map<String, String> fields = Map.of(FIELD_RESOURCE_ID, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
     }

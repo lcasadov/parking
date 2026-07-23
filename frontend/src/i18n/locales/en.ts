@@ -95,6 +95,42 @@ export const en = {
       navigation: 'Navigation',
     },
   },
+  resources: {
+    navLabel: 'Resources',
+    title: 'Resources',
+    eyebrow: 'Management',
+    tabs: {
+      parking: 'Parking spaces',
+      desks: 'Desks',
+    },
+  },
+  records: {
+    navLabel: 'Records',
+    title: 'Records',
+    eyebrow: 'Management',
+    tabs: {
+      audit: 'Audit',
+      loginLogs: 'Sign-ins',
+    },
+  },
+  occupancy: {
+    navLabel: 'Occupancy',
+    title: 'Occupancy',
+    eyebrow: 'Operations',
+    tabs: {
+      weekly: 'Weekly',
+      availability: 'Availability',
+    },
+  },
+  myResources: {
+    navLabel: 'My spaces',
+    title: 'My spaces',
+    eyebrow: 'My space',
+    tabs: {
+      fixed: 'Fixed assignments',
+      releases: 'Releases',
+    },
+  },
   exports: {
     groupLabel: 'Export options',
     csv: 'Export CSV',
@@ -432,6 +468,9 @@ export const en = {
       description: 'Your fixed resources and the days you have them reserved.',
       empty: 'You have no fixed assignments.',
       loadError: 'Could not load your fixed assignments.',
+      // Generic label for a fixed space: there is no EMPLOYEE-safe endpoint to
+      // resolve the real space number (the space catalog is ADMIN-only).
+      genericParkingLabel: 'Fixed space',
       columns: {
         space: 'Space',
         days: 'Days',
@@ -529,6 +568,8 @@ export const en = {
       changeDesk: 'Change desk',
       removeDesk: 'Remove',
       chosenDesk: 'Chosen desk: {{number}}',
+      chosenDeskPreferenceNote:
+        'This is a preference: in manual mode the admin resolves the final assignment and may assign a different desk.',
       chooseDeskDateHint: 'Pick a date (today or later) first to select a desk.',
       requiredDate: 'Select a date.',
       requiredResource: 'Select at least one resource (space or desk).',
@@ -621,6 +662,15 @@ export const en = {
     },
   },
   releases: {
+    hub: {
+      navLabel: 'Release',
+      title: 'Release',
+      eyebrow: 'Operations',
+      tabs: {
+        byEmployee: 'By employee',
+        byDate: 'By date',
+      },
+    },
     type: {
       VOLUNTARY: 'Voluntary',
       ADMINISTRATIVE: 'Administrative',
@@ -931,21 +981,38 @@ export const en = {
       confirmation: 'Desk {{number}} selected',
       close: 'Close',
     },
+    confirmRequest: {
+      title: 'Confirm request',
+      body: 'You are about to request desk {{number}} for {{date}}.',
+      confirm: 'Request',
+      cancel: 'Cancel',
+    },
   },
   availability: {
     navLabel: 'Availability',
     title: 'Availability by date',
     eyebrow: 'Operations',
-    description: 'Check the free parking spaces for a specific date.',
+    description: 'Check the free resources (space or desk) for a specific date.',
     dateLabel: 'Date',
+    resourceTypeLabel: 'Resource type',
+    resourceType: {
+      PARKING: 'Space',
+      DESK: 'Desk',
+    },
     invalidDate: 'Enter a valid date.',
-    hint: 'Pick a date to see available spaces.',
+    hint: 'Pick a date to see available resources.',
     loadError: 'Availability could not be loaded.',
-    empty: 'No spaces available for this date.',
-    count: '{{count}} space(s) available',
+    empty: {
+      PARKING: 'No spaces available for this date.',
+      DESK: 'No desks available for this date.',
+    },
+    count: {
+      PARKING: '{{count}} space(s) available',
+      DESK: '{{count}} desk(s) available',
+    },
     columns: {
-      space: 'Space',
-      id: 'Identifier',
+      space: 'Resource',
+      type: 'Type',
     },
   },
   calendar: {

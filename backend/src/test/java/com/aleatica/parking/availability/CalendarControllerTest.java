@@ -13,6 +13,7 @@ import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.availability.dto.AdminWeeklyCalendarResponse;
 import com.aleatica.parking.availability.dto.MyWeekResponse;
 import com.aleatica.parking.config.SecurityConfig;
+import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -65,13 +66,27 @@ class CalendarControllerTest {
 
     @Test
     void shouldReturnAdminCalendar_whenCallerIsAdmin() throws Exception {
-        // Arrange
+        // Arrange: sin resourceType -> el controlador resuelve PARKING por defecto
         LocalDate monday = LocalDate.parse(WEEK_START);
-        given(availabilityService.adminCalendar(any()))
+        given(availabilityService.adminCalendar(any(), eq(ResourceType.PARKING)))
                 .willReturn(new AdminWeeklyCalendarResponse(monday, List.of(monday), List.of()));
 
         // Act / Assert
         mockMvc.perform(get(ADMIN_URL).param("weekStart", WEEK_START).with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weekStart").value(WEEK_START));
+    }
+
+    @Test
+    void shouldReturnAdminCalendarOfDesks_whenResourceTypeIsDesk() throws Exception {
+        // Arrange: resourceType=DESK -> se propaga tal cual al servicio (no el default)
+        LocalDate monday = LocalDate.parse(WEEK_START);
+        given(availabilityService.adminCalendar(any(), eq(ResourceType.DESK)))
+                .willReturn(new AdminWeeklyCalendarResponse(monday, List.of(monday), List.of()));
+
+        // Act / Assert
+        mockMvc.perform(get(ADMIN_URL).param("weekStart", WEEK_START).param("resourceType", "DESK")
+                        .with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.weekStart").value(WEEK_START));
     }

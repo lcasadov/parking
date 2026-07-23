@@ -31,11 +31,18 @@ export function myWeekQueryKey(weekStart?: string): string[] {
   return [CALENDAR_KEY, MY_WEEK_SCOPE, weekStart ?? 'current'];
 }
 
-// Disponibilidad por fecha; solo consulta cuando la fecha ISO es valida.
-export function useAvailabilityQuery(date: string): UseQueryResult<AvailabilityResponse> {
+// Disponibilidad por fecha (y opcionalmente tipo de recurso); solo consulta
+// cuando la fecha ISO es valida. Sin restriccion de ventana: el ADMIN puede
+// consultar cualquier fecha (vista Ocupacion > Disponibilidad).
+export function useAvailabilityQuery(
+  date: string,
+  resourceType?: ResourceType,
+): UseQueryResult<AvailabilityResponse> {
   return useQuery({
-    queryKey: availabilityQueryKey(date),
-    queryFn: () => getAvailability(date),
+    queryKey: resourceType
+      ? resourceAvailabilityQueryKey(date, resourceType)
+      : availabilityQueryKey(date),
+    queryFn: () => getAvailability(date, resourceType),
     enabled: isValidIsoDate(date),
   });
 }

@@ -30,6 +30,15 @@ function useAdmin(): void {
   server.use(http.get(ME_URL, () => HttpResponse.json(adminUser)));
 }
 
+// Los flujos de solicitud desde el plano piden confirmacion explicita antes de
+// crear la solicitud (requests spec): clicar el marcador/boton solo abre el
+// dialogo; hay que confirmar para que se dispare el POST.
+async function confirmPendingRequest(): Promise<void> {
+  const user = userEvent.setup();
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('button', { name: /^solicitar$|^request$/i }));
+}
+
 describe('FloorPlanPage', () => {
   it('should_render_a_marker_per_placed_desk_when_plan_loads', async () => {
     useEmployee();
@@ -128,9 +137,26 @@ describe('FloorPlanPage', () => {
 
     const marker = await screen.findByRole('button', { name: /puesto 1/i });
     await user.click(marker);
+    await confirmPendingRequest();
 
     expect(await screen.findByText(/solicitud creada|request created/i)).toBeInTheDocument();
     expect(requestedDeskId).toBe('1');
+  });
+
+  it('should_ask_for_confirmation_before_requesting_a_free_desk', async () => {
+    useEmployee();
+    server.use(http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([floorDeskFree]))));
+    const user = userEvent.setup();
+    renderWithProviders(<FloorPlanPage />);
+
+    const marker = await screen.findByRole('button', { name: /puesto 1/i });
+    await user.click(marker);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/1/)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /^cancelar$|^cancel$/i }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('should_show_conflict_feedback_when_requesting_a_non_free_desk_returns_409', async () => {
@@ -149,6 +175,7 @@ describe('FloorPlanPage', () => {
 
     const marker = await screen.findByRole('button', { name: /puesto 1/i });
     await user.click(marker);
+    await confirmPendingRequest();
 
     expect(
       await screen.findByText(/no está disponible|no longer available|not available/i),
@@ -301,6 +328,7 @@ describe('FloorPlanPage', () => {
 
     // The mobile "available to request" list exposes a Solicitar button per row.
     await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
+    await confirmPendingRequest();
 
     expect(await screen.findByText(/solicitud creada|request created/i)).toBeInTheDocument();
     expect(requestedDeskId).toBe('1');
@@ -322,6 +350,7 @@ describe('FloorPlanPage', () => {
     await screen.findByTestId('floor-marker');
 
     await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
+    await confirmPendingRequest();
 
     expect(
       await screen.findByText(/no está disponible|no longer available/i),

@@ -19,10 +19,13 @@ export interface Release {
 
 // ReleaseCreateRequest: schema #/components/schemas/ReleaseCreateRequest.
 // parkingSpaceId es opcional (si se omite, el backend resuelve la plaza fija
-// del empleado para ese dia).
+// del empleado para ese dia). resourceType es opcional (default PARKING en el
+// backend); se envia DESK al liberar un puesto fijo (bug: antes se omitia
+// siempre y el backend asumia PARKING incluso para puestos).
 export interface ReleaseCreateRequest {
   releaseDate: string;
   parkingSpaceId?: number;
+  resourceType?: ResourceType;
 }
 
 // AdministrativeReleaseRequest: schema #/components/schemas/AdministrativeReleaseRequest.

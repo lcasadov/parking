@@ -7,6 +7,7 @@ import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getApiError, getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRequest } from '../hooks/useRequests';
+import { useApprovalModeQuery } from '../hooks/useSettings';
 import { isTodayOrFuture, todayIso } from '../utils/requests';
 import type { Request, RequestCreateRequest, ResourceType } from '../types/request';
 
@@ -55,6 +56,11 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const createMutation = useCreateRequest();
+  // Modo de aprobacion vigente (null si no se puede resolver, p.ej. AGENCIA):
+  // en MANUAL el resourceId del puesto elegido se ignora en el backend, asi que
+  // el modal debe avisar de que la eleccion es una preferencia (requests spec).
+  const approvalModeQuery = useApprovalModeQuery();
+  const isManualMode = approvalModeQuery.data === 'MANUAL';
 
   // El selector solo tiene sentido con una fecha valida (hoy o futura): usa esa
   // fecha para colorear la disponibilidad de los puestos.
@@ -189,6 +195,11 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
               {selectedDesk ? (
                 <p className="desk-pick-chosen">
                   {t('requests.create.chosenDesk', { number: selectedDesk.deskNumber })}
+                </p>
+              ) : null}
+              {selectedDesk && isManualMode ? (
+                <p className="hint" role="status">
+                  {t('requests.create.chosenDeskPreferenceNote')}
                 </p>
               ) : null}
               <div className="desk-pick-actions">

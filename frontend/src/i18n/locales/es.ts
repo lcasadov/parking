@@ -95,6 +95,42 @@ export const es = {
       navigation: 'Navegación',
     },
   },
+  resources: {
+    navLabel: 'Recursos',
+    title: 'Recursos',
+    eyebrow: 'Gestión',
+    tabs: {
+      parking: 'Plazas',
+      desks: 'Puestos',
+    },
+  },
+  records: {
+    navLabel: 'Registros',
+    title: 'Registros',
+    eyebrow: 'Gestión',
+    tabs: {
+      audit: 'Auditoría',
+      loginLogs: 'Accesos',
+    },
+  },
+  occupancy: {
+    navLabel: 'Ocupación',
+    title: 'Ocupación',
+    eyebrow: 'Operativa',
+    tabs: {
+      weekly: 'Semanal',
+      availability: 'Disponibilidad',
+    },
+  },
+  myResources: {
+    navLabel: 'Mis plazas',
+    title: 'Mis plazas',
+    eyebrow: 'Mi espacio',
+    tabs: {
+      fixed: 'Asignaciones fijas',
+      releases: 'Liberaciones',
+    },
+  },
   exports: {
     groupLabel: 'Opciones de exportación',
     csv: 'Exportar CSV',
@@ -432,6 +468,9 @@ export const es = {
       description: 'Tus recursos fijos y los días que los tienes reservados.',
       empty: 'No tienes asignaciones fijas.',
       loadError: 'No se pudieron cargar tus asignaciones fijas.',
+      // Etiqueta generica para una plaza fija: no hay endpoint EMPLOYEE-safe para
+      // resolver el numero real de la plaza (catalogo de plazas es solo ADMIN).
+      genericParkingLabel: 'Plaza fija',
       columns: {
         space: 'Plaza',
         days: 'Días',
@@ -529,6 +568,8 @@ export const es = {
       changeDesk: 'Cambiar puesto',
       removeDesk: 'Quitar',
       chosenDesk: 'Puesto elegido: {{number}}',
+      chosenDeskPreferenceNote:
+        'Es una preferencia: en modo manual el ADMIN resuelve la asignación final y podría asignar otro puesto.',
       chooseDeskDateHint: 'Elige primero una fecha (hoy o futura) para seleccionar un puesto.',
       requiredDate: 'Selecciona una fecha.',
       requiredResource: 'Selecciona al menos un recurso (plaza o puesto).',
@@ -622,6 +663,15 @@ export const es = {
     },
   },
   releases: {
+    hub: {
+      navLabel: 'Liberar',
+      title: 'Liberar',
+      eyebrow: 'Operativa',
+      tabs: {
+        byEmployee: 'Por empleado',
+        byDate: 'Por fecha',
+      },
+    },
     type: {
       VOLUNTARY: 'Voluntaria',
       ADMINISTRATIVE: 'Administrativa',
@@ -932,21 +982,38 @@ export const es = {
       confirmation: 'Puesto {{number}} seleccionado',
       close: 'Cerrar',
     },
+    confirmRequest: {
+      title: 'Confirmar solicitud',
+      body: 'Vas a solicitar el puesto {{number}} para el {{date}}.',
+      confirm: 'Solicitar',
+      cancel: 'Cancelar',
+    },
   },
   availability: {
     navLabel: 'Disponibilidad',
     title: 'Disponibilidad por fecha',
     eyebrow: 'Operativa',
-    description: 'Consulta las plazas libres para una fecha concreta.',
+    description: 'Consulta los recursos libres (plaza o puesto) para una fecha concreta.',
     dateLabel: 'Fecha',
+    resourceTypeLabel: 'Tipo de recurso',
+    resourceType: {
+      PARKING: 'Plaza',
+      DESK: 'Puesto',
+    },
     invalidDate: 'Introduce una fecha válida.',
-    hint: 'Elige una fecha para ver las plazas disponibles.',
+    hint: 'Elige una fecha para ver los recursos disponibles.',
     loadError: 'No se pudo cargar la disponibilidad.',
-    empty: 'No hay plazas disponibles para esta fecha.',
-    count: '{{count}} plaza(s) disponible(s)',
+    empty: {
+      PARKING: 'No hay plazas disponibles para esta fecha.',
+      DESK: 'No hay puestos disponibles para esta fecha.',
+    },
+    count: {
+      PARKING: '{{count}} plaza(s) disponible(s)',
+      DESK: '{{count}} puesto(s) disponible(s)',
+    },
     columns: {
-      space: 'Plaza',
-      id: 'Identificador',
+      space: 'Recurso',
+      type: 'Tipo',
     },
   },
   calendar: {

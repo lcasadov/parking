@@ -10,6 +10,7 @@ import { FloorPlanFilters, type FloorPlanFilterValue } from '../components/Floor
 import { FloorPlanZoom } from '../components/FloorPlanZoom';
 import { FloorPlanSidePanel } from '../components/FloorPlanSidePanel';
 import { FloorPlanMobileList } from '../components/FloorPlanMobileList';
+import { RequestDeskConfirmModal } from '../components/RequestDeskConfirmModal';
 import { useAuth } from '../auth/useAuth';
 import { useDeskDrag } from '../hooks/useDeskDrag';
 import { useFloorPlanViewport } from '../hooks/useFloorPlanViewport';
@@ -34,6 +35,9 @@ export function FloorPlanPage() {
   const [editMode, setEditMode] = useState(false);
   const [feedback, setFeedback] = useState<FloorPlanFeedbackKind>(null);
   const [filter, setFilter] = useState<FloorPlanFilterValue | null>(null);
+  // Puesto pendiente de confirmar antes de crear la solicitud (marcador o lista
+  // movil): evita altas accidentales por toques/zoom en tactil (requests spec).
+  const [confirmTarget, setConfirmTarget] = useState<FloorPlanDesk | null>(null);
 
   const surfaceRef = useRef<HTMLDivElement>(null);
 
@@ -67,7 +71,18 @@ export function FloorPlanPage() {
     setFilter((previous) => (previous === value ? null : value));
   }
 
-  function handleRequest(desk: FloorPlanDesk): void {
+  // Pinchar un marcador libre (o pulsar "Solicitar" en la lista movil) abre la
+  // confirmacion; la solicitud solo se crea si el empleado confirma.
+  function handleRequestClick(desk: FloorPlanDesk): void {
+    setConfirmTarget(desk);
+  }
+
+  function handleConfirmRequest(): void {
+    if (!confirmTarget) {
+      return;
+    }
+    const desk = confirmTarget;
+    setConfirmTarget(null);
     setFeedback(null);
     requestMutation.mutate(
       { deskId: desk.deskId, date },
@@ -145,7 +160,7 @@ export function FloorPlanPage() {
               filter={filter}
               viewport={viewport}
               surfaceRef={surfaceRef}
-              onRequest={handleRequest}
+              onRequest={handleRequestClick}
               onDragStart={startDrag}
             />
             <FloorPlanSidePanel desks={desks} />
@@ -155,10 +170,19 @@ export function FloorPlanPage() {
             <FloorPlanMobileList
               desks={desks}
               pending={requestMutation.isPending}
-              onRequest={handleRequest}
+              onRequest={handleRequestClick}
             />
           )}
         </>
+      ) : null}
+
+      {confirmTarget ? (
+        <RequestDeskConfirmModal
+          desk={confirmTarget}
+          date={date}
+          onConfirm={handleConfirmRequest}
+          onClose={() => setConfirmTarget(null)}
+        />
       ) : null}
     </section>
   );

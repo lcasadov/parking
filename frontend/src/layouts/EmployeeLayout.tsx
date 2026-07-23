@@ -7,8 +7,10 @@ import { ROUTES } from '../routes/paths';
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   `nav-item${isActive ? ' active' : ''}`;
 
-// Layout de empleado: sidebar ALEATICA (navegacion propia + area de usuario al
-// pie con logout/preferencias) + <Outlet/>. Sin top-bar (prototipo aprobado).
+// Layout de empleado (app-shell spec, restructure-admin-workflows): sidebar
+// ALEATICA con 4 destinos (Mi Semana, Plano, Mis solicitudes, Mis plazas) +
+// area de usuario al pie (logout/preferencias) + <Outlet/>. Sin top-bar
+// (prototipo aprobado). "Mi Semana" es la ruta indice del portal.
 export function EmployeeLayout() {
   const { t } = useTranslation();
   return (
@@ -28,13 +30,9 @@ export function EmployeeLayout() {
             <i className="ti ti-inbox" aria-hidden="true" />
             {t('requests.mine.navLabel')}
           </NavLink>
-          <NavLink to={ROUTES.employeeFixedAssignments} className={navItemClass}>
+          <NavLink to={ROUTES.employeeMyResources} className={navItemClass}>
             <i className="ti ti-pin" aria-hidden="true" />
-            {t('fixedAssignments.mine.navLabel')}
-          </NavLink>
-          <NavLink to={ROUTES.employeeReleases} className={navItemClass}>
-            <i className="ti ti-arrow-back-up" aria-hidden="true" />
-            {t('releases.mine.navLabel')}
+            {t('myResources.navLabel')}
           </NavLink>
         </Sidebar>
         <main className="main">

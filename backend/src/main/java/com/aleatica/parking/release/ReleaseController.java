@@ -177,4 +177,34 @@ public class ReleaseController {
                 () -> releaseService.createAdministrativeRelease(authentication.getName(), request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
+
+    /**
+     * Lista de forma paginada el historial de liberaciones administrativas ejecutadas por el
+     * actor de la sesion ({@code ADMIN} o {@code AGENCIA}), en orden de actividad reciente
+     * (change {@code restructure-admin-workflows}, capability {@code releases}, design §D5).
+     * Solo lectura; verificacion de pertenencia implicita por {@code releasedById}: cada actor
+     * solo ve las liberaciones que el mismo ha creado.
+     *
+     * @param pageable       pagina y tamano (parametros {@code page}/{@code size})
+     * @param authentication autenticacion resuelta de la sesion (actor ADMIN/AGENCIA)
+     * @return {@code 200} con la pagina de liberaciones administrativas propias
+     */
+    @Operation(summary = "Mis liberaciones administrativas (ADMIN/AGENCIA)",
+            description = "Historial de solo lectura de las liberaciones administrativas creadas "
+                    + "por el actor de la sesion (releasedById = actor).",
+            security = @SecurityRequirement(name = SESSION_COOKIE))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Pagina de liberaciones administrativas propias"),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Sin permisos (rol distinto de ADMIN/AGENCIA)",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @GetMapping("/administrative/mine")
+    @PreAuthorize("hasAnyRole('ADMIN','AGENCIA')")
+    public ResponseEntity<PageResponse<ReleaseResponse>> listMyAdministrativeReleases(
+            @PageableDefault(size = 20) Pageable pageable, Authentication authentication) {
+        return ResponseEntity.ok(
+                releaseService.listMyAdministrativeReleases(authentication.getName(), pageable));
+    }
 }

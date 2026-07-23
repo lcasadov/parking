@@ -15,10 +15,12 @@ import com.aleatica.parking.concurrency.ConcurrencyRetry;
 import com.aleatica.parking.config.SecurityConfig;
 import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.request.application.DuplicatePendingRequestException;
+import com.aleatica.parking.request.application.NoAvailabilityException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.RejectionReasonRequiredException;
 import com.aleatica.parking.request.application.RequestService;
 import com.aleatica.parking.request.application.RequestStateException;
+import com.aleatica.parking.request.application.ResourceSelectionRequiredException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
@@ -49,6 +51,7 @@ class RequestControllerTest {
 
     private static final String BASE_URL = "/api/v1/requests";
     private static final String MINE_URL = BASE_URL + "/mine";
+    private static final String ADMIN_ASSIGN_URL = BASE_URL + "/admin";
     private static final String PENDING_URL = BASE_URL + "/pending";
     private static final String ID_URL = BASE_URL + "/42";
     private static final String CANCEL_URL = ID_URL + "/cancel";
@@ -61,6 +64,9 @@ class RequestControllerTest {
     private static final String ROLE_EMPLOYEE = "EMPLOYEE";
 
     private static final String CREATE_BODY = "{\"requestedDate\":\"2026-07-10\"}";
+    private static final String ADMIN_ASSIGN_BODY =
+            "{\"employeeId\":15,\"requestedDate\":\"2026-07-10\",\"resourceType\":\"PARKING\","
+                    + "\"resourceId\":8}";
     private static final String APPROVE_BODY = "{\"parkingSpaceId\":8,\"approvalNote\":\"ok\"}";
     private static final String REJECT_BODY = "{\"reasonCode\":\"NO_AVAILABILITY\"}";
     private static final String ERROR_PATH = "$.error";
@@ -354,6 +360,87 @@ class RequestControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath(ERROR_PATH).value("REQUEST_ALREADY_PENDING"));
+    }
+
+    // ---- Asignacion puntual del admin (POST /requests/admin) ----
+
+    @Test
+    void shouldReturn401_whenAdminAssignWithoutSession() throws Exception {
+        mockMvc.perform(post(ADMIN_ASSIGN_URL).contentType(MediaType.APPLICATION_JSON)
+                        .content(ADMIN_ASSIGN_BODY))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn403_whenEmployeeUsesAdminAssign() throws Exception {
+        mockMvc.perform(post(ADMIN_ASSIGN_URL).with(user(EMP).roles(ROLE_EMPLOYEE))
+                        .contentType(MediaType.APPLICATION_JSON).content(ADMIN_ASSIGN_BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath(ERROR_PATH).value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldReturn201_whenAdminAssignsResource() throws Exception {
+        // Arrange
+        given(requestService.adminAssign(anyString(), any())).willReturn(sample(RequestStatus.APPROVED));
+
+        // Act / Assert
+        mockMvc.perform(post(ADMIN_ASSIGN_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(ADMIN_ASSIGN_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+
+    @Test
+    void shouldReturn400_whenAdminAssignMissingRequiredFields() throws Exception {
+        // Act / Assert: employeeId y requestedDate ausentes -> @NotNull -> 400
+        mockMvc.perform(post(ADMIN_ASSIGN_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath(ERROR_PATH).value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldReturn400_whenAdminAssignDeskWithoutResourceId() throws Exception {
+        // Arrange
+        willThrow(new ResourceSelectionRequiredException("obligatorio"))
+                .given(requestService).adminAssign(anyString(), any());
+
+        // Act / Assert
+        mockMvc.perform(post(ADMIN_ASSIGN_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"employeeId\":15,\"requestedDate\":\"2026-07-10\","
+                                + "\"resourceType\":\"DESK\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath(ERROR_PATH).value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fields.resourceId").exists());
+    }
+
+    @Test
+    void shouldReturn409_whenAdminAssignResourceUnavailable() throws Exception {
+        // Arrange
+        willThrow(new SpaceUnavailableException("ocupado"))
+                .given(requestService).adminAssign(anyString(), any());
+
+        // Act / Assert
+        mockMvc.perform(post(ADMIN_ASSIGN_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(ADMIN_ASSIGN_BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath(ERROR_PATH).value("SPACE_NOT_AVAILABLE"));
+    }
+
+    @Test
+    void shouldReturn409_whenAdminAssignAutoAssignHasNoAvailability() throws Exception {
+        // Arrange
+        willThrow(new NoAvailabilityException("sin plazas"))
+                .given(requestService).adminAssign(anyString(), any());
+
+        // Act / Assert
+        mockMvc.perform(post(ADMIN_ASSIGN_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"employeeId\":15,\"requestedDate\":\"2026-07-10\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath(ERROR_PATH).value("NO_AVAILABILITY"));
     }
 
     private RequestResponse sample(RequestStatus status) {

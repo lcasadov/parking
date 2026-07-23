@@ -34,6 +34,15 @@ public class Request {
      */
     public static final String AUTO_APPROVAL_NOTE = "auto";
 
+    /**
+     * Nota de resolucion que identifica una asignacion puntual del {@code ADMIN} (change
+     * {@code restructure-admin-workflows}, capability {@code admin-punctual-assignment}): la
+     * solicitud nace {@code APPROVED} con {@code resolvedById} = admin actuante y esta nota,
+     * distinguiendola de la auto-aprobacion del sistema ({@link #AUTO_APPROVAL_NOTE}) y de una
+     * aprobacion clasica sobre una {@code PENDING} previa.
+     */
+    public static final String ADMIN_ASSIGNMENT_NOTE = "admin-assignment";
+
     private Long id;
     private Long employeeId;
     private LocalDate requestedDate;

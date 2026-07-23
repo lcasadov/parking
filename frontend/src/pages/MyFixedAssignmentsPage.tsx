@@ -7,12 +7,15 @@ import { ReleaseResourceModal } from '../components/ReleaseResourceModal';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { emitApiErrorToast } from '../api/events';
 import { useAuth } from '../auth/useAuth';
+import { useDesksByIdsQuery } from '../hooks/useDesks';
 import { useEmployeeFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
 import { groupFixedAssignments, type FixedAssignmentGroup } from '../utils/fixedAssignments';
+import type { ResourceType } from '../types/request';
 
 interface ReleaseTarget {
   parkingSpaceId: number;
   spaceLabel: string;
+  resourceType: ResourceType;
 }
 
 // Vista EMPLOYEE: "mis asignaciones fijas" del usuario autenticado
@@ -28,8 +31,27 @@ export function MyFixedAssignmentsPage() {
   const groups = useMemo(() => groupFixedAssignments(query.data ?? []), [query.data]);
   const ready = !query.isLoading && !query.isError;
 
+  // Numero real del puesto (GET /desks/{id} es accesible a EMPLOYEE, a diferencia
+  // del catalogo de plazas que es solo ADMIN — ver nota en fixedAssignments.mine
+  // .genericParkingLabel). Solo se resuelven los puestos presentes en la lista.
+  const deskIds = useMemo(
+    () => groups.filter((group) => group.resourceType === 'DESK').map((group) => group.parkingSpaceId),
+    [groups],
+  );
+  const desksById = useDesksByIdsQuery(deskIds);
+
+  // Etiqueta de negocio del recurso (nunca el id interno, spec employee-portal
+  // "Liberación de recurso fijo con tipo y etiqueta correctos"): el puesto muestra
+  // su numero real; la plaza usa una etiqueta generica al no haber endpoint
+  // EMPLOYEE-safe que resuelva su numero (catalogo de plazas es solo ADMIN).
   function spaceLabel(group: FixedAssignmentGroup): string {
-    return `#${group.parkingSpaceId}`;
+    if (group.resourceType === 'DESK') {
+      const desk = desksById[group.parkingSpaceId];
+      return desk
+        ? t('requests.mine.resourceLabel.desk', { number: desk.number })
+        : t('common.loading');
+    }
+    return t('fixedAssignments.mine.genericParkingLabel');
   }
 
   function handleReleased(): void {
@@ -83,6 +105,7 @@ export function MyFixedAssignmentsPage() {
                           setReleaseTarget({
                             parkingSpaceId: group.parkingSpaceId,
                             spaceLabel: spaceLabel(group),
+                            resourceType: group.resourceType,
                           })
                         }
                       >
@@ -101,6 +124,7 @@ export function MyFixedAssignmentsPage() {
         <ReleaseResourceModal
           parkingSpaceId={releaseTarget.parkingSpaceId}
           spaceLabel={releaseTarget.spaceLabel}
+          resourceType={releaseTarget.resourceType}
           onClose={() => setReleaseTarget(null)}
           onReleased={handleReleased}
         />

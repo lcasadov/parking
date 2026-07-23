@@ -369,52 +369,70 @@ public class AvailabilityService {
     // -------------------------------------------------------------------------
 
     /**
-     * Construye el calendario semanal completo de todas las plazas activas para el
-     * {@code ADMIN}, con el estado y el titular de cada celda (plaza, dia).
+     * Construye el calendario semanal completo de todas las plazas activas ({@code PARKING})
+     * para el {@code ADMIN}, con el estado y el titular de cada celda (plaza, dia). Atajo
+     * retrocompatible de {@link #adminCalendar(LocalDate, ResourceType)} con {@code PARKING}
+     * (design §D4: el parametro es nuevo, el comportamiento por defecto no cambia).
      *
      * @param weekStartInput lunes de la semana solicitada (se normaliza al lunes de esa semana)
-     * @return el calendario semanal admin
+     * @return el calendario semanal admin de plazas
      */
     @Transactional(readOnly = true)
     public AdminWeeklyCalendarResponse adminCalendar(LocalDate weekStartInput) {
+        return adminCalendar(weekStartInput, ResourceType.PARKING);
+    }
+
+    /**
+     * Construye el calendario semanal completo de todos los recursos activos de un tipo
+     * ({@code PARKING} plazas / {@code DESK} puestos) para el {@code ADMIN}, con el estado y el
+     * titular de cada celda (recurso, dia); change {@code restructure-admin-workflows}, design
+     * §D4 (generalizacion PARKING/DESK por extension del contrato existente).
+     *
+     * @param weekStartInput lunes de la semana solicitada (se normaliza al lunes de esa semana)
+     * @param resourceType   tipo de recurso a mostrar ({@code PARKING}/{@code DESK})
+     * @return el calendario semanal admin del tipo de recurso solicitado
+     */
+    @Transactional(readOnly = true)
+    public AdminWeeklyCalendarResponse adminCalendar(LocalDate weekStartInput, ResourceType resourceType) {
         LocalDate weekStart = mondayOf(weekStartInput);
         LocalDate weekEnd = weekStart.plusDays(WEEK_DAYS - 1L);
         List<LocalDate> days = weekDays(weekStart);
 
-        List<ParkingSpace> spaces = parkingSpaceRepository.findByActiveTrueOrderByIdAsc();
-        List<Long> spaceIds = spaces.stream().map(ParkingSpace::getId).toList();
+        List<BookableResource> resources = activeBookableResources(resourceType);
+        List<Long> resourceIds = resources.stream().map(BookableResource::getResourceId).toList();
 
-        List<FixedAssignmentEntity> fixed = activeFixed(spaceIds, ResourceType.PARKING);
+        List<FixedAssignmentEntity> fixed = activeFixed(resourceIds, resourceType);
         Map<SpaceDow, FixedAssignmentEntity> fixedBySpaceDow = fixed.stream()
                 .collect(Collectors.toMap(
                         fa -> new SpaceDow(fa.getResourceId(), fa.getDayOfWeek()),
                         Function.identity(), (a, b) -> a));
         Set<SpaceDate> releasedKeys = releaseRepository
-                .findByResourceTypeAndReleaseDateBetween(ResourceType.PARKING, weekStart, weekEnd).stream()
+                .findByResourceTypeAndReleaseDateBetween(resourceType, weekStart, weekEnd).stream()
                 .map(r -> new SpaceDate(r.getResourceId(), r.getReleaseDate()))
                 .collect(Collectors.toSet());
         Map<SpaceDate, RequestEntity> approvedBySpaceDate = requestRepository
                 .findByStatusAndResourceTypeAndRequestedDateBetween(
-                        RequestStatus.APPROVED, ResourceType.PARKING, weekStart, weekEnd).stream()
+                        RequestStatus.APPROVED, resourceType, weekStart, weekEnd).stream()
                 .collect(Collectors.toMap(
                         r -> new SpaceDate(r.getResourceId(), r.getRequestedDate()),
                         Function.identity(), (a, b) -> a));
         Map<Long, String> names = employeeNames(fixed, approvedBySpaceDate.values());
 
-        List<CalendarRowResponse> rows = spaces.stream()
-                .map(space -> row(space, days, fixedBySpaceDow, releasedKeys, approvedBySpaceDate, names))
+        List<CalendarRowResponse> rows = resources.stream()
+                .map(resource -> row(resource, days, fixedBySpaceDow, releasedKeys, approvedBySpaceDate, names))
                 .toList();
         return new AdminWeeklyCalendarResponse(weekStart, days, rows);
     }
 
     private CalendarRowResponse row(
-            ParkingSpace space, List<LocalDate> days, Map<SpaceDow, FixedAssignmentEntity> fixedBySpaceDow,
+            BookableResource resource, List<LocalDate> days, Map<SpaceDow, FixedAssignmentEntity> fixedBySpaceDow,
             Set<SpaceDate> releasedKeys, Map<SpaceDate, RequestEntity> approvedBySpaceDate,
             Map<Long, String> names) {
+        Long resourceId = resource.getResourceId();
         List<CalendarCellResponse> cells = days.stream()
-                .map(day -> cell(space.getId(), day, fixedBySpaceDow, releasedKeys, approvedBySpaceDate, names))
+                .map(day -> cell(resourceId, day, fixedBySpaceDow, releasedKeys, approvedBySpaceDate, names))
                 .toList();
-        return new CalendarRowResponse(space.getId(), space.getLabel(), cells);
+        return new CalendarRowResponse(resourceId, resource.getLabel(), cells);
     }
 
     private CalendarCellResponse cell(
@@ -651,8 +669,32 @@ public class AvailabilityService {
     // -------------------------------------------------------------------------
 
     /**
+     * Contexto por tipo de recurso de "Mi Semana": los indices en memoria (asignacion fija por dia
+     * de la semana, solicitudes aprobadas/pendientes por fecha, liberaciones y etiquetas de
+     * recurso) cargados por rango para un {@link ResourceType} del solicitante, base del estado
+     * diario de ese tipo (change {@code restructure-admin-workflows}, design §D4: "Mi Semana"
+     * multi-recurso).
+     */
+    private record MyWeekTypeContext(
+            Map<Integer, FixedAssignmentEntity> fixedByDow,
+            Map<LocalDate, RequestEntity> approvedByDate,
+            Map<LocalDate, RequestEntity> pendingByDate,
+            Set<SpaceDate> releasedKeys,
+            Map<Long, String> labels) {
+    }
+
+    /**
+     * Estado diario de un unico tipo de recurso en "Mi Semana": estado, etiqueta del recurso y
+     * estado/id de la solicitud propia que lo origina (si aplica).
+     */
+    private record MyWeekResourceState(
+            MyWeekDayState state, String label, RequestStatus requestStatus, Long requestId) {
+    }
+
+    /**
      * Construye la vista personal de la semana del solicitante: el estado diario referido
-     * unicamente a sus recursos propios, sin exponer identidad de terceros.
+     * unicamente a sus recursos propios (plaza Y puesto, en paralelo), sin exponer identidad de
+     * terceros (change {@code restructure-admin-workflows}, design §D4).
      *
      * @param requesterLogin login del solicitante (principal de la sesion)
      * @param weekStartInput lunes de la semana; {@code null} para la semana actual (via reloj)
@@ -666,18 +708,29 @@ public class AvailabilityService {
         LocalDate weekEnd = weekStart.plusDays(WEEK_DAYS - 1L);
         List<LocalDate> days = weekDays(weekStart);
 
-        // "Mi Semana" es una vista de PARKING (plazas): se filtra por tipo para que un recurso
-        // DESK del empleado con el mismo resource_id que una plaza no contamine la vista. La
-        // vista de puestos se aborda en floor-plan.
+        // Se cargan por separado por tipo (una consulta por entidad y tipo, sin N+1) para que un
+        // recurso DESK del empleado con el mismo resource_id que una plaza no contamine la vista.
+        MyWeekTypeContext parkingContext =
+                loadMyWeekTypeContext(employeeId, ResourceType.PARKING, weekStart, weekEnd);
+        MyWeekTypeContext deskContext =
+                loadMyWeekTypeContext(employeeId, ResourceType.DESK, weekStart, weekEnd);
+
+        List<MyWeekDayResponse> dayViews = days.stream()
+                .map(day -> myWeekDay(day, parkingContext, deskContext))
+                .toList();
+        return new MyWeekResponse(weekStart, dayViews);
+    }
+
+    private MyWeekTypeContext loadMyWeekTypeContext(
+            Long employeeId, ResourceType resourceType, LocalDate weekStart, LocalDate weekEnd) {
         List<FixedAssignmentEntity> myFixed = fixedAssignmentRepository
-                .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
-                        employeeId, ResourceType.PARKING);
+                .findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(employeeId, resourceType);
         List<RequestEntity> myRequests = requestRepository
                 .findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
-                        employeeId, ResourceType.PARKING, weekStart, weekEnd);
+                        employeeId, resourceType, weekStart, weekEnd);
         List<ReleaseEntity> myReleases = releaseRepository
                 .findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
-                        employeeId, ResourceType.PARKING, weekStart, weekEnd);
+                        employeeId, resourceType, weekStart, weekEnd);
 
         Map<Integer, FixedAssignmentEntity> fixedByDow = myFixed.stream()
                 .collect(Collectors.toMap(FixedAssignmentEntity::getDayOfWeek, Function.identity(), (a, b) -> a));
@@ -686,34 +739,38 @@ public class AvailabilityService {
         Set<SpaceDate> releasedKeys = myReleases.stream()
                 .map(r -> new SpaceDate(r.getResourceId(), r.getReleaseDate()))
                 .collect(Collectors.toSet());
-        Map<Long, String> labels = spaceLabels(fixedByDow, approvedByDate);
-
-        List<MyWeekDayResponse> dayViews = days.stream()
-                .map(day -> myWeekDay(day, fixedByDow, approvedByDate, pendingByDate, releasedKeys, labels))
-                .toList();
-        return new MyWeekResponse(weekStart, dayViews);
+        Map<Long, String> labels = resourceLabels(fixedByDow, approvedByDate, resourceType);
+        return new MyWeekTypeContext(fixedByDow, approvedByDate, pendingByDate, releasedKeys, labels);
     }
 
-    private MyWeekDayResponse myWeekDay(
-            LocalDate day, Map<Integer, FixedAssignmentEntity> fixedByDow, Map<LocalDate, RequestEntity> approvedByDate,
-            Map<LocalDate, RequestEntity> pendingByDate, Set<SpaceDate> releasedKeys, Map<Long, String> labels) {
-        RequestEntity approved = approvedByDate.get(day);
+    private MyWeekDayResponse myWeekDay(LocalDate day, MyWeekTypeContext parking, MyWeekTypeContext desk) {
+        MyWeekResourceState parkingState = myWeekResourceState(day, parking);
+        MyWeekResourceState deskState = myWeekResourceState(day, desk);
+        return new MyWeekDayResponse(
+                day, parkingState.state(), parkingState.label(),
+                parkingState.requestStatus(), parkingState.requestId(),
+                deskState.state(), deskState.label(),
+                deskState.requestStatus(), deskState.requestId());
+    }
+
+    private MyWeekResourceState myWeekResourceState(LocalDate day, MyWeekTypeContext context) {
+        RequestEntity approved = context.approvedByDate().get(day);
         if (approved != null) {
-            return new MyWeekDayResponse(day, MyWeekDayState.ASSIGNED,
-                    labels.get(approved.getResourceId()), RequestStatus.APPROVED, approved.getId());
+            return new MyWeekResourceState(MyWeekDayState.ASSIGNED,
+                    context.labels().get(approved.getResourceId()), RequestStatus.APPROVED, approved.getId());
         }
-        FixedAssignmentEntity assignment = fixedByDow.get(day.getDayOfWeek().getValue());
+        FixedAssignmentEntity assignment = context.fixedByDow().get(day.getDayOfWeek().getValue());
         if (assignment != null) {
-            boolean released = releasedKeys.contains(new SpaceDate(assignment.getResourceId(), day));
+            boolean released = context.releasedKeys().contains(new SpaceDate(assignment.getResourceId(), day));
             MyWeekDayState state = released ? MyWeekDayState.RELEASED : MyWeekDayState.ASSIGNED;
-            return new MyWeekDayResponse(day, state, labels.get(assignment.getResourceId()), null, null);
+            return new MyWeekResourceState(state, context.labels().get(assignment.getResourceId()), null, null);
         }
-        RequestEntity pending = pendingByDate.get(day);
+        RequestEntity pending = context.pendingByDate().get(day);
         if (pending != null) {
-            return new MyWeekDayResponse(day, MyWeekDayState.REQUEST_PENDING, null,
-                    RequestStatus.PENDING, pending.getId());
+            return new MyWeekResourceState(
+                    MyWeekDayState.REQUEST_PENDING, null, RequestStatus.PENDING, pending.getId());
         }
-        return new MyWeekDayResponse(day, MyWeekDayState.FREE, null, null, null);
+        return new MyWeekResourceState(MyWeekDayState.FREE, null, null, null);
     }
 
     // -------------------------------------------------------------------------
@@ -748,16 +805,20 @@ public class AvailabilityService {
                 .collect(Collectors.toMap(Employee::getId, AvailabilityService::fullName));
     }
 
-    private Map<Long, String> spaceLabels(
-            Map<Integer, FixedAssignmentEntity> fixedByDow, Map<LocalDate, RequestEntity> approvedByDate) {
+    private Map<Long, String> resourceLabels(
+            Map<Integer, FixedAssignmentEntity> fixedByDow, Map<LocalDate, RequestEntity> approvedByDate,
+            ResourceType resourceType) {
         Set<Long> ids = fixedByDow.values().stream().map(FixedAssignmentEntity::getResourceId)
                 .collect(Collectors.toCollection(HashSet::new));
         approvedByDate.values().forEach(r -> ids.add(r.getResourceId()));
         if (ids.isEmpty()) {
             return Map.of();
         }
-        return parkingSpaceRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(ParkingSpace::getId, ParkingSpace::getLabel));
+        List<? extends BookableResource> resources = resourceType == ResourceType.DESK
+                ? deskRepository.findAllById(ids)
+                : parkingSpaceRepository.findAllById(ids);
+        return resources.stream()
+                .collect(Collectors.toMap(BookableResource::getResourceId, BookableResource::getLabel));
     }
 
     private static Map<LocalDate, RequestEntity> requestsByDate(List<RequestEntity> requests, RequestStatus status) {
