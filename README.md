@@ -57,6 +57,7 @@ Terminología común a documentación, código y specs. **Usar siempre estos té
 | **Visitante** | Persona externa que **no es empleado** y no accede a la aplicación. Solo existe como dato de una reserva creada por el admin. Entidad: `Visitor`. |
 | **Admin** | Empleado con rol `ADMIN`. Puede haber varios. Tiene acceso completo. |
 | **Empleado** | Persona con rol `EMPLOYEE`. Acceso al portal del empleado. Entidad: `Employee`. |
+| **Agencia** | Rol `AGENCIA` con acceso acotado al área de liberaciones administrativas. Puede liberar recursos de cualquier empleado por ambos pivotes (por-empleado y por-fecha), consultar la ocupación para orientarse y ver el historial de las liberaciones administrativas que él mismo ha creado. **No** puede gestionar empleados/recursos, resolver solicitudes, crear liberaciones voluntarias ni ver liberaciones del portal de empleado (fail-closed en `/releases`, `/releases/mine`, `DELETE /releases/{id}`). Pensado para una gestoría/agencia externa que administra ausencias. |
 | **Recurso disponible un día concreto** | Recurso activo que ese día no está ocupado por asignación fija (o lo está pero ha sido liberado), no tiene solicitud aprobada para esa fecha, y —solo en plazas— no tiene reserva de visitante para esa fecha. |
 | **Ventana de solicitud** | Antelación máxima con la que un empleado puede pedir un recurso: hoy + 14 días naturales. |
 | **FIFO informativo** | El admin ve las solicitudes pendientes ordenadas por fecha de creación, pero no está obligado a aprobarlas en ese orden. |
@@ -65,6 +66,23 @@ Terminología común a documentación, código y specs. **Usar siempre estos té
 | **Categoría de puesto** | `STANDARD`: reservable por cualquier empleado. `EXECUTIVE`: habitualmente asignado L-V a un directivo; se distingue visualmente pero es liberable como cualquier otro. |
 | **Coordenada relativa** | Posición de un puesto en el plano expresada como porcentaje del ancho (`coord_x`) y alto (`coord_y`) de la imagen, de 0 a 100. Independiente de la resolución. |
 | **Editor de plano** | Herramienta de admin que permite arrastrar y posicionar los marcadores de puestos sobre la imagen del plano. Las coordenadas resultantes se almacenan en BD. |
+
+### Roles y matriz de permisos
+
+Tres roles (`Role`): `ADMIN`, `EMPLOYEE` y `AGENCIA`. El rol se toma del campo `Employee.role`; el claim `roles` del JWT se ignora (ver [Autenticación](#-autenticación)). La UI oculta/inhabilita lo no permitido, pero la autorización **la impone siempre el backend** (fail-closed).
+
+| Capacidad | ADMIN | EMPLOYEE | AGENCIA |
+|-----------|:-----:|:--------:|:-------:|
+| Gestión de empleados, recursos, plano, ajustes | ✅ | ❌ | ❌ |
+| Resolver solicitudes (aprobar/rechazar) | ✅ | ❌ | ❌ |
+| Asignación fija (`PUT /fixed-assignments/employee/{id}`) | ✅ | ❌ | ❌ |
+| Asignación puntual (`POST /requests/admin`) | ✅ | ❌ | ❌ |
+| Ocupación semanal / disponibilidad (`GET /calendar/admin`, `/occupancy`) | ✅ | ❌ | ✅ (solo lectura) |
+| Liberación administrativa por-empleado y por-fecha (`POST /releases/administrative`, `POST /requests/{id}/admin-cancel`) | ✅ | ❌ | ✅ |
+| Historial de liberaciones administrativas propias (`GET /releases/administrative/mine`) | ✅ | ❌ | ✅ |
+| Portal del empleado: solicitar, "Mi Semana", liberación voluntaria (`POST /requests`, `POST /releases`, `GET /releases/mine`) | ❌ | ✅ | ❌ |
+
+> **AGENCIA** entra por el destino "Liberar" (pestañas *Por empleado* · *Por fecha* · *Historial*). Su acceso a `/occupancy` y a ambos pivotes de liberación lo autoriza el backend; el resto del área admin le devuelve 403.
 
 ---
 
@@ -94,7 +112,7 @@ Terminología común a documentación, código y specs. **Usar siempre estos té
 |----------|-----------|---------|
 | Tipo de recurso | `ResourceType` | `PARKING`, `DESK` |
 | Categoría de puesto | `DeskCategory` | `STANDARD`, `EXECUTIVE` |
-| Rol | `Role` | `ADMIN`, `EMPLOYEE` |
+| Rol | `Role` | `ADMIN`, `EMPLOYEE`, `AGENCIA` |
 | Estado de solicitud | `RequestStatus` | `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED` |
 | Tipo de liberación | `ReleaseType` | `VOLUNTARY`, `ADMINISTRATIVE` |
 | Resultado de login | `LoginResult` | `OK`, `FAILED`, `NO_ACCESS`, `INACTIVE`, `FALLBACK_OK` |

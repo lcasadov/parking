@@ -2167,6 +2167,83 @@ button.week-card-body {
   opacity: 0.8;
 }
 
+/* ---- Mi Semana multi-recurso (plaza + puesto por día) ----
+   Cada día es una tarjeta con una cabecera (día/fecha) y dos filas de recurso
+   (plaza y puesto), cada una con su estado y su acción de liberar/cancelar. */
+.week-day-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+  padding: 8px 10px;
+}
+.week-day-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: 6px;
+}
+.week-day-head .week-day-abbr {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.week-day-head .week-day-date {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+.week-day-resources {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.week-resource {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid;
+  font-size: 12px;
+}
+.week-resource.assigned {
+  background: var(--green-soft);
+  border-color: var(--green);
+  color: var(--green-darker);
+}
+.week-resource.released {
+  background: var(--pink-soft);
+  border-color: var(--pink-strong);
+  color: var(--pink-text);
+}
+.week-resource.request {
+  background: var(--blue-soft);
+  border-color: var(--blue);
+  color: var(--blue-darker);
+}
+.week-resource.free {
+  background: var(--neutral-soft);
+  border-color: var(--neutral-strong);
+  color: var(--text-soft);
+}
+.week-resource-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+}
+.week-resource-kind {
+  font-weight: 600;
+}
+.week-resource-state {
+  font-size: 11px;
+  opacity: 0.85;
+}
+.week-resource-action {
+  flex-shrink: 0;
+}
+
 /* Acciones a ancho completo bajo la lista de la semana (mockup 07). */
 .week-actions {
   display: flex;
@@ -2602,6 +2679,33 @@ button.pop-row.pop-danger:disabled {
 }
 .calendar-cell.is-dimmed {
   opacity: 0.3;
+}
+
+/* Celda accionable (asignar/liberar en contexto, weekly-assignment spec): toda la
+   celda es un botón que ocupa el área interior; cursor y foco visible para
+   accesibilidad. El color de estado lo aporta la clase de estado del <td>. */
+.calendar-cell.is-actionable {
+  padding: 0;
+}
+.calendar-cell-action {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.calendar-cell-action:hover {
+  filter: brightness(0.97);
+}
+.calendar-cell-action:focus-visible {
+  outline: 2px solid var(--brand-green);
+  outline-offset: -2px;
 }
 
 /* Cabecera de fila: etiqueta de plaza + identificador secundario. */

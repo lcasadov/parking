@@ -9,6 +9,7 @@ import {
   cancelRelease,
   createAdministrativeRelease,
   createRelease,
+  listMyAdministrativeReleases,
   listMyReleases,
 } from '../api/releasesApi';
 import type {
@@ -22,6 +23,7 @@ import type {
 // Claves raiz de cache (S1192: sin literales repetidos).
 const RELEASES_KEY = 'releases';
 const MINE_SCOPE = 'mine';
+const ADMINISTRATIVE_MINE_SCOPE = 'administrative-mine';
 
 export function myReleasesQueryKey(
   params: ReleaseListParams,
@@ -33,6 +35,24 @@ export function useMyReleasesQuery(params: ReleaseListParams): UseQueryResult<Pa
   return useQuery({
     queryKey: myReleasesQueryKey(params),
     queryFn: () => listMyReleases(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function myAdministrativeReleasesQueryKey(
+  params: ReleaseListParams,
+): (string | ReleaseListParams)[] {
+  return [RELEASES_KEY, ADMINISTRATIVE_MINE_SCOPE, params];
+}
+
+// Historial de las liberaciones administrativas creadas por el propio actor
+// (ADMIN/AGENCIA). Consumido por el destino "Liberar" para orientarse.
+export function useMyAdministrativeReleasesQuery(
+  params: ReleaseListParams,
+): UseQueryResult<PageRelease> {
+  return useQuery({
+    queryKey: myAdministrativeReleasesQueryKey(params),
+    queryFn: () => listMyAdministrativeReleases(params),
     placeholderData: (previous) => previous,
   });
 }

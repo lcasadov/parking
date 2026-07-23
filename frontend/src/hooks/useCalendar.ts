@@ -23,8 +23,8 @@ export function resourceAvailabilityQueryKey(date: string, resourceType: Resourc
   return [CALENDAR_KEY, AVAILABILITY_SCOPE, resourceType, date];
 }
 
-export function adminCalendarQueryKey(weekStart: string): string[] {
-  return [CALENDAR_KEY, ADMIN_SCOPE, weekStart];
+export function adminCalendarQueryKey(weekStart: string, resourceType: ResourceType): string[] {
+  return [CALENDAR_KEY, ADMIN_SCOPE, resourceType, weekStart];
 }
 
 export function myWeekQueryKey(weekStart?: string): string[] {
@@ -75,13 +75,15 @@ export function useApprovalAvailabilityQuery(
   });
 }
 
-// Calendario semanal admin; solo consulta con un weekStart valido.
+// Calendario semanal admin por tipo de recurso (plaza/puesto); solo consulta con
+// un weekStart valido. `resourceType` default PARKING (retrocompatible).
 export function useAdminCalendarQuery(
   weekStart: string,
+  resourceType: ResourceType = 'PARKING',
 ): UseQueryResult<AdminWeeklyCalendarResponse> {
   return useQuery({
-    queryKey: adminCalendarQueryKey(weekStart),
-    queryFn: () => getAdminCalendar(weekStart),
+    queryKey: adminCalendarQueryKey(weekStart, resourceType),
+    queryFn: () => getAdminCalendar(weekStart, resourceType),
     enabled: isValidIsoDate(weekStart),
     placeholderData: (previous) => previous,
   });

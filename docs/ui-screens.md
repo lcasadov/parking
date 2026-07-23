@@ -23,27 +23,32 @@ Detalle de la estrategia responsive (breakpoint `≤768px`, viewport, degradaci�
 Presente en todas las pantallas del Panel de Administración. Fuente de verdad del shell implementado: `frontend/src/layouts/AdminLayout.tsx` + `frontend/src/components/AppHeader.tsx` (los mockups de puestos traían un sidebar inline propio ya reemplazado).
 
 - **Header** (`AppHeader`): logo cónico + marca "parking · ALEATICA", título de la página, botón "Exportar mis datos" (RGPD) y un **menú de usuario**. El avatar es el disparador de un **Popover** (`role="dialog"`) que contiene: identidad del usuario (nombre · rol · login), conmutador de **idioma** (ES/EN), conmutador de **tema** (claro/oscuro) y **Cerrar sesión**. No es «logo + título + avatar» a secas: idioma, tema y logout viven dentro de ese popover (ver [Preferencias](#22-preferencias-idioma-y-tema)).
-- **Sidebar** (`AdminLayout`, orden real): **Asignación semanal** · **Disponibilidad** · **Empleados** · **Plazas** · **Puestos** · **Plano** · **Solicitudes** (badge rojo de pendientes) · **Liberaciones** · **Visitantes** · **Auditoría** · **Accesos**. No existe «Inicio» (la ruta índice redirige a Empleados) ni un item «Administración». En móvil colapsa a barra superior con scroll horizontal.
-- **Sidebar del Portal del Empleado** (`EmployeeLayout`, orden real): **Mi semana** · **Plano** · **Mis solicitudes** · **Mis asignaciones fijas** · **Mis liberaciones**.
+- **Sidebar** (`AdminLayout`, orden real tras el change `restructure-admin-workflows`): agrupado en **Operativa** (Solicitudes con badge · **Ocupación** · Plano · **Liberar** · Visitantes) y **Gestión** (Empleados · **Recursos** · **Registros** · Ajustes) — 9 destinos. Destinos con pestañas: **Ocupación** = Semanal · Disponibilidad; **Liberar** = Por empleado · Por fecha · Historial; **Recursos** = Plazas · Puestos; **Registros** = Auditoría · Accesos. Las rutas antiguas (`/admin/calendar`, `/admin/availability`, `/admin/releases`, `/admin/release-by-date`, `/admin/parking-spaces`, `/admin/desks`, `/admin/audit`, `/admin/login-logs`) redirigen a su destino fusionado con `?tab=`. No existe «Inicio» (la ruta índice redirige a Empleados). En móvil colapsa a barra superior con scroll horizontal.
+- **Sidebar del Portal del Empleado** (`EmployeeLayout`, orden real): **Mi Semana** (índice, multi-recurso) · **Plano** · **Mis solicitudes** · **Mis plazas** (Asignaciones fijas · Liberaciones).
+- **Shell de agencia** (`AgencyLayout`): sidebar mínimo con un único destino **Liberar** (pestañas Por empleado · Por fecha · Historial). Rol `AGENCIA`; el resto del área admin le devuelve 403.
 
 ---
 
-## 1. Calendario semanal del administrador
+## 1. Ocupación semanal del administrador (celdas accionables)
 
-- **Mockup de referencia:** `docs/mockups/01-calendario-semanal.html`
-- **Propósito:** vista global, solo para el admin, del estado de todas las plazas día a día durante una semana (README → "Vista calendario semanal completa").
+- **Mockup de referencia:** `docs/mockups/01-calendario-semanal.html` (presentación) + change `restructure-admin-workflows` (accionabilidad y toggle).
+- **Propósito:** vista global, para ADMIN (y `AGENCIA` en solo lectura vía "Liberar"), del estado de todas las plazas **o puestos** día a día durante una semana, con acción inline de asignar/liberar. Es la pestaña **Semanal** del destino **Ocupación** (la pestaña **Disponibilidad** integra el antiguo listado de recursos libres por fecha).
 - **Componentes / elementos clave:**
+  - **Conmutador plaza/puesto** (segmentado en el encabezado): pasa `resourceType` a `GET /calendar/admin` (design §D4).
   - Toolbar de semana: navegación anterior/siguiente, etiqueta "Semana 20 · 11 – 15 mayo 2026", botón "Hoy".
-  - Acciones: "Filtro avanzado", "Exportar (CSV/XLSX)".
-  - Tabla: columna "Plaza" (P-01…P-06) + 5 columnas de día (Lun–Vie). Cada celda muestra un estado.
+  - Acciones: "Filtrar" (por estado), "Exportar (CSV/XLSX)".
+  - Tabla: columna de recurso (Plaza/Puesto según el toggle) + columnas de día. Cada celda muestra un estado y, si es accionable, es un **botón**.
   - Leyenda: Asignada · Liberada · Pdte. asignar · Solicitud aprobada · Libre.
-- **Datos mostrados:** por plaza y día, el titular (`FixedAssignment`), liberaciones (`Release`), solicitudes aprobadas (`Request` `APPROVED`) y huecos libres; cálculo de disponibilidad (`architecture.md` → `AvailabilityService`).
-- **Estados:**
-  - Celda: `Asignada` (nombre del titular), `Liberada`, `Pdte. asignar`, `Solicitud aprobada` (p. ej. "Sol. Berta K."), `Libre`.
-  - ⚠️ Pendiente de confirmar: estados de carga / vacío / error (no aparecen en el mockup).
+- **Interacción de celda (celdas accionables, fecha ≥ hoy):**
+  - Celda `FREE` → abre el modal **"Asignar recurso"** (ver [§33](#33-modal-asignar-recurso-ocupación)): elige empleado + tipo **puntual** (`POST /requests/admin`) o **fija** (`PUT /fixed-assignments/employee/{id}`, precargando y reenviando todos los días).
+  - Celda `ASSIGNED` → [Liberación administrativa](#26-liberación-administrativa) (`POST /releases/administrative`).
+  - Celda `REQUEST_APPROVED` → admin-cancel (`POST /requests/{id}/admin-cancel`).
+  - Un conflicto `409` se muestra como toast traducido; la rejilla se refresca tras cada acción.
+- **Datos mostrados:** por recurso y día, el titular (`FixedAssignment`), liberaciones (`Release`), solicitudes aprobadas (`Request` `APPROVED`) y huecos libres.
+- **Estados:** celda `Asignada` (titular) · `Liberada` · `Pdte. asignar` · `Solicitud aprobada` · `Libre`; carga (spinner), error (mensaje), vacío ("No hay recursos configurados").
 - **Entradas y salidas de navegación:**
-  - Entra desde: sidebar "Asignación semanal".
-  - Sale hacia: ⚠️ Pendiente de confirmar si una celda abre detalle/edición (el mockup no muestra interacción de celda).
+  - Entra desde: sidebar "Ocupación" → pestaña "Semanal".
+  - Sale hacia (en contexto, sin cambiar de ruta): modal Asignar recurso · modal Liberación administrativa · modal admin-cancel.
 
 ---
 
@@ -137,14 +142,14 @@ Presente en todas las pantallas del Panel de Administración. Fuente de verdad d
 - **Mockup de referencia:** `docs/mockups/07-empleado-movil.html` (dos marcos de teléfono)
 - **Propósito:** que el empleado consulte su semana y solicite/libere plaza desde el móvil (README → "Portal del Empleado", "Mi Semana", "Solicitud unificada", "Liberación voluntaria").
 - **Componentes / elementos clave:**
-  - **Pantalla "Mi semana":** saludo ("Bienvenido <nombre>"), título "MI SEMANA · 11–15 MAY", tarjetas por día con estado: "Plaza P-12 asignada", "Plaza liberada", "Solicitud pendiente", "Sin plaza" (con botón "Solicitar"). Botones inferiores: "Solicitar plaza", "Liberar mi plaza".
-  - **Pantalla "Solicitar plaza":** "Día*" (selector de fecha), banner verde "Hay N plazas potencialmente disponibles ese día", "Motivo (opcional)" (textarea), bloque "RESUMEN" (Empleado, Día, "Estado inicial" pill "PENDIENTE"), botón "Enviar solicitud", "Cancelar".
-- **Datos mostrados:** recursos propios del empleado por día (`FixedAssignment`, `Release`, `Request`); disponibilidad para la fecha elegida. **No** muestra nombres de otros empleados (README).
-- **Estados:** por día → asignada / liberada / solicitud pendiente / sin plaza. Estado inicial de la nueva solicitud: PENDIENTE.
+  - **Pantalla "Mi Semana" (multi-recurso, change `restructure-admin-workflows`):** saludo + navegador de semana. Cada día es una **tarjeta** con la cabecera del día y **dos filas de recurso** independientes —**Plaza** y **Puesto**—, cada una con su estado (Asignado / Liberado / Solicitud pendiente / Libre) y su etiqueta ("Plaza P-12", "Puesto D-03"). Cuando procede, cada fila ofrece su propia acción: **"Liberar"** (recurso fijo) o **"Cancelar"** (solicitud propia). Botón inferior global "Solicitar". **Ya no rotula "sin plaza"** cuando el empleado tiene puesto ese día (bug corregido).
+  - **Modal "Nueva solicitud":** ver [Solicitud unificada](#12-solicitud-unificada-plaza-yo-puesto) (plaza y/o puesto para una fecha).
+- **Datos mostrados:** recursos propios del empleado por día para **ambos** tipos (`state`/`parkingSpaceLabel`/`requestStatus`/`requestId` para la plaza; `deskState`/`deskLabel`/`deskRequestStatus`/`deskRequestId` para el puesto). **No** muestra nombres de otros empleados (README).
+- **Estados:** por recurso y día → asignado / liberado / solicitud pendiente / libre. La liberación de un puesto envía `resourceType = DESK` (nunca `PARKING`).
 - **Entradas y salidas de navegación:**
-  - "Solicitar plaza" / botón "Solicitar" de un día → pantalla "Solicitar plaza".
-  - "Liberar mi plaza" → ⚠️ Pendiente de confirmar (no hay mockup del flujo de liberación voluntaria, solo el botón).
-  - En escritorio, el equivalente de solicitud para puesto/plaza es la [Solicitud unificada](#12-solicitud-unificada-plaza-yo-puesto).
+  - "Solicitar" → modal de solicitud unificada.
+  - "Liberar" (fila de recurso) → modal de liberación voluntaria con la fecha del día fijada.
+  - "Cancelar" (fila de recurso) → modal de cancelación de la solicitud propia.
 
 ---
 
@@ -344,13 +349,13 @@ Presente en todas las pantallas del Panel de Administración. Fuente de verdad d
 - **Datos mostrados:** `Desk` (`number`, `category`, `active`). La activación usa endpoint dedicado `PATCH /desks/{id}/activation`.
 - **Navegación:** sidebar "Puestos". "Editar posiciones" sobre el plano vive en [Plano de puestos](#8-plano-de-puestos--vista-admin-titulares-y-estado-del-día).
 
-## 26. Liberación administrativa
+## 26. Liberación administrativa (pivote Por empleado)
 
-- **Ruta:** `/admin/releases` (`AdministrativeReleasesPage`). Rol: **ADMIN**.
-- **Propósito:** que el admin libere administrativamente una plaza fija de un empleado para una fecha (`Release` de tipo administrativo).
-- **Componentes:** cabecera con "Nueva liberación" + texto introductorio; modal (`AdministrativeReleaseModal`) con selectores de empleado, plaza, fecha y **motivo obligatorio**.
-- **Datos mostrados:** empleados y plazas activas (para los selectores); `Release` resultante.
-- **Navegación:** sidebar "Liberaciones".
+- **Ruta:** pestaña **Por empleado** del destino "Liberar" (`/admin/release`, `ReleaseHubPage` → `AdministrativeReleasesPage`). También accesible en `/agency/releases`. Roles: **ADMIN**, **AGENCIA**. La ruta antigua `/admin/releases` redirige aquí con `?tab=byEmployee`.
+- **Propósito:** liberar administrativamente los recursos (plaza y/o puesto) de un empleado por semana, uno o varios a la vez con un motivo único.
+- **Componentes:** selector de empleado; navegador de semana; lista de reservas con checkbox por reserva (plaza/puesto + origen); textarea de **motivo obligatorio**; footer con recuento y "Liberar". El mecanismo por reserva se decide por su `origin` (asignación fija → `POST /releases/administrative`; solicitud aprobada → `POST /requests/{id}/admin-cancel`).
+- **Datos mostrados:** empleados (`GET /releases/employees`); ocupación semanal del empleado (`GET /releases/employees/{id}/occupancy`).
+- **Navegación:** sidebar "Liberar" → pestaña "Por empleado". Ver también [§34 el destino "Liberar"](#34-destino-liberar-pivotes-e-historial).
 
 ## 27. Mis liberaciones
 
@@ -376,13 +381,13 @@ Presente en todas las pantallas del Panel de Administración. Fuente de verdad d
 - **Datos mostrados:** `Request` propias (`GET /requests/mine`); cancelación mientras están en `PENDING`.
 - **Navegación:** sidebar "Mis solicitudes".
 
-## 30. Disponibilidad por fecha
+## 30. Disponibilidad por fecha (pestaña de Ocupación)
 
-- **Ruta:** `/admin/availability` (`AvailabilityPage`). Rol: **ADMIN**.
-- **Propósito:** elegir una fecha y listar las plazas disponibles ese día (`GET /availability`).
-- **Componentes:** selector de fecha; contador de disponibles; tabla Plaza · Id; estados de hint/fecha inválida/carga/error/vacío.
-- **Datos mostrados:** `availableResources` (plazas libres para la fecha).
-- **Navegación:** sidebar "Disponibilidad".
+- **Ruta:** pestaña **Disponibilidad** del destino "Ocupación" (`/admin/occupancy?tab=availability`, `AvailabilityPage`). Rol: **ADMIN**. La ruta antigua `/admin/availability` redirige aquí.
+- **Propósito:** elegir una fecha y un tipo de recurso y listar los recursos disponibles ese día (`GET /availability?date&resourceType`).
+- **Componentes:** selector de fecha; conmutador plaza/puesto; contador de disponibles; tabla Recurso (etiqueta de negocio) · Tipo; estados de hint/fecha inválida/carga/error/vacío.
+- **Datos mostrados:** `availableResources` (recursos libres para la fecha y tipo).
+- **Navegación:** sidebar "Ocupación" → pestaña "Disponibilidad".
 
 ## 31. Accesos / logs de login
 
@@ -397,6 +402,35 @@ Presente en todas las pantallas del Panel de Administración. Fuente de verdad d
 - **Ruta:** `/change-password` (`ChangePasswordPage`). Requiere sesión (cualquier rol).
 - **Propósito y componentes:** idénticos a la ficha de [Cambiar contraseña](#14-cambiar-contraseña) (banner, campos actual/nueva/repetir, checklist de política). Se documenta aquí para fijar que es una **ruta dedicada** (no solo un modal), presentada dentro del `AuthShell`, a la que se llega tras login con `passwordMustChange` o tras un reset.
 - **Navegación:** entrada desde [Login](#13-login-local-fase-1); al guardar → destino según rol.
+
+---
+
+## Pantallas añadidas por el change `restructure-admin-workflows`
+
+## 33. Modal "Asignar recurso" (Ocupación)
+
+- **Componente:** `OccupancyAssignModal`. Se abre desde una celda `FREE` de [Ocupación → Semanal](#1-ocupación-semanal-del-administrador-celdas-accionables). Rol: **ADMIN**.
+- **Propósito:** asignar un recurso (plaza/puesto) a un empleado desde la rejilla, sin abrir la ficha del empleado ni cambiar de ruta (capability `admin-punctual-assignment`).
+- **Componentes:** resumen (recurso + fecha ya resueltos por la celda); selector de **empleado** (`GET /releases/employees`); segmentado **tipo de asignación** — "Solo esta fecha" (puntual) / "Fija (cada semana)"; hint contextual; "Asignar" / "Cancelar".
+- **Comportamiento:**
+  - **Puntual** → `POST /requests/admin` `{ employeeId, requestedDate, resourceType, resourceId }` (nace `APPROVED`).
+  - **Fija** → `PUT /fixed-assignments/employee/{id}`: **precarga** los días actuales (`GET /fixed-assignments/employee/{id}`) y **reenvía el conjunto completo** con el día de la celda añadido (design §Risk D — no borrar los demás días).
+- **Errores:** `409` (ocupado) / `409 NO_AVAILABILITY` (auto-asignación sin plaza) / `400` (DESK sin recurso) → toast traducido; la rejilla no se rompe.
+
+## 34. Destino "Liberar" (pivotes e historial)
+
+- **Ruta:** `/admin/release` (`ReleaseHubPage`) y `/agency/releases`. Roles: **ADMIN**, **AGENCIA**.
+- **Propósito:** unificar la liberación administrativa en un solo destino con tres pestañas.
+- **Pestañas:**
+  - **Por empleado** → [§26](#26-liberación-administrativa-pivote-por-empleado).
+  - **Por fecha** → recursos ocupados de una fecha (`GET /occupancy`) con titular y origen, liberables uno a uno (`AdministrativeReleaseModal` / `AdminCancelRequestModal`). La ruta antigua `/admin/release-by-date` redirige aquí con `?tab=byDate`.
+  - **Historial** → `MyAdministrativeReleasesPage`: listado paginado de solo lectura de las liberaciones administrativas creadas por el propio actor (`GET /releases/administrative/mine`); columnas Fecha · Recurso · Identificador · Motivo.
+
+## 35. Portal de agencia
+
+- **Ruta:** `/agency/*` (`AgencyLayout`). Rol: **AGENCIA**.
+- **Propósito:** dar a una agencia/gestoría externa acceso acotado a la liberación administrativa.
+- **Componentes:** sidebar mínimo con un único destino **Liberar** (mismo [§34](#34-destino-liberar-pivotes-e-historial), tres pestañas) + área de usuario al pie. Sin acceso al resto del área admin (403 fail-closed). Ver la [matriz de permisos del README](../README.md#roles-y-matriz-de-permisos).
 
 ---
 

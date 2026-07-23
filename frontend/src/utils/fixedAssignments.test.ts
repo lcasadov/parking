@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { distinctDays, groupFixedAssignments, toggleDay, WEEK_DAYS } from './fixedAssignments';
+import {
+  distinctDays,
+  groupFixedAssignments,
+  mergeFixedAssignmentDays,
+  toggleDay,
+  WEEK_DAYS,
+} from './fixedAssignments';
 import { aliceAssignments, bobThursday } from '../mocks/fixedAssignmentFixtures';
 
 describe('fixedAssignments utils', () => {
@@ -32,5 +38,21 @@ describe('fixedAssignments utils', () => {
 
   it('should_remove_day_when_toggling_present_day', () => {
     expect(toggleDay([1, 2, 3], 2)).toEqual([1, 3]);
+  });
+
+  // CRITICO (design §Risk D): la asignacion inline fija debe PRESERVAR los dias
+  // existentes; mergeFixedAssignmentDays reenvia el conjunto completo + el nuevo dia.
+  it('should_preserve_existing_days_when_merging_new_day', () => {
+    // Alice tiene PARKING los dias 1,2,3; añadir el 5 debe devolver 1,2,3,5.
+    expect(mergeFixedAssignmentDays(aliceAssignments, 'PARKING', 5)).toEqual([1, 2, 3, 5]);
+  });
+
+  it('should_not_duplicate_day_when_merging_present_day', () => {
+    expect(mergeFixedAssignmentDays(aliceAssignments, 'PARKING', 2)).toEqual([1, 2, 3]);
+  });
+
+  it('should_return_only_new_day_when_no_existing_assignment_for_type', () => {
+    // Sin puesto fijo previo, el DESK arranca solo con el dia añadido.
+    expect(mergeFixedAssignmentDays(aliceAssignments, 'DESK', 4)).toEqual([4]);
   });
 });

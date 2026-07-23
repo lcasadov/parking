@@ -15,6 +15,9 @@ export interface Release {
   reason?: string | null;
   releasedById: number;
   createdAt: string;
+  // Tipo de recurso liberado (plaza/puesto). Opcional para retrocompatibilidad;
+  // por defecto PARKING cuando el backend no lo aporta.
+  resourceType?: ResourceType;
 }
 
 // ReleaseCreateRequest: schema #/components/schemas/ReleaseCreateRequest.

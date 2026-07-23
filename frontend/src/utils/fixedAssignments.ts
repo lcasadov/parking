@@ -59,6 +59,25 @@ export function toggleDay(days: number[], day: number): number[] {
   return [...days, day].sort((a, b) => a - b);
 }
 
+// CRITICO (design §Risk D): el PUT /fixed-assignments/employee/{id} REEMPLAZA el
+// conjunto de dias del empleado para ese tipo de recurso. Al asignar inline un dia
+// nuevo desde una celda, hay que PRECARGAR los dias actuales y reenviar el conjunto
+// COMPLETO; si solo se enviara el dia nuevo, se BORRARIAN los demas dias del empleado.
+// Esta funcion toma las filas actuales del empleado, extrae los dias del recurso del
+// tipo indicado y devuelve la union ordenada con `dayToAdd`.
+export function mergeFixedAssignmentDays(
+  rows: FixedAssignment[],
+  resourceType: ResourceType,
+  dayToAdd: number,
+): number[] {
+  const group = groupFixedAssignments(rows).find((entry) => entry.resourceType === resourceType);
+  const existing = group?.days ?? [];
+  if (existing.includes(dayToAdd)) {
+    return [...existing];
+  }
+  return [...existing, dayToAdd].sort((a, b) => a - b);
+}
+
 // Une una lista con comas y un conector final localizado ("y" / "and"), p.ej.
 // ["Lunes","Martes","Jueves"] -> "Lunes, Martes y Jueves".
 export function joinWithAnd(items: string[], and: string): string {

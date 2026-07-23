@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import type {
   PageRequest,
   Request,
+  RequestAdminAssignRequest,
   RequestApproveRequest,
   RequestCreateRequest,
   RequestListParams,
@@ -52,6 +53,33 @@ function buildCreateBody(body: RequestCreateRequest): RequestCreateRequest {
 // POST /requests (EMPLOYEE): crea una solicitud en estado PENDING.
 export async function createRequest(body: RequestCreateRequest): Promise<Request> {
   const { data } = await apiClient.post<Request>(REQUESTS, buildCreateBody(body));
+  return data;
+}
+
+// Cuerpo de la asignacion puntual del admin omitiendo los campos indefinidos:
+// PARKING sin recurso elegido se envia sin `resourceId` (auto-asignacion), DESK
+// exige `resourceId`. `resourceType` se omite cuando es PARKING (default backend).
+function buildAdminAssignBody(body: RequestAdminAssignRequest): RequestAdminAssignRequest {
+  const payload: RequestAdminAssignRequest = {
+    employeeId: body.employeeId,
+    requestedDate: body.requestedDate,
+  };
+  if (body.resourceType !== undefined) {
+    payload.resourceType = body.resourceType;
+  }
+  if (body.resourceId !== undefined) {
+    payload.resourceId = body.resourceId;
+  }
+  return payload;
+}
+
+// POST /requests/admin (ADMIN): asignacion puntual de un recurso a un empleado
+// para una fecha concreta; nace APPROVED (capability admin-punctual-assignment).
+export async function adminAssignRequest(body: RequestAdminAssignRequest): Promise<Request> {
+  const { data } = await apiClient.post<Request>(
+    `${REQUESTS}/admin`,
+    buildAdminAssignBody(body),
+  );
   return data;
 }
 

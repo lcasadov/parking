@@ -65,6 +65,13 @@ export function weekdayIndex(dateIso: string): number {
   return new Date(`${dateIso}T00:00:00`).getDay();
 }
 
+// Dia de la semana ISO-8601 (1 lunes .. 7 domingo) de una fecha ISO. Lo usan las
+// asignaciones fijas, cuyo `dayOfWeek` sigue el estandar ISO (no el 0..6 de JS).
+export function isoWeekday(dateIso: string): number {
+  const jsDay = weekdayIndex(dateIso);
+  return jsDay === 0 ? 7 : jsDay;
+}
+
 // Formato corto dia/mes (DD/MM) sin depender de la zona horaria.
 export function dayMonth(dateIso: string): string {
   const [, month, day] = dateIso.split('-');

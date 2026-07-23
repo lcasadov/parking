@@ -6,6 +6,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  adminAssignRequest,
   adminCancelRequest,
   approveRequest,
   cancelRequest,
@@ -18,6 +19,7 @@ import {
 import type {
   PageRequest,
   Request,
+  RequestAdminAssignRequest,
   RequestApproveRequest,
   RequestCreateRequest,
   RequestListParams,
@@ -93,6 +95,29 @@ export function useCreateRequest(): UseMutationResult<Request, unknown, RequestC
   return useMutation({
     mutationFn: (body: RequestCreateRequest) => createRequest(body),
     onSuccess: invalidate,
+  });
+}
+
+// Clave raiz de la cache de calendario/ocupacion: la asignacion puntual crea un
+// Request APPROVED que ocupa un recurso, por lo que el calendario admin debe
+// refrescarse ademas de la cache de solicitudes.
+const CALENDAR_KEY = 'calendar';
+
+// Asignacion puntual del admin (capability admin-punctual-assignment): crea una
+// Request que nace APPROVED. Invalida solicitudes y calendario para reflejar la
+// ocupacion inmediatamente en la rejilla de Ocupacion.
+export function useAdminAssignRequest(): UseMutationResult<
+  Request,
+  unknown,
+  RequestAdminAssignRequest
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: RequestAdminAssignRequest) => adminAssignRequest(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [REQUESTS_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [CALENDAR_KEY] });
+    },
   });
 }
 

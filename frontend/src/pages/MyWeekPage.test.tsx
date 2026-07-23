@@ -7,98 +7,133 @@ import { Toast } from '../components/Toast';
 import { server } from '../mocks/server';
 import { MSW_BASE } from '../mocks/handlers';
 import { adminUser } from '../mocks/fixtures';
-import { defaultMyWeek } from '../mocks/calendarFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { addDaysIso } from '../utils/calendar';
+import { addDaysIso, isoWeekday } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
 import type { MyWeekResponse } from '../types/calendar';
+import type { FixedAssignment } from '../types/fixedAssignment';
 
 const ME_URL = `${MSW_BASE}/auth/me`;
 const MY_WEEK_URL = `${MSW_BASE}/calendar/my-week`;
-const RELEASE_BTN = { name: /^liberar$|^release$/i } as const;
+const FIXED_URL = `${MSW_BASE}/fixed-assignments/employee/:employeeId`;
 
-// Semana con recursos liberables futuros (fechas relativas a hoy para no depender del reloj).
-const APPROVED_DATE = addDaysIso(todayIso(), 2);
-const PENDING_DATE = addDaysIso(todayIso(), 3);
-const FIXED_DATE = addDaysIso(todayIso(), 4);
+// Fechas relativas a hoy (no dependen del reloj de la suite).
+const PARKING_FIXED_DATE = addDaysIso(todayIso(), 2);
+const DESK_APPROVED_DATE = addDaysIso(todayIso(), 3);
+const PENDING_DATE = addDaysIso(todayIso(), 4);
+const DESK_FIXED_DATE = addDaysIso(todayIso(), 5);
 
-const liberableWeek: MyWeekResponse = {
+// Semana con AMBOS recursos por día en estados distintos (design §D4).
+const multiResourceWeek: MyWeekResponse = {
   weekStart: todayIso(),
   days: [
-    // Día ocupado por solicitud APPROVED futura → liberar cancelándola.
+    // Plaza fija futura (P-12) + puesto libre → la plaza ofrece "Liberar",
+    // el puesto se muestra como "Libre" (no "sin plaza").
     {
-      date: APPROVED_DATE,
+      date: PARKING_FIXED_DATE,
       state: 'ASSIGNED',
-      parkingSpaceLabel: 'P-07',
-      requestStatus: 'APPROVED',
-      requestId: 55,
+      parkingSpaceLabel: 'P-12',
+      requestStatus: null,
+      requestId: null,
+      deskState: 'FREE',
+      deskLabel: null,
+      deskRequestStatus: null,
+      deskRequestId: null,
     },
-    // Día con solicitud propia PENDING → liberar cancelándola.
+    // Plaza libre + puesto ocupado por solicitud APPROVED (D-03, requestId 55) →
+    // el puesto ofrece "Cancelar"; la plaza NO rotula "sin plaza".
+    {
+      date: DESK_APPROVED_DATE,
+      state: 'FREE',
+      parkingSpaceLabel: null,
+      requestStatus: null,
+      requestId: null,
+      deskState: 'ASSIGNED',
+      deskLabel: 'D-03',
+      deskRequestStatus: 'APPROVED',
+      deskRequestId: 55,
+    },
+    // Plaza con solicitud propia PENDING (requestId 66) → "Cancelar".
     {
       date: PENDING_DATE,
       state: 'REQUEST_PENDING',
       parkingSpaceLabel: null,
       requestStatus: 'PENDING',
       requestId: 66,
-    },
-    // Día de asignación fija futura → liberar creando un Release.
-    {
-      date: FIXED_DATE,
-      state: 'ASSIGNED',
-      parkingSpaceLabel: 'P-12',
-      requestStatus: null,
-      requestId: null,
-    },
-    // Día libre → no liberable.
-    {
-      date: addDaysIso(todayIso(), 5),
-      state: 'FREE',
-      parkingSpaceLabel: null,
-      requestStatus: null,
-      requestId: null,
+      deskState: 'FREE',
+      deskLabel: null,
+      deskRequestStatus: null,
+      deskRequestId: null,
     },
   ],
 };
 
-// Selecciona la tarjeta de día que contiene `text` (filtra coincidencias de la leyenda,
-// que no vive dentro de un button.week-card-body).
-async function selectDayByText(user: ReturnType<typeof userEvent.setup>, text: RegExp): Promise<void> {
-  // La tarjeta se vuelve seleccionable (button) cuando su recurso es liberable; para el
-  // caso fijo, eso ocurre al resolverse la consulta de asignaciones fijas del empleado.
-  const card = await waitFor(() => {
-    const nodes = screen.getAllByText(text);
-    const found = nodes.map((node) => node.closest('button.week-card-body')).find(Boolean);
-    if (!found) {
-      throw new Error(`No selectable day card for ${text}`);
-    }
-    return found;
-  });
-  await user.click(card);
+// Puesto fijo de un empleado (resourceType DESK) para el día indicado.
+function deskFixedAssignment(date: string, deskId: number): FixedAssignment {
+  return {
+    id: 200,
+    parkingSpaceId: deskId,
+    employeeId: 10,
+    dayOfWeek: isoWeekday(date),
+    resourceType: 'DESK',
+    active: true,
+    createdById: 1,
+    createdAt: '2026-02-01T09:00:00Z',
+    revokedById: null,
+    revokedAt: null,
+  };
 }
 
-describe('MyWeekPage (EMPLOYEE)', () => {
-  it('should_renderOwnWeek_when_myWeekLoaded', async () => {
-    server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(defaultMyWeek)));
+// Devuelve el scope (within) de la fila de recurso que contiene `text`, esperando
+// a que el contenido asincrono de la semana este montado.
+async function resourceRow(text: RegExp): Promise<ReturnType<typeof within>> {
+  const node = await screen.findByText(text);
+  const row = node.closest('li.week-resource');
+  if (!row) {
+    throw new Error(`No resource row for ${text}`);
+  }
+  return within(row as HTMLElement);
+}
+
+function asEmployee(): void {
+  server.use(
+    http.get(ME_URL, () => HttpResponse.json({ ...adminUser, employeeId: 10, role: 'EMPLOYEE' })),
+  );
+}
+
+describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
+  it('should_showParkingAndDeskStatesIndependently_perDay', async () => {
+    asEmployee();
+    server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(multiResourceWeek)));
     renderWithProviders(<MyWeekPage />);
 
-    // El estado aparece en la celda del día y (parcialmente) en la leyenda inferior.
-    expect((await screen.findAllByText(/plaza asignada|space assigned/i)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/plaza liberada|space released/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/solicitud pendiente|request pending/i).length).toBeGreaterThan(0);
-    // Muestra la etiqueta de la plaza propia (asignada y liberada la misma semana).
-    expect(screen.getAllByText(/plaza P-12|space P-12/i).length).toBeGreaterThan(0);
+    // La plaza fija (P-12) y el puesto por solicitud (D-03) se muestran en paralelo.
+    expect(await screen.findByText(/plaza P-12|space P-12/i)).toBeInTheDocument();
+    expect(screen.getByText(/puesto D-03|desk D-03/i)).toBeInTheDocument();
+    // Ambos tipos de recurso aparecen rotulados (Plaza / Puesto) en cada día.
+    expect(screen.getAllByText(/^plaza$|^space$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^puesto$|^desk$/i).length).toBeGreaterThan(0);
+  });
+
+  it('should_notLabelNoSpace_when_dayHasDeskButNoParking', async () => {
+    asEmployee();
+    server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(multiResourceWeek)));
+    renderWithProviders(<MyWeekPage />);
+
+    // El día del puesto APPROVED tiene la plaza libre: nunca debe rotularse "sin plaza".
+    await screen.findByText(/puesto D-03|desk D-03/i);
+    expect(screen.queryByText(/sin plaza|no space/i)).not.toBeInTheDocument();
   });
 
   it('should_notRenderThirdPartyNames_when_showingMyWeek', async () => {
-    // El contrato de my-week omite nombres; incluso si el backend enviara un
-    // campo extra, la vista nunca lo renderiza.
+    asEmployee();
     server.use(
       http.get(MY_WEEK_URL, () =>
         HttpResponse.json({
-          weekStart: '2026-05-11',
+          weekStart: todayIso(),
           days: [
             {
-              date: '2026-05-11',
+              date: PARKING_FIXED_DATE,
               state: 'ASSIGNED',
               parkingSpaceLabel: 'P-12',
               requestStatus: null,
@@ -111,11 +146,12 @@ describe('MyWeekPage (EMPLOYEE)', () => {
     );
     renderWithProviders(<MyWeekPage />);
 
-    await screen.findAllByText(/plaza asignada|space assigned/i);
+    await screen.findByText(/plaza P-12|space P-12/i);
     expect(screen.queryByText('Alice Andersson')).not.toBeInTheDocument();
   });
 
   it('should_showError_when_myWeekRequestFails', async () => {
+    asEmployee();
     server.use(
       http.get(MY_WEEK_URL, () =>
         HttpResponse.json(
@@ -134,37 +170,25 @@ describe('MyWeekPage (EMPLOYEE)', () => {
   });
 
   it('should_openRequestModal_when_requestActionClicked', async () => {
-    server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(defaultMyWeek)));
+    asEmployee();
+    server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(multiResourceWeek)));
     const user = userEvent.setup();
     renderWithProviders(<MyWeekPage />);
-    await screen.findAllByText(/plaza asignada|space assigned/i);
+    await screen.findByText(/plaza P-12|space P-12/i);
 
     await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
 
-    // El modal de solicitud unificada aparece (diálogo + botón de envío).
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /enviar solicitud|submit request/i }),
     ).toBeInTheDocument();
   });
 
-  it('should_disableRelease_untilLiberableDaySelected', async () => {
-    server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(liberableWeek)));
-    const user = userEvent.setup();
-    renderWithProviders(<MyWeekPage />);
-    await screen.findByText(/plaza P-07|space P-07/i);
-
-    // Sin selección, "Liberar" está deshabilitado (la acción es por-día).
-    expect(screen.getByRole('button', RELEASE_BTN)).toBeDisabled();
-
-    await selectDayByText(user, /plaza P-07|space P-07/i);
-    await waitFor(() => expect(screen.getByRole('button', RELEASE_BTN)).toBeEnabled());
-  });
-
-  it('should_cancelOwnRequest_when_releasingApprovedDay', async () => {
+  it('should_cancelOwnRequest_when_releasingApprovedDesk', async () => {
+    asEmployee();
     let cancelledId: string | null = null;
     server.use(
-      http.get(MY_WEEK_URL, () => HttpResponse.json(liberableWeek)),
+      http.get(MY_WEEK_URL, () => HttpResponse.json(multiResourceWeek)),
       http.post(`${MSW_BASE}/requests/:id/cancel`, ({ params }) => {
         cancelledId = String(params.id);
         return HttpResponse.json({ id: Number(params.id), status: 'CANCELLED' });
@@ -178,45 +202,22 @@ describe('MyWeekPage (EMPLOYEE)', () => {
       </>,
     );
 
-    await selectDayByText(user, /plaza P-07|space P-07/i);
-    await user.click(screen.getByRole('button', RELEASE_BTN));
+    // El puesto APPROVED ofrece "Cancelar" en su propia fila.
+    const deskRow = await resourceRow(/puesto D-03|desk D-03/i);
+    await user.click(deskRow.getByRole('button', { name: /^cancelar$|^cancel$/i }));
 
-    // Se abre el modal de cancelar solicitud (no el de liberar plaza fija).
     const dialog = within(await screen.findByRole('dialog'));
     await user.click(dialog.getByRole('button', { name: /cancelar solicitud|cancel request/i }));
 
     await waitFor(() => expect(cancelledId).toBe('55'));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('should_cancelOwnRequest_when_releasingPendingDay', async () => {
-    // La ruta de cancelación es agnóstica al tipo de recurso (soporta plaza y puesto):
-    // libera cualquier recurso ocupado por la solicitud propia del día.
-    let cancelledId: string | null = null;
-    server.use(
-      http.get(MY_WEEK_URL, () => HttpResponse.json(liberableWeek)),
-      http.post(`${MSW_BASE}/requests/:id/cancel`, ({ params }) => {
-        cancelledId = String(params.id);
-        return HttpResponse.json({ id: Number(params.id), status: 'CANCELLED' });
-      }),
-    );
-    const user = userEvent.setup();
-    renderWithProviders(<MyWeekPage />);
-
-    await selectDayByText(user, /solicitud pendiente|request pending/i);
-    await user.click(screen.getByRole('button', RELEASE_BTN));
-    const dialog = within(await screen.findByRole('dialog'));
-    await user.click(dialog.getByRole('button', { name: /cancelar solicitud|cancel request/i }));
-
-    await waitFor(() => expect(cancelledId).toBe('66'));
-  });
-
-  it('should_createRelease_when_releasingFixedDay', async () => {
-    // El empleado 10 (Alice) tiene plaza fija PARKING en los handlers por defecto.
+  it('should_createParkingRelease_when_releasingFixedParkingDay', async () => {
+    // El empleado 10 tiene plaza fija PARKING (space 1) en los handlers por defecto.
+    asEmployee();
     let releaseBody: Record<string, unknown> | null = null;
     server.use(
-      http.get(ME_URL, () => HttpResponse.json({ ...adminUser, employeeId: 10, role: 'EMPLOYEE' })),
-      http.get(MY_WEEK_URL, () => HttpResponse.json(liberableWeek)),
+      http.get(MY_WEEK_URL, () => HttpResponse.json(multiResourceWeek)),
       http.post(`${MSW_BASE}/releases`, async ({ request }) => {
         releaseBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 999, releaseDate: releaseBody.releaseDate }, { status: 201 });
@@ -225,22 +226,70 @@ describe('MyWeekPage (EMPLOYEE)', () => {
     const user = userEvent.setup();
     renderWithProviders(<MyWeekPage />);
 
-    await selectDayByText(user, /plaza P-12|space P-12/i);
-    await user.click(screen.getByRole('button', RELEASE_BTN));
+    const parkingRow = await resourceRow(/plaza P-12|space P-12/i);
+    await user.click(await parkingRow.findByRole('button', { name: /^liberar$|^release$/i }));
 
-    // Se abre el modal de liberar plaza fija con la fecha del día ya fijada (sin selector de fecha).
     const dialog = within(await screen.findByRole('dialog'));
-    expect(dialog.queryByLabelText(/fecha a liberar|date to release/i)).not.toBeInTheDocument();
     await user.click(dialog.getByRole('button', { name: /^liberar$|^release$/i }));
 
+    // La plaza omite resourceType (default PARKING en backend).
     await waitFor(() =>
-      expect(releaseBody).toEqual({ releaseDate: FIXED_DATE, parkingSpaceId: 1 }),
+      expect(releaseBody).toEqual({ releaseDate: PARKING_FIXED_DATE, parkingSpaceId: 1 }),
+    );
+  });
+
+  it('should_createDeskRelease_withResourceTypeDesk_when_releasingFixedDeskDay', async () => {
+    asEmployee();
+    let releaseBody: Record<string, unknown> | null = null;
+    // La semana lleva un puesto fijo (D-05) y el empleado tiene ese puesto como fijo (id 20).
+    const deskWeek: MyWeekResponse = {
+      weekStart: todayIso(),
+      days: [
+        {
+          date: DESK_FIXED_DATE,
+          state: 'FREE',
+          parkingSpaceLabel: null,
+          requestStatus: null,
+          requestId: null,
+          deskState: 'ASSIGNED',
+          deskLabel: 'D-05',
+          deskRequestStatus: null,
+          deskRequestId: null,
+        },
+      ],
+    };
+    server.use(
+      http.get(MY_WEEK_URL, () => HttpResponse.json(deskWeek)),
+      http.get(FIXED_URL, () => HttpResponse.json([deskFixedAssignment(DESK_FIXED_DATE, 20)])),
+      http.post(`${MSW_BASE}/releases`, async ({ request }) => {
+        releaseBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 999, releaseDate: releaseBody.releaseDate }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MyWeekPage />);
+
+    const deskRow = await resourceRow(/puesto D-05|desk D-05/i);
+    await user.click(await deskRow.findByRole('button', { name: /^liberar$|^release$/i }));
+
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.click(dialog.getByRole('button', { name: /^liberar$|^release$/i }));
+
+    // El puesto DEBE enviar resourceType DESK y su resource id fijo (bug del "sin plaza"
+    // / liberación de puesto como PARKING): 20, no una plaza.
+    await waitFor(() =>
+      expect(releaseBody).toEqual({
+        releaseDate: DESK_FIXED_DATE,
+        parkingSpaceId: 20,
+        resourceType: 'DESK',
+      }),
     );
   });
 
   it('should_showEmptyState_when_noDaysReturned', async () => {
+    asEmployee();
     server.use(
-      http.get(MY_WEEK_URL, () => HttpResponse.json({ weekStart: '2026-05-11', days: [] })),
+      http.get(MY_WEEK_URL, () => HttpResponse.json({ weekStart: todayIso(), days: [] })),
     );
     renderWithProviders(<MyWeekPage />);
 

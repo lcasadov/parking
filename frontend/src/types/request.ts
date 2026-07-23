@@ -46,6 +46,17 @@ export interface RequestCreateRequest {
   resourceId?: number;
 }
 
+// RequestAdminAssignRequest: schema #/components/schemas/RequestAdminAssignRequest.
+// Asignacion puntual del admin (capability admin-punctual-assignment): crea un
+// Request que nace APPROVED para el empleado y la fecha indicados. `resourceId`
+// es opcional en PARKING (auto-asignacion si se omite) y obligatorio en DESK.
+export interface RequestAdminAssignRequest {
+  employeeId: number;
+  requestedDate: string;
+  resourceType?: ResourceType;
+  resourceId?: number;
+}
+
 // RequestApproveRequest: schema #/components/schemas/RequestApproveRequest.
 export interface RequestApproveRequest {
   parkingSpaceId: number;

@@ -14,7 +14,6 @@ import { ReleaseHubPage } from '../pages/ReleaseHubPage';
 import { VisitorsPage } from '../pages/VisitorsPage';
 import { OccupancyPage } from '../pages/OccupancyPage';
 import { RecordsPage } from '../pages/RecordsPage';
-import { AdministrativeReleasesPage } from '../pages/AdministrativeReleasesPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { MyWeekPage } from '../pages/MyWeekPage';
 import { LoginPage } from '../pages/LoginPage';
@@ -131,8 +130,11 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
+        {/* AGENCIA: destino "Liberar" con ambos pivotes (por-empleado/por-fecha) e
+            historial de sus propias liberaciones administrativas (design §D5). El
+            backend ya autoriza a AGENCIA en /occupancy, los pivotes y admin-cancel. */}
         <Route index element={<Navigate to={ROUTES.agencyReleases} replace />} />
-        <Route path="releases" element={<AdministrativeReleasesPage />} />
+        <Route path="releases" element={<ReleaseHubPage />} />
       </Route>
       <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
     </Routes>

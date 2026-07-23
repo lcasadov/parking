@@ -121,6 +121,55 @@ export const en = {
       weekly: 'Weekly',
       availability: 'Availability',
     },
+    weekly: {
+      actionableHint: 'Click a free cell to assign, or an occupied one to release.',
+      resourceTypeLabel: 'Resource type',
+      resourceType: {
+        PARKING: 'Spaces',
+        DESK: 'Desks',
+      },
+      resourceColumn: {
+        PARKING: 'Space',
+        DESK: 'Desk',
+      },
+      summarySpaces: {
+        PARKING: 'Active spaces',
+        DESK: 'Active desks',
+      },
+      cellAction: {
+        ASSIGN: 'Assign {{resource}}',
+        RELEASE_FIXED: 'Release {{resource}}',
+        CANCEL_REQUEST: 'Release {{resource}}',
+      },
+    },
+    assign: {
+      title: 'Assign resource',
+      summary: 'Assignment summary',
+      resourceType: {
+        PARKING: 'Space',
+        DESK: 'Desk',
+      },
+      date: 'Date',
+      employee: 'Employee',
+      selectEmployee: 'Select an employee',
+      modeLabel: 'Assignment type',
+      mode: {
+        punctual: 'This date only',
+        fixed: 'Fixed (every week)',
+      },
+      punctualHint: 'The resource is assigned to the employee for this date only.',
+      fixedHint: 'The resource is assigned to the employee every {{weekday}}, indefinitely.',
+      requiredEmployee: 'Select an employee.',
+      submit: 'Assign',
+      cancel: 'Cancel',
+      done: 'Resource assigned.',
+      errors: {
+        conflict: 'The resource is already occupied on that date.',
+        noAvailability: 'No resources available for that date.',
+        badRequest: 'Check the assignment details.',
+        generic: 'Could not complete the assignment.',
+      },
+    },
   },
   myResources: {
     navLabel: 'My spaces',
@@ -669,6 +718,20 @@ export const en = {
       tabs: {
         byEmployee: 'By employee',
         byDate: 'By date',
+        history: 'History',
+      },
+    },
+    history: {
+      title: 'My administrative releases',
+      eyebrow: 'Operations',
+      description: 'History of the administrative releases you have created.',
+      loadError: 'Could not load the release history.',
+      empty: 'You have not created any administrative releases yet.',
+      columns: {
+        date: 'Date',
+        type: 'Resource',
+        resource: 'Identifier',
+        reason: 'Reason',
       },
     },
     type: {
@@ -1075,11 +1138,20 @@ export const en = {
       requestPending: 'Request pending',
       requestAction: 'Request',
       releaseAction: 'Release',
+      cancelAction: 'Cancel',
+      resourceKind: {
+        PARKING: 'Space',
+        DESK: 'Desk',
+      },
+      resourceLabel: {
+        PARKING: 'Space {{label}}',
+        DESK: 'Desk {{label}}',
+      },
       states: {
-        ASSIGNED: 'Space assigned',
-        RELEASED: 'Space released',
+        ASSIGNED: 'Assigned',
+        RELEASED: 'Released',
         REQUEST_PENDING: 'Request pending',
-        FREE: 'No space',
+        FREE: 'Free',
       },
     },
   },

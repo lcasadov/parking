@@ -8,6 +8,18 @@
 
 ---
 
+## Nueva arquitectura de información (`restructure-admin-workflows`)
+
+El change `restructure-admin-workflows` reagrupa la navegación **por tarea** (no por endpoint). Menús resultantes:
+
+- **ADMIN** (13 → 9 destinos): *Operativa* = Solicitudes · **Ocupación** (Semanal · Disponibilidad) · Plano · **Liberar** (Por empleado · Por fecha · Historial) · Visitantes; *Gestión* = Empleados · **Recursos** (Plazas · Puestos) · **Registros** (Auditoría · Accesos) · Ajustes.
+- **EMPLOYEE** (5 → 4 destinos): **Mi Semana** (índice, multi-recurso plaza+puesto) · Plano · Mis solicitudes · **Mis plazas** (Asignaciones fijas · Liberaciones).
+- **AGENCIA**: un único destino **Liberar** (Por empleado · Por fecha · Historial), ver [Flujo 12](#12-agencia-libera-recursos-agencia).
+
+Las rutas antiguas siguen existiendo como redirección a su destino fusionado con la pestaña correcta (`?tab=`), para no romper enlaces internos.
+
+---
+
 ## 1. Empleado solicita una plaza (móvil)
 
 - **Objetivo del usuario:** conseguir una plaza de parking para un día concreto en el que no tiene plaza fija.
@@ -67,16 +79,20 @@
 
 ---
 
-## 4. Empleado libera su plaza/puesto
+## 4. Empleado libera o cancela su plaza/puesto (Mi Semana multi-recurso)
 
-- **Objetivo del usuario:** dejar libre su recurso fijo un día que no acudirá, para que otro lo pueda solicitar.
-- **Disparador:** botón "Liberar mi plaza" en [Mi Semana](ui-screens.md#7-portal-del-empleado-móvil-mi-semana-y-solicitar-plaza); en el mockup, un día aparece como "Plaza liberada".
-- **Camino feliz** (fuente: `07-empleado-movil.html` — parcial):
-  1. En [Mi Semana](ui-screens.md#7-portal-del-empleado-móvil-mi-semana-y-solicitar-plaza), pulsa "Liberar mi plaza".
-  2. ⚠️ **Pendiente de confirmar:** el flujo de selección de fecha y confirmación de la liberación **no tiene mockup** (solo existe el botón y el estado resultante "Plaza liberada").
-- **Puntos de decisión / ramificaciones:** según `README` (liberación voluntaria), solo el titular y solo para fechas presentes o futuras. ⚠️ UI no mostrada.
-- **Casos límite y errores:** ⚠️ Pendiente de confirmar (no hay mockup).
-- **Resultado final:** el recurso queda como `Release` para esa fecha; pasa a estar disponible para solicitud (no genera email, según `README`).
+> **Actualizado (change `restructure-admin-workflows`, employee-portal spec).** "Mi Semana" muestra por cada día el estado de **AMBOS** recursos (plaza y puesto) de forma independiente, y ofrece la acción en contexto **por recurso**. Ya no rotula "sin plaza" cuando el empleado tiene puesto ese día.
+
+- **Objetivo del usuario:** dejar libre su recurso fijo un día que no acudirá, o cancelar una solicitud propia, para que otro lo pueda usar.
+- **Disparador:** en [Mi Semana](ui-screens.md#7-portal-del-empleado-móvil-mi-semana-y-solicitar-plaza), la fila del recurso (plaza o puesto) del día muestra "Liberar" o "Cancelar" cuando procede.
+- **Camino feliz:**
+  1. Localiza el día y el **recurso** (plaza o puesto) a liberar.
+  2. Pulsa la acción del recurso:
+     - Recurso fijo (asignación) → "Liberar": modal de liberación voluntaria con la fecha del día ya fijada; envía `POST /releases` con el `resourceType` **correcto** del recurso (un puesto se libera como `DESK`, nunca como `PARKING`).
+     - Solicitud propia (PENDING o APPROVED futura) → "Cancelar": `POST /requests/{id}/cancel`, que libera el recurso.
+- **Puntos de decisión / ramificaciones:** solo el titular y solo para fechas presentes o futuras (una fecha pasada no ofrece acción).
+- **Casos límite y errores:** `409` (sin asignación fija ese día / ya resuelta) → toast traducido.
+- **Resultado final:** el recurso queda libre esa fecha (o la solicitud cancelada); pasa a estar disponible para solicitud.
 
 ---
 
@@ -134,18 +150,44 @@
 
 ---
 
-## 8. Admin consulta el calendario semanal
+## 8. Admin consulta la ocupación semanal
 
-- **Objetivo del usuario:** ver de un vistazo el estado de todas las plazas durante la semana.
-- **Disparador:** sidebar "Asignación semanal".
-- **Camino feliz** (fuente: `01-calendario-semanal.html`):
-  1. Abre el [Calendario semanal del administrador](ui-screens.md#1-calendario-semanal-del-administrador).
-  2. Navega entre semanas (anterior/siguiente/"Hoy").
-  3. Interpreta cada celda por su estado (Asignada / Liberada / Pdte. asignar / Solicitud aprobada / Libre).
-  4. (Opcional) exporta con "Exportar" (CSV/XLSX).
-- **Puntos de decisión / ramificaciones:** "Filtro avanzado" → ⚠️ Pendiente de confirmar (criterios no detallados en el mockup).
-- **Casos límite y errores:** ⚠️ Pendiente de confirmar (estados de carga/vacío/error no mostrados).
-- **Resultado final:** el admin obtiene la foto semanal; opcionalmente un fichero exportado.
+> **Reorg (change `restructure-admin-workflows`):** la antigua "Asignación semanal" y la pantalla separada "Disponibilidad" se fusionan en el destino **"Ocupación"** (sidebar → *Operativa* → "Ocupación"), con dos pestañas: **Semanal** (esta rejilla) y **Disponibilidad** (recursos libres por fecha, el estado `FREE` filtrable). Ver [Nueva arquitectura de información](#nueva-arquitectura-de-información-restructure-admin-workflows).
+
+- **Objetivo del usuario:** ver de un vistazo el estado de todas las plazas o puestos durante la semana.
+- **Disparador:** sidebar "Ocupación" → pestaña "Semanal".
+- **Camino feliz** (fuente: `01-calendario-semanal.html` + change `restructure-admin-workflows`):
+  1. Abre [Ocupación → Semanal](ui-screens.md#1-ocupación-semanal-del-administrador-celdas-accionables).
+  2. **Conmuta plaza/puesto** con el segmentado del encabezado (`resourceType` → `GET /calendar/admin`).
+  3. Navega entre semanas (anterior/siguiente/"Hoy").
+  4. Interpreta cada celda por su estado (Asignada / Liberada / Pdte. asignar / Solicitud aprobada / Libre).
+  5. (Opcional) exporta con "Exportar" (CSV/XLSX).
+- **Puntos de decisión / ramificaciones:** una celda **accionable** (hoy o futura) inicia una asignación o liberación en contexto → [Flujo 8b](#8b-admin-asigna-o-libera-desde-una-celda-de-ocupación).
+- **Casos límite y errores:** las celdas de fechas pasadas no son accionables.
+- **Resultado final:** el admin obtiene la foto semanal por tipo de recurso; opcionalmente un fichero exportado.
+
+---
+
+## 8b. Admin asigna o libera desde una celda de Ocupación
+
+> **Nuevo (change `restructure-admin-workflows`, capability `admin-punctual-assignment` + celdas accionables).** Sin mockup dedicado: la interacción vive sobre la rejilla semanal. Las celdas ocupadas ya no obligan a abrir la ficha del empleado ni a cambiar de ruta.
+
+- **Objetivo del usuario:** dar (o retirar) un recurso a un empleado sin salir de la rejilla.
+- **Disparador:** el admin pulsa una celda de [Ocupación → Semanal](ui-screens.md#1-ocupación-semanal-del-administrador-celdas-accionables).
+- **Camino feliz — asignar (celda `FREE`):**
+  1. Pulsa una celda libre → se abre el modal **"Asignar recurso"** (recurso y fecha ya resueltos por la celda).
+  2. Elige un **empleado** (selector poblado con `GET /releases/employees`).
+  3. Elige el **tipo de asignación**:
+     - **Solo esta fecha** (puntual): `POST /requests/admin` con `{ employeeId, requestedDate, resourceType, resourceId }`; nace una `Request` en `APPROVED`.
+     - **Fija (cada semana)**: `PUT /fixed-assignments/employee/{id}` para el día de la semana de la celda. **El cliente PRECARGA los días actuales (`GET /fixed-assignments/employee/{id}`) y reenvía el CONJUNTO COMPLETO** con el día añadido, para no borrar los demás días del empleado (design §Risk D).
+  4. La rejilla se refresca y refleja la ocupación.
+- **Camino feliz — liberar (celda `ASSIGNED` o `REQUEST_APPROVED`):**
+  1. Pulsa una celda ocupada → se abre el modal de liberación **según el origen**:
+     - Asignación fija → [Liberación administrativa](ui-screens.md#26-liberación-administrativa) (`POST /releases/administrative`, motivo obligatorio).
+     - Solicitud aprobada → admin-cancel (`POST /requests/{id}/admin-cancel`, motivo obligatorio).
+  2. Confirmado el motivo, el recurso queda libre esa fecha y la rejilla se refresca.
+- **Casos límite y errores:** conflicto de ocupación → `409` mostrado **en contexto** (toast traducido) sin romper la rejilla; auto-asignación de plaza sin disponibilidad → `409 NO_AVAILABILITY`; `DESK` sin recurso elegido → `400`.
+- **Resultado final:** el recurso queda asignado/liberado para la fecha (o el día de la semana, en fija), trazado en auditoría con el admin como actor.
 
 ---
 
@@ -189,6 +231,22 @@
 - **Puntos de decisión / ramificaciones:** pulsar fuera del popover (o `Esc`) lo cierra sin cerrar sesión.
 - **Casos límite y errores:** si la llamada de logout falla, la sesión local se limpia igualmente y se navega a `/login` (el cierre en cliente no depende de la respuesta del servidor).
 - **Resultado final:** sesión cerrada; el usuario aterriza en [Login](ui-screens.md#13-login-local-fase-1). Cualquier `401` posterior en otra pestaña dispararía además el modal de [Sesión expirada](ui-screens.md#24-sesión-expirada-modal).
+
+---
+
+## 12. Agencia libera recursos (AGENCIA)
+
+> **Nuevo/ampliado (change `restructure-admin-workflows`, design §D5).** El rol `AGENCIA` gana ambos pivotes de liberación y un historial propio. Sin mockup dedicado: reutiliza las superficies de liberación del admin.
+
+- **Objetivo del usuario:** una gestoría/agencia externa libera recursos de empleados ausentes.
+- **Disparador:** login como `AGENCIA` → aterriza en el destino **"Liberar"** (única entrada de su sidebar).
+- **Camino feliz:**
+  1. **Por empleado**: elige un empleado, revisa su semana (plaza y puesto) y libera una o varias reservas con un motivo único (liberación administrativa o admin-cancel según el origen).
+  2. **Por fecha**: elige una fecha, ve los recursos ocupados con su titular y origen (`GET /occupancy`) y libera uno a uno.
+  3. **Historial**: consulta las liberaciones administrativas que él mismo ha creado (`GET /releases/administrative/mine`).
+- **Puntos de decisión / ramificaciones:** el mecanismo de liberación lo decide el **origen** de la reserva (asignación fija → `POST /releases/administrative`; solicitud aprobada → `POST /requests/{id}/admin-cancel`).
+- **Casos límite y errores:** `AGENCIA` **no** puede crear liberaciones voluntarias ni ver/anular liberaciones del portal de empleado (`403` fail-closed en `/releases`, `/releases/mine`, `DELETE /releases/{id}`); conflicto → `409` traducido en contexto.
+- **Resultado final:** el recurso queda libre esa fecha; la acción queda trazada con la agencia como actor.
 
 ---
 

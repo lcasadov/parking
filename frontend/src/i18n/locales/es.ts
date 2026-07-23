@@ -121,6 +121,55 @@ export const es = {
       weekly: 'Semanal',
       availability: 'Disponibilidad',
     },
+    weekly: {
+      actionableHint: 'Pulsa una celda libre para asignar, o una ocupada para liberar.',
+      resourceTypeLabel: 'Tipo de recurso',
+      resourceType: {
+        PARKING: 'Plazas',
+        DESK: 'Puestos',
+      },
+      resourceColumn: {
+        PARKING: 'Plaza',
+        DESK: 'Puesto',
+      },
+      summarySpaces: {
+        PARKING: 'Plazas activas',
+        DESK: 'Puestos activos',
+      },
+      cellAction: {
+        ASSIGN: 'Asignar {{resource}}',
+        RELEASE_FIXED: 'Liberar {{resource}}',
+        CANCEL_REQUEST: 'Liberar {{resource}}',
+      },
+    },
+    assign: {
+      title: 'Asignar recurso',
+      summary: 'Resumen de la asignación',
+      resourceType: {
+        PARKING: 'Plaza',
+        DESK: 'Puesto',
+      },
+      date: 'Fecha',
+      employee: 'Empleado',
+      selectEmployee: 'Selecciona un empleado',
+      modeLabel: 'Tipo de asignación',
+      mode: {
+        punctual: 'Solo esta fecha',
+        fixed: 'Fija (cada semana)',
+      },
+      punctualHint: 'Se asigna el recurso al empleado únicamente para esta fecha.',
+      fixedHint: 'Se asigna el recurso al empleado todos los {{weekday}}, de forma indefinida.',
+      requiredEmployee: 'Selecciona un empleado.',
+      submit: 'Asignar',
+      cancel: 'Cancelar',
+      done: 'Recurso asignado.',
+      errors: {
+        conflict: 'El recurso ya está ocupado esa fecha.',
+        noAvailability: 'No hay recursos disponibles para esa fecha.',
+        badRequest: 'Revisa los datos de la asignación.',
+        generic: 'No se pudo completar la asignación.',
+      },
+    },
   },
   myResources: {
     navLabel: 'Mis plazas',
@@ -670,6 +719,20 @@ export const es = {
       tabs: {
         byEmployee: 'Por empleado',
         byDate: 'Por fecha',
+        history: 'Historial',
+      },
+    },
+    history: {
+      title: 'Mis liberaciones administrativas',
+      eyebrow: 'Operativa',
+      description: 'Historial de las liberaciones administrativas que has creado.',
+      loadError: 'No se pudo cargar el historial de liberaciones.',
+      empty: 'Aún no has creado liberaciones administrativas.',
+      columns: {
+        date: 'Fecha',
+        type: 'Recurso',
+        resource: 'Identificador',
+        reason: 'Motivo',
       },
     },
     type: {
@@ -1076,11 +1139,20 @@ export const es = {
       requestPending: 'Solicitud pendiente',
       requestAction: 'Solicitar',
       releaseAction: 'Liberar',
+      cancelAction: 'Cancelar',
+      resourceKind: {
+        PARKING: 'Plaza',
+        DESK: 'Puesto',
+      },
+      resourceLabel: {
+        PARKING: 'Plaza {{label}}',
+        DESK: 'Puesto {{label}}',
+      },
       states: {
-        ASSIGNED: 'Plaza asignada',
-        RELEASED: 'Plaza liberada',
+        ASSIGNED: 'Asignado',
+        RELEASED: 'Liberado',
         REQUEST_PENDING: 'Solicitud pendiente',
-        FREE: 'Sin plaza',
+        FREE: 'Libre',
       },
     },
   },

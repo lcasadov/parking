@@ -11,135 +11,150 @@ import { emitApiErrorToast } from '../api/events';
 import { useAuth } from '../auth/useAuth';
 import { useMyWeekQuery } from '../hooks/useCalendar';
 import { useEmployeeFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
-import { groupFixedAssignments } from '../utils/fixedAssignments';
+import { toEmployeeFixedResources, type FixedAssignmentGroup } from '../utils/fixedAssignments';
 import { myWeekLegend } from '../utils/calendarLegend';
 import { isPastDate } from '../utils/releases';
 import type { MyWeekDay, MyWeekDayState } from '../types/calendar';
+import type { RequestStatus, ResourceType } from '../types/request';
 import { addDaysIso, dayMonth, mondayOfWeek, myWeekStateKey, weekdayIndex } from '../utils/calendar';
 
 const WEEK_LENGTH = 7;
 
-// Variante de tarjeta (.week-card) y icono de acción por estado del día, según
-// el mockup 07 (empleado móvil). Sin literales repetidos (S1192).
-const WEEK_CARD_VARIANT: Record<MyWeekDayState, string> = {
+// Variante de tarjeta (color por estado) e icono por estado del recurso, según el
+// mockup 07 (empleado móvil). Sin literales repetidos (S1192).
+const RESOURCE_STATE_VARIANT: Record<MyWeekDayState, string> = {
   ASSIGNED: 'assigned',
   RELEASED: 'released',
   REQUEST_PENDING: 'request',
   FREE: 'free',
 };
-const WEEK_CARD_ICON: Record<MyWeekDayState, string> = {
-  ASSIGNED: 'check',
-  RELEASED: 'arrow-back',
-  REQUEST_PENDING: 'clock',
-  FREE: 'plus',
+const RESOURCE_ICON: Record<ResourceType, string> = {
+  PARKING: 'parking',
+  DESK: 'armchair',
 };
 
-interface ReleaseTarget {
-  parkingSpaceId: number;
-  spaceLabel: string;
+// Vista por-recurso (plaza o puesto) de un día: el contrato de "Mi Semana" lleva
+// ambos recursos en paralelo (design §D4). Se deriva una vista por cada recurso.
+interface ResourceDayView {
+  resourceType: ResourceType;
+  state: MyWeekDayState;
+  label: string | null;
+  requestStatus: RequestStatus | null;
+  requestId: number | null;
 }
 
 // Cómo se libera el recurso de un día: cancelando la solicitud propia (APPROVED
 // futura / PENDING) o creando un Release sobre la asignación fija.
-type ReleaseKind = 'CANCEL_REQUEST' | 'FIXED_RELEASE';
-
-// Acción de liberación resuelta para el día seleccionado (change release-occupied-resource).
 type ReleaseAction =
   | { kind: 'CANCEL_REQUEST'; requestId: number; date: string }
-  | { kind: 'FIXED_RELEASE'; parkingSpaceId: number; spaceLabel: string; date: string };
+  | {
+      kind: 'FIXED_RELEASE';
+      parkingSpaceId: number;
+      spaceLabel: string;
+      resourceType: ResourceType;
+      date: string;
+    };
 
-// Determina si el recurso del día es liberable y por qué mecanismo. Un día ocupado
-// por la solicitud propia (PENDING, o APPROVED futura) se libera cancelándola; un día
-// de asignación fija futura, creando un Release. "Mi Semana" es una vista por-día:
-// la acción se refiere siempre al día, no a un recurso global.
-function releaseKindForDay(day: MyWeekDay): ReleaseKind | null {
-  const hasRequest = typeof day.requestId === 'number';
-  if (hasRequest && day.requestStatus === 'PENDING') {
+// Deriva las dos vistas de recurso (plaza y puesto) de un día de "Mi Semana".
+// Los campos `desk*` describen el puesto; los base describen la plaza. Un recurso
+// sin datos de puesto se trata como FREE (retrocompatible con backend anterior).
+function resourceViews(day: MyWeekDay): ResourceDayView[] {
+  return [
+    {
+      resourceType: 'PARKING',
+      state: day.state,
+      label: day.parkingSpaceLabel ?? null,
+      requestStatus: day.requestStatus ?? null,
+      requestId: day.requestId ?? null,
+    },
+    {
+      resourceType: 'DESK',
+      state: day.deskState ?? 'FREE',
+      label: day.deskLabel ?? null,
+      requestStatus: day.deskRequestStatus ?? null,
+      requestId: day.deskRequestId ?? null,
+    },
+  ];
+}
+
+// Determina si el recurso del día es liberable y por qué mecanismo. Un recurso
+// ocupado por la solicitud propia (PENDING, o APPROVED futura) se libera
+// cancelándola; una asignación fija futura, creando un Release.
+function releaseKindForView(
+  view: ResourceDayView,
+  date: string,
+): 'CANCEL_REQUEST' | 'FIXED_RELEASE' | null {
+  const hasRequest = typeof view.requestId === 'number';
+  if (hasRequest && view.requestStatus === 'PENDING') {
     return 'CANCEL_REQUEST';
   }
-  if (hasRequest && day.requestStatus === 'APPROVED' && !isPastDate(day.date)) {
+  if (hasRequest && view.requestStatus === 'APPROVED' && !isPastDate(date)) {
     return 'CANCEL_REQUEST';
   }
-  if (
-    day.state === 'ASSIGNED' &&
-    !day.requestStatus &&
-    Boolean(day.parkingSpaceLabel) &&
-    !isPastDate(day.date)
-  ) {
+  if (view.state === 'ASSIGNED' && !view.requestStatus && Boolean(view.label) && !isPastDate(date)) {
     return 'FIXED_RELEASE';
   }
   return null;
 }
 
-// Resuelve la acción de liberación concreta del día (o null si no es liberable):
-// cancelar la solicitud propia, o crear un Release sobre la plaza fija del empleado.
+// Resuelve la acción de liberación concreta de un recurso del día (o null si no es
+// liberable): cancelar la solicitud propia, o crear un Release sobre el recurso fijo.
 function resolveReleaseAction(
-  day: MyWeekDay,
-  releaseTarget: ReleaseTarget | null,
+  view: ResourceDayView,
+  date: string,
+  fixedGroup: FixedAssignmentGroup | null,
 ): ReleaseAction | null {
-  const kind = releaseKindForDay(day);
-  if (kind === 'CANCEL_REQUEST' && typeof day.requestId === 'number') {
-    return { kind: 'CANCEL_REQUEST', requestId: day.requestId, date: day.date };
+  const kind = releaseKindForView(view, date);
+  if (kind === 'CANCEL_REQUEST' && typeof view.requestId === 'number') {
+    return { kind: 'CANCEL_REQUEST', requestId: view.requestId, date };
   }
-  if (kind === 'FIXED_RELEASE' && releaseTarget !== null) {
+  if (kind === 'FIXED_RELEASE' && fixedGroup !== null) {
     return {
       kind: 'FIXED_RELEASE',
-      parkingSpaceId: releaseTarget.parkingSpaceId,
-      spaceLabel: day.parkingSpaceLabel ?? releaseTarget.spaceLabel,
-      date: day.date,
+      parkingSpaceId: fixedGroup.parkingSpaceId,
+      spaceLabel: view.label ?? `#${fixedGroup.parkingSpaceId}`,
+      resourceType: view.resourceType,
+      date,
     };
   }
   return null;
 }
 
-// Vista EMPLOYEE "Mi Semana" (consume GET /calendar/my-week). tasks §4.3.
-// Solo recursos propios; el contrato NO incluye nombres de terceros, por lo que
-// esta vista nunca los renderiza. Cada día se muestra como una tarjeta
-// (.week-card) con color por estado. Al seleccionar un día con recurso liberable
-// (solicitud propia o asignación fija) se habilita "Liberar", que actúa sobre ese día.
+// Vista EMPLOYEE "Mi Semana" (consume GET /calendar/my-week). Multi-recurso
+// (employee-portal spec, restructure-admin-workflows): cada día muestra el estado
+// de la PLAZA y del PUESTO de forma independiente, y ofrece liberar/cancelar por
+// recurso. Ya no rotula "sin plaza" cuando el empleado tiene puesto ese día.
 export function MyWeekPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [weekStart, setWeekStart] = useState<string>(mondayOfWeek());
   const [isRequestOpen, setIsRequestOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [releaseAction, setReleaseAction] = useState<ReleaseAction | null>(null);
 
   const query = useMyWeekQuery(weekStart);
   const days = query.data?.days ?? [];
 
   const fixedQuery = useEmployeeFixedAssignmentsQuery(user?.employeeId ?? null);
-  const releaseTarget = useMemo<ReleaseTarget | null>(() => {
-    const parkingGroup = groupFixedAssignments(fixedQuery.data ?? []).find(
-      (group) => group.resourceType === 'PARKING',
-    );
-    if (!parkingGroup) {
-      return null;
-    }
-    return { parkingSpaceId: parkingGroup.parkingSpaceId, spaceLabel: `#${parkingGroup.parkingSpaceId}` };
-  }, [fixedQuery.data]);
-
-  const selectedDay = days.find((day) => day.date === selectedDate) ?? null;
-  // Acción de liberación del día seleccionado; null si el día no es liberable.
-  // El botón "Liberar" se habilita solo cuando existe una acción resoluble.
-  const pendingRelease = selectedDay ? resolveReleaseAction(selectedDay, releaseTarget) : null;
-  const canRelease = pendingRelease !== null;
+  const fixedResources = useMemo(
+    () => toEmployeeFixedResources(fixedQuery.data ?? []),
+    [fixedQuery.data],
+  );
 
   const showContent = !query.isLoading && !query.isError;
 
-  // Un día es seleccionable si su recurso es liberable por alguno de los dos mecanismos.
-  function isSelectable(day: MyWeekDay): boolean {
-    return resolveReleaseAction(day, releaseTarget) !== null;
+  function fixedGroupFor(resourceType: ResourceType): FixedAssignmentGroup | null {
+    return resourceType === 'DESK' ? fixedResources.desk : fixedResources.parking;
   }
 
   function dayAbbr(date: string): string {
     return t(`calendar.weekdaysShort.${weekdayIndex(date)}`);
   }
 
-  function spaceLine(day: MyWeekDay): string {
-    return day.parkingSpaceLabel
-      ? t('calendar.myWeek.space', { label: day.parkingSpaceLabel })
-      : t('calendar.myWeek.noSpace');
+  function resourceLine(view: ResourceDayView): string {
+    if (view.label) {
+      return t(`calendar.myWeek.resourceLabel.${view.resourceType}`, { label: view.label });
+    }
+    return t(myWeekStateKey(view.state));
   }
 
   function handleRequested(): void {
@@ -154,23 +169,14 @@ export function MyWeekPage() {
 
   function handleReleased(): void {
     setReleaseAction(null);
-    setSelectedDate(null);
     void query.refetch();
     emitApiErrorToast('releases.release.created');
   }
 
   function handleCancelled(): void {
     setReleaseAction(null);
-    setSelectedDate(null);
     void query.refetch();
     emitApiErrorToast('requests.cancel.done');
-  }
-
-  // Abre el modal correspondiente a la acción de liberación del día seleccionado.
-  function handleReleaseClick(): void {
-    if (pendingRelease) {
-      setReleaseAction(pendingRelease);
-    }
   }
 
   // Modal de liberación según el mecanismo resuelto (cancelar solicitud / Release fijo).
@@ -180,6 +186,7 @@ export function MyWeekPage() {
         <ReleaseResourceModal
           parkingSpaceId={releaseAction.parkingSpaceId}
           spaceLabel={releaseAction.spaceLabel}
+          resourceType={releaseAction.resourceType}
           presetDate={releaseAction.date}
           onClose={closeReleaseAction}
           onReleased={handleReleased}
@@ -199,40 +206,45 @@ export function MyWeekPage() {
     return null;
   }
 
-  function renderDayBody(day: MyWeekDay): ReactElement {
+  function renderResource(view: ResourceDayView, date: string): ReactElement {
+    const action = resolveReleaseAction(view, date, fixedGroupFor(view.resourceType));
+    const isCancel = action?.kind === 'CANCEL_REQUEST';
     return (
-      <>
-        <span className="day-abbr-m">
-          <span className="week-day-abbr">{dayAbbr(day.date)}</span>
-          <span className="week-day-date">{dayMonth(day.date)}</span>
+      <li
+        key={view.resourceType}
+        className={`week-resource ${RESOURCE_STATE_VARIANT[view.state]}`}
+      >
+        <i className={`ti ti-${RESOURCE_ICON[view.resourceType]}`} aria-hidden="true" />
+        <span className="week-resource-info">
+          <span className="week-resource-kind">
+            {t(`calendar.myWeek.resourceKind.${view.resourceType}`)}
+          </span>
+          <span className="week-resource-state">{resourceLine(view)}</span>
         </span>
-        <span className="desc">
-          <span className="week-day-state">{t(myWeekStateKey(day.state))}</span>
-          <span className="week-day-space">{spaceLine(day)}</span>
-        </span>
-        <i className={`ti ti-${WEEK_CARD_ICON[day.state]}`} aria-hidden="true" />
-      </>
+        {action ? (
+          <Button
+            variant="white"
+            icon="arrow-back-up"
+            className="week-resource-action"
+            onClick={() => setReleaseAction(action)}
+          >
+            {isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction')}
+          </Button>
+        ) : null}
+      </li>
     );
   }
 
   function renderDay(day: MyWeekDay): ReactElement {
-    const selectable = isSelectable(day);
-    const selected = selectable && day.date === selectedDate;
-    const className = `week-card ${WEEK_CARD_VARIANT[day.state]}${selected ? ' selected' : ''}`;
     return (
-      <li key={day.date} className={className}>
-        {selectable ? (
-          <button
-            type="button"
-            className="week-card-body"
-            aria-pressed={selected}
-            onClick={() => setSelectedDate(day.date)}
-          >
-            {renderDayBody(day)}
-          </button>
-        ) : (
-          <div className="week-card-body">{renderDayBody(day)}</div>
-        )}
+      <li key={day.date} className="week-day-card">
+        <div className="week-day-head">
+          <span className="week-day-abbr">{dayAbbr(day.date)}</span>
+          <span className="week-day-date">{dayMonth(day.date)}</span>
+        </div>
+        <ul className="week-day-resources">
+          {resourceViews(day).map((view) => renderResource(view, day.date))}
+        </ul>
       </li>
     );
   }
@@ -296,15 +308,6 @@ export function MyWeekPage() {
           onClick={() => setIsRequestOpen(true)}
         >
           {t('calendar.myWeek.requestAction')}
-        </Button>
-        <Button
-          variant="white"
-          icon="arrow-back"
-          className="week-action-btn"
-          disabled={!canRelease}
-          onClick={handleReleaseClick}
-        >
-          {t('calendar.myWeek.releaseAction')}
         </Button>
       </div>
 

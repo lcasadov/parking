@@ -4,11 +4,22 @@ import { Button } from '../components/Button';
 import { CalendarCellView } from '../components/CalendarCellView';
 import { Legend } from '../components/Legend';
 import { Spinner } from '../components/Spinner';
+import {
+  AdministrativeReleaseModal,
+  type AdministrativeReleasePrefill,
+} from '../components/AdministrativeReleaseModal';
+import {
+  AdminCancelRequestModal,
+  type AdminCancelRequestPrefill,
+} from '../components/AdminCancelRequestModal';
+import { OccupancyAssignModal } from '../components/OccupancyAssignModal';
+import { emitApiErrorToast } from '../api/events';
 import { useAdminCalendarQuery } from '../hooks/useCalendar';
 import { adminCalendarLegend } from '../utils/calendarLegend';
 import { summarizeAdminCalendar, buildAdminCalendarCsv } from '../utils/adminCalendar';
 import { triggerBlobDownload } from '../utils/download';
-import type { CalendarCellState } from '../types/calendar';
+import type { CalendarCell, CalendarCellState, CalendarRow } from '../types/calendar';
+import type { ResourceType } from '../types/request';
 import {
   addDaysIso,
   calendarStateKey,
@@ -18,9 +29,12 @@ import {
   weekdayIndex,
   weekRangeLabel,
 } from '../utils/calendar';
-import { todayIso } from '../utils/requests';
+import { isTodayOrFuture, todayIso } from '../utils/requests';
 
 const WEEK_LENGTH = 7;
+
+// Orden fijo del conmutador plaza/puesto (S1192: sin literales repetidos).
+const RESOURCE_TYPES: ResourceType[] = ['PARKING', 'DESK'];
 
 // Estados del calendario en orden de lectura (S1192: sin literales repetidos).
 const ALL_STATES: CalendarCellState[] = [
@@ -40,19 +54,49 @@ const STATE_DOT: Record<CalendarCellState, string> = {
   FREE: 'var(--state-free-bg)',
 };
 
+// Accion inline resoluble desde una celda (weekly-assignment spec, celdas
+// accionables): asignar (celda FREE) o liberar (ASSIGNED = fija, REQUEST_APPROVED
+// = solicitud). El resto de estados no admiten accion en contexto.
+type CellActionKind = 'ASSIGN' | 'RELEASE_FIXED' | 'CANCEL_REQUEST';
+
+function cellActionKind(cell: CalendarCell): CellActionKind | null {
+  if (cell.state === 'FREE') {
+    return 'ASSIGN';
+  }
+  if (cell.state === 'ASSIGNED') {
+    return 'RELEASE_FIXED';
+  }
+  if (cell.state === 'REQUEST_APPROVED') {
+    return 'CANCEL_REQUEST';
+  }
+  return null;
+}
+
+// Estado de las tres acciones inline (asignar / liberar fija / cancelar solicitud).
+interface AssignTarget {
+  resourceId: number;
+  resourceLabel: string;
+  date: string;
+}
+
 // Rejilla de calendario semanal ADMIN (consume GET /calendar/admin). Presentacion
-// ALEATICA (change redesign-weekly-assignment): cabecera + tarjetas resumen +
-// navegador de semana + grid plaza x dia coloreado por el mapa estado->color.
-// Mismos datos y endpoints que la version previa (solo capa de presentacion).
+// ALEATICA + celdas ACCIONABLES (weekly-assignment spec, restructure-admin-workflows):
+// una celda libre inicia la asignacion (fija o puntual) en contexto; una celda
+// ocupada inicia la liberacion (administrativa o admin-cancel segun el origen). El
+// conmutador plaza/puesto pasa `resourceType` a GET /calendar/admin (design §D4).
 export function AdminCalendarPage() {
   const { t, i18n } = useTranslation();
   const [weekStart, setWeekStart] = useState<string>(mondayOfWeek());
+  const [resourceType, setResourceType] = useState<ResourceType>('PARKING');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeStates, setActiveStates] = useState<Set<CalendarCellState>>(
     () => new Set(ALL_STATES),
   );
+  const [assignTarget, setAssignTarget] = useState<AssignTarget | null>(null);
+  const [releasePrefill, setReleasePrefill] = useState<AdministrativeReleasePrefill | null>(null);
+  const [cancelPrefill, setCancelPrefill] = useState<AdminCancelRequestPrefill | null>(null);
 
-  const query = useAdminCalendarQuery(weekStart);
+  const query = useAdminCalendarQuery(weekStart, resourceType);
   const days = query.data?.days ?? [];
   const rows = useMemo(() => query.data?.rows ?? [], [query.data]);
   const today = todayIso();
@@ -92,13 +136,65 @@ export function AdminCalendarPage() {
     }
     const csv = buildAdminCalendarCsv(
       query.data,
-      t('calendar.space'),
+      t(`occupancy.weekly.resourceColumn.${resourceType}`),
       (iso) => `${t(`calendar.weekdaysShort.${weekdayIndex(iso)}`)} ${dayMonth(iso)}`,
       (state) => t(calendarStateKey(state)),
     );
     // BOM UTF-8 para que Excel detecte la codificacion en el CSV.
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
     triggerBlobDownload(blob, `${t('calendar.export.filename')}-${weekStart}.csv`);
+  }
+
+  // Abre el modal correspondiente a la accion de la celda (asignar / liberar).
+  function openCellAction(row: CalendarRow, cell: CalendarCell): void {
+    const kind = cellActionKind(cell);
+    if (kind === 'ASSIGN') {
+      setAssignTarget({ resourceId: row.parkingSpaceId, resourceLabel: row.label, date: cell.date });
+    } else if (kind === 'RELEASE_FIXED') {
+      setReleasePrefill({
+        employeeId: cell.employeeId ?? 0,
+        employeeName: cell.employeeName ?? '',
+        parkingSpaceId: row.parkingSpaceId,
+        resourceLabel: row.label,
+        releaseDate: cell.date,
+        resourceType,
+      });
+    } else if (kind === 'CANCEL_REQUEST' && typeof cell.requestId === 'number') {
+      setCancelPrefill({
+        requestId: cell.requestId,
+        employeeName: cell.employeeName ?? '',
+        resourceLabel: row.label,
+        releaseDate: cell.date,
+      });
+    }
+  }
+
+  // Una celda es accionable si su estado admite accion inline y la fecha es hoy o
+  // futura (no se asignan ni liberan fechas pasadas; el backend las rechaza).
+  function isCellActionable(cell: CalendarCell): boolean {
+    return cellActionKind(cell) !== null && isTodayOrFuture(cell.date);
+  }
+
+  function refresh(): void {
+    void query.refetch();
+  }
+
+  function handleAssigned(): void {
+    setAssignTarget(null);
+    refresh();
+    emitApiErrorToast('occupancy.assign.done');
+  }
+
+  function handleReleased(): void {
+    setReleasePrefill(null);
+    refresh();
+    emitApiErrorToast('releases.admin.created');
+  }
+
+  function handleCancelled(): void {
+    setCancelPrefill(null);
+    refresh();
+    emitApiErrorToast('requests.adminCancel.cancelled');
   }
 
   const showGrid = !query.isLoading && !query.isError;
@@ -111,9 +207,26 @@ export function AdminCalendarPage() {
           <h1 id="admin-calendar-title" className="section-title">
             {t('calendar.admin.title')}
           </h1>
-          <p className="page-description">{t('calendar.admin.description')}</p>
+          <p className="page-description">{t('occupancy.weekly.actionableHint')}</p>
         </div>
         <div className="page-actions">
+          <div
+            className="segmented"
+            role="group"
+            aria-label={t('occupancy.weekly.resourceTypeLabel')}
+          >
+            {RESOURCE_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={resourceType === type ? 'active' : ''}
+                aria-pressed={resourceType === type}
+                onClick={() => setResourceType(type)}
+              >
+                {t(`occupancy.weekly.resourceType.${type}`)}
+              </button>
+            ))}
+          </div>
           <Button
             variant="white"
             icon="filter"
@@ -134,7 +247,11 @@ export function AdminCalendarPage() {
       </header>
 
       <div className="calendar-summary">
-        <SummaryCard tone="ink" value={summary.spaces} label={t('calendar.summary.spaces')} />
+        <SummaryCard
+          tone="ink"
+          value={summary.spaces}
+          label={t(`occupancy.weekly.summarySpaces.${resourceType}`)}
+        />
         <SummaryCard
           tone="green"
           value={summary.assignments}
@@ -215,7 +332,7 @@ export function AdminCalendarPage() {
             <caption className="sr-only">{t('calendar.admin.title')}</caption>
             <thead>
               <tr className="table-header">
-                <th scope="col">{t('calendar.space')}</th>
+                <th scope="col">{t(`occupancy.weekly.resourceColumn.${resourceType}`)}</th>
                 {days.map((date) => (
                   <th key={date} scope="col" className={date === today ? 'is-today' : undefined}>
                     <span className="day-head-abbr">
@@ -242,20 +359,58 @@ export function AdminCalendarPage() {
                         #{row.parkingSpaceId}
                       </span>
                     </th>
-                    {row.cells.map((cell) => (
-                      <CalendarCellView
-                        key={cell.date}
-                        cell={cell}
-                        isToday={cell.date === today}
-                        dimmed={!activeStates.has(cell.state)}
-                      />
-                    ))}
+                    {row.cells.map((cell) => {
+                      const actionable = isCellActionable(cell);
+                      return (
+                        <CalendarCellView
+                          key={cell.date}
+                          cell={cell}
+                          isToday={cell.date === today}
+                          dimmed={!activeStates.has(cell.state)}
+                          onActivate={actionable ? () => openCellAction(row, cell) : undefined}
+                          actionLabel={
+                            actionable
+                              ? t(`occupancy.weekly.cellAction.${cellActionKind(cell)}`, {
+                                  resource: row.label,
+                                })
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+      ) : null}
+
+      {assignTarget ? (
+        <OccupancyAssignModal
+          resourceId={assignTarget.resourceId}
+          resourceLabel={assignTarget.resourceLabel}
+          resourceType={resourceType}
+          date={assignTarget.date}
+          onClose={() => setAssignTarget(null)}
+          onAssigned={handleAssigned}
+        />
+      ) : null}
+
+      {releasePrefill ? (
+        <AdministrativeReleaseModal
+          prefill={releasePrefill}
+          onClose={() => setReleasePrefill(null)}
+          onCreated={handleReleased}
+        />
+      ) : null}
+
+      {cancelPrefill ? (
+        <AdminCancelRequestModal
+          prefill={cancelPrefill}
+          onClose={() => setCancelPrefill(null)}
+          onCancelled={handleCancelled}
+        />
       ) : null}
     </section>
   );

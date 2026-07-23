@@ -212,6 +212,28 @@ export const handlers = [
     );
   }),
 
+  // POST /requests/admin (ADMIN): asignacion puntual; nace APPROVED.
+  http.post(`${BASE}/requests/admin`, async ({ request }) => {
+    const body = (await request.json()) as {
+      employeeId: number;
+      requestedDate: string;
+      resourceType?: string;
+      resourceId?: number;
+    };
+    return HttpResponse.json(
+      {
+        ...requestApproved,
+        id: 990,
+        employeeId: body.employeeId,
+        requestedDate: body.requestedDate,
+        resourceType: body.resourceType ?? 'PARKING',
+        parkingSpaceId: body.resourceId ?? requestApproved.parkingSpaceId,
+        status: 'APPROVED',
+      },
+      { status: 201 },
+    );
+  }),
+
   http.get(`${BASE}/requests/pending`, () => HttpResponse.json(defaultPendingRequestsPage)),
 
   // GET /requests?status=... (ADMIN): listado por estado (aprobadas / rechazadas / todas).
@@ -271,6 +293,11 @@ export const handlers = [
 
   // ---- Releases (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/releases/mine`, () => HttpResponse.json(defaultMyReleasesPage)),
+
+  // GET /releases/administrative/mine (ADMIN/AGENCIA): historial propio.
+  http.get(`${BASE}/releases/administrative/mine`, () =>
+    HttpResponse.json(defaultMyReleasesPage),
+  ),
 
   http.post(`${BASE}/releases`, async ({ request }) => {
     const body = (await request.json()) as ReleaseCreateRequest;

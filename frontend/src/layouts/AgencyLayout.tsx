@@ -7,9 +7,9 @@ import { ROUTES } from '../routes/paths';
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   `nav-item${isActive ? ' active' : ''}`;
 
-// Shell minimo de agencia: sidebar ALEATICA con una sola entrada (liberacion
-// administrativa) + area de usuario al pie + <Outlet/>. Rol AGENCIA solo puede
-// liberar. Sin top-bar (prototipo aprobado).
+// Shell minimo de agencia: sidebar ALEATICA con el destino "Liberar" (ambos
+// pivotes por-empleado/por-fecha + historial) + area de usuario al pie + <Outlet/>.
+// Rol AGENCIA solo opera sobre liberaciones administrativas (design §D5). Sin top-bar.
 export function AgencyLayout() {
   const { t } = useTranslation();
   return (
@@ -19,7 +19,7 @@ export function AgencyLayout() {
           <SidebarSection label={t('layout.sections.navigation')} />
           <NavLink to={ROUTES.agencyReleases} className={navItemClass}>
             <i className="ti ti-arrow-back-up" aria-hidden="true" />
-            {t('releases.admin.navLabel')}
+            {t('releases.hub.navLabel')}
           </NavLink>
         </Sidebar>
         <main className="main">
