@@ -527,18 +527,20 @@ public class AvailabilityService {
         RequestEntity approved = approvedByDate.get(day);
         if (approved != null) {
             return new MyWeekDayResponse(day, MyWeekDayState.ASSIGNED,
-                    labels.get(approved.getResourceId()), RequestStatus.APPROVED);
+                    labels.get(approved.getResourceId()), RequestStatus.APPROVED, approved.getId());
         }
         FixedAssignmentEntity assignment = fixedByDow.get(day.getDayOfWeek().getValue());
         if (assignment != null) {
             boolean released = releasedKeys.contains(new SpaceDate(assignment.getResourceId(), day));
             MyWeekDayState state = released ? MyWeekDayState.RELEASED : MyWeekDayState.ASSIGNED;
-            return new MyWeekDayResponse(day, state, labels.get(assignment.getResourceId()), null);
+            return new MyWeekDayResponse(day, state, labels.get(assignment.getResourceId()), null, null);
         }
-        if (pendingByDate.containsKey(day)) {
-            return new MyWeekDayResponse(day, MyWeekDayState.REQUEST_PENDING, null, RequestStatus.PENDING);
+        RequestEntity pending = pendingByDate.get(day);
+        if (pending != null) {
+            return new MyWeekDayResponse(day, MyWeekDayState.REQUEST_PENDING, null,
+                    RequestStatus.PENDING, pending.getId());
         }
-        return new MyWeekDayResponse(day, MyWeekDayState.FREE, null, null);
+        return new MyWeekDayResponse(day, MyWeekDayState.FREE, null, null, null);
     }
 
     // -------------------------------------------------------------------------

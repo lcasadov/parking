@@ -10,6 +10,10 @@ import {
   AdministrativeReleaseModal,
   type AdministrativeReleasePrefill,
 } from '../components/AdministrativeReleaseModal';
+import {
+  AdminCancelRequestModal,
+  type AdminCancelRequestPrefill,
+} from '../components/AdminCancelRequestModal';
 import { emitApiErrorToast } from '../api/events';
 import { useOccupancyQuery } from '../hooks/useOccupancy';
 import { todayIso } from '../utils/releases';
@@ -25,6 +29,7 @@ export function ReleaseByDatePage() {
   const queryClient = useQueryClient();
   const [date, setDate] = useState(todayIso());
   const [prefill, setPrefill] = useState<AdministrativeReleasePrefill | null>(null);
+  const [cancelPrefill, setCancelPrefill] = useState<AdminCancelRequestPrefill | null>(null);
 
   const query = useOccupancyQuery(date);
   const occupied = query.data?.occupiedResources ?? [];
@@ -41,7 +46,19 @@ export function ReleaseByDatePage() {
     });
   }
 
+  // El mecanismo de liberacion depende del origen del recurso: si lo ocupa una
+  // solicitud (trae `requestId`), se libera cancelando la solicitud (admin-cancel);
+  // si es una asignacion fija, se usa la liberacion administrativa (Release).
   function openRelease(item: OccupancyItem): void {
+    if (typeof item.requestId === 'number') {
+      setCancelPrefill({
+        requestId: item.requestId,
+        employeeName: item.employeeName,
+        resourceLabel: resourceLabel(item),
+        releaseDate: date,
+      });
+      return;
+    }
     setPrefill({
       employeeId: item.employeeId,
       employeeName: item.employeeName,
@@ -52,10 +69,20 @@ export function ReleaseByDatePage() {
     });
   }
 
+  function refreshOccupancy(): void {
+    void queryClient.invalidateQueries({ queryKey: [OCCUPANCY_KEY] });
+  }
+
   function handleCreated(): void {
     setPrefill(null);
-    void queryClient.invalidateQueries({ queryKey: [OCCUPANCY_KEY] });
+    refreshOccupancy();
     emitApiErrorToast('releases.admin.created');
+  }
+
+  function handleCancelled(): void {
+    setCancelPrefill(null);
+    refreshOccupancy();
+    emitApiErrorToast('requests.adminCancel.cancelled');
   }
 
   return (
@@ -138,6 +165,14 @@ export function ReleaseByDatePage() {
           prefill={prefill}
           onClose={() => setPrefill(null)}
           onCreated={handleCreated}
+        />
+      ) : null}
+
+      {cancelPrefill ? (
+        <AdminCancelRequestModal
+          prefill={cancelPrefill}
+          onClose={() => setCancelPrefill(null)}
+          onCancelled={handleCancelled}
         />
       ) : null}
     </section>
