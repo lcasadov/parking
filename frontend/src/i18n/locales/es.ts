@@ -739,7 +739,15 @@ export const es = {
       requiredReason: 'Indica el motivo (mínimo 5 caracteres).',
       requiredSelection: 'Marca al menos una reserva para liberar.',
       release: 'Liberar',
+      releaseBatch: 'Liberar reservas',
+      cancel: 'Cancelar',
+      weekNumber: 'Semana {{week}}',
       selectedCount: '{{count}} reserva(s) seleccionada(s)',
+      selectedCountLabel: 'reserva(s) seleccionada(s)',
+      resourceKind: {
+        PARKING: 'Plaza de parking',
+        DESK: 'Puesto de oficina',
+      },
       feedback: {
         released: '{{count}} reserva(s) liberada(s).',
         partial: '{{released}} reserva(s) liberada(s), {{failed}} con error.',

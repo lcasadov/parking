@@ -114,6 +114,12 @@
   /* Acento rosa fuerte (borde izquierdo de semanas "liberadas"). */
   --pink-strong: #d4537e;
 
+  /* Campo "motivo" de liberación: énfasis coral de campo obligatorio
+     (borde + anillo de foco + tinta del hint con icono de alerta). */
+  --reason-field-border: #f2c4bd;
+  --reason-field-ring: rgba(226, 75, 74, 0.08);
+  --reason-hint-ink: #a2543a;
+
   /* Paleta de avatares por hash de nombre (mockup .av-*). */
   --av-purple-bg: #cecbf6;
   --av-purple-text: #26215c;
@@ -212,6 +218,10 @@ body.theme-dark {
   --neutral-border: rgba(255, 255, 255, 0.2);
   --neutral-strong: rgba(255, 255, 255, 0.28);
   --taupe-soft: rgba(134, 120, 112, 0.24);
+  /* Campo "motivo" en oscuro: borde/tinta coral aclarados para conservar contraste. */
+  --reason-field-border: rgba(226, 75, 74, 0.5);
+  --reason-field-ring: rgba(226, 75, 74, 0.16);
+  --reason-hint-ink: #e6a58f;
   --field-bg: #2f2f27;
   --exec-ring: #e6b34a;
   --frame-bg: #141413;

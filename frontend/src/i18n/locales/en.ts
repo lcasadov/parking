@@ -738,7 +738,15 @@ export const en = {
       requiredReason: 'Provide the reason (minimum 5 characters).',
       requiredSelection: 'Tick at least one reservation to release.',
       release: 'Release',
+      releaseBatch: 'Release reservations',
+      cancel: 'Cancel',
+      weekNumber: 'Week {{week}}',
       selectedCount: '{{count}} reservation(s) selected',
+      selectedCountLabel: 'reservation(s) selected',
+      resourceKind: {
+        PARKING: 'Parking space',
+        DESK: 'Office desk',
+      },
       feedback: {
         released: '{{count}} reservation(s) released.',
         partial: '{{released}} reservation(s) released, {{failed}} failed.',

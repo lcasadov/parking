@@ -131,7 +131,7 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
 
     await selectEmployee();
     await user.click(await screen.findByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: /^liberar$|^release$/i }));
+    await user.click(screen.getByRole('button', { name: /liberar reservas|release reservations/i }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(/mínimo 5 caracteres|minimum 5 characters/i);
     expect(requested).toBe(false);
@@ -145,7 +145,7 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
     await selectEmployee();
     await screen.findByText(/Plaza 3005|Space 3005/);
     await user.type(screen.getByLabelText(/motivo|reason/i), 'No acude esta semana');
-    await user.click(screen.getByRole('button', { name: /^liberar$|^release$/i }));
+    await user.click(screen.getByRole('button', { name: /liberar reservas|release reservations/i }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       /al menos una reserva|at least one reservation/i,
@@ -177,7 +177,7 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
     await user.click(checkboxes[0]);
     await user.click(checkboxes[1]);
     await user.type(screen.getByLabelText(/motivo|reason/i), 'No acude esta semana');
-    await user.click(screen.getByRole('button', { name: /^liberar$|^release$/i }));
+    await user.click(screen.getByRole('button', { name: /liberar reservas|release reservations/i }));
 
     await waitFor(() => expect(cancelId).toBe('42'));
     expect(cancelReason).toBe('No acude esta semana');
@@ -214,7 +214,7 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
     await user.click(checkboxes[0]);
     await user.click(checkboxes[1]);
     await user.type(screen.getByLabelText(/motivo|reason/i), 'No acude esta semana');
-    await user.click(screen.getByRole('button', { name: /^liberar$|^release$/i }));
+    await user.click(screen.getByRole('button', { name: /liberar reservas|release reservations/i }));
 
     expect(
       await screen.findByText(/1 reserva\(s\) liberada\(s\), 1 con error|1 reservation\(s\) released, 1 failed/i),
