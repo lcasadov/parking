@@ -4,6 +4,7 @@ import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.EmployeeCreateRequest;
+import com.aleatica.parking.employee.dto.EmployeeOptionResponse;
 import com.aleatica.parking.employee.dto.EmployeeResetPasswordResponse;
 import com.aleatica.parking.employee.dto.EmployeeResponse;
 import com.aleatica.parking.employee.dto.EmployeeUpdateRequest;
@@ -79,6 +80,24 @@ public class EmployeeService {
         String normalized = StringUtils.hasText(query) ? query.trim() : null;
         Page<Employee> page = employeeRepository.search(normalized, active, pageable);
         return PageResponse.from(page, EmployeeResponse::from);
+    }
+
+    /**
+     * Lista los empleados activos como opciones minimas (id + nombre) para poblar el selector
+     * del flujo de liberacion administrativa, accesible a {@code ADMIN} y {@code AGENCIA}.
+     *
+     * <p>Es una proyeccion de solo lectura independiente del CRUD de empleados (reservado a
+     * {@code ADMIN}): no expone datos de contacto ni credenciales, solo {@code id} y nombre, lo
+     * imprescindible para elegir a quien liberar. El RBAC del endpoint concede el acceso a ambos
+     * roles sin relajar el resto de la gestion de empleados.</p>
+     *
+     * @return empleados activos (DTO minimo) en orden alfabetico, posiblemente vacia
+     */
+    @Transactional(readOnly = true)
+    public List<EmployeeOptionResponse> listSelectableForRelease() {
+        return employeeRepository.findByActiveTrueOrderByFirstNameAscLastNameAsc().stream()
+                .map(EmployeeOptionResponse::from)
+                .toList();
     }
 
     /**

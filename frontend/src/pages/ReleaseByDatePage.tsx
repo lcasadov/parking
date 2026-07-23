@@ -17,6 +17,7 @@ import {
 import { emitApiErrorToast } from '../api/events';
 import { useOccupancyQuery } from '../hooks/useOccupancy';
 import { todayIso } from '../utils/releases';
+import { resourceLabel } from '../utils/resourceLabel';
 import type { OccupancyItem } from '../types/occupancy';
 
 const OCCUPANCY_KEY = 'occupancy';
@@ -34,18 +35,6 @@ export function ReleaseByDatePage() {
   const query = useOccupancyQuery(date);
   const occupied = query.data?.occupiedResources ?? [];
 
-  // Etiqueta humana del recurso: "Plaza 3005 · Planta 3" para plazas, "Puesto 12"
-  // para puestos (sin planta).
-  function resourceLabel(item: OccupancyItem): string {
-    if (item.resourceType === 'DESK') {
-      return t('releases.byDate.resourceDesk', { number: item.resourceNumber });
-    }
-    return t('releases.byDate.resourcePark', {
-      number: item.resourceNumber,
-      floor: item.floor ?? '',
-    });
-  }
-
   // El mecanismo de liberacion depende del origen del recurso: si lo ocupa una
   // solicitud (trae `requestId`), se libera cancelando la solicitud (admin-cancel);
   // si es una asignacion fija, se usa la liberacion administrativa (Release).
@@ -54,7 +43,7 @@ export function ReleaseByDatePage() {
       setCancelPrefill({
         requestId: item.requestId,
         employeeName: item.employeeName,
-        resourceLabel: resourceLabel(item),
+        resourceLabel: resourceLabel(item, t),
         releaseDate: date,
       });
       return;
@@ -63,7 +52,7 @@ export function ReleaseByDatePage() {
       employeeId: item.employeeId,
       employeeName: item.employeeName,
       parkingSpaceId: item.resourceId,
-      resourceLabel: resourceLabel(item),
+      resourceLabel: resourceLabel(item, t),
       releaseDate: date,
       resourceType: item.resourceType,
     });
@@ -140,7 +129,7 @@ export function ReleaseByDatePage() {
             <tbody>
               {occupied.map((item) => (
                 <tr key={`${item.resourceType}-${item.resourceId}`} className="table-row">
-                  <td>{resourceLabel(item)}</td>
+                  <td>{resourceLabel(item, t)}</td>
                   <td>{t(`releases.byDate.resourceType.${item.resourceType}`)}</td>
                   <td>{item.employeeName}</td>
                   <td>

@@ -912,6 +912,62 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/ServerError' }
 
+  /releases/employees:
+    get:
+      tags: [Releases]
+      operationId: listSelectableReleaseEmployees
+      summary: Empleados seleccionables para liberación (ADMIN/AGENCIA)
+      description: >
+        Listado de solo lectura de empleados activos (id + nombre) para poblar el
+        selector del flujo de liberación administrativa. No expone datos de
+        contacto ni credenciales y es independiente del CRUD de empleados
+        (reservado a ADMIN). Accesible a ADMIN y AGENCIA; cualquier otro rol → 403.
+      responses:
+        '200':
+          description: Empleados seleccionables (id + nombre)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmployeeOption'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /releases/employees/{employeeId}/occupancy:
+    get:
+      tags: [Releases]
+      operationId: getEmployeeWeekOccupancy
+      summary: Ocupación semanal de un empleado para liberación (ADMIN/AGENCIA)
+      description: >
+        Por cada uno de los siete días de la semana, las reservas del empleado en
+        plaza y puesto con su origen (`FIXED_ASSIGNMENT` / `REQUEST_APPROVED`), el
+        recurso (número/planta) y el `requestId` cuando la ocupación proviene de
+        una solicitud aprobada. Accesible a ADMIN y AGENCIA; cualquier otro rol → 403.
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: weekStart
+          in: query
+          required: true
+          description: Lunes de la semana a consultar (ISO-8601; se normaliza al lunes).
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Ocupación semanal del empleado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeWeekOccupancy'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
   # ---------------------------------------------------------------------------
   # Requests
   # ---------------------------------------------------------------------------
@@ -1058,12 +1114,12 @@ paths:
     post:
       tags: [Requests]
       operationId: adminCancelRequest
-      summary: Cancela administrativamente una solicitud APPROVED futura (ADMIN)
+      summary: Cancela administrativamente una solicitud APPROVED futura (ADMIN/AGENCIA)
       description: >
-        Un `ADMIN` cancela la solicitud `APPROVED` de fecha futura de cualquier empleado
-        con un motivo obligatorio; la solicitud pasa a `CANCELLED`, el recurso queda liberado
-        para esa fecha y la acción se registra en auditoría. Rechaza (409) si la solicitud no
-        está `APPROVED` o es de fecha pasada.
+        Un `ADMIN` o `AGENCIA` cancela la solicitud `APPROVED` de fecha futura de cualquier
+        empleado con un motivo obligatorio; la solicitud pasa a `CANCELLED`, el recurso queda
+        liberado para esa fecha y la acción se registra en auditoría. Rechaza (409) si la
+        solicitud no está `APPROVED` o es de fecha pasada; 403 si el rol no es ADMIN ni AGENCIA.
       requestBody:
         required: true
         content:
@@ -2057,6 +2113,52 @@ components:
             content:
               type: array
               items: { $ref: '#/components/schemas/Release' }
+
+    # ---- Selección de empleado y ocupación semanal para liberación ----
+    EmployeeOption:
+      type: object
+      description: Opción mínima de empleado (id + nombre) para un selector.
+      properties:
+        id: { type: integer, format: int64 }
+        fullName: { type: string }
+    OccupancyOrigin:
+      type: string
+      description: Origen por el que un recurso queda ocupado para una fecha.
+      enum: [FIXED_ASSIGNMENT, REQUEST_APPROVED]
+    OccupancyItem:
+      type: object
+      description: Recurso ocupado (plaza o puesto) con titular y origen.
+      properties:
+        resourceType: { $ref: '#/components/schemas/ResourceType' }
+        resourceId: { type: integer, format: int64 }
+        resourceNumber: { type: integer, nullable: true }
+        floor: { type: integer, nullable: true }
+        employeeId: { type: integer, format: int64, nullable: true }
+        employeeName: { type: string, nullable: true }
+        origin: { $ref: '#/components/schemas/OccupancyOrigin' }
+        requestId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Solicitud aprobada que ocupa el recurso; null si es asignación fija.
+    EmployeeWeekDay:
+      type: object
+      description: Reservas de un empleado para un día (plaza y/o puesto).
+      properties:
+        date: { type: string, format: date }
+        reservations:
+          type: array
+          items: { $ref: '#/components/schemas/OccupancyItem' }
+    EmployeeWeekOccupancy:
+      type: object
+      description: Ocupación semanal de un empleado (plaza y puesto) para liberación.
+      properties:
+        employeeId: { type: integer, format: int64 }
+        employeeName: { type: string }
+        weekStart: { type: string, format: date }
+        days:
+          type: array
+          items: { $ref: '#/components/schemas/EmployeeWeekDay' }
 
     # ---- Request ----
     Request:

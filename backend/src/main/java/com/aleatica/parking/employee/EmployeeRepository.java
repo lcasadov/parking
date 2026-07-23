@@ -73,6 +73,15 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     List<Employee> findByRoleAndActiveTrue(Role role);
 
     /**
+     * Empleados activos ordenados por nombre y apellidos, para poblar el selector del flujo de
+     * liberacion administrativa (ADMIN/AGENCIA). Es una proyeccion de solo lectura, independiente
+     * del CRUD de empleados (ADMIN-only): solo se usan {@code id} y nombre.
+     *
+     * @return empleados activos en orden alfabetico (posiblemente vacia)
+     */
+    List<Employee> findByActiveTrueOrderByFirstNameAscLastNameAsc();
+
+    /**
      * Busqueda paginada de empleados por texto libre y estado.
      *
      * <p>El texto {@code q} se compara (case-insensitive) contra nombre,
