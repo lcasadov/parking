@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactElement } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CancelRequestModal } from '../components/CancelRequestModal';
@@ -14,6 +15,8 @@ import { useEmployeeFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
 import { toEmployeeFixedResources, type FixedAssignmentGroup } from '../utils/fixedAssignments';
 import { myWeekLegend } from '../utils/calendarLegend';
 import { isPastDate } from '../utils/releases';
+import { todayIso } from '../utils/requests';
+import { DUR, EASE } from '../theme/motion';
 import type { MyWeekDay, MyWeekDayState } from '../types/calendar';
 import type { RequestStatus, ResourceType } from '../types/request';
 import { addDaysIso, dayMonth, mondayOfWeek, myWeekStateKey, weekdayIndex } from '../utils/calendar';
@@ -127,6 +130,7 @@ function resolveReleaseAction(
 export function MyWeekPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const reduceMotion = useReducedMotion();
   const [weekStart, setWeekStart] = useState<string>(mondayOfWeek());
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [releaseAction, setReleaseAction] = useState<ReleaseAction | null>(null);
@@ -214,7 +218,9 @@ export function MyWeekPage() {
         key={view.resourceType}
         className={`week-resource ${RESOURCE_STATE_VARIANT[view.state]}`}
       >
-        <i className={`ti ti-${RESOURCE_ICON[view.resourceType]}`} aria-hidden="true" />
+        <span className="week-resource-icon" aria-hidden="true">
+          <i className={`ti ti-${RESOURCE_ICON[view.resourceType]}`} />
+        </span>
         <span className="week-resource-info">
           <span className="week-resource-kind">
             {t(`calendar.myWeek.resourceKind.${view.resourceType}`)}
@@ -235,17 +241,31 @@ export function MyWeekPage() {
     );
   }
 
-  function renderDay(day: MyWeekDay): ReactElement {
+  // Entrada escalonada de las tarjetas de día (mockup 07): cada tarjeta aparece
+  // con un ligero desplazamiento vertical + fade, con un pequeño desfase por
+  // índice para dar sensación de "lista viva" sin ser ruidoso. Se anula bajo
+  // prefers-reduced-motion (solo cambia opacidad, nunca posición).
+  function renderDay(day: MyWeekDay, index: number): ReactElement {
+    const isToday = day.date === todayIso();
     return (
-      <li key={day.date} className="week-day-card">
+      <motion.li
+        key={day.date}
+        className={`week-day-card${isToday ? ' is-today' : ''}`}
+        initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: DUR.slow, ease: EASE.out, delay: reduceMotion ? 0 : index * 0.04 }}
+      >
         <div className="week-day-head">
           <span className="week-day-abbr">{dayAbbr(day.date)}</span>
           <span className="week-day-date">{dayMonth(day.date)}</span>
+          {isToday ? (
+            <span className="week-day-today-badge">{t('calendar.toolbar.today')}</span>
+          ) : null}
         </div>
         <ul className="week-day-resources">
           {resourceViews(day).map((view) => renderResource(view, day.date))}
         </ul>
-      </li>
+      </motion.li>
     );
   }
 
@@ -293,7 +313,7 @@ export function MyWeekPage() {
           {days.length === 0 ? (
             <li className="my-week-empty">{t('calendar.myWeek.empty')}</li>
           ) : (
-            days.map((day) => renderDay(day))
+            days.map((day, index) => renderDay(day, index))
           )}
         </ul>
       ) : null}

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { DeskPickerModal, type PickedDesk } from './DeskPickerModal';
 import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getApiError, getStatus } from '../api/apiError';
@@ -152,7 +152,17 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
 
   return (
     <>
-    <Modal title={t('requests.create.title')} onClose={onClose} footer={footer}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t('requests.create.title')}
+      icon="calendar-plus"
+      footer={footer}
+    >
       <form id="create-request-form" onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="create-request-date">
           {t('requests.create.date')}
@@ -169,24 +179,28 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
 
         <fieldset className="resource-fieldset">
           <legend className="field-label">{t('requests.create.resources')}</legend>
-          <label className="checkbox-field">
+          <label className={`checkbox-field resource-option${parkingSelected ? ' is-selected' : ''}`}>
             <input
               type="checkbox"
               checked={parkingSelected}
               onChange={(event) => setParkingSelected(event.target.checked)}
             />
-            <i className="ti ti-parking" aria-hidden="true" />
-            {t('requests.create.resourceParking')}
+            <span className="resource-option-icon" aria-hidden="true">
+              <i className="ti ti-parking" />
+            </span>
+            <span className="resource-option-label">{t('requests.create.resourceParking')}</span>
           </label>
           <ResourceAvailabilityBanner date={date} resourceType="PARKING" />
-          <label className="checkbox-field">
+          <label className={`checkbox-field resource-option${deskSelected ? ' is-selected' : ''}`}>
             <input
               type="checkbox"
               checked={deskSelected}
               onChange={(event) => handleDeskToggle(event.target.checked)}
             />
-            <i className="ti ti-armchair" aria-hidden="true" />
-            {t('requests.create.resourceDesk')}
+            <span className="resource-option-icon" aria-hidden="true">
+              <i className="ti ti-armchair" />
+            </span>
+            <span className="resource-option-label">{t('requests.create.resourceDesk')}</span>
           </label>
           <ResourceAvailabilityBanner date={date} resourceType="DESK" />
 
@@ -232,7 +246,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
           </p>
         ) : null}
       </form>
-    </Modal>
+    </Dialog>
     {pickerOpen ? (
       <DeskPickerModal
         date={date}

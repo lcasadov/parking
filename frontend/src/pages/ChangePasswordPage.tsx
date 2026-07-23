@@ -40,7 +40,7 @@ export function ChangePasswordPage() {
 
   return (
     <AuthShell title={t('auth.changePasswordTitle')}>
-      <form onSubmit={handleSubmit} noValidate>
+      <form className="change-password-page" onSubmit={handleSubmit} noValidate>
         <InfoBanner variant="amber" icon="key">
           {t('auth.changePasswordIntro')}
         </InfoBanner>

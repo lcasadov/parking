@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { FieldValue } from './FieldValue';
 import { InfoBanner } from './InfoBanner';
-import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRelease } from '../hooks/useReleases';
@@ -79,8 +79,34 @@ export function ReleaseResourceModal({
     );
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('releases.release.cancel')}
+      </Button>
+      <Button
+        variant="green"
+        submit
+        form="release-resource-form"
+        disabled={releaseMutation.isPending}
+      >
+        {t('releases.release.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t('releases.release.title')} onClose={onClose}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t('releases.release.title')}
+      icon="calendar-off"
+      footer={footer}
+    >
       <form id="release-resource-form" onSubmit={handleSubmit} noValidate>
         <InfoBanner variant="green" icon="parking">
           {t('releases.release.fixedResource', { label: spaceLabel })}
@@ -134,16 +160,7 @@ export function ReleaseResourceModal({
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('releases.release.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={releaseMutation.isPending}>
-            {t('releases.release.submit')}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

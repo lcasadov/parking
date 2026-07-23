@@ -1197,6 +1197,56 @@ body.theme-dark .segmented button.active {
   cursor: pointer;
 }
 
+/* ---- Selector de recursos de la solicitud unificada (OLA B1) ----
+   Fieldset sin chrome nativo; cada recurso (plaza/puesto) es una tarjeta
+   pulsable de ancho completo con icono en círculo, pensada para el pulgar. */
+.resource-fieldset {
+  border: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.checkbox-field.resource-option {
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: 0;
+  padding: var(--space-3);
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel-2);
+  transition: border-color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard);
+}
+.checkbox-field.resource-option.is-selected {
+  border-color: var(--brand-green);
+  background: var(--brand-green-soft);
+}
+.checkbox-field.resource-option input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand-green);
+  flex-shrink: 0;
+}
+.resource-option-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+.checkbox-field.resource-option.is-selected .resource-option-icon {
+  color: var(--brand-green-deep);
+}
+.resource-option-label {
+  font-weight: 500;
+}
+
 .reset-warning {
   color: var(--amber-text);
   background: var(--amber-soft);
@@ -1404,7 +1454,19 @@ body.theme-dark .segmented button.active {
   padding: 0;
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  /* Mobile-first: una columna a ancho de pulgar; se abre en pantallas más
+     anchas donde sobra espacio horizontal (§7 breakpoints). */
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .my-week-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) {
+  .my-week-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .my-week-day {
@@ -2309,30 +2371,55 @@ button.week-card-body {
 /* ---- Mi Semana multi-recurso (plaza + puesto por día) ----
    Cada día es una tarjeta con una cabecera (día/fecha) y dos filas de recurso
    (plaza y puesto), cada una con su estado y su acción de liberar/cancelar. */
+/* ---- Mi Semana: tarjetas de día (OLA B1 · rediseño empleado) ----
+   Editorial ALEATICA mobile-first: panel elevado, cabecera con la fecha en
+   serif, accento hoy, y filas de recurso con icono en círculo + estado por
+   color usando el mapa único --state-* del contrato §4. */
 .week-day-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--space-2);
-  padding: 8px 10px;
+  position: relative;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-4);
+  transition: box-shadow var(--dur-fast) var(--ease-standard);
+}
+.week-day-card.is-today {
+  border-color: var(--brand-green);
+  box-shadow: var(--shadow-2), 0 0 0 1px var(--brand-green-soft);
 }
 .week-day-head {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-3);
 }
 .week-day-head .week-day-abbr {
+  font-family: var(--font-serif);
   font-weight: 600;
-  font-size: var(--text-sm);
+  font-size: var(--text-xl);
+  color: var(--ink);
+  text-transform: capitalize;
 }
 .week-day-head .week-day-date {
-  font-size: 11px;
-  color: var(--text-soft);
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+.week-day-today-badge {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-green);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
 }
 .week-day-resources {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-2);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -2340,47 +2427,68 @@ button.week-card-body {
 .week-resource {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  border-left: 3px solid;
-  font-size: 12px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--text-sm);
 }
 .week-resource.assigned {
-  background: var(--green-soft);
-  border-color: var(--green);
-  color: var(--green-darker);
+  background: var(--state-occupied-bg);
+  border-color: var(--state-occupied-border);
+  color: var(--state-occupied-ink);
 }
 .week-resource.released {
   background: var(--pink-soft);
-  border-color: var(--pink-strong);
+  border-color: var(--pink-border);
   color: var(--pink-text);
 }
 .week-resource.request {
-  background: var(--blue-soft);
-  border-color: var(--blue);
-  color: var(--blue-darker);
+  background: var(--state-request-bg);
+  border-color: var(--state-request-border);
+  color: var(--state-request-ink);
 }
 .week-resource.free {
-  background: var(--neutral-soft);
-  border-color: var(--neutral-strong);
-  color: var(--text-soft);
+  background: var(--state-free-bg);
+  border-color: var(--state-free-border);
+  color: var(--state-free-ink);
+}
+/* Círculo del icono de recurso: hereda el tono de la fila (currentColor) para
+   que plaza/puesto se distingan por icono sin depender solo del color. */
+.week-resource-icon {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: inherit;
+  font-size: 15px;
+  box-shadow: 0 0 0 1px currentColor inset;
+  opacity: 0.92;
 }
 .week-resource-info {
   display: flex;
   flex-direction: column;
   gap: 1px;
   flex: 1;
+  min-width: 0;
 }
 .week-resource-kind {
   font-weight: 600;
 }
 .week-resource-state {
-  font-size: 11px;
+  font-size: var(--text-xs);
   opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .week-resource-action {
   flex-shrink: 0;
+  height: 44px;
+  padding: 0 var(--space-3);
 }
 
 /* Acciones a ancho completo bajo la lista de la semana (mockup 07). */
@@ -2388,11 +2496,15 @@ button.week-card-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
 }
 .week-actions .week-action-btn {
   width: 100%;
+  height: 48px;
   justify-content: center;
+  font-size: var(--text-base);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-2);
 }
 
 /* ---- Leyenda de colores (mockup 148-150) ---- */
@@ -3623,5 +3735,147 @@ button.pop-row.pop-danger:disabled {
   .rx-tooltip,
   .rx-select-content {
     animation: none !important;
+  }
+}
+
+/* ============================================================
+   OLA B1 — Rediseño móvil de las pantallas del EMPLEADO
+   (MyWeek, FloorPlan, MyRequests, MyResources, ChangePassword +
+   modales CreateRequestModal/RequestDeskConfirmModal/ReleaseResourceModal).
+   ============================================================ */
+
+/* ---- Diálogos (Dialog/Modal): en móvil ceden ancho y apilan los botones del
+   pie con la acción principal arriba, más cómodo para el pulgar. ---- */
+@media (max-width: 480px) {
+  .rx-dialog {
+    width: calc(100vw - var(--space-4) * 2);
+  }
+  .rx-dialog-body {
+    padding: var(--space-4);
+  }
+  .rx-dialog-footer,
+  .modal-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding: var(--space-3) var(--space-4);
+  }
+  .rx-dialog-footer .btn,
+  .modal-footer .btn {
+    width: 100%;
+    height: 44px;
+    justify-content: center;
+  }
+}
+
+/* ---- Mi Semana: touch target de las acciones de la barra de navegación. ---- */
+@media (max-width: 640px) {
+  .my-week-page .calendar-toolbar .btn {
+    height: 40px;
+  }
+}
+
+/* ---- Mis solicitudes: la MISMA tabla semántica se re-pinta como lista de
+   tarjetas en móvil (sin duplicar el DOM/los datos): se ocultan `<thead>` y
+   bordes de celda, y cada `<td>` antepone su etiqueta de columna vía
+   `content: attr(data-label)` (contenido generado, no forma parte del texto
+   accesible ni de las consultas de testing-library). ---- */
+@media (max-width: 640px) {
+  .my-requests-table {
+    overflow-x: visible;
+  }
+  .my-requests-table .table {
+    display: block;
+    width: 100%;
+  }
+  .my-requests-table .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .my-requests-table .table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .my-requests-table .table-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-panel);
+    background: var(--panel);
+    box-shadow: var(--shadow-1);
+    padding: var(--space-3) var(--space-4);
+  }
+  .my-requests-table .table-row:hover {
+    background: var(--panel);
+  }
+  .my-requests-table .table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 4px 0;
+    border: none;
+  }
+  .my-requests-table .table td::before {
+    content: attr(data-label);
+    font-size: var(--fs-label);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    color: var(--ink-faint);
+  }
+  .my-requests-table .table td.table-actions {
+    padding-top: var(--space-2);
+    margin-top: 4px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .my-requests-table .table td.table-actions::before {
+    content: '';
+  }
+  .my-requests-table .table td.table-actions .btn {
+    width: 100%;
+    height: 44px;
+    justify-content: center;
+  }
+}
+
+/* ---- Mis plazas (Tabs Asignaciones fijas | Liberaciones): fundido suave
+   entre pestañas (mismo contenido, solo cross-fade de altura variable). ---- */
+.my-resources-page {
+  display: flex;
+  flex-direction: column;
+}
+.my-resources-tabpanel {
+  min-width: 0;
+}
+
+/* ---- Cambiar contraseña: checklist de política como filas con target táctil,
+   y CTA a ancho completo en móvil. ---- */
+.change-password-page .policy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  background: var(--panel-2);
+}
+.change-password-page .policy li {
+  padding: 4px 0;
+  font-size: var(--text-sm);
+}
+.change-password-page .policy li i {
+  font-size: 16px;
+}
+@media (max-width: 480px) {
+  .change-password-page button[type='submit'] {
+    width: 100%;
+    height: 44px;
+    justify-content: center;
   }
 }

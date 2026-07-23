@@ -1,6 +1,8 @@
+import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, type TabItem } from '../components/Tabs';
+import { DUR, EASE } from '../theme/motion';
 import { MyFixedAssignmentsPage } from './MyFixedAssignmentsPage';
 import { MyReleasesPage } from './MyReleasesPage';
 
@@ -19,6 +21,7 @@ function isMyResourcesTab(value: string | null): value is MyResourcesTab {
 // preseleccionada.
 export function MyResourcesPage() {
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get('tab');
   const tab: MyResourcesTab = isMyResourcesTab(requested) ? requested : DEFAULT_TAB;
@@ -37,7 +40,18 @@ export function MyResourcesPage() {
   return (
     <section className="my-resources-page" aria-label={t('myResources.title')}>
       <Tabs tabs={tabs} active={tab} onChange={handleChange} ariaLabel={t('myResources.title')} />
-      {tab === 'releases' ? <MyReleasesPage /> : <MyFixedAssignmentsPage />}
+      {/* Fundido de entrada al cambiar de pestaña (sin desplazamiento): el
+          contenido de cada pestaña ya se pinta completo tal cual, solo se
+          envuelve en un fade corto para suavizar el cambio. */}
+      <motion.div
+        key={tab}
+        className="my-resources-tabpanel"
+        initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: DUR.fast, ease: EASE.standard }}
+      >
+        {tab === 'releases' ? <MyReleasesPage /> : <MyFixedAssignmentsPage />}
+      </motion.div>
     </section>
   );
 }

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { InfoBanner } from '../components/InfoBanner';
+import { PageHeader } from '../components/PageHeader';
 import { FloorPlanSurface } from '../components/FloorPlanSurface';
 import { FloorPlanFeedback, type FloorPlanFeedbackKind } from '../components/FloorPlanFeedback';
 import { FloorPlanStatus } from '../components/FloorPlanStatus';
@@ -97,13 +98,13 @@ export function FloorPlanPage() {
   const showPlan = isDateValid && !query.isLoading && !query.isError;
 
   return (
-    <section className="floor-plan-page" aria-labelledby="floor-plan-title">
-      <header className="page-header">
-        <h1 id="floor-plan-title" className="section-title">
-          {t('floorPlan.title')}
-        </h1>
-        {canEdit ? (
-          <div className="page-actions">
+    <section className="floor-plan-page" aria-label={t('floorPlan.title')}>
+      <PageHeader
+        eyebrow={t('floorPlan.eyebrow')}
+        title={t('floorPlan.title')}
+        description={t('floorPlan.description')}
+        actions={
+          canEdit ? (
             <Button
               variant={editMode ? 'blue' : 'white'}
               icon="drag-drop"
@@ -112,9 +113,9 @@ export function FloorPlanPage() {
             >
               {t('floorPlan.editPositions')}
             </Button>
-          </div>
-        ) : null}
-      </header>
+          ) : undefined
+        }
+      />
 
       <div className="floor-plan-controls">
         <FloorPlanDatebar date={date} onChange={handleDateChange} />

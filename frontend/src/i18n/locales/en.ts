@@ -985,6 +985,8 @@ export const en = {
   floorPlan: {
     navLabel: 'Floor plan',
     title: 'Desk floor plan',
+    eyebrow: 'My space',
+    description: 'Check free desks and request yours directly on the floor plan.',
     dateLabel: 'Date',
     invalidDate: 'Enter a valid date.',
     loadError: 'The floor plan could not be loaded.',

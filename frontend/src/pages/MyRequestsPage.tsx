@@ -97,7 +97,7 @@ export function MyRequestsPage() {
             }
           />
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll my-requests-table">
             <table className="table">
               <thead>
                 <tr className="table-header">
@@ -111,17 +111,17 @@ export function MyRequestsPage() {
               <tbody>
                 {requests.map((request) => (
                   <tr key={request.id} className="table-row">
-                    <td>{request.requestedDate}</td>
-                    <td>
+                    <td data-label={t('requests.mine.columns.date')}>{request.requestedDate}</td>
+                    <td data-label={t('requests.mine.columns.status')}>
                       <span className={`status-badge status-${request.status.toLowerCase()}`}>
                         {t(`requests.status.${request.status}`)}
                       </span>
                     </td>
-                    <td>
+                    <td data-label={t('requests.mine.columns.resource')}>
                       <ResourceTypePill resourceType={request.resourceType} />
                     </td>
-                    <td>{spaceLabel(request)}</td>
-                    <td className="table-actions">
+                    <td data-label={t('requests.mine.columns.space')}>{spaceLabel(request)}</td>
+                    <td className="table-actions" data-label={t('requests.mine.columns.actions')}>
                       {canCancelRequest(request) ? (
                         <Button
                           variant="red"

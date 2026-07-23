@@ -986,6 +986,8 @@ export const es = {
   floorPlan: {
     navLabel: 'Plano',
     title: 'Plano de puestos',
+    eyebrow: 'Mi espacio',
+    description: 'Consulta los puestos libres y solicita el tuyo directamente sobre el plano.',
     dateLabel: 'Fecha',
     invalidDate: 'Introduce una fecha válida.',
     loadError: 'No se pudo cargar el plano.',

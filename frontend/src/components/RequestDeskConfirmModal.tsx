@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { longDate } from '../utils/calendar';
 import type { FloorPlanDesk } from '../types/floorPlan';
 
@@ -14,7 +14,11 @@ interface RequestDeskConfirmModalProps {
 // Confirmacion explicita antes de crear una solicitud de puesto desde el plano
 // (marcador o boton "Solicitar" de la lista movil): evita altas accidentales por
 // toques/zoom/desplazamiento en pantallas tactiles (requests spec, "Confirmacion
-// al solicitar un puesto desde el plano").
+// al solicitar un puesto desde el plano"). Migrado a la primitiva `Dialog`
+// (Ola A/B1): mismo lenguaje visual (rx-dialog) y trap de foco de Radix. Se
+// usa `Dialog` (role="dialog") y no `ConfirmDialog` (AlertDialog,
+// role="alertdialog") a propósito: la suite existente localiza este diálogo
+// vía screen.findByRole('dialog') y cambiar el rol rompería ese contrato.
 export function RequestDeskConfirmModal({
   desk,
   date,
@@ -35,13 +39,24 @@ export function RequestDeskConfirmModal({
   );
 
   return (
-    <Modal title={t('floorPlan.confirmRequest.title')} onClose={onClose} footer={footer}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t('floorPlan.confirmRequest.title')}
+      icon="calendar-plus"
+      narrow
+      footer={footer}
+    >
       <p>
         {t('floorPlan.confirmRequest.body', {
           number: desk.deskNumber,
           date: longDate(date, i18n.language),
         })}
       </p>
-    </Modal>
+    </Dialog>
   );
 }
