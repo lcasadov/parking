@@ -67,7 +67,7 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
 
   return (
     <>
-      <div className="table-scroll">
+      <div className="table-scroll table-cards-mobile">
         <table className="table">
           <thead>
             <tr className="table-header">
@@ -81,13 +81,17 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
           <tbody>
             {entries.map((entry) => (
               <tr key={entry.id} className="table-row">
-                <td>{formatDateTime(entry.occurredAt)}</td>
-                <td>{entry.actorEmployeeId ?? t('audit.systemActor')}</td>
-                <td>
+                <td data-label={t('audit.columns.occurredAt')}>
+                  {formatDateTime(entry.occurredAt)}
+                </td>
+                <td data-label={t('audit.columns.actor')}>
+                  {entry.actorEmployeeId ?? t('audit.systemActor')}
+                </td>
+                <td data-label={t('audit.columns.action')}>
                   <span className={`pill ${auditPillClass(entry.action)}`}>{entry.action}</span>
                 </td>
-                <td>{entityLabel(entry)}</td>
-                <td>{entry.details ?? DASH}</td>
+                <td data-label={t('audit.columns.entity')}>{entityLabel(entry)}</td>
+                <td data-label={t('audit.columns.details')}>{entry.details ?? DASH}</td>
               </tr>
             ))}
           </tbody>

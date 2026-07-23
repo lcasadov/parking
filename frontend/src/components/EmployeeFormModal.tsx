@@ -1,15 +1,15 @@
-import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { DayCards } from './DayCards';
+import { Dialog } from './Dialog';
 import { FieldRow } from './FieldRow';
 import { FieldValue } from './FieldValue';
 import { InfoBanner } from './InfoBanner';
 import { Input } from './Input';
-import { Modal, type ModalTab } from './Modal';
 import { ResetPasswordModal } from './ResetPasswordModal';
 import { Toggle } from './Toggle';
-import { getFieldErrors } from '../api/apiError';
+import { getFieldErrors, getStatus } from '../api/apiError';
 import { useDesksQuery } from '../hooks/useDesks';
 import { useCreateEmployee, useUpdateEmployee } from '../hooks/useEmployees';
 import {
@@ -20,9 +20,14 @@ import {
 import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
 import { deskLabel } from '../utils/desks';
 import {
+  daysForResource,
+  groupDaysByResource,
+  isDayResourceSuperset,
   joinWithAnd,
-  toEmployeeFixedResources,
-  type FixedAssignmentGroup,
+  sameDayList,
+  setResourceDays,
+  toEmployeeDayResourceMaps,
+  type DayResourceMap,
 } from '../utils/fixedAssignments';
 import {
   EMPLOYEE_CATEGORIES,
@@ -32,6 +37,7 @@ import {
   type EmployeeUpdate,
   type Role,
 } from '../types/employee';
+import type { FixedAssignment } from '../types/fixedAssignment';
 import type { ResourceType } from '../types/request';
 
 interface EmployeeFormModalProps {
@@ -53,22 +59,18 @@ interface FormState {
   isCorporate: boolean;
 }
 
-// Estado de una pestaña de recurso (plaza o puesto): recurso elegido + dias.
-interface ResourceState {
-  resourceId: number | '';
-  days: number[];
-}
-
 interface ResourceOption {
   id: number;
   label: string;
 }
 
-type TabId = 'details' | 'parking' | 'desk';
+type TabId = 'details' | 'parking' | 'desk' | 'history';
+type ResourcePrefix = 'parking' | 'desk';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOOKUP_SIZE = 100;
-const EMPTY_RESOURCE: ResourceState = { resourceId: '', days: [] };
+const WEEKDAYS: readonly number[] = [1, 2, 3, 4, 5];
+const HTTP_CONFLICT = 409;
 
 function initialState(employee?: Employee | null): FormState {
   return {
@@ -85,24 +87,20 @@ function initialState(employee?: Employee | null): FormState {
   };
 }
 
-function resourceStateFrom(group: FixedAssignmentGroup | null): ResourceState {
-  if (!group) {
-    return EMPTY_RESOURCE;
+// Recurso activo por defecto al precargar: el que cubre más días (para que el caso
+// común —un mismo recurso toda la semana— muestre todos sus días encendidos en las
+// day-cards). Empate → id más bajo. '' si el mapa está vacío.
+function dominantResource(map: DayResourceMap): number | '' {
+  const groups = groupDaysByResource(map);
+  let best: number | '' = '';
+  let bestDays = 0;
+  for (const [resourceId, days] of groups) {
+    if (days.length > bestDays || (days.length === bestDays && best !== '' && resourceId < best)) {
+      best = resourceId;
+      bestDays = days.length;
+    }
   }
-  return { resourceId: group.parkingSpaceId, days: [...group.days] };
-}
-
-// Intencion de una pestaña de recurso: sin datos, completa o incompleta.
-function resourceIntent(state: ResourceState): 'none' | 'set' | 'invalid' {
-  const hasResource = state.resourceId !== '';
-  const hasDays = state.days.length > 0;
-  if (hasResource && hasDays) {
-    return 'set';
-  }
-  if (!hasResource && !hasDays) {
-    return 'none';
-  }
-  return 'invalid';
+  return best;
 }
 
 // Mapea ApiError.fields (409/400) a errores inline por campo (login/email).
@@ -121,6 +119,33 @@ function mapServerErrors(
     }
   });
   return mapped;
+}
+
+// ---- Tablist interno del diálogo (mantiene role="tab" que localizan los tests) ----
+interface TabBarProps {
+  tabs: { id: TabId; label: string }[];
+  active: TabId;
+  onChange: (id: TabId) => void;
+  ariaLabel: string;
+}
+
+function TabBar({ tabs, active, onChange, ariaLabel }: TabBarProps) {
+  return (
+    <div className="modal-tabs" role="tablist" aria-label={ariaLabel}>
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={active === tab.id}
+          className={`modal-tab${active === tab.id ? ' active' : ''}`}
+          onClick={() => onChange(tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 // ---- Panel DETALLES ----
@@ -259,21 +284,83 @@ function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanel
   );
 }
 
-// ---- Panel de recurso fijo (plaza o puesto), reutilizable ----
-interface ResourcePanelProps {
-  prefix: 'parking' | 'desk';
-  fullName: string;
+// ---- Detalle día→recurso: qué recurso queda asignado cada día de la semana ----
+interface DayResourceListProps {
+  prefix: ResourcePrefix;
+  map: DayResourceMap;
   options: ResourceOption[];
-  state: ResourceState;
-  error?: string;
-  onChange: (next: ResourceState) => void;
+  onClearDay: (day: number) => void;
 }
 
-function ResourcePanel({ prefix, fullName, options, state, error, onChange }: ResourcePanelProps) {
+function DayResourceList({ prefix, map, options, onClearDay }: DayResourceListProps) {
+  const { t } = useTranslation();
+  const labelFor = (id: number): string =>
+    options.find((option) => option.id === id)?.label ?? `#${id}`;
+
+  return (
+    <ul className="day-resource-list" aria-label={t(`employees.form.${prefix}.perDayTitle`)}>
+      {WEEKDAYS.map((day) => {
+        const resourceId = map[day];
+        const assigned = resourceId !== undefined;
+        return (
+          <li key={day} className={`day-resource-row${assigned ? ' assigned' : ''}`}>
+            <span className="day-resource-day">{t(`common.weekdayName.${day}`)}</span>
+            {assigned ? (
+              <>
+                <span className="day-resource-value">{labelFor(resourceId)}</span>
+                <button
+                  type="button"
+                  className="day-resource-clear"
+                  aria-label={t('employees.form.clearDay', {
+                    day: t(`common.weekdayName.${day}`),
+                  })}
+                  onClick={() => onClearDay(day)}
+                >
+                  <i className="ti ti-x" aria-hidden="true" />
+                </button>
+              </>
+            ) : (
+              <span className="day-resource-value muted">{t('employees.form.dayUnassigned')}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ---- Panel de recurso fijo (plaza o puesto): mapa día→recurso ----
+interface ResourcePanelProps {
+  prefix: ResourcePrefix;
+  fullName: string;
+  options: ResourceOption[];
+  map: DayResourceMap;
+  active: number | '';
+  error?: string;
+  onActiveChange: (value: number | '') => void;
+  onDaysChange: (days: number[]) => void;
+  onApplyAll: () => void;
+  onClearDay: (day: number) => void;
+}
+
+function ResourcePanel({
+  prefix,
+  fullName,
+  options,
+  map,
+  active,
+  error,
+  onActiveChange,
+  onDaysChange,
+  onApplyAll,
+  onClearDay,
+}: ResourcePanelProps) {
   const { t } = useTranslation();
   const selectId = useId();
   const base = `employees.form.${prefix}`;
-  const resourceName = options.find((option) => option.id === state.resourceId)?.label ?? '';
+  const activeDays = active === '' ? [] : daysForResource(map, active);
+  const groups = groupDaysByResource(map);
+  const hasAssignments = groups.size > 0;
 
   return (
     <div role="tabpanel" aria-label={t(`${base}.title`)}>
@@ -287,12 +374,9 @@ function ResourcePanel({ prefix, fullName, options, state, error, onChange }: Re
           <select
             id={selectId}
             className="field-input"
-            value={state.resourceId}
+            value={active}
             onChange={(event) =>
-              onChange({
-                ...state,
-                resourceId: event.target.value === '' ? '' : Number(event.target.value),
-              })
+              onActiveChange(event.target.value === '' ? '' : Number(event.target.value))
             }
           >
             <option value="">{t(`${base}.select`)}</option>
@@ -313,26 +397,120 @@ function ResourcePanel({ prefix, fullName, options, state, error, onChange }: Re
           </FieldValue>
         </div>
       </FieldRow>
-      <span className="field-label">{t(`${base}.days`)}</span>
-      <DayCards value={state.days} onChange={(next) => onChange({ ...state, days: next })} />
+
+      <div className="day-assign-head">
+        <span className="field-label">{t(`${base}.days`)}</span>
+        <button
+          type="button"
+          className="link-btn"
+          disabled={active === ''}
+          onClick={onApplyAll}
+        >
+          <i className="ti ti-calendar-check" aria-hidden="true" /> {t('employees.form.applyAll')}
+        </button>
+      </div>
+      <DayCards value={activeDays} onChange={onDaysChange} />
+      <p className="hint">{t('employees.form.dayResourceHint')}</p>
+
+      <p className="section-title-sm">{t(`${base}.perDayTitle`)}</p>
+      <DayResourceList prefix={prefix} map={map} options={options} onClearDay={onClearDay} />
+
       {error ? (
         <p className="form-error" role="alert">
           {error}
         </p>
       ) : null}
-      {resourceIntent(state) === 'set' ? (
+      {hasAssignments ? (
         <InfoBanner variant="green" icon="info-circle">
-          {t(`${base}.summary`, {
-            name: fullName,
-            space: resourceName,
-            desk: resourceName,
-            days: joinWithAnd(
-              state.days.map((day) => t(`common.weekdayName.${day}`)),
-              t('common.listAnd'),
-            ),
-          })}
+          {groups.size > 1
+            ? t('employees.form.multiResourceSummary', { name: fullName, count: groups.size })
+            : t(`${base}.summary`, {
+                name: fullName,
+                space: options.find((o) => o.id === [...groups.keys()][0])?.label ?? '',
+                desk: options.find((o) => o.id === [...groups.keys()][0])?.label ?? '',
+                days: joinWithAnd(
+                  [...groups.values()][0].map((day) => t(`common.weekdayName.${day}`)),
+                  t('common.listAnd'),
+                ),
+              })}
         </InfoBanner>
       ) : null}
+    </div>
+  );
+}
+
+// ---- Panel HISTÓRICO: resumen de solo lectura de las asignaciones vigentes ----
+interface HistoryPanelProps {
+  employee: Employee;
+  rows: FixedAssignment[];
+  spaceOptions: ResourceOption[];
+  deskOptions: ResourceOption[];
+}
+
+function HistoryResourceBlock({
+  prefix,
+  map,
+  options,
+}: {
+  prefix: ResourcePrefix;
+  map: DayResourceMap;
+  options: ResourceOption[];
+}) {
+  const { t } = useTranslation();
+  const groups = groupDaysByResource(map);
+  const base = `employees.form.${prefix}`;
+  return (
+    <div className="history-block">
+      <span className="field-label">{t(`${base}.title`)}</span>
+      {groups.size === 0 ? (
+        <p className="muted">{t('employees.form.history.none')}</p>
+      ) : (
+        <ul className="history-list">
+          {[...groups.entries()].map(([resourceId, days]) => (
+            <li key={resourceId} className="history-item">
+              <span className="fixed-cell-label">
+                {options.find((o) => o.id === resourceId)?.label ?? `#${resourceId}`}
+              </span>
+              <span className="muted">
+                {joinWithAnd(
+                  days.map((day) => t(`common.weekdayName.${day}`)),
+                  t('common.listAnd'),
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function HistoryPanel({ employee, rows, spaceOptions, deskOptions }: HistoryPanelProps) {
+  const { t, i18n } = useTranslation();
+  const maps = toEmployeeDayResourceMaps(rows);
+  const formatDate = (iso?: string | null): string =>
+    iso ? new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }).format(new Date(iso)) : '—';
+
+  return (
+    <div role="tabpanel" aria-label={t('employees.form.tabs.history')}>
+      <p className="section-title-sm">{t('employees.form.history.title')}</p>
+      <p className="section-hint">{t('employees.form.history.hint')}</p>
+      <HistoryResourceBlock prefix="parking" map={maps.parking} options={spaceOptions} />
+      <HistoryResourceBlock prefix="desk" map={maps.desk} options={deskOptions} />
+      <dl className="release-prefill" aria-label={t('employees.form.history.account')}>
+        <div className="release-prefill-row">
+          <dt>{t('employees.form.history.authOrigin')}</dt>
+          <dd>{employee.authOrigin}</dd>
+        </div>
+        <div className="release-prefill-row">
+          <dt>{t('employees.form.history.createdAt')}</dt>
+          <dd>{formatDate(employee.createdAt)}</dd>
+        </div>
+        <div className="release-prefill-row">
+          <dt>{t('employees.form.history.updatedAt')}</dt>
+          <dd>{formatDate(employee.updatedAt)}</dd>
+        </div>
+      </dl>
     </div>
   );
 }
@@ -342,12 +520,18 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
   const isEdit = Boolean(employee);
   const [activeTab, setActiveTab] = useState<TabId>('details');
   const [values, setValues] = useState<FormState>(() => initialState(employee));
-  const [parking, setParking] = useState<ResourceState>(EMPTY_RESOURCE);
-  const [desk, setDesk] = useState<ResourceState>(EMPTY_RESOURCE);
-  const [hadParking, setHadParking] = useState(false);
-  const [hadDesk, setHadDesk] = useState(false);
+  const [parkingMap, setParkingMap] = useState<DayResourceMap>({});
+  const [deskMap, setDeskMap] = useState<DayResourceMap>({});
+  const [activeParking, setActiveParking] = useState<number | ''>('');
+  const [activeDesk, setActiveDesk] = useState<number | ''>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isResetOpen, setIsResetOpen] = useState(false);
+  // Instantánea del prefill (estado previo por tipo) para reconciliar el guardado.
+  // Se fija una sola vez y no vuelve a cambiar, así que el guardado lee el estado
+  // del servidor al abrir aunque el usuario edite los mapas de trabajo.
+  const [prevParkingMap, setPrevParkingMap] = useState<DayResourceMap>({});
+  const [prevDeskMap, setPrevDeskMap] = useState<DayResourceMap>({});
+  const prefilledRef = useRef(false);
 
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
@@ -357,29 +541,41 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
   const desksQuery = useDesksQuery({ page: 0, size: LOOKUP_SIZE, active: true });
   const assignmentsQuery = useEmployeeFixedAssignmentsQuery(employee?.id ?? null);
 
-  const spaceOptions = useMemo<ResourceOption[]>(
-    () => (spacesQuery.data?.content ?? []).map((space) => ({ id: space.id, label: space.label })),
-    [spacesQuery.data],
-  );
-  const deskOptions = useMemo<ResourceOption[]>(
-    () =>
-      (desksQuery.data?.content ?? []).map((item) => ({ id: item.id, label: deskLabel(item.number) })),
-    [desksQuery.data],
-  );
+  // Incluye los recursos ya precargados aunque estén inactivos (no vendrían en el
+  // lookup de activos), para no perder su etiqueta en el selector.
+  const spaceOptions = useMemo<ResourceOption[]>(() => {
+    const base = (spacesQuery.data?.content ?? []).map((space) => ({
+      id: space.id,
+      label: space.label,
+    }));
+    return withPrefilledIds(base, prevParkingMap);
+  }, [spacesQuery.data, prevParkingMap]);
+  const deskOptions = useMemo<ResourceOption[]>(() => {
+    const base = (desksQuery.data?.content ?? []).map((item) => ({
+      id: item.id,
+      label: deskLabel(item.number),
+    }));
+    return withPrefilledIds(base, prevDeskMap);
+  }, [desksQuery.data, prevDeskMap]);
+
   const mutations = [createMutation, updateMutation, setAssignments, revokeAssignment];
   const isSaving = mutations.some((mutation) => mutation.isPending);
 
-  // Prefill de plaza/puesto cuando llegan las asignaciones del empleado (edicion).
+  // Prefill de plaza/puesto: una sola vez por empleado, para no pisar las ediciones
+  // en curso si la query se invalida (p. ej. tras un guardado parcial).
   const assignmentsData = assignmentsQuery.data;
   useEffect(() => {
-    if (!assignmentsData) {
+    if (!assignmentsData || prefilledRef.current) {
       return;
     }
-    const resources = toEmployeeFixedResources(assignmentsData);
-    setParking(resourceStateFrom(resources.parking));
-    setDesk(resourceStateFrom(resources.desk));
-    setHadParking(resources.parking !== null);
-    setHadDesk(resources.desk !== null);
+    prefilledRef.current = true;
+    const maps = toEmployeeDayResourceMaps(assignmentsData);
+    setPrevParkingMap(maps.parking);
+    setPrevDeskMap(maps.desk);
+    setParkingMap(maps.parking);
+    setDeskMap(maps.desk);
+    setActiveParking(dominantResource(maps.parking));
+    setActiveDesk(dominantResource(maps.desk));
   }, [assignmentsData]);
 
   const fullName = `${values.firstName} ${values.lastName}`.trim();
@@ -412,12 +608,6 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       next.email = required;
     } else if (!EMAIL_RE.test(values.email)) {
       next.email = t('employees.form.invalidEmail');
-    }
-    if (resourceIntent(parking) === 'invalid') {
-      next.parking = t('employees.form.resourceIncomplete');
-    }
-    if (resourceIntent(desk) === 'invalid') {
-      next.desk = t('employees.form.resourceIncomplete');
     }
     return next;
   }
@@ -460,24 +650,63 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
     return created.id;
   }
 
-  // Guarda (PUT) o revoca (DELETE) un recurso segun su intencion y si existia.
-  async function syncResource(
+  // Reconcilia un tipo de recurso (PARKING o DESK) día→recurso:
+  //  - target vacío + había algo previo → DELETE por tipo (revoca todo el tipo).
+  //  - si hubo reasignaciones/retiradas (target no es superset del previo) → limpia
+  //    el tipo (DELETE) antes de recrear, para no chocar con el índice único al mover
+  //    un día de un recurso a otro (evita 409 espurio).
+  //  - un PUT por recurso con sus días; se omiten los recursos cuyos días no cambian.
+  async function syncType(
     employeeId: number,
     resourceType: ResourceType,
-    state: ResourceState,
-    had: boolean,
+    prev: DayResourceMap,
+    target: DayResourceMap,
   ): Promise<void> {
-    if (resourceIntent(state) === 'set') {
+    const prevEmpty = Object.keys(prev).length === 0;
+    const targetGroups = groupDaysByResource(target);
+    if (targetGroups.size === 0) {
+      if (!prevEmpty) {
+        await revokeAssignment.mutateAsync({ employeeId, resourceType });
+      }
+      return;
+    }
+    const cleanSlate = !prevEmpty && !isDayResourceSuperset(target, prev);
+    if (cleanSlate) {
+      await revokeAssignment.mutateAsync({ employeeId, resourceType });
+    }
+    const prevGroups = groupDaysByResource(prev);
+    for (const [resourceId, days] of targetGroups) {
+      if (!cleanSlate && sameDayList(prevGroups.get(resourceId), days)) {
+        continue;
+      }
       await setAssignments.mutateAsync({
         employeeId,
-        body: {
-          parkingSpaceId: Number(state.resourceId),
-          daysOfWeek: state.days,
-          resourceType,
-        },
+        body: { parkingSpaceId: resourceId, daysOfWeek: days, resourceType },
       });
-    } else if (had) {
-      await revokeAssignment.mutateAsync({ employeeId, resourceType });
+    }
+  }
+
+  function resourceErrorMessage(error: unknown): string {
+    return getStatus(error) === HTTP_CONFLICT
+      ? t('employees.form.resourceConflict')
+      : t('employees.form.resourceSaveError');
+  }
+
+  // Guardado de un tipo con captura de error por recurso (409 traducido). Devuelve
+  // false si falló, para no cerrar el modal y señalar la pestaña afectada.
+  async function syncTypeSafe(
+    employeeId: number,
+    resourceType: ResourceType,
+    prev: DayResourceMap,
+    target: DayResourceMap,
+    field: 'parking' | 'desk',
+  ): Promise<boolean> {
+    try {
+      await syncType(employeeId, resourceType, prev, target);
+      return true;
+    } catch (error) {
+      setErrors((previous) => ({ ...previous, [field]: resourceErrorMessage(error) }));
+      return false;
     }
   }
 
@@ -488,13 +717,27 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
   }
 
   async function persist(): Promise<void> {
+    let employeeId: number;
     try {
-      const employeeId = await saveEmployee();
-      await syncResource(employeeId, 'PARKING', parking, hadParking);
-      await syncResource(employeeId, 'DESK', desk, hadDesk);
-      onSaved();
+      employeeId = await saveEmployee();
     } catch (error) {
       handleServerError(error);
+      return;
+    }
+    const parkingOk = await syncTypeSafe(
+      employeeId,
+      'PARKING',
+      prevParkingMap,
+      parkingMap,
+      'parking',
+    );
+    const deskOk = await syncTypeSafe(employeeId, 'DESK', prevDeskMap, deskMap, 'desk');
+    if (!parkingOk) {
+      setActiveTab('parking');
+    } else if (!deskOk) {
+      setActiveTab('desk');
+    } else {
+      onSaved();
     }
   }
 
@@ -508,17 +751,46 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
     void persist();
   }
 
-  const tabs: ModalTab[] = [
+  // Fija los días del recurso activo dentro del mapa del tipo (preserva otros recursos).
+  function changeDays(prefix: ResourcePrefix, days: number[]): void {
+    const active = prefix === 'parking' ? activeParking : activeDesk;
+    if (active === '') {
+      return;
+    }
+    const setter = prefix === 'parking' ? setParkingMap : setDeskMap;
+    setter((current) => setResourceDays(current, active, days));
+  }
+
+  function applyAll(prefix: ResourcePrefix): void {
+    changeDays(prefix, [...WEEKDAYS]);
+  }
+
+  function clearDay(prefix: ResourcePrefix, day: number): void {
+    const setter = prefix === 'parking' ? setParkingMap : setDeskMap;
+    setter((current) => {
+      if (current[day] === undefined) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[day];
+      return next;
+    });
+  }
+
+  const tabs: { id: TabId; label: string }[] = [
     { id: 'details', label: t('employees.form.tabs.details') },
     { id: 'parking', label: t('employees.form.tabs.parking') },
     { id: 'desk', label: t('employees.form.tabs.desk') },
   ];
+  if (isEdit) {
+    tabs.push({ id: 'history', label: t('employees.form.tabs.history') });
+  }
 
   const footer = (
     <>
-      <button type="button" className="btn-back" onClick={onClose}>
+      <Button variant="white" onClick={onClose}>
         {t('employees.form.close')}
-      </button>
+      </Button>
       <Button variant="green" submit form="employee-form" icon="device-floppy" disabled={isSaving}>
         {t('employees.form.save')}
       </Button>
@@ -526,15 +798,24 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
   );
 
   return (
-    <Modal
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
       title={t(isEdit ? 'employees.form.editTitle' : 'employees.form.createTitle')}
       icon="user"
-      onClose={onClose}
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={(id) => setActiveTab(id as TabId)}
+      tone="green"
       footer={footer}
     >
+      <TabBar
+        tabs={tabs}
+        active={activeTab}
+        onChange={setActiveTab}
+        ariaLabel={t(isEdit ? 'employees.form.editTitle' : 'employees.form.createTitle')}
+      />
       <form id="employee-form" onSubmit={handleSubmit} noValidate>
         {activeTab === 'details' ? (
           <DetailsPanel
@@ -550,9 +831,13 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
             prefix="parking"
             fullName={fullName}
             options={spaceOptions}
-            state={parking}
+            map={parkingMap}
+            active={activeParking}
             error={errors.parking}
-            onChange={setParking}
+            onActiveChange={setActiveParking}
+            onDaysChange={(days) => changeDays('parking', days)}
+            onApplyAll={() => applyAll('parking')}
+            onClearDay={(day) => clearDay('parking', day)}
           />
         ) : null}
         {activeTab === 'desk' ? (
@@ -560,9 +845,21 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
             prefix="desk"
             fullName={fullName}
             options={deskOptions}
-            state={desk}
+            map={deskMap}
+            active={activeDesk}
             error={errors.desk}
-            onChange={setDesk}
+            onActiveChange={setActiveDesk}
+            onDaysChange={(days) => changeDays('desk', days)}
+            onApplyAll={() => applyAll('desk')}
+            onClearDay={(day) => clearDay('desk', day)}
+          />
+        ) : null}
+        {activeTab === 'history' && employee ? (
+          <HistoryPanel
+            employee={employee}
+            rows={assignmentsData ?? []}
+            spaceOptions={spaceOptions}
+            deskOptions={deskOptions}
           />
         ) : null}
         {errors.form ? (
@@ -575,6 +872,19 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       {isResetOpen && employee ? (
         <ResetPasswordModal employee={employee} onClose={() => setIsResetOpen(false)} />
       ) : null}
-    </Modal>
+    </Dialog>
   );
+}
+
+// Añade a las opciones cualquier resource_id presente en el prefill que no esté ya
+// (recurso inactivo): se muestra como #id para no perder la referencia.
+function withPrefilledIds(options: ResourceOption[], map: DayResourceMap): ResourceOption[] {
+  const known = new Set(options.map((option) => option.id));
+  const extra: ResourceOption[] = [];
+  for (const id of new Set(Object.values(map))) {
+    if (!known.has(id)) {
+      extra.push({ id, label: `#${id}` });
+    }
+  }
+  return extra.length > 0 ? [...options, ...extra] : options;
 }

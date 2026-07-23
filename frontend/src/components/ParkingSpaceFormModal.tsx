@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { FieldRow } from './FieldRow';
 import { InfoBanner } from './InfoBanner';
 import { Input } from './Input';
-import { Modal } from './Modal';
 import { Toggle } from './Toggle';
 import { getFieldErrors, getStatus } from '../api/apiError';
 import { useCreateParkingSpace, useUpdateParkingSpace } from '../hooks/useParkingSpaces';
@@ -136,11 +136,17 @@ export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceF
   );
 
   return (
-    <Modal
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
       title={t(isEdit ? 'parkingSpaces.form.editTitle' : 'parkingSpaces.form.createTitle')}
       icon="parking"
+      tone="green"
       narrow
-      onClose={onClose}
       footer={footer}
     >
       <form id="parking-space-form" onSubmit={handleSubmit} noValidate>
@@ -182,6 +188,6 @@ export function ParkingSpaceFormModal({ space, onClose, onSaved }: ParkingSpaceF
           </p>
         ) : null}
       </form>
-    </Modal>
+    </Dialog>
   );
 }

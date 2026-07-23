@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { FieldRow } from './FieldRow';
 import { InfoBanner } from './InfoBanner';
 import { Input } from './Input';
-import { Modal } from './Modal';
 import { Toggle } from './Toggle';
 import { getFieldErrors, getStatus } from '../api/apiError';
 import { useCreateDesk, useUpdateDesk } from '../hooks/useDesks';
@@ -142,11 +142,17 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
   );
 
   return (
-    <Modal
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
       title={t(isEdit ? 'desks.form.editTitle' : 'desks.form.createTitle')}
       icon="armchair"
+      tone="green"
       narrow
-      onClose={onClose}
       footer={footer}
     >
       <form id="desk-form" onSubmit={handleSubmit} noValidate>
@@ -197,6 +203,6 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
           </p>
         ) : null}
       </form>
-    </Modal>
+    </Dialog>
   );
 }

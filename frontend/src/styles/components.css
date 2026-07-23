@@ -4036,3 +4036,193 @@ button.pop-row.pop-danger:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   OLA B3 — Pantallas de ADMIN GESTIÓN + modal de empleado día→recurso
+   (EmployeesPage/EmployeeFormModal/ResetPasswordModal, ResourcesPage +
+   ParkingSpaces/Desks form modals, RecordsPage, SettingsPage). Los modales
+   migran a la primitiva Dialog (Ola A); el patrón tabla→tarjetas en móvil
+   (.table-cards-mobile, OLA B2) ya cubre las listas. Esta sección añade el
+   editor día→recurso del modal, el histórico y el pulido de Ajustes.
+   ============================================================ */
+
+/* El tablist del modal ahora vive dentro de .rx-dialog-body (Radix): quita el
+   inset horizontal propio y sepáralo del contenido con un borde a ancho completo. */
+.rx-dialog-body > .modal-tabs {
+  padding: 0;
+  margin: 0 0 var(--space-4);
+  gap: var(--space-5);
+}
+
+/* Cabecera de la sección de días: etiqueta + acción rápida "aplicar a la semana". */
+.day-assign-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.link-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--green);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+}
+.link-btn:hover:not(:disabled) {
+  color: var(--green-dark);
+}
+.link-btn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* Detalle día→recurso: qué recurso queda cada día (fuente de verdad visible). */
+.day-resource-list {
+  list-style: none;
+  margin: 6px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.day-resource-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  border-bottom: 0.5px solid var(--border);
+  font-size: var(--text-sm);
+}
+.day-resource-row:last-child {
+  border-bottom: none;
+}
+.day-resource-row.assigned {
+  background: var(--green-soft);
+}
+.day-resource-day {
+  flex: 0 0 92px;
+  color: var(--text-soft);
+}
+.day-resource-value {
+  flex: 1 1 auto;
+  font-weight: 500;
+  color: var(--green-darker);
+}
+.day-resource-value.muted {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.day-resource-clear {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+.day-resource-clear:hover {
+  color: var(--red-text);
+  background: var(--red-soft);
+}
+
+/* Histórico: resumen de solo lectura de las asignaciones vigentes. */
+.history-block {
+  margin-bottom: var(--space-4);
+}
+.history-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-soft);
+  font-size: var(--text-sm);
+}
+
+/* Ajustes: tarjeta única con el conmutador de modo de aprobación. */
+.settings-card {
+  max-width: 640px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.settings-field-head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-bottom: var(--space-3);
+}
+.settings-field-head > i {
+  font-size: 20px;
+  color: var(--green);
+  margin-top: 2px;
+}
+.settings-field-title {
+  display: block;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text);
+}
+.settings-field-desc {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.settings-select {
+  max-width: 420px;
+}
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
+}
+
+@media (max-width: 640px) {
+  .settings-card {
+    padding: var(--space-4);
+  }
+  .settings-select {
+    max-width: none;
+  }
+  .settings-actions .btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .day-assign-head .link-btn {
+    min-height: 32px;
+  }
+}

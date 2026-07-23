@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
+import { PageHeader } from '../components/PageHeader';
 import { Spinner } from '../components/Spinner';
 import { emitApiErrorToast } from '../api/events';
 import { useSettingsQuery, useUpdateApprovalMode } from '../hooks/useSettings';
@@ -37,12 +38,12 @@ export function SettingsPage() {
   }
 
   return (
-    <section className="settings-page" aria-labelledby="settings-title">
-      <header className="page-header">
-        <h1 id="settings-title" className="section-title">
-          {t('settings.title')}
-        </h1>
-      </header>
+    <section className="settings-page" aria-label={t('settings.title')}>
+      <PageHeader
+        eyebrow={t('settings.eyebrow')}
+        title={t('settings.title')}
+        description={t('settings.description')}
+      />
 
       {query.isLoading ? <Spinner /> : null}
 
@@ -53,27 +54,34 @@ export function SettingsPage() {
       ) : null}
 
       {!query.isLoading && !query.isError ? (
-        <form className="settings-form" onSubmit={handleSubmit}>
-          <p className="hint">{t('settings.approvalMode.description')}</p>
+        <form className="settings-card" onSubmit={handleSubmit}>
+          <div className="settings-field">
+            <div className="settings-field-head">
+              <i className="ti ti-checklist" aria-hidden="true" />
+              <div>
+                <label className="settings-field-title" htmlFor="approval-mode">
+                  {t('settings.approvalMode.label')}
+                </label>
+                <p className="settings-field-desc">{t('settings.approvalMode.description')}</p>
+              </div>
+            </div>
 
-          <label className="field-label" htmlFor="approval-mode">
-            {t('settings.approvalMode.label')}
-          </label>
-          <select
-            id="approval-mode"
-            className="field-input"
-            value={value}
-            onChange={(event) => setSelected(event.target.value as ApprovalMode)}
-          >
-            {MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {t(`settings.approvalMode.options.${mode}`)}
-              </option>
-            ))}
-          </select>
-          <p className="hint">{t(`settings.approvalMode.hints.${value}`)}</p>
+            <select
+              id="approval-mode"
+              className="field-input settings-select"
+              value={value}
+              onChange={(event) => setSelected(event.target.value as ApprovalMode)}
+            >
+              {MODES.map((mode) => (
+                <option key={mode} value={mode}>
+                  {t(`settings.approvalMode.options.${mode}`)}
+                </option>
+              ))}
+            </select>
+            <p className="hint">{t(`settings.approvalMode.hints.${value}`)}</p>
+          </div>
 
-          <div className="page-actions">
+          <div className="settings-actions">
             <Button
               variant="green"
               icon="check"

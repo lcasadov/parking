@@ -189,7 +189,7 @@ export function ParkingSpacesPage() {
             }
           />
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll table-cards-mobile">
             <table className="table">
               <thead>
                 <tr className="table-header">
@@ -202,9 +202,11 @@ export function ParkingSpacesPage() {
               <tbody>
                 {visibleSpaces.map((space) => (
                   <tr key={space.id} className="table-row">
-                    <td>{space.label}</td>
-                    <td>{t('parkingSpaces.floorValue', { floor: space.floor })}</td>
-                    <td>
+                    <td data-label={t('parkingSpaces.columns.label')}>{space.label}</td>
+                    <td data-label={t('parkingSpaces.columns.floor')}>
+                      {t('parkingSpaces.floorValue', { floor: space.floor })}
+                    </td>
+                    <td data-label={t('parkingSpaces.columns.status')}>
                       <StatusPill tone={space.active ? 'occupied' : 'free'}>
                         {t(
                           space.active

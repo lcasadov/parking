@@ -145,7 +145,7 @@ export function DesksPage() {
       ) : null}
 
       {ready && visibleDesks.length > 0 ? (
-        <div className="table-scroll">
+        <div className="table-scroll table-cards-mobile">
           <table className="table">
             <thead>
               <tr className="table-header">
@@ -158,11 +158,11 @@ export function DesksPage() {
             <tbody>
               {visibleDesks.map((desk) => (
                 <tr key={desk.id} className="table-row">
-                  <td>{desk.number}</td>
-                  <td>
+                  <td data-label={t('desks.columns.number')}>{desk.number}</td>
+                  <td data-label={t('desks.columns.category')}>
                     <DeskCategoryBadge category={desk.category} />
                   </td>
-                  <td>
+                  <td data-label={t('desks.columns.status')}>
                     <StatusPill tone={desk.active ? 'occupied' : 'free'}>
                       {t(desk.active ? 'desks.status.active' : 'desks.status.inactive')}
                     </StatusPill>

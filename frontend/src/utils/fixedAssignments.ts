@@ -116,6 +116,101 @@ export function toEmployeeFixedResources(rows: FixedAssignment[]): EmployeeFixed
   };
 }
 
+// ---------------------------------------------------------------------------
+// Mapa día→recurso (tarea 7.3): el modal de empleado permite asignar, por cada
+// día de la semana y por cada tipo de recurso, QUÉ recurso concreto se asigna;
+// pueden ser recursos distintos en días distintos (puesto 1 el lunes, puesto 3
+// el miércoles). El índice único (empleado, tipo, día) garantiza un único recurso
+// por día y tipo, así que un mapa `día → resourceId` es una representación fiel.
+// ---------------------------------------------------------------------------
+
+// Día ISO (1-7) -> resource_id asignado ese día para un tipo de recurso.
+export type DayResourceMap = Record<number, number>;
+
+// Reconstruye, a partir de las filas activas del empleado, el mapa día→recurso
+// de cada tipo. Es el prefill del modal: refleja recursos distintos por día sin
+// colapsarlos a un único recurso por tipo.
+export function toEmployeeDayResourceMaps(
+  rows: FixedAssignment[],
+): { parking: DayResourceMap; desk: DayResourceMap } {
+  const parking: DayResourceMap = {};
+  const desk: DayResourceMap = {};
+  for (const row of rows) {
+    if (row.active === false) {
+      continue;
+    }
+    const target = (row.resourceType ?? 'PARKING') === 'DESK' ? desk : parking;
+    target[row.dayOfWeek] = row.parkingSpaceId;
+  }
+  return { parking, desk };
+}
+
+// Agrupa un mapa día→recurso por recurso, devolviendo para cada resource_id sus
+// días ordenados. Es la base del guardado: un PUT por recurso con sus días.
+export function groupDaysByResource(map: DayResourceMap): Map<number, number[]> {
+  const groups = new Map<number, number[]>();
+  for (const dayKey of Object.keys(map)) {
+    const day = Number(dayKey);
+    const resourceId = map[day];
+    const days = groups.get(resourceId);
+    if (days) {
+      days.push(day);
+    } else {
+      groups.set(resourceId, [day]);
+    }
+  }
+  for (const days of groups.values()) {
+    days.sort((a, b) => a - b);
+  }
+  return groups;
+}
+
+// Días (ordenados) asignados a un recurso concreto dentro del mapa.
+export function daysForResource(map: DayResourceMap, resourceId: number): number[] {
+  return Object.keys(map)
+    .map(Number)
+    .filter((day) => map[day] === resourceId)
+    .sort((a, b) => a - b);
+}
+
+// ¿`target` conserva TODOS los pares (día→recurso) de `prev`? Si es así, del
+// estado previo al nuevo solo se han AÑADIDO días/recursos (ningún día cambió de
+// recurso ni se retiró), luego basta con emitir PUTs incrementales sin revocar.
+// Si NO es superset, hubo reasignaciones/retiradas que exigen limpiar el tipo
+// antes de recrear (evita el 409 del índice único al mover un día entre recursos).
+export function isDayResourceSuperset(target: DayResourceMap, prev: DayResourceMap): boolean {
+  return Object.keys(prev).every((dayKey) => target[Number(dayKey)] === prev[Number(dayKey)]);
+}
+
+// Igualdad de dos listas de días ya ordenadas (para omitir PUTs redundantes).
+export function sameDayList(a: number[] | undefined, b: number[]): boolean {
+  if (!a || a.length !== b.length) {
+    return false;
+  }
+  return a.every((value, index) => value === b[index]);
+}
+
+// Reescribe el mapa fijando el conjunto de días de `resourceId` a `days`,
+// preservando los días asignados a OTROS recursos; si un día de `days` pertenecía
+// a otro recurso, pasa a `resourceId` (un único recurso por día y tipo).
+export function setResourceDays(
+  map: DayResourceMap,
+  resourceId: number,
+  days: number[],
+): DayResourceMap {
+  const next: DayResourceMap = {};
+  for (const dayKey of Object.keys(map)) {
+    const day = Number(dayKey);
+    if (map[day] !== resourceId) {
+      next[day] = map[day];
+    }
+  }
+  for (const day of days) {
+    next[day] = resourceId;
+  }
+  return next;
+}
+
 // Indexa TODAS las asignaciones fijas por empleado, separando plaza y puesto.
 // Se usa para pintar las columnas de la tabla de empleados de una sola pasada.
 export function indexFixedResourcesByEmployee(

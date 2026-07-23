@@ -189,7 +189,7 @@ export function EmployeesPage() {
       ) : null}
 
       {ready && employees.length > 0 ? (
-        <div className="table-scroll">
+        <div className="table-scroll table-cards-mobile">
           <table className="table">
             <thead>
               <tr className="table-header">
@@ -209,7 +209,7 @@ export function EmployeesPage() {
                 const resources = resourcesFor(employee.id);
                 return (
                   <tr key={employee.id} className="table-row">
-                    <td>
+                    <td data-label={t('employees.columns.name')}>
                       <div className="employee-cell">
                         <Avatar
                           initials={initialsOf(employee)}
@@ -223,16 +223,22 @@ export function EmployeesPage() {
                         </div>
                       </div>
                     </td>
-                    <td>{employee.department ?? NONE}</td>
-                    <td>
+                    <td data-label={t('employees.columns.department')}>
+                      {employee.department ?? NONE}
+                    </td>
+                    <td data-label={t('employees.columns.parkingFixed')}>
                       <ResourceCell group={resources.parking} labels={spaceLabels} />
                     </td>
-                    <td>
+                    <td data-label={t('employees.columns.deskFixed')}>
                       <ResourceCell group={resources.desk} labels={deskLabels} />
                     </td>
-                    <td>{t(`employees.role.${employee.role}`)}</td>
-                    <td>{t(`employees.category.${employee.category}`)}</td>
-                    <td>
+                    <td data-label={t('employees.columns.role')}>
+                      {t(`employees.role.${employee.role}`)}
+                    </td>
+                    <td data-label={t('employees.columns.category')}>
+                      {t(`employees.category.${employee.category}`)}
+                    </td>
+                    <td data-label={t('employees.columns.status')}>
                       <StatusPill tone={employee.active ? 'occupied' : 'free'}>
                         {t(
                           employee.active ? 'employees.status.active' : 'employees.status.inactive',

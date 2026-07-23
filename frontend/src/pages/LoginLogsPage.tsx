@@ -59,7 +59,7 @@ function LoginLogsResults({ query, windowValid, page, onPageChange }: ResultsPro
 
   return (
     <>
-      <div className="table-scroll">
+      <div className="table-scroll table-cards-mobile">
         <table className="table">
           <thead>
             <tr className="table-header">
@@ -73,15 +73,19 @@ function LoginLogsResults({ query, windowValid, page, onPageChange }: ResultsPro
           <tbody>
             {entries.map((entry) => (
               <tr key={entry.id} className="table-row">
-                <td>{formatDateTime(entry.occurredAt)}</td>
-                <td>{entry.loginAttempted}</td>
-                <td>
+                <td data-label={t('loginLogs.columns.occurredAt')}>
+                  {formatDateTime(entry.occurredAt)}
+                </td>
+                <td data-label={t('loginLogs.columns.login')}>{entry.loginAttempted}</td>
+                <td data-label={t('loginLogs.columns.result')}>
                   <StatusPill tone={entry.result === 'OK' ? 'occupied' : 'free'}>
                     {t(`loginLogs.result.${entry.result}`)}
                   </StatusPill>
                 </td>
-                <td>{t(`loginLogs.phase.${entry.phase}`)}</td>
-                <td>{entry.ipAddress ?? DASH}</td>
+                <td data-label={t('loginLogs.columns.phase')}>
+                  {t(`loginLogs.phase.${entry.phase}`)}
+                </td>
+                <td data-label={t('loginLogs.columns.ip')}>{entry.ipAddress ?? DASH}</td>
               </tr>
             ))}
           </tbody>
