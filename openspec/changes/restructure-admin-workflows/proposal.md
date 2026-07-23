@@ -28,6 +28,7 @@ La aplicación funciona a nivel transaccional, pero su capa de administración s
 - `employee-portal`: "Mi Semana" como índice y **multi-recurso** (plaza + puesto por día); fusión de "Mis asignaciones fijas" + "Mis liberaciones"; la liberación de recurso fijo envía `resourceType` y muestra la etiqueta real del recurso.
 - `releases`: las dos pantallas de liberación se unifican con pivote por-empleado / por-fecha; AGENCIA gana el pivote por-fecha, una vista de ocupación de solo lectura y el historial de sus liberaciones.
 - `requests`: la solicitud desde el plano exige confirmación; en modo MANUAL el selector de puesto se oculta o se marca como "preferencia" (hoy se ignora en silencio).
+- `fixed-assignments`: la UI de escritura (rejilla accionable y modal de empleado) permite asignar **recursos distintos del mismo tipo en días distintos** (p. ej. puesto 1 el lunes y puesto 3 el miércoles). El modelo y el backend ya lo soportan; se corrige la lógica de la rejilla (que consolidaba por tipo) y se rediseña el modal para un mapa día→recurso.
 
 ## Impact
 

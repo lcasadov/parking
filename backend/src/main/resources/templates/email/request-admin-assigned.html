@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Asignacion puntual del administrador</title>
+</head>
+<body>
+<p>Hola <span th:text="${recipientName}">Empleado</span>,</p>
+<p th:if="${resourceType == 'PARKING' and resourceNumber != null}">
+    Un administrador te ha asignado la plaza nº <strong th:text="${resourceNumber}">0</strong>
+    en la planta <strong th:text="${floor}">0</strong> para el
+    <strong th:text="${requestedDate}">fecha</strong>.
+</p>
+<p th:if="${resourceType == 'DESK' and resourceNumber != null}">
+    Un administrador te ha asignado el puesto nº <strong th:text="${resourceNumber}">0</strong>
+    para el <strong th:text="${requestedDate}">fecha</strong>.
+</p>
+<p th:if="${resourceNumber == null}">
+    Un administrador te ha asignado un recurso para el
+    <strong th:text="${requestedDate}">fecha</strong>.
+</p>
+<p>— parking ALEATICA</p>
+</body>
+</html>

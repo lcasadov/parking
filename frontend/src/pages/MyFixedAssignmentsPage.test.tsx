@@ -80,6 +80,32 @@ describe('MyFixedAssignmentsPage (EMPLOYEE)', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('should_show_real_space_number_instead_of_generic_label_when_employee_has_parking_assignment', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(employeeUser)),
+      http.get(`${MSW_BASE}/fixed-assignments/employee/:id`, () =>
+        HttpResponse.json([ownAssignment(2)]),
+      ),
+      http.get(`${MSW_BASE}/parking-spaces/:id`, ({ params }) =>
+        HttpResponse.json({
+          id: Number(params.id),
+          number: 1001,
+          label: 'P-01',
+          floor: 1,
+          active: true,
+          createdAt: '2026-01-10T09:00:00Z',
+        }),
+      ),
+    );
+
+    renderWithProviders(<MyFixedAssignmentsPage />);
+
+    // Numero real resuelto via GET /parking-spaces/{id} (EMPLOYEE-safe), no la
+    // etiqueta generica "Plaza fija".
+    expect(await screen.findByText(/plaza 1001|space 1001/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^plaza fija$|^fixed space$/i)).not.toBeInTheDocument();
+  });
+
   it('should_show_empty_message_when_employee_has_no_assignments', async () => {
     server.use(
       http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(employeeUser)),

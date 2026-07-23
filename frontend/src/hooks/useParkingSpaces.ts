@@ -1,5 +1,6 @@
 import {
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
   type UseMutationResult,
@@ -8,6 +9,7 @@ import {
 import {
   configureParkingSpaces,
   createParkingSpace,
+  getParkingSpace,
   listParkingSpaces,
   updateParkingSpace,
 } from '../api/parkingSpacesApi';
@@ -36,6 +38,26 @@ export function useParkingSpacesQuery(
     queryFn: () => listParkingSpaces(params),
     placeholderData: (previous) => previous,
   });
+}
+
+// Resuelve el detalle (numero/label) de varias plazas por id en paralelo. Usado
+// por vistas EMPLOYEE que solo conocen el resource_id de su plaza fija: GET
+// /parking-spaces/{id} es accesible a EMPLOYEE, a diferencia del catalogo
+// (analogo a useDesksByIdsQuery en hooks/useDesks.ts).
+export function useParkingSpacesByIdsQuery(ids: number[]): Record<number, ParkingSpace> {
+  const results = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: [PARKING_SPACES_KEY, 'detail', id],
+      queryFn: () => getParkingSpace(id),
+    })),
+  });
+  const byId: Record<number, ParkingSpace> = {};
+  results.forEach((result, index) => {
+    if (result.data) {
+      byId[ids[index]] = result.data;
+    }
+  });
+  return byId;
 }
 
 // Invalida toda la cache de plazas tras una mutacion con exito.

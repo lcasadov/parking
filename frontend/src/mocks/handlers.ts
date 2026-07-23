@@ -106,6 +106,12 @@ export const handlers = [
   // ---- ParkingSpaces (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/parking-spaces`, () => HttpResponse.json(defaultParkingSpacePage)),
 
+  // GET /parking-spaces/:id (ADMIN o EMPLOYEE): detalle EMPLOYEE-safe usado por
+  // MyFixedAssignmentsPage para resolver el numero real de una plaza fija.
+  http.get(`${BASE}/parking-spaces/:id`, ({ params }) =>
+    HttpResponse.json({ ...spaceP01, id: Number(params.id) }),
+  ),
+
   http.post(`${BASE}/parking-spaces/configure`, async ({ request }) => {
     const body = (await request.json()) as { total: number };
     const spaces = Array.from({ length: body.total }, (_, index) => ({
@@ -128,6 +134,12 @@ export const handlers = [
 
   // ---- Desks (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/desks`, () => HttpResponse.json(defaultDeskPage)),
+
+  // GET /desks/:id (ADMIN o EMPLOYEE): detalle EMPLOYEE-safe usado por
+  // MyFixedAssignmentsPage para resolver el numero real de un puesto fijo.
+  http.get(`${BASE}/desks/:id`, ({ params }) =>
+    HttpResponse.json({ ...deskStandard, id: Number(params.id) }),
+  ),
 
   http.post(`${BASE}/desks`, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;

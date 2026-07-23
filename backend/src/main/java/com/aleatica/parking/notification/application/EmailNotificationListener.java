@@ -1,6 +1,7 @@
 package com.aleatica.parking.notification.application;
 
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
+import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
@@ -70,5 +71,13 @@ public class EmailNotificationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onFixedAssignmentRevoked(FixedAssignmentRevokedEvent event) {
         dispatcher.assignmentRevoked(event.employeeId());
+    }
+
+    /**
+     * @param event evento de asignacion puntual del admin
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRequestAdminAssigned(RequestAdminAssignedEvent event) {
+        dispatcher.requestAdminAssigned(event.request());
     }
 }

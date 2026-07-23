@@ -33,5 +33,13 @@ public enum NotificationEventType {
     REQUEST_CANCELLED,
 
     /** Asignacion fija revocada; se notifica al empleado afectado. */
-    ASSIGNMENT_REVOKED
+    ASSIGNMENT_REVOKED,
+
+    /**
+     * Asignacion puntual de un recurso por el {@code ADMIN} (change
+     * {@code restructure-admin-workflows}, capability {@code admin-punctual-assignment}); se
+     * notifica al empleado destino con una plantilla propia (distinta de {@code REQUEST_APPROVED},
+     * pues el empleado no inicio la peticion).
+     */
+    REQUEST_ADMIN_ASSIGNED
 }

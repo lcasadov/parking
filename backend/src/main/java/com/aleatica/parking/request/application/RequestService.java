@@ -8,6 +8,7 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
+import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
@@ -57,7 +58,8 @@ import org.springframework.transaction.annotation.Transactional;
  * (design §Decisions). La verificacion de pertenencia (BOLA) vive aqui, no solo en el
  * RBAC del controlador. Las notificaciones se disparan {@code AFTER_COMMIT} via eventos de
  * dominio ({@link RequestCreatedEvent}, {@link RequestApprovedEvent},
- * {@link RequestRejectedEvent}) consumidos por la capability {@code notifications}.</p>
+ * {@link RequestRejectedEvent}, {@link RequestAdminAssignedEvent}) consumidos por la
+ * capability {@code notifications}.</p>
  */
 @Service
 public class RequestService {
@@ -266,6 +268,11 @@ public class RequestService {
      * No hereda la ventana de 14 dias del autoservicio (design §Open Questions) pero si la regla de
      * no admitir una fecha pasada, igual que el resto de las vias de creacion.</p>
      *
+     * <p>Publica un {@link RequestAdminAssignedEvent} {@code AFTER_COMMIT} para notificar por
+     * email al empleado destino con una plantilla PROPIA (distinta de la de "solicitud
+     * aprobada": el empleado no inicio la peticion). El envio es resiliente (se encola en
+     * {@code email_outbox} si falla) y no revierte ni impide la asignacion.</p>
+     *
      * @param adminLogin login del administrador actuante (principal de la sesion)
      * @param request    empleado, fecha, tipo de recurso y (opcional) recurso elegido
      * @return la asignacion creada, ya {@code APPROVED} (DTO)
@@ -314,7 +321,9 @@ public class RequestService {
         request.approve(resourceId, adminId, Request.ADMIN_ASSIGNMENT_NOTE, now);
         Request saved = requestRepository.saveAndFlush(request);
         RequestResponse response = RequestResponse.from(saved);
-        eventPublisher.publishEvent(new RequestApprovedEvent(response));
+        // Plantilla propia (no RequestApprovedEvent): el empleado no inicio la peticion (design
+        // §Decisions, spec "Notificacion por email al empleado asignado").
+        eventPublisher.publishEvent(new RequestAdminAssignedEvent(response));
         return response;
     }
 

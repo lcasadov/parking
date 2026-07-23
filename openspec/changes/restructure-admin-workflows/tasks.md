@@ -51,4 +51,17 @@ Orden por fases del design (F1 quick wins solo-UI → F2 asignación puntual + O
 - [x] 5.1 Actualizar `docs/ux-flows.md` y `docs/ui-screens.md` con la nueva IA y los flujos accionables
 - [x] 5.2 Verificación adversarial (build + tests + lint + probes de auth/boundary) sin regresiones ni violations Sonar nuevas
 - [x] 5.3 Reality-check de los user journeys clave (admin asigna puntual desde Ocupación; empleado ve plaza+puesto en Mi Semana; AGENCIA libera por fecha)
-- [ ] 5.4 Resolver las Open Questions del design con negocio antes de dar por cerrada la asignación puntual (email al empleado, ventana de 14 días, alcance de AGENCIA)
+- [x] 5.4 Resolver las Open Questions del design con negocio (RESUELTO 2026-07-23: email con plantilla propia; sin límite de ventana; asignación puntual solo ADMIN)
+
+## 6. Follow-ups derivados de las decisiones
+
+- [x] 6.1 Notificación por email al empleado en la asignación puntual, con plantilla propia y envío resiliente (email_outbox), disparada desde `RequestService.adminAssign`
+- [x] 6.2 Lectura EMPLOYEE-safe del número/label de plaza (`GET /parking-spaces/{id}`) y uso en "Mis asignaciones fijas" para mostrar "P-08" en vez de "Plaza fija" (simétrico al patrón de puestos)
+
+## 7. Recurso distinto por día en la asignación fija (rejilla + modal)
+
+- [ ] 7.1 Corregir `mergeFixedAssignmentDays` para emparejar por `resourceId` + `resourceType` (usar los días del recurso de la propia celda, no consolidar por tipo)
+- [ ] 7.2 Tests de la rejilla: asignar un recurso a un día preserva otros días con recurso distinto; conflicto mismo-tipo-mismo-día → 409
+- [ ] 7.3 Rediseñar el modal de empleado (`EmployeeFormModal`) para permitir un mapa día→recurso por tipo (no un único recurso por tipo); prefill correcto cuando ya hay recursos distintos por día
+- [ ] 7.4 Tests del modal: configurar y guardar días con recursos distintos; prefill que no colapsa a un recurso por tipo
+- [ ] 7.5 Actualizar `docs/ui-screens.md` (modal de empleado) reflejando la selección por día

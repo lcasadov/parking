@@ -30,6 +30,7 @@ public class EmailContentRenderer {
     private static final String TEMPLATE_REQUEST_CANCELLED = "email/request-cancelled";
     private static final String TEMPLATE_ASSIGNMENT_REVOKED = "email/assignment-revoked";
     private static final String TEMPLATE_PASSWORD_RESET = "email/password-reset";
+    private static final String TEMPLATE_REQUEST_ADMIN_ASSIGNED = "email/request-admin-assigned";
 
     /**
      * Plantillas de asunto parametrizadas por la palabra del recurso ({@code %s} = "plaza"/"puesto",
@@ -44,6 +45,8 @@ public class EmailContentRenderer {
             "Un empleado ha cancelado una solicitud de %s aprobada (recurso liberado)";
     private static final String SUBJECT_ASSIGNMENT_REVOKED = "Tu asignacion fija ha sido revocada";
     private static final String SUBJECT_PASSWORD_RESET = "Tu contrasena temporal de parking";
+    private static final String SUBJECT_REQUEST_ADMIN_ASSIGNED_FMT =
+            "Un administrador te ha asignado una %s";
 
     /** Palabra humana del recurso segun su tipo, para componer los asuntos (evita literales sueltos). */
     private static final String RESOURCE_WORD_PARKING = "plaza";
@@ -185,6 +188,33 @@ public class EmailContentRenderer {
     public EmailMessage renderAssignmentRevoked(Employee employee) {
         Context ctx = baseContext(employee);
         return render(employee, SUBJECT_ASSIGNMENT_REVOKED, TEMPLATE_ASSIGNMENT_REVOKED, ctx);
+    }
+
+    /**
+     * Renderiza el email de "asignacion puntual del admin" dirigido al empleado destino: un
+     * {@code ADMIN} le ha asignado un recurso (plaza o puesto) para una fecha concreta sin que el
+     * empleado lo haya solicitado. Usa una plantilla PROPIA, distinta de
+     * {@link #renderRequestApproved}, porque el tono y el motivo del correo son otros (el
+     * empleado no inicio la peticion). Degrada con elegancia: si {@code resolved} es
+     * {@code null} (recurso no localizado) se omite el bloque del numero.
+     *
+     * @param employee empleado destino de la asignacion
+     * @param request  asignacion puntual, ya {@code APPROVED}
+     * @param resolved recurso resuelto a su numero/planta; {@code null} si no se localizo
+     * @return el mensaje renderizado
+     */
+    public EmailMessage renderRequestAdminAssigned(
+            Employee employee, RequestResponse request, ResolvedResource resolved) {
+        Context ctx = baseContext(employee);
+        ctx.setVariable(VAR_REQUESTED_DATE, request.requestedDate());
+        if (resolved != null) {
+            ctx.setVariable(VAR_RESOURCE_TYPE, resolved.type().name());
+            ctx.setVariable(VAR_RESOURCE_NUMBER, resolved.number());
+            ctx.setVariable(VAR_FLOOR, resolved.floor());
+        }
+        return render(
+                employee, subjectFor(SUBJECT_REQUEST_ADMIN_ASSIGNED_FMT, request),
+                TEMPLATE_REQUEST_ADMIN_ASSIGNED, ctx);
     }
 
     /**

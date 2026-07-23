@@ -456,6 +456,21 @@ paths:
   /parking-spaces/{id}:
     parameters:
       - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [ParkingSpaces]
+      operationId: getParkingSpace
+      summary: Detalle de una plaza (ADMIN o EMPLOYEE)
+      description: 'Excepción al resto del recurso (ADMIN-only): expone solo el detalle por id, sin listado, para que un EMPLOYEE resuelva el número/etiqueta real de una plaza fija propia (patrón simétrico a `GET /desks/{id}`).'
+      responses:
+        '200':
+          description: Plaza
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParkingSpace'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
     put:
       tags: [ParkingSpaces]
       operationId: updateParkingSpace

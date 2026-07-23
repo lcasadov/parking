@@ -9,6 +9,7 @@ import { emitApiErrorToast } from '../api/events';
 import { useAuth } from '../auth/useAuth';
 import { useDesksByIdsQuery } from '../hooks/useDesks';
 import { useEmployeeFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
+import { useParkingSpacesByIdsQuery } from '../hooks/useParkingSpaces';
 import { groupFixedAssignments, type FixedAssignmentGroup } from '../utils/fixedAssignments';
 import type { ResourceType } from '../types/request';
 
@@ -31,19 +32,23 @@ export function MyFixedAssignmentsPage() {
   const groups = useMemo(() => groupFixedAssignments(query.data ?? []), [query.data]);
   const ready = !query.isLoading && !query.isError;
 
-  // Numero real del puesto (GET /desks/{id} es accesible a EMPLOYEE, a diferencia
-  // del catalogo de plazas que es solo ADMIN — ver nota en fixedAssignments.mine
-  // .genericParkingLabel). Solo se resuelven los puestos presentes en la lista.
+  // Numero real del puesto/plaza (GET /desks/{id} y GET /parking-spaces/{id} son
+  // accesibles a EMPLOYEE, a diferencia de sus catalogos que son solo ADMIN). Solo
+  // se resuelven los recursos presentes en la lista, separados por tipo.
   const deskIds = useMemo(
     () => groups.filter((group) => group.resourceType === 'DESK').map((group) => group.parkingSpaceId),
     [groups],
   );
+  const spaceIds = useMemo(
+    () => groups.filter((group) => group.resourceType === 'PARKING').map((group) => group.parkingSpaceId),
+    [groups],
+  );
   const desksById = useDesksByIdsQuery(deskIds);
+  const spacesById = useParkingSpacesByIdsQuery(spaceIds);
 
   // Etiqueta de negocio del recurso (nunca el id interno, spec employee-portal
-  // "Liberación de recurso fijo con tipo y etiqueta correctos"): el puesto muestra
-  // su numero real; la plaza usa una etiqueta generica al no haber endpoint
-  // EMPLOYEE-safe que resuelva su numero (catalogo de plazas es solo ADMIN).
+  // "Liberación de recurso fijo con tipo y etiqueta correctos"): tanto el puesto
+  // como la plaza muestran su numero real (GET .../{id} EMPLOYEE-safe).
   function spaceLabel(group: FixedAssignmentGroup): string {
     if (group.resourceType === 'DESK') {
       const desk = desksById[group.parkingSpaceId];
@@ -51,7 +56,10 @@ export function MyFixedAssignmentsPage() {
         ? t('requests.mine.resourceLabel.desk', { number: desk.number })
         : t('common.loading');
     }
-    return t('fixedAssignments.mine.genericParkingLabel');
+    const space = spacesById[group.parkingSpaceId];
+    return space
+      ? t('requests.mine.resourceLabel.parking', { number: space.number })
+      : t('common.loading');
   }
 
   function handleReleased(): void {

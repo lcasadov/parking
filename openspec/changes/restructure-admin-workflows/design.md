@@ -55,8 +55,9 @@ Al unificar "Liberar" con ambos pivotes (D3), dar a AGENCIA ese mismo destino re
 3. Rollback: al ser feature de una rama, revertir el merge; sin estado persistente que deshacer.
 4. Actualizar `docs/openapi.yaml`, `docs/ux-flows.md`, `docs/ui-screens.md` y `README.md` (rol AGENCIA) como parte del change.
 
-## Open Questions
+## Open Questions — RESUELTAS (decisión de negocio, 2026-07-23)
 
-- **Asignación puntual del admin:** ¿se notifica por email al empleado? Hoy solo existe plantilla de "solicitud aprobada" que asume que él la inició. ¿Y respeta la ventana hoy+14 o el admin puede asignar más allá?
-- **Rol AGENCIA:** ¿alcance exacto? ¿Debe participar también en la asignación puntual, o solo en liberaciones?
-- **Modo de aprobación:** confirmar que sigue siendo global (fuera de alcance aquí) y que la asignación puntual del admin es independiente de él (siempre nace APPROVED).
+- **Asignación puntual del admin — email:** ✅ **Sí, con plantilla propia** (distinta de "solicitud aprobada"). El empleado recibe un aviso "un administrador te ha asignado [recurso] para [fecha]". Envío resiliente vía `email_outbox`.
+- **Asignación puntual del admin — ventana temporal:** ✅ **Sin límite de días.** El admin puede asignar cualquier fecha futura; solo se rechazan fechas pasadas (ya implementado). No hereda la ventana hoy+14 del autoservicio.
+- **Rol AGENCIA — asignación puntual:** ✅ **Solo ADMIN.** AGENCIA sigue siendo mínimo privilegio (libera y consulta ocupación, no asigna). Fail-closed ya verificado con IT.
+- **Modo de aprobación:** sigue siendo global (fuera de alcance). La asignación puntual del admin es independiente de él: siempre nace `APPROVED`.

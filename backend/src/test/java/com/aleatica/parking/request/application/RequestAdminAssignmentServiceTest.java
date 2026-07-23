@@ -15,7 +15,7 @@ import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
-import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.request.domain.Request;
 import com.aleatica.parking.request.domain.RequestRepositoryPort;
@@ -124,7 +124,7 @@ class RequestAdminAssignmentServiceTest {
         assertThat(result.resolvedById()).isEqualTo(ADMIN_ID);
         assertThat(result.approvalNote()).isEqualTo(Request.ADMIN_ASSIGNMENT_NOTE);
         assertThat(result.employeeId()).isEqualTo(EMP_ID);
-        verifyEventPublished(RequestApprovedEvent.class);
+        verifyEventPublished(RequestAdminAssignedEvent.class);
     }
 
     // ---- Camino feliz: puesto elegido ----
@@ -146,7 +146,7 @@ class RequestAdminAssignmentServiceTest {
         assertThat(result.status()).isEqualTo(RequestStatus.APPROVED);
         assertThat(result.parkingSpaceId()).isEqualTo(DESK_ID);
         assertThat(result.resourceType()).isEqualTo(ResourceType.DESK);
-        verifyEventPublished(RequestApprovedEvent.class);
+        verifyEventPublished(RequestAdminAssignedEvent.class);
     }
 
     // ---- Auto-asignacion (PARKING sin resourceId) ----
@@ -170,7 +170,7 @@ class RequestAdminAssignmentServiceTest {
         assertThat(result.status()).isEqualTo(RequestStatus.APPROVED);
         assertThat(result.parkingSpaceId()).isEqualTo(SPACE_ID);
         assertThat(result.resourceType()).isEqualTo(ResourceType.PARKING);
-        verifyEventPublished(RequestApprovedEvent.class);
+        verifyEventPublished(RequestAdminAssignedEvent.class);
     }
 
     @Test

@@ -48,6 +48,29 @@ class ParkingSpaceServiceTest {
     }
 
     @Test
+    void shouldReturnSpace_whenGettingExistingSpace() {
+        // Arrange
+        given(parkingSpaceRepository.findById(ID))
+                .willReturn(java.util.Optional.of(ParkingSpace.create(NUMBER)));
+
+        // Act
+        ParkingSpaceResponse found = newService().get(ID);
+
+        // Assert
+        assertThat(found.number()).isEqualTo(NUMBER);
+        assertThat(found.label()).isEqualTo("1007");
+    }
+
+    @Test
+    void shouldThrowNotFound_whenGettingNonExistentSpace() {
+        // Arrange
+        given(parkingSpaceRepository.findById(ID)).willReturn(java.util.Optional.empty());
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().get(ID)).isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
     void shouldCreateSpace_whenNumberIsNew() {
         // Arrange
         given(parkingSpaceRepository.existsByNumber(NUMBER)).willReturn(false);

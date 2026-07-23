@@ -97,4 +97,17 @@ public class NotificationDispatcher {
         deliveryService.dispatch(
                 new NotificationCommand(NotificationEventType.ASSIGNMENT_REVOKED, employeeId, null));
     }
+
+    /**
+     * Notifica al empleado destino que un {@code ADMIN} le ha asignado puntualmente un recurso
+     * para una fecha concreta (change {@code restructure-admin-workflows}, capability
+     * {@code admin-punctual-assignment}), con una plantilla propia (distinta de
+     * {@link #requestApproved(RequestResponse)}: el empleado no inicio la peticion).
+     *
+     * @param request asignacion puntual, ya {@code APPROVED}
+     */
+    public void requestAdminAssigned(RequestResponse request) {
+        deliveryService.dispatch(new NotificationCommand(
+                NotificationEventType.REQUEST_ADMIN_ASSIGNED, request.employeeId(), request));
+    }
 }

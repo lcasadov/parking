@@ -89,6 +89,8 @@ public class NotificationRenderer {
             case REQUEST_REJECTED -> renderer.renderRequestRejected(employee, request);
             case REQUEST_CANCELLED -> renderCancelled(employee, request);
             case ASSIGNMENT_REVOKED -> renderer.renderAssignmentRevoked(employee);
+            case REQUEST_ADMIN_ASSIGNED -> renderer.renderRequestAdminAssigned(
+                    employee, request, resolveResource(request));
         };
     }
 

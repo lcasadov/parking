@@ -146,6 +146,21 @@ class NotificationDispatcherTest {
     }
 
     @Test
+    void shouldDispatchAdminAssignedCommandToTargetEmployee_whenRequestAdminAssigned() {
+        // Arrange
+        RequestResponse request = approvedParking();
+
+        // Act
+        dispatcher().requestAdminAssigned(request);
+
+        // Assert: la orden va al empleado destino (employeeId de la asignacion), no al admin actuante
+        NotificationCommand command = captureCommand();
+        assertThat(command.eventType()).isEqualTo(NotificationEventType.REQUEST_ADMIN_ASSIGNED);
+        assertThat(command.recipientEmployeeId()).isEqualTo(EMP_ID);
+        assertThat(command.request()).isEqualTo(request);
+    }
+
+    @Test
     void shouldDispatchRevokedCommandWithoutRequest_whenAssignmentRevoked() {
         // Act
         dispatcher().assignmentRevoked(EMP_ID);

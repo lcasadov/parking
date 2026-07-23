@@ -32,12 +32,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Endpoints de gestion de plazas de parking, reservados al rol {@code ADMIN}
- * ({@code @PreAuthorize("hasRole('ADMIN')")}).
+ * ({@code @PreAuthorize("hasRole('ADMIN')")}) a nivel de clase.
  *
  * <p>El adaptador web no contiene logica de negocio: delega en
  * {@link ParkingSpaceService} y trabaja siempre con DTOs (nunca con la entidad JPA,
- * S4684). Un acceso de un {@code EMPLOYEE} produce {@code 403} (fail closed): el
- * empleado solo percibe plazas via disponibilidad, no via el catalogo.</p>
+ * S4684). Un acceso de un {@code EMPLOYEE} a los endpoints de catalogo (listar,
+ * crear, editar, configurar) produce {@code 403} (fail closed). La UNICA excepcion
+ * es el detalle por id ({@link #getParkingSpace(Long)}), que sobreescribe el
+ * {@code @PreAuthorize} de clase con {@code hasAnyRole('ADMIN', 'EMPLOYEE')}: permite
+ * resolver el numero/etiqueta real de una plaza fija propia (patron simetrico al de
+ * {@code GET /desks/{id}}), sin exponer el listado ni el resto de operaciones.</p>
  */
 @Tag(name = "ParkingSpaces", description = "Gestion de plazas de parking (solo ADMIN)")
 @RestController
@@ -78,6 +82,34 @@ public class ParkingSpaceController {
             @RequestParam(name = "floor", required = false) Integer floor,
             @PageableDefault(size = 20, sort = "number") Pageable pageable) {
         return ResponseEntity.ok(parkingSpaceService.list(active, floor, pageable));
+    }
+
+    /**
+     * Devuelve el detalle de una plaza por su id.
+     *
+     * <p>Accesible a {@code ADMIN} y {@code EMPLOYEE} (excepcion al
+     * {@code @PreAuthorize} de clase): permite a un empleado resolver el numero real
+     * de una plaza fija propia sin exponer el catalogo completo (design: patron
+     * simetrico a {@code GET /desks/{id}}).</p>
+     *
+     * @param id id de la plaza
+     * @return {@code 200} con la plaza; {@code 404} si no existe
+     */
+    @Operation(summary = "Detalle de una plaza (ADMIN o EMPLOYEE)",
+            security = @SecurityRequirement(name = "sessionCookie"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Plaza",
+                    content = @Content(schema = @Schema(implementation = ParkingSpaceResponse.class))),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Plaza no encontrada",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
+    public ResponseEntity<ParkingSpaceResponse> getParkingSpace(
+            @Parameter(description = "Id de la plaza") @PathVariable Long id) {
+        return ResponseEntity.ok(parkingSpaceService.get(id));
     }
 
     /**

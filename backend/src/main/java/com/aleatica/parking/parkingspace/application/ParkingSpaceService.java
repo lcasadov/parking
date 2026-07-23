@@ -62,6 +62,22 @@ public class ParkingSpaceService {
     }
 
     /**
+     * Devuelve el detalle de una plaza por su id.
+     *
+     * <p>Lectura EMPLOYEE-safe (a diferencia del resto de operaciones de este
+     * servicio, reservadas a ADMIN): permite resolver el numero/etiqueta real de
+     * una plaza fija propia sin exponer el catalogo completo.</p>
+     *
+     * @param id identificador de la plaza
+     * @return la plaza (DTO)
+     * @throws EntityNotFoundException si la plaza no existe
+     */
+    @Transactional(readOnly = true)
+    public ParkingSpaceResponse get(Long id) {
+        return ParkingSpaceResponse.from(findOrThrow(id));
+    }
+
+    /**
      * Da de alta una plaza validando la unicidad del {@code number}; el
      * {@code label} y la planta se derivan del numero.
      *
