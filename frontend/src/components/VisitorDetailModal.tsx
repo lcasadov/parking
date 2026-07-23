@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { Spinner } from './Spinner';
 import { useVisitorQuery } from '../hooks/useVisitors';
 
@@ -23,7 +23,16 @@ export function VisitorDetailModal({ visitorId, onClose }: VisitorDetailModalPro
   );
 
   return (
-    <Modal title={t('visitors.detail.title')} onClose={onClose} footer={footer}>
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
+      title={t('visitors.detail.title')}
+      footer={footer}
+    >
       {query.isLoading ? <Spinner /> : null}
 
       {query.isError ? (
@@ -48,6 +57,6 @@ export function VisitorDetailModal({ visitorId, onClose }: VisitorDetailModalPro
           <dd>{visitor.usualReason ?? none}</dd>
         </dl>
       ) : null}
-    </Modal>
+    </Dialog>
   );
 }

@@ -63,17 +63,28 @@ export function toggleDay(days: number[], day: number): number[] {
 // conjunto de dias del empleado para ese tipo de recurso. Al asignar inline un dia
 // nuevo desde una celda, hay que PRECARGAR los dias actuales y reenviar el conjunto
 // COMPLETO; si solo se enviara el dia nuevo, se BORRARIAN los demas dias del empleado.
-// Esta funcion toma las filas actuales del empleado, extrae los dias del recurso del
-// tipo indicado y devuelve la union ordenada con `dayToAdd`.
+//
+// CRITICO (fix 7.1): un empleado puede tener MAS DE UN recurso del mismo tipo en
+// dias distintos (p.ej. puesto 1 el lunes y puesto 3 el miercoles) porque cada fila
+// de asignacion fija es independiente. Emparejar solo por `resourceType` (como hacia
+// la version anterior via groupFixedAssignments) coge el PRIMER grupo de ese tipo y
+// consolida mal: asignar el puesto 3 el miercoles heredaria y sobrescribiria los dias
+// del puesto 1. Por eso esta funcion filtra por `resourceType` **y** `resourceId`
+// (el recurso de la PROPIA celda que se esta asignando), y devuelve la union
+// ordenada de esos dias con `dayToAdd`.
 export function mergeFixedAssignmentDays(
   rows: FixedAssignment[],
   resourceType: ResourceType,
+  resourceId: number,
   dayToAdd: number,
 ): number[] {
-  const group = groupFixedAssignments(rows).find((entry) => entry.resourceType === resourceType);
-  const existing = group?.days ?? [];
+  const existing = rows
+    .filter(
+      (row) => (row.resourceType ?? 'PARKING') === resourceType && row.parkingSpaceId === resourceId,
+    )
+    .map((row) => row.dayOfWeek);
   if (existing.includes(dayToAdd)) {
-    return [...existing];
+    return [...existing].sort((a, b) => a - b);
   }
   return [...existing, dayToAdd].sort((a, b) => a - b);
 }

@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { FieldRow } from './FieldRow';
 import { InfoBanner } from './InfoBanner';
-import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { useCreateVisitorReservation } from '../hooks/useVisitorReservations';
 import { useVisitorsQuery } from '../hooks/useVisitors';
@@ -17,6 +17,7 @@ interface VisitorReservationModalProps {
   onCreated: () => void;
 }
 
+const FORM_ID = 'visitor-reservation-form';
 const LIST_SIZE = 100;
 const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
@@ -91,9 +92,29 @@ export function VisitorReservationModal({
     );
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('visitors.reservations.create.cancel')}
+      </Button>
+      <Button variant="green" submit form={FORM_ID} disabled={createMutation.isPending}>
+        {t('visitors.reservations.create.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t('visitors.reservations.create.title')} onClose={onClose}>
-      <form id="visitor-reservation-form" onSubmit={handleSubmit} noValidate>
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
+      title={t('visitors.reservations.create.title')}
+      footer={footer}
+    >
+      <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="visitor-reservation-visitor">
           {t('visitors.reservations.create.visitor')}
         </label>
@@ -170,16 +191,7 @@ export function VisitorReservationModal({
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('visitors.reservations.create.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={createMutation.isPending}>
-            {t('visitors.reservations.create.submit')}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

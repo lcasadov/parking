@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
+import { SelectField, type SelectOption } from './SelectField';
 import { getApiError, getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useSelectableReleaseEmployeesQuery } from '../hooks/useReleaseSelection';
@@ -32,6 +33,7 @@ interface OccupancyAssignModalProps {
   onAssigned: () => void;
 }
 
+const FORM_ID = 'occupancy-assign-form';
 const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
 const NO_AVAILABILITY = 'NO_AVAILABILITY';
@@ -76,6 +78,10 @@ export function OccupancyAssignModal({
 
   const employeesQuery = useSelectableReleaseEmployeesQuery();
   const employees = employeesQuery.data ?? [];
+  const employeeOptions: SelectOption[] = employees.map((employee) => ({
+    value: String(employee.id),
+    label: employee.fullName,
+  }));
   const assignMutation = useAdminAssignRequest();
   const setFixedMutation = useSetFixedAssignments();
 
@@ -95,7 +101,7 @@ export function OccupancyAssignModal({
       queryKey: employeeFixedAssignmentsQueryKey(targetEmployeeId),
       queryFn: () => getEmployeeFixedAssignments(targetEmployeeId),
     });
-    const daysOfWeek = mergeFixedAssignmentDays(currentRows, resourceType, weekday);
+    const daysOfWeek = mergeFixedAssignmentDays(currentRows, resourceType, resourceId, weekday);
     await setFixedMutation.mutateAsync({
       employeeId: targetEmployeeId,
       body: { parkingSpaceId: resourceId, daysOfWeek, resourceType },
@@ -134,14 +140,31 @@ export function OccupancyAssignModal({
     }
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('occupancy.assign.cancel')}
+      </Button>
+      <Button variant="green" submit form={FORM_ID} disabled={pending}>
+        {t('occupancy.assign.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
       title={t('occupancy.assign.title')}
       icon="user-plus"
-      onClose={onClose}
-      variant="green"
+      tone="green"
+      footer={footer}
     >
-      <form id="occupancy-assign-form" onSubmit={handleSubmit} noValidate>
+      <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
         <dl className="release-prefill" aria-label={t('occupancy.assign.summary')}>
           <div className="release-prefill-row">
             <dt>{t(`occupancy.assign.resourceType.${resourceType}`)}</dt>
@@ -153,24 +176,13 @@ export function OccupancyAssignModal({
           </div>
         </dl>
 
-        <label className="field-label" htmlFor="occupancy-assign-employee">
-          {t('occupancy.assign.employee')}
-        </label>
-        <select
-          id="occupancy-assign-employee"
-          className="field-input"
-          value={employeeId ?? ''}
-          onChange={(event) =>
-            setEmployeeId(event.target.value === '' ? null : Number(event.target.value))
-          }
-        >
-          <option value="">{t('occupancy.assign.selectEmployee')}</option>
-          {employees.map((employee) => (
-            <option key={employee.id} value={employee.id}>
-              {employee.fullName}
-            </option>
-          ))}
-        </select>
+        <SelectField
+          label={t('occupancy.assign.employee')}
+          value={employeeId !== null ? String(employeeId) : ''}
+          onValueChange={(value) => setEmployeeId(value === '' ? null : Number(value))}
+          options={employeeOptions}
+          placeholder={t('occupancy.assign.selectEmployee')}
+        />
 
         <span className="field-label">{t('occupancy.assign.modeLabel')}</span>
         <div className="segmented" role="group" aria-label={t('occupancy.assign.modeLabel')}>
@@ -202,16 +214,7 @@ export function OccupancyAssignModal({
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('occupancy.assign.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={pending}>
-            {t('occupancy.assign.submit')}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

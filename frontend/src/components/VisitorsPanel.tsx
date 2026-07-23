@@ -87,7 +87,7 @@ export function VisitorsPanel() {
             }
           />
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll table-cards-mobile">
             <table className="table">
               <thead>
                 <tr className="table-header">
@@ -102,12 +102,18 @@ export function VisitorsPanel() {
               <tbody>
                 {visitors.map((visitor) => (
                   <tr key={visitor.id} className="table-row">
-                    <td>{`${visitor.firstName} ${visitor.lastName}`}</td>
-                    <td>{visitor.nationalId}</td>
-                    <td>{visitor.licensePlate ?? none}</td>
-                    <td>{visitor.company ?? none}</td>
-                    <td>{visitor.usualReason ?? none}</td>
-                    <td className="table-actions">
+                    <td data-label={t('visitors.columns.name')}>
+                      {`${visitor.firstName} ${visitor.lastName}`}
+                    </td>
+                    <td data-label={t('visitors.columns.nationalId')}>{visitor.nationalId}</td>
+                    <td data-label={t('visitors.columns.licensePlate')}>
+                      {visitor.licensePlate ?? none}
+                    </td>
+                    <td data-label={t('visitors.columns.company')}>{visitor.company ?? none}</td>
+                    <td data-label={t('visitors.columns.usualReason')}>
+                      {visitor.usualReason ?? none}
+                    </td>
+                    <td className="table-actions" data-label={t('visitors.columns.actions')}>
                       <Button variant="white" icon="eye" onClick={() => setDetailId(visitor.id)}>
                         {t('visitors.actions.view')}
                       </Button>

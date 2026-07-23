@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useAdminCancelRequest } from '../hooks/useRequests';
@@ -20,6 +20,7 @@ interface AdminCancelRequestModalProps {
   onCancelled: () => void;
 }
 
+const FORM_ID = 'admin-cancel-request-form';
 const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
 // El backend exige motivo de 5..500 caracteres (@Size); validamos el minimo en cliente.
@@ -66,9 +67,30 @@ export function AdminCancelRequestModal({
     );
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('requests.adminCancel.cancel')}
+      </Button>
+      <Button variant="red" submit form={FORM_ID} disabled={adminCancelMutation.isPending}>
+        {t('requests.adminCancel.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t('requests.adminCancel.title')} onClose={onClose} variant="red">
-      <form id="admin-cancel-request-form" onSubmit={handleSubmit} noValidate>
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
+      title={t('requests.adminCancel.title')}
+      tone="red"
+      footer={footer}
+    >
+      <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
         <dl className="release-prefill" aria-label={t('requests.adminCancel.summary')}>
           <div className="release-prefill-row">
             <dt>{t('requests.adminCancel.employee')}</dt>
@@ -100,16 +122,7 @@ export function AdminCancelRequestModal({
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('requests.adminCancel.cancel')}
-          </Button>
-          <Button variant="red" submit disabled={adminCancelMutation.isPending}>
-            {t('requests.adminCancel.submit')}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

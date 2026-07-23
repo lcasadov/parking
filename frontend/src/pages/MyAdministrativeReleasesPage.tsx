@@ -47,7 +47,7 @@ export function MyAdministrativeReleasesPage() {
         releases.length === 0 ? (
           <TableEmpty icon="calendar-off" message={t('releases.history.empty')} />
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll table-cards-mobile">
             <table className="table">
               <thead>
                 <tr className="table-header">
@@ -60,14 +60,14 @@ export function MyAdministrativeReleasesPage() {
               <tbody>
                 {releases.map((release) => (
                   <tr key={release.id} className="table-row">
-                    <td>{release.releaseDate}</td>
-                    <td>
+                    <td data-label={t('releases.history.columns.date')}>{release.releaseDate}</td>
+                    <td data-label={t('releases.history.columns.type')}>
                       <StatusPill tone="released">
                         {t(`releases.byDate.resourceType.${release.resourceType ?? 'PARKING'}`)}
                       </StatusPill>
                     </td>
-                    <td>{`#${release.parkingSpaceId}`}</td>
-                    <td>{release.reason ?? '—'}</td>
+                    <td data-label={t('releases.history.columns.resource')}>{`#${release.parkingSpaceId}`}</td>
+                    <td data-label={t('releases.history.columns.reason')}>{release.reason ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

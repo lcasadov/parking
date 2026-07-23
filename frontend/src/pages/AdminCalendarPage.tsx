@@ -327,12 +327,14 @@ export function AdminCalendarPage() {
       ) : null}
 
       {showGrid ? (
-        <div className="table-scroll">
+        <div className="table-scroll calendar-grid-scroll">
           <table className="table calendar-grid">
             <caption className="sr-only">{t('calendar.admin.title')}</caption>
             <thead>
               <tr className="table-header">
-                <th scope="col">{t(`occupancy.weekly.resourceColumn.${resourceType}`)}</th>
+                <th scope="col" className="calendar-resource-head">
+                  {t(`occupancy.weekly.resourceColumn.${resourceType}`)}
+                </th>
                 {days.map((date) => (
                   <th key={date} scope="col" className={date === today ? 'is-today' : undefined}>
                     <span className="day-head-abbr">

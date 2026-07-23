@@ -142,7 +142,7 @@ function RequestsTable({
 }: RequestsTableProps) {
   const { t } = useTranslation();
   return (
-    <div className="table-scroll">
+    <div className="table-scroll table-cards-mobile">
       <table className="table">
         <thead>
           <tr className="table-header">
@@ -164,22 +164,22 @@ function RequestsTable({
           ) : (
             requests.map((request) => (
               <tr key={request.id} className="table-row">
-                <td>
+                <td data-label={t('requests.inbox.columns.employee')}>
                   <EmployeeCell request={request} employee={employeeMap.get(request.employeeId)} />
                 </td>
-                <td>
+                <td data-label={t('requests.inbox.columns.date')}>
                   <span className="request-date">{request.requestedDate}</span>
                 </td>
-                <td className="request-weekday">
+                <td className="request-weekday" data-label={t('requests.inbox.columns.day')}>
                   {t(`calendar.weekdaysShort.${weekdayIndex(request.requestedDate)}`)}
                 </td>
-                <td>{request.createdAt}</td>
-                <td>
+                <td data-label={t('requests.inbox.columns.created')}>{request.createdAt}</td>
+                <td data-label={t('requests.inbox.columns.status')}>
                   <span className={`status-badge status-${request.status.toLowerCase()}`}>
                     {t(`requests.status.${request.status}`)}
                   </span>
                 </td>
-                <td className="table-actions">
+                <td className="table-actions" data-label={t('requests.inbox.columns.actions')}>
                   <RowActions
                     request={request}
                     onApprove={onApprove}

@@ -43,16 +43,24 @@ describe('fixedAssignments utils', () => {
   // CRITICO (design §Risk D): la asignacion inline fija debe PRESERVAR los dias
   // existentes; mergeFixedAssignmentDays reenvia el conjunto completo + el nuevo dia.
   it('should_preserve_existing_days_when_merging_new_day', () => {
-    // Alice tiene PARKING los dias 1,2,3; añadir el 5 debe devolver 1,2,3,5.
-    expect(mergeFixedAssignmentDays(aliceAssignments, 'PARKING', 5)).toEqual([1, 2, 3, 5]);
+    // Alice tiene PARKING (plaza 1) los dias 1,2,3; añadir el 5 debe devolver 1,2,3,5.
+    expect(mergeFixedAssignmentDays(aliceAssignments, 'PARKING', 1, 5)).toEqual([1, 2, 3, 5]);
   });
 
   it('should_not_duplicate_day_when_merging_present_day', () => {
-    expect(mergeFixedAssignmentDays(aliceAssignments, 'PARKING', 2)).toEqual([1, 2, 3]);
+    expect(mergeFixedAssignmentDays(aliceAssignments, 'PARKING', 1, 2)).toEqual([1, 2, 3]);
   });
 
   it('should_return_only_new_day_when_no_existing_assignment_for_type', () => {
     // Sin puesto fijo previo, el DESK arranca solo con el dia añadido.
-    expect(mergeFixedAssignmentDays(aliceAssignments, 'DESK', 4)).toEqual([4]);
+    expect(mergeFixedAssignmentDays(aliceAssignments, 'DESK', 1, 4)).toEqual([4]);
+  });
+
+  // Fix 7.1: emparejar solo por resourceType consolidaba mal cuando el empleado
+  // tiene recursos DISTINTOS del mismo tipo en dias distintos (p.ej. puesto 1 el
+  // lunes y puesto 3 el miercoles). Debe emparejar tambien por resourceId: asignar
+  // el puesto 3 el miercoles no debe heredar ni alterar los dias del puesto 1.
+  it('should_not_mix_days_from_a_different_resource_of_the_same_type', () => {
+    expect(mergeFixedAssignmentDays(aliceAssignments, 'PARKING', 3, 3)).toEqual([3]);
   });
 });

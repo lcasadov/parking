@@ -62,7 +62,7 @@ export function VisitorReservationsPanel() {
       ) : null}
 
       {ready && reservations.length > 0 ? (
-        <div className="table-scroll">
+        <div className="table-scroll table-cards-mobile">
           <table className="table">
             <thead>
               <tr className="table-header">
@@ -76,11 +76,19 @@ export function VisitorReservationsPanel() {
             <tbody>
               {reservations.map((reservation) => (
                 <tr key={reservation.id} className="table-row">
-                  <td>{reservation.reservationDate}</td>
-                  <td>{`#${reservation.visitorId}`}</td>
-                  <td>{`#${reservation.parkingSpaceId}`}</td>
-                  <td>{reservation.notes ?? t('visitors.detail.none')}</td>
-                  <td className="table-actions">
+                  <td data-label={t('visitors.reservations.columns.date')}>
+                    {reservation.reservationDate}
+                  </td>
+                  <td data-label={t('visitors.reservations.columns.visitor')}>
+                    {`#${reservation.visitorId}`}
+                  </td>
+                  <td data-label={t('visitors.reservations.columns.space')}>
+                    {`#${reservation.parkingSpaceId}`}
+                  </td>
+                  <td data-label={t('visitors.reservations.columns.notes')}>
+                    {reservation.notes ?? t('visitors.detail.none')}
+                  </td>
+                  <td className="table-actions" data-label={t('visitors.reservations.columns.actions')}>
                     <Button
                       variant="red"
                       icon="x"

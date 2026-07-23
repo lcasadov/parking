@@ -115,7 +115,7 @@ export function ReleaseByDatePage() {
       ) : null}
 
       {!query.isLoading && !query.isError && occupied.length > 0 ? (
-        <div className="table-scroll">
+        <div className="table-scroll table-cards-mobile">
           <table className="table">
             <thead>
               <tr className="table-header">
@@ -129,15 +129,17 @@ export function ReleaseByDatePage() {
             <tbody>
               {occupied.map((item) => (
                 <tr key={`${item.resourceType}-${item.resourceId}`} className="table-row">
-                  <td>{resourceLabel(item, t)}</td>
-                  <td>{t(`releases.byDate.resourceType.${item.resourceType}`)}</td>
-                  <td>{item.employeeName}</td>
-                  <td>
+                  <td data-label={t('releases.byDate.columns.resource')}>{resourceLabel(item, t)}</td>
+                  <td data-label={t('releases.byDate.columns.type')}>
+                    {t(`releases.byDate.resourceType.${item.resourceType}`)}
+                  </td>
+                  <td data-label={t('releases.byDate.columns.employee')}>{item.employeeName}</td>
+                  <td data-label={t('releases.byDate.columns.origin')}>
                     <StatusPill tone="released">
                       {t(`releases.byDate.origin.${item.origin}`)}
                     </StatusPill>
                   </td>
-                  <td className="table-actions">
+                  <td className="table-actions" data-label={t('releases.byDate.columns.actions')}>
                     <Button variant="red" icon="arrow-back-up" onClick={() => openRelease(item)}>
                       {t('releases.byDate.release')}
                     </Button>
