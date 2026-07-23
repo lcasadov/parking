@@ -9,6 +9,7 @@ export const es = {
     themeDark: 'Oscuro',
     close: 'Cerrar',
     cancel: 'Cancelar',
+    confirm: 'Confirmar',
     save: 'Guardar',
     loading: 'Cargando…',
     retry: 'Reintentar',
@@ -93,6 +94,11 @@ export const es = {
       management: 'Gestión',
       operations: 'Operativa',
       navigation: 'Navegación',
+    },
+    nav: {
+      open: 'Abrir menú de navegación',
+      close: 'Cerrar menú de navegación',
+      menuLabel: 'Navegación principal',
     },
   },
   resources: {

@@ -17,14 +17,18 @@ export function Sidebar({
   items = [],
   children,
   footer,
+  className,
+  ariaLabel = 'primary',
 }: {
   items?: SidebarItem[];
   children?: ReactNode;
   footer?: ReactNode;
+  className?: string;
+  ariaLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
-    <nav className="sidebar" aria-label="primary">
+    <nav className={`sidebar${className ? ` ${className}` : ''}`} aria-label={ariaLabel}>
       {/* Logo oficial ALEATICA (extraido del prototipo aprobado, ver
           frontend/src/assets/aleatica-logo.png) + tagline "Gestión de parking". */}
       <div className="sidebar-brand">

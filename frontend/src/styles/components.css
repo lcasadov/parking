@@ -1,19 +1,56 @@
 /* Componentes — design system ALEATICA (autoridad: docs/aleatica-design-contract.md). */
 
-/* App shell / layout (contrato §5–6: sidebar + header + contenido) */
+/* ============================================================
+   App shell FIJO (Ola A · rediseño). Chrome anclado en ambas
+   resoluciones; solo el contenido (.main) desplaza.
+   · Desktop (≥769px): sidebar fijo a la izquierda + contenido desplazado.
+   · Móvil (≤768px): header de cristal fijo arriba + drawer off-canvas.
+   ============================================================ */
 .app-shell {
   min-height: 100vh;
-  background: var(--frame-bg);
+  min-height: 100dvh;
+  background: var(--bg-page);
 }
+
+/* Sidebar fijo (desktop). En móvil se oculta y su rol lo asume el drawer. */
+.shell-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 40;
+}
+
+/* Área de contenido: reserva el ancho del sidebar y desplaza normalmente. */
+.main {
+  min-width: 0;
+  margin-left: var(--sidebar-w);
+  background: var(--bg-page);
+  padding: var(--space-8);
+}
+
+/* Header de cristal fijo (solo móvil). */
+.shell-topbar {
+  display: none;
+}
+
+/* Compat: layouts antiguos que aún usen .layout (no rompe si quedara alguno). */
 .layout {
   display: flex;
   min-height: 100vh;
 }
-.main {
+.layout .sidebar {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  height: 100dvh;
+}
+.layout .main {
   flex: 1;
-  min-width: 0;
-  background: var(--bg-page);
-  padding: var(--space-8);
+  margin-left: 0;
 }
 
 /* NOTA: el antiguo top-bar (.app-header) se eliminó — toda la marca y los
@@ -234,6 +271,120 @@
   border-radius: var(--radius-lg);
 }
 
+/* ============================================================
+   Header de cristal fijo (móvil) + drawer off-canvas.
+   ============================================================ */
+.shell-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 45;
+  height: calc(var(--topbar-h) + var(--safe-top));
+  padding: var(--safe-top) calc(var(--space-3) + var(--safe-right)) 0
+    calc(var(--space-3) + var(--safe-left));
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--line-soft);
+}
+.shell-topbar-btn,
+.shell-topbar-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.shell-topbar-btn i {
+  font-size: 24px;
+}
+.shell-topbar-btn:active,
+.shell-topbar-avatar:active {
+  background: var(--panel-2);
+}
+.shell-topbar-avatar {
+  margin-left: auto;
+}
+.shell-topbar-logo {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+.shell-topbar-spacer {
+  margin-left: auto;
+}
+
+/* Drawer off-canvas (móvil): scrim + panel deslizante desde la izquierda. */
+.shell-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+.shell-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: rgba(20, 20, 18, 0.5);
+  -webkit-tap-highlight-color: transparent;
+}
+.shell-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(86vw, 320px);
+  height: 100dvh;
+  background: var(--panel);
+  box-shadow: var(--shadow-4);
+  outline: none;
+  will-change: transform;
+}
+.shell-drawer-inner {
+  position: relative;
+  height: 100%;
+  padding-left: var(--safe-left);
+}
+.shell-drawer .sidebar {
+  height: 100%;
+  border-right: none;
+  width: 100%;
+}
+.shell-drawer-close {
+  position: absolute;
+  top: calc(var(--space-4) + var(--safe-top));
+  right: var(--space-3);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.shell-drawer-close i {
+  font-size: 20px;
+}
+
 /* Botones */
 .btn {
   height: 34px;
@@ -249,10 +400,23 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
-  transition: filter 120ms ease, background 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+  /* NB: transform lo controla Framer Motion (whileTap); aquí solo transiciones
+     de superficie para no competir con el resorte del pulsado. */
+  transition: filter var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
 }
-.btn:hover:not(:disabled) {
-  filter: brightness(0.96);
+/* Hover solo en punteros finos (evita estados "pegados" en táctil). */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not(:disabled) {
+    filter: brightness(0.96);
+  }
+}
+/* Efecto de pulsado: además del hundimiento (scale) de Framer Motion, una
+   sombra interior + oscurecido refuerza la sensación táctil (apple-design §1). */
+.btn:active:not(:disabled) {
+  filter: brightness(0.92);
+  box-shadow: inset 0 2px 5px rgba(43, 42, 40, 0.22);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -1086,46 +1250,21 @@ body.theme-dark .segmented button.active {
   gap: var(--space-1);
 }
 
-/* Responsive: en movil el sidebar pasa a barra superior desplazable. */
+/* Responsive (Ola A): en móvil el sidebar fijo se oculta y la navegación pasa al
+   drawer off-canvas, gobernado por el header de cristal fijo (.shell-topbar).
+   El contenido reserva la altura del header y respeta las safe-areas de iOS. */
 @media (max-width: 768px) {
-  .layout {
-    flex-direction: column;
-  }
-  .main {
-    padding: var(--space-5);
-  }
-  .sidebar {
-    width: 100%;
-    flex-direction: column;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-  }
-  .sidebar-nav {
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: var(--space-2);
-    gap: var(--space-1);
-  }
-  .nav-section {
+  .shell-sidebar {
     display: none;
   }
-  .nav-item {
-    border-left: none;
-    border-bottom: 3px solid transparent;
-    white-space: nowrap;
-    border-radius: var(--radius-md);
+  .shell-topbar {
+    display: flex;
   }
-  .nav-item.active {
-    border-left-color: transparent;
-    border-bottom-color: var(--brand-green);
-  }
-  /* En movil la barra esta arriba: el panel de usuario se despliega hacia abajo
-     (no hacia arriba) para no salirse del viewport. La marca/controles siguen
-     accesibles — no se ocultan. */
-  .popover.sidebar-user-popover {
-    bottom: auto;
-    top: calc(100% + 8px);
+  .main {
+    margin-left: 0;
+    padding: calc(var(--topbar-h) + var(--safe-top) + var(--space-4))
+      calc(var(--space-4) + var(--safe-right)) calc(var(--space-6) + var(--safe-bottom))
+      calc(var(--space-4) + var(--safe-left));
   }
   .auth-card {
     width: 100%;
@@ -3175,4 +3314,314 @@ button.pop-row.pop-danger:disabled {
   height: 44px;
   padding: 0 20px;
   font-size: var(--text-base);
+}
+
+/* ============================================================
+   PRIMITIVAS RADIX (Ola A · rediseño): Dialog / AlertDialog,
+   DropdownMenu (Menu), Tooltip, Select. Namespace .rx-*.
+   Animaciones de entrada/salida gobernadas por data-state
+   (Radix retiene el nodo hasta que la animación de cierre
+   termina). transform-origin anclado al disparador vía las
+   variables --radix-*-transform-origin (emil: nacen del trigger).
+   Todo se neutraliza bajo prefers-reduced-motion.
+   ============================================================ */
+@keyframes rx-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rx-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes rx-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes rx-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+}
+@keyframes rx-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes rx-pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* Scrim de diálogos (Dialog + AlertDialog). */
+.rx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(20, 20, 18, 0.45);
+}
+.rx-overlay[data-state='open'] {
+  animation: rx-fade-in var(--dur-base) var(--ease-out);
+}
+.rx-overlay[data-state='closed'] {
+  animation: rx-fade-out var(--dur-fast) var(--ease-in);
+}
+
+/* Panel de diálogo (centrado; materializa desde scale 0.96). */
+.rx-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 101;
+  width: 720px;
+  max-width: calc(100vw - var(--space-6) * 2);
+  max-height: calc(100dvh - var(--space-6) * 2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-4), 0 0 0 0.5px var(--border);
+}
+.rx-dialog:focus {
+  outline: none;
+}
+.rx-dialog-narrow {
+  width: 460px;
+}
+.rx-dialog[data-state='open'] {
+  animation: rx-dialog-in var(--dur-slow) var(--ease-out);
+}
+.rx-dialog[data-state='closed'] {
+  animation: rx-dialog-out var(--dur-fast) var(--ease-in);
+}
+.rx-dialog-header {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 18px;
+  color: #fff;
+}
+.rx-dialog-header.green {
+  background: var(--green-focus);
+}
+.rx-dialog-header.red {
+  background: var(--red);
+}
+.rx-dialog-header.amber {
+  background: var(--amber-border);
+  color: var(--amber-text);
+}
+.rx-dialog-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+.rx-dialog-close {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.85;
+  border-radius: var(--radius-sm);
+}
+.rx-dialog-close:hover {
+  opacity: 1;
+}
+.rx-dialog-body {
+  padding: var(--space-5);
+  color: var(--text);
+  overflow-y: auto;
+}
+.rx-dialog-footer {
+  border-top: 0.5px solid var(--border);
+  padding: var(--space-3) 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  background: var(--bg-soft);
+}
+
+/* DropdownMenu (Menu). Escala desde el disparador. */
+.rx-menu {
+  z-index: 120;
+  min-width: 200px;
+  padding: var(--space-2);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+.rx-menu[data-state='open'] {
+  animation: rx-pop-in var(--dur-base) var(--ease-out);
+}
+.rx-menu[data-state='closed'] {
+  animation: rx-pop-out var(--dur-fast) var(--ease-in);
+}
+.rx-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 10px;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.rx-menu-item i {
+  font-size: 18px;
+  color: var(--ink-soft);
+}
+.rx-menu-item[data-highlighted] {
+  background: var(--panel-2);
+}
+.rx-menu-item[data-disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.rx-menu-item.danger {
+  color: var(--red-text);
+}
+.rx-menu-item.danger i {
+  color: var(--red-text);
+}
+
+/* Tooltip. */
+.rx-tooltip {
+  z-index: 130;
+  padding: 6px 10px;
+  max-width: 260px;
+  background: var(--ink);
+  color: var(--panel);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-2);
+  transform-origin: var(--radix-tooltip-content-transform-origin);
+}
+.rx-tooltip[data-state='delayed-open'] {
+  animation: rx-pop-in var(--dur-fast) var(--ease-out);
+}
+.rx-tooltip-arrow {
+  fill: var(--ink);
+}
+
+/* Select (panel de opciones). */
+.rx-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  background: var(--field-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+.rx-select-trigger[data-placeholder] {
+  color: var(--ink-faint);
+}
+.rx-select-icon {
+  color: var(--ink-soft);
+  display: inline-flex;
+}
+.rx-select-content {
+  z-index: 120;
+  min-width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height);
+  padding: var(--space-2);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  transform-origin: var(--radix-select-content-transform-origin);
+}
+.rx-select-content[data-state='open'] {
+  animation: rx-pop-in var(--dur-base) var(--ease-out);
+}
+.rx-select-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 8px 10px;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.rx-select-item[data-highlighted] {
+  background: var(--panel-2);
+}
+.rx-select-item[data-disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.rx-select-indicator {
+  color: var(--brand-green-deep);
+  display: inline-flex;
+}
+
+/* Reduced-motion: sin animación de entrada/salida en las primitivas Radix. */
+@media (prefers-reduced-motion: reduce) {
+  .rx-overlay,
+  .rx-dialog,
+  .rx-menu,
+  .rx-tooltip,
+  .rx-select-content {
+    animation: none !important;
+  }
 }

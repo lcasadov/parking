@@ -1,5 +1,7 @@
+import { motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DUR, EASE } from '../theme/motion';
 
 export interface ModalTab {
   id: string;
@@ -38,9 +40,16 @@ export function Modal({
   onTabChange,
 }: ModalProps) {
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const showClose = closeable && Boolean(onClose);
+
+  // Entrada del modal: overlay atenúa (opacity) y el panel materializa desde
+  // scale 0.96 (emil-design-eng: nada aparece "de la nada"; los modales se
+  // mantienen centrados, no escalan desde el trigger). Se anula con reduced-motion.
+  const overlayInitial = reduceMotion ? { opacity: 1 } : { opacity: 0 };
+  const panelInitial = reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 };
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -57,14 +66,22 @@ export function Modal({
   }, [onClose, closeable]);
 
   return (
-    <div className="modal-overlay">
-      <div
+    <motion.div
+      className="modal-overlay"
+      initial={overlayInitial}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduceMotion ? 0 : DUR.base, ease: EASE.out }}
+    >
+      <motion.div
         ref={dialogRef}
         className={`modal${narrow ? ' narrow' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
+        initial={panelInitial}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: reduceMotion ? 0 : DUR.slow, ease: EASE.out }}
       >
         <div className={`modal-header ${variant}`}>
           <span className="title" id={titleId}>
@@ -100,7 +117,7 @@ export function Modal({
         ) : null}
         <div className="modal-body">{children}</div>
         {footer ? <div className="modal-footer">{footer}</div> : null}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
