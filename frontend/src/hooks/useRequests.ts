@@ -6,6 +6,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  adminCancelRequest,
   approveRequest,
   cancelRequest,
   createRequest,
@@ -99,6 +100,21 @@ export function useCancelRequest(): UseMutationResult<Request, unknown, number> 
   const invalidate = useInvalidateRequests();
   return useMutation({
     mutationFn: (id: number) => cancelRequest(id),
+    onSuccess: invalidate,
+  });
+}
+
+export interface AdminCancelRequestVars {
+  id: number;
+  reason: string;
+}
+
+// Cancelacion administrativa de una solicitud APPROVED futura (ADMIN): libera el
+// recurso ocupado por la solicitud para esa fecha (change release-occupied-resource).
+export function useAdminCancelRequest(): UseMutationResult<Request, unknown, AdminCancelRequestVars> {
+  const invalidate = useInvalidateRequests();
+  return useMutation({
+    mutationFn: ({ id, reason }: AdminCancelRequestVars) => adminCancelRequest(id, reason),
     onSuccess: invalidate,
   });
 }

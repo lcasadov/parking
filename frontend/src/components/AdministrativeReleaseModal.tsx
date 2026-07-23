@@ -113,7 +113,7 @@ export function AdministrativeReleaseModal({
               <dd>{prefill.employeeName}</dd>
             </div>
             <div className="release-prefill-row">
-              <dt>{t('releases.admin.space')}</dt>
+              <dt>{t(`releases.byDate.resourceType.${prefill.resourceType}`)}</dt>
               <dd>{prefill.resourceLabel}</dd>
             </div>
             <div className="release-prefill-row">

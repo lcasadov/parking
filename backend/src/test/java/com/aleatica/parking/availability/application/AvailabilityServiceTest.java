@@ -358,7 +358,7 @@ class AvailabilityServiceTest {
                 EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(
                         approvedRequestWithId(3L, SPACE_ID, EMP_ID, thursday),
-                        pendingRequest(EMP_ID, friday)));
+                        pendingRequestWithId(9L, EMP_ID, friday)));
         given(releaseRepository.findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
                 EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(release(SPACE_ID, tuesday)));
@@ -373,12 +373,17 @@ class AvailabilityServiceTest {
         assertThat(days).hasSize(7);
         assertThat(days.get(0).state()).isEqualTo(MyWeekDayState.ASSIGNED);
         assertThat(days.get(0).parkingSpaceLabel()).isEqualTo(SPACE_LABEL);
+        // Dia por asignacion fija: no proviene de solicitud -> requestId null
+        assertThat(days.get(0).requestId()).isNull();
         assertThat(days.get(1).state()).isEqualTo(MyWeekDayState.RELEASED);
         assertThat(days.get(2).state()).isEqualTo(MyWeekDayState.FREE);
         assertThat(days.get(3).state()).isEqualTo(MyWeekDayState.ASSIGNED);
         assertThat(days.get(3).requestStatus()).isEqualTo(RequestStatus.APPROVED);
+        // Dia por solicitud aprobada: expone el id para permitir liberar cancelando
+        assertThat(days.get(3).requestId()).isEqualTo(3L);
         assertThat(days.get(4).state()).isEqualTo(MyWeekDayState.REQUEST_PENDING);
         assertThat(days.get(4).requestStatus()).isEqualTo(RequestStatus.PENDING);
+        assertThat(days.get(4).requestId()).isEqualTo(9L);
         // MyWeekResponse no expone ningun campo de identidad por diseno (privacidad)
         assertThat(response).hasNoNullFieldsOrProperties();
     }
@@ -619,6 +624,12 @@ class AvailabilityServiceTest {
 
     private static RequestEntity pendingRequest(Long employeeId, LocalDate date) {
         return RequestEntity.create(employeeId, date, NOW);
+    }
+
+    private static RequestEntity pendingRequestWithId(Long id, Long employeeId, LocalDate date) {
+        RequestEntity request = pendingRequest(employeeId, date);
+        setField(request, "id", id);
+        return request;
     }
 
     private static VisitorReservation reservation(Long spaceId, LocalDate date) {

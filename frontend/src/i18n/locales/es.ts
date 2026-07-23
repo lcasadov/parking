@@ -521,6 +521,23 @@ export const es = {
       body: '¿Cancelar tu solicitud del {{date}}?',
       confirm: 'Cancelar solicitud',
       keep: 'No cancelar',
+      done: 'Solicitud cancelada. El recurso queda libre ese día.',
+    },
+    adminCancel: {
+      title: 'Liberar cancelando la solicitud',
+      summary: 'Resumen de la liberación',
+      employee: 'Empleado',
+      resource: 'Recurso',
+      date: 'Fecha',
+      reason: 'Motivo',
+      reasonHint: 'Obligatorio (mínimo 5 caracteres). Queda registrado en la auditoría.',
+      submit: 'Liberar',
+      cancel: 'Cancelar',
+      requiredReason: 'Indica el motivo (mínimo 5 caracteres).',
+      cancelled: 'Solicitud cancelada. El recurso queda libre esa fecha.',
+      errors: {
+        reason: 'Revisa el motivo (5 a 500 caracteres).',
+      },
     },
     approve: {
       title: 'Aprobar solicitud',

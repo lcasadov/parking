@@ -521,6 +521,23 @@ export const en = {
       body: 'Cancel your request for {{date}}?',
       confirm: 'Cancel request',
       keep: 'Keep request',
+      done: 'Request cancelled. The resource is free that day.',
+    },
+    adminCancel: {
+      title: 'Release by cancelling the request',
+      summary: 'Release summary',
+      employee: 'Employee',
+      resource: 'Resource',
+      date: 'Date',
+      reason: 'Reason',
+      reasonHint: 'Required (min. 5 characters). Recorded in the audit log.',
+      submit: 'Release',
+      cancel: 'Cancel',
+      requiredReason: 'Enter a reason (min. 5 characters).',
+      cancelled: 'Request cancelled. The resource is free that date.',
+      errors: {
+        reason: 'Check the reason (5 to 500 characters).',
+      },
     },
     approve: {
       title: 'Approve request',

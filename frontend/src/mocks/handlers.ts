@@ -244,6 +244,10 @@ export const handlers = [
     HttpResponse.json({ ...requestPending1, id: Number(params.id), status: 'CANCELLED' }),
   ),
 
+  http.post(`${BASE}/requests/:id/admin-cancel`, ({ params }) =>
+    HttpResponse.json({ ...requestApproved, id: Number(params.id), status: 'CANCELLED' }),
+  ),
+
   http.post(`${BASE}/requests/:id/approve`, async ({ request, params }) => {
     const body = (await request.json()) as RequestApproveRequest;
     return HttpResponse.json({

@@ -1052,6 +1052,48 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '500': { $ref: '#/components/responses/ServerError' }
 
+  /requests/{id}/admin-cancel:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Requests]
+      operationId: adminCancelRequest
+      summary: Cancela administrativamente una solicitud APPROVED futura (ADMIN)
+      description: >
+        Un `ADMIN` cancela la solicitud `APPROVED` de fecha futura de cualquier empleado
+        con un motivo obligatorio; la solicitud pasa a `CANCELLED`, el recurso queda liberado
+        para esa fecha y la acción se registra en auditoría. Rechaza (409) si la solicitud no
+        está `APPROVED` o es de fecha pasada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestAdminCancelRequest'
+      responses:
+        '200':
+          description: Solicitud cancelada y recurso liberado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '400':
+          description: Motivo ausente o inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: La solicitud no está APPROVED o es de fecha pasada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500': { $ref: '#/components/responses/ServerError' }
+
   /requests/{id}/approve:
     parameters:
       - $ref: '#/components/parameters/IdPath'
@@ -2073,6 +2115,14 @@ components:
       properties:
         reasonCode: { $ref: '#/components/schemas/RejectionReasonCode' }
         rejectionReason: { type: string, minLength: 5, maxLength: 500 }
+    RequestAdminCancelRequest:
+      type: object
+      required: [reason]
+      description: >
+        Cancelación administrativa de una solicitud `APPROVED` futura: el motivo (`reason`,
+        texto libre de 5..500 caracteres) es obligatorio y queda registrado en auditoría.
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 500 }
     SystemSettings:
       type: object
       description: Ajuste global del sistema (modo de aprobación de solicitudes).
@@ -2203,6 +2253,14 @@ components:
           oneOf:
             - $ref: '#/components/schemas/RequestStatus'
           nullable: true
+        requestId:
+          type: integer
+          format: int64
+          nullable: true
+          description: >
+            Id de la solicitud propia de ese día; null si el día no proviene de una
+            solicitud (asignación fija o libre). Permite a "Mi semana" liberar el recurso
+            del día cancelando la solicitud.
     MyWeekResponse:
       type: object
       properties:

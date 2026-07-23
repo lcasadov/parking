@@ -201,6 +201,23 @@ public class Request {
     }
 
     /**
+     * Indica si la solicitud admite la cancelacion administrativa por un {@code ADMIN} a fecha
+     * {@code today} (change {@code release-occupied-resource}). A diferencia de la cancelacion del
+     * empleado ({@link #canBeCancelledBy(LocalDate)}), el administrador solo cancela para liberar
+     * un recurso ocupado por una solicitud {@code APPROVED} de fecha futura (hoy inclusive): una
+     * {@code PENDING} de otro se resuelve con {@code reject}, y una {@code APPROVED} de fecha pasada
+     * no libera nada (recurso ya transcurrido). Los estados terminales
+     * {@code REJECTED}/{@code CANCELLED} tampoco admiten cancelacion.
+     *
+     * @param today fecha de referencia ("hoy"), derivada del mismo reloj/zona que la ventana de
+     *              creacion ({@code ZoneOffset.UTC}) por el caso de uso
+     * @return {@code true} si el estado es {@code APPROVED} y su fecha no es pasada
+     */
+    public boolean canBeAdminCancelledBy(LocalDate today) {
+        return status == RequestStatus.APPROVED && !requestedDate.isBefore(today);
+    }
+
+    /**
      * Aprueba la solicitud asignando recurso, resolutor y nota opcional.
      *
      * @param resourceId   recurso asignado (plaza en el nucleo de parking)

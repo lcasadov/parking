@@ -1834,9 +1834,31 @@ body.theme-dark .segmented button.active {
   display: flex;
   align-items: center;
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
   margin-bottom: 6px;
   border-left: 3px solid;
+}
+/* El contenido del día vive en .week-card-body (button cuando es liberable, div si no),
+   que asume el padding/flex para que toda la tarjeta sea el área interactiva. */
+.week-card-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.week-card-body {
+  cursor: pointer;
+}
+/* Día seleccionado: destaca la tarjeta activa sobre la que actúa "Liberar". */
+.week-card.selected {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
 }
 .week-card.assigned {
   background: var(--green-soft);

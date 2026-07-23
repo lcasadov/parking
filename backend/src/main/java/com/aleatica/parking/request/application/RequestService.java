@@ -87,6 +87,8 @@ public class RequestService {
             "La solicitud no esta pendiente; no admite esta transicion";
     private static final String MSG_NOT_CANCELLABLE =
             "La solicitud no admite cancelacion; solo se cancela una PENDING o una APPROVED de fecha futura";
+    private static final String MSG_NOT_ADMIN_CANCELLABLE =
+            "La solicitud no admite cancelacion administrativa; solo se cancela una APPROVED de fecha futura";
     private static final String MSG_NOT_REJECTABLE =
             "La solicitud no admite rechazo; solo se rechaza una solicitud PENDING o APPROVED";
     private static final String MSG_SPACE_UNAVAILABLE =
@@ -100,6 +102,11 @@ public class RequestService {
 
     /** Accion de auditoria: el empleado cancela una solicitud APPROVED y libera el recurso. */
     private static final String AUDIT_ACTION_RELEASE = "CANCEL_APPROVED_REQUEST";
+    /**
+     * Accion de auditoria: un ADMIN cancela la solicitud APPROVED de otro empleado y libera el
+     * recurso (change {@code release-occupied-resource}); el detalle guarda el motivo.
+     */
+    private static final String AUDIT_ACTION_ADMIN_RELEASE = "ADMIN_CANCEL_APPROVED_REQUEST";
     /** Tipo de entidad auditada en la liberacion por cancelacion. */
     private static final String AUDIT_ENTITY_REQUEST = "Request";
 
@@ -440,6 +447,75 @@ public class RequestService {
     private void recordRelease(Long employeeId, RequestResponse response) {
         auditRecorder.record(new AuditEntry(
                 employeeId, AUDIT_ACTION_RELEASE, AUDIT_ENTITY_REQUEST, response.id(), null));
+    }
+
+    /**
+     * Cancela administrativamente la solicitud {@code APPROVED} de fecha futura de un empleado para
+     * <strong>liberar el recurso ocupado</strong> por esa solicitud (change
+     * {@code release-occupied-resource}). Reservado al {@code ADMIN} (RBAC en el controlador); a
+     * diferencia de {@link #cancel(Long, String)} no hay verificacion de pertenencia (BOLA): el
+     * administrador opera sobre la solicitud de cualquier empleado. Exige que la solicitud este
+     * {@code APPROVED} y su {@code requestedDate} no sea pasada (via
+     * {@link Request#canBeAdminCancelledBy(LocalDate)}); en otro caso responde 409 sin efecto. La
+     * transicion a {@code CANCELLED} libera el recurso reutilizando la MISMA mecanica que la
+     * cancelacion del empleado (la fila deja de cumplir el filtro {@code status = 'APPROVED'} del
+     * indice unico y la plaza/puesto reaparece en disponibilidad) y publica un
+     * {@link RequestCancelledEvent} {@code AFTER_COMMIT} para avisar a los administradores activos.
+     * La accion queda trazada en auditoria con el administrador actor y el motivo.
+     *
+     * @param id         identificador de la solicitud
+     * @param adminLogin login del administrador que cancela (principal de la sesion)
+     * @param reason     motivo de la cancelacion administrativa (obligatorio, ya validado)
+     * @return la solicitud cancelada (DTO)
+     * @throws EntityNotFoundException si la solicitud no existe
+     * @throws RequestStateException   si la solicitud no esta {@code APPROVED} o es de fecha pasada
+     */
+    @Transactional
+    public RequestResponse adminCancel(Long id, String adminLogin, String reason) {
+        Request request = loadRequest(id);
+        LocalDate today = LocalDate.ofInstant(clock.now(), ZoneOffset.UTC);
+        requireAdminCancellable(request, today);
+        Long adminId = resolveEmployeeId(adminLogin);
+        request.cancel();
+        RequestResponse response = RequestResponse.from(requestRepository.save(request));
+        recordAdminRelease(adminId, response, reason);
+        // La cancelacion admin siempre parte de una APPROVED: libera recurso y avisa a los admins
+        // (design §Decisions); AFTER_COMMIT garantiza que el aviso solo sale si el commit tiene exito.
+        eventPublisher.publishEvent(new RequestCancelledEvent(response));
+        return response;
+    }
+
+    private void requireAdminCancellable(Request request, LocalDate today) {
+        if (!request.canBeAdminCancelledBy(today)) {
+            throw new RequestStateException(MSG_NOT_ADMIN_CANCELLABLE);
+        }
+    }
+
+    /**
+     * Registra en auditoria la cancelacion administrativa de una solicitud {@code APPROVED} como
+     * liberacion del recurso por el {@code ADMIN}, guardando el motivo en el detalle JSON. Reutiliza
+     * el puerto generico {@link AuditRecorder} (transaccion propia {@code REQUIRES_NEW}, best-effort:
+     * un fallo de registro no revierte la cancelacion).
+     */
+    private void recordAdminRelease(Long adminId, RequestResponse response, String reason) {
+        auditRecorder.record(new AuditEntry(
+                adminId, AUDIT_ACTION_ADMIN_RELEASE, AUDIT_ENTITY_REQUEST, response.id(),
+                reasonDetails(reason)));
+    }
+
+    /**
+     * Serializa el motivo a un objeto JSON minimo ({@code {"reason":"..."}}) para el detalle de
+     * auditoria, escapando los caracteres reservados de JSON para no romper el documento. Evita
+     * anadir una dependencia de serializacion al servicio para un unico campo de texto.
+     */
+    private static String reasonDetails(String reason) {
+        String escaped = reason
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+        return "{\"reason\":\"" + escaped + "\"}";
     }
 
     /**

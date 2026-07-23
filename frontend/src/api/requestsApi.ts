@@ -84,6 +84,13 @@ export async function cancelRequest(id: number): Promise<Request> {
   return data;
 }
 
+// POST /requests/{id}/admin-cancel (ADMIN): cancela la solicitud APPROVED futura de
+// cualquier empleado con motivo obligatorio; libera el recurso para esa fecha.
+export async function adminCancelRequest(id: number, reason: string): Promise<Request> {
+  const { data } = await apiClient.post<Request>(`${REQUESTS}/${id}/admin-cancel`, { reason });
+  return data;
+}
+
 // POST /requests/{id}/approve (ADMIN): aprueba asignando plaza.
 export async function approveRequest(
   id: number,

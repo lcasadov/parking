@@ -9,7 +9,8 @@ import { MSW_BASE } from '../mocks/handlers';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { todayIso } from '../utils/releases';
 
-const parkingOccupied = {
+// Recurso ocupado por asignación fija (sin requestId) → liberación administrativa (Release).
+const parkingFixed = {
   resourceType: 'PARKING' as const,
   resourceId: 8,
   resourceNumber: 3005,
@@ -20,7 +21,20 @@ const parkingOccupied = {
   requestId: null,
 };
 
-const deskOccupied = {
+// Puesto ocupado por asignación fija (sin requestId) → liberación administrativa (Release).
+const deskFixed = {
+  resourceType: 'DESK' as const,
+  resourceId: 20,
+  resourceNumber: 12,
+  floor: null,
+  employeeId: 99,
+  employeeName: 'Grace Hopper',
+  origin: 'FIXED_ASSIGNMENT' as const,
+  requestId: null,
+};
+
+// Puesto ocupado por solicitud APPROVED (trae requestId) → liberar cancelando la solicitud.
+const deskRequest = {
   resourceType: 'DESK' as const,
   resourceId: 20,
   resourceNumber: 12,
@@ -42,7 +56,7 @@ function useOccupancyWith(items: unknown[]): void {
 
 describe('ReleaseByDatePage (ADMIN)', () => {
   it('should_list_occupied_resources_for_the_default_date', async () => {
-    useOccupancyWith([parkingOccupied, deskOccupied]);
+    useOccupancyWith([parkingFixed, deskRequest]);
     renderWithProviders(<ReleaseByDatePage />);
 
     expect(await screen.findByText('Plaza 3005 · Planta 3')).toBeInTheDocument();
@@ -51,9 +65,9 @@ describe('ReleaseByDatePage (ADMIN)', () => {
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
   });
 
-  it('should_open_prefilled_modal_when_release_clicked', async () => {
+  it('should_open_prefilled_admin_release_when_fixed_resource_released', async () => {
     const user = userEvent.setup();
-    useOccupancyWith([parkingOccupied]);
+    useOccupancyWith([parkingFixed]);
     renderWithProviders(<ReleaseByDatePage />);
 
     await screen.findByText('Plaza 3005 · Planta 3');
@@ -65,6 +79,22 @@ describe('ReleaseByDatePage (ADMIN)', () => {
     expect(dialog.getByText('Plaza 3005 · Planta 3')).toBeInTheDocument();
     expect(dialog.getByText(todayIso())).toBeInTheDocument();
     expect(dialog.queryByLabelText(/empleado|employee/i)).not.toBeInTheDocument();
+    // Etiqueta del recurso corregida: para una PLAZA muestra "Plaza" (no un genérico).
+    expect(dialog.getByText('Plaza', { selector: 'dt' })).toBeInTheDocument();
+  });
+
+  it('should_label_resource_as_puesto_for_a_desk_fixed_release', async () => {
+    const user = userEvent.setup();
+    useOccupancyWith([deskFixed]);
+    renderWithProviders(<ReleaseByDatePage />);
+
+    await screen.findByText('Puesto 12');
+    await user.click(screen.getByRole('button', { name: /^liberar$|^release$/i }));
+
+    // Corrección "Plaza"→"Recurso": para un PUESTO la etiqueta del modal dice "Puesto".
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(dialog.getByText('Puesto', { selector: 'dt' })).toBeInTheDocument();
+    expect(dialog.queryByText('Plaza', { selector: 'dt' })).not.toBeInTheDocument();
   });
 
   it('should_post_administrative_release_with_resource_type_and_refresh', async () => {
@@ -76,7 +106,7 @@ describe('ReleaseByDatePage (ADMIN)', () => {
         occupancyCalls += 1;
         const date = new URL(request.url).searchParams.get('date');
         // La primera carga muestra el puesto ocupado; tras liberar, ya no aparece.
-        const items = occupancyCalls === 1 ? [deskOccupied] : [];
+        const items = occupancyCalls === 1 ? [deskFixed] : [];
         return HttpResponse.json({ date, occupiedResources: items });
       }),
       http.post(`${MSW_BASE}/releases/administrative`, async ({ request }) => {
@@ -111,5 +141,49 @@ describe('ReleaseByDatePage (ADMIN)', () => {
     expect(
       await screen.findByText(/liberación administrativa creada|administrative release created/i),
     ).toBeInTheDocument();
+  });
+
+  it('should_admin_cancel_request_when_releasing_request_origin_resource', async () => {
+    const user = userEvent.setup();
+    let cancelId: string | null = null;
+    let cancelBody: Record<string, unknown> | null = null;
+    let administrativeCalled = false;
+    let occupancyCalls = 0;
+    server.use(
+      http.get(`${MSW_BASE}/occupancy`, ({ request }) => {
+        occupancyCalls += 1;
+        const date = new URL(request.url).searchParams.get('date');
+        const items = occupancyCalls === 1 ? [deskRequest] : [];
+        return HttpResponse.json({ date, occupiedResources: items });
+      }),
+      http.post(`${MSW_BASE}/releases/administrative`, () => {
+        administrativeCalled = true;
+        return HttpResponse.json({ id: 1 }, { status: 201 });
+      }),
+      http.post(`${MSW_BASE}/requests/:id/admin-cancel`, async ({ request, params }) => {
+        cancelId = String(params.id);
+        cancelBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: Number(params.id), status: 'CANCELLED' });
+      }),
+    );
+    renderWithProviders(
+      <>
+        <ReleaseByDatePage />
+        <Toast />
+      </>,
+    );
+
+    await screen.findByText('Puesto 12');
+    await user.click(screen.getByRole('button', { name: /^liberar$|^release$/i }));
+
+    // El recurso proviene de una solicitud → modal de cancelación con motivo obligatorio.
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.type(dialog.getByLabelText(/motivo|reason/i), 'El empleado no acude');
+    await user.click(dialog.getByRole('button', { name: /^liberar$|^release$/i }));
+
+    await waitFor(() => expect(cancelId).toBe('42'));
+    expect(cancelBody).toEqual({ reason: 'El empleado no acude' });
+    expect(administrativeCalled).toBe(false);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });

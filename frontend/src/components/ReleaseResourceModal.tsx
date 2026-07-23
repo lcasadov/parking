@@ -13,6 +13,9 @@ import { longDate } from '../utils/calendar';
 interface ReleaseResourceModalProps {
   parkingSpaceId: number;
   spaceLabel: string;
+  // Cuando se libera un dia concreto (vista "Mi Semana" por-dia) la fecha ya esta
+  // fijada: se muestra bloqueada y sin selector. Omitido, el empleado elige la fecha.
+  presetDate?: string;
   onClose: () => void;
   onReleased: () => void;
 }
@@ -39,11 +42,12 @@ function toastKeyForError(error: unknown): string {
 export function ReleaseResourceModal({
   parkingSpaceId,
   spaceLabel,
+  presetDate,
   onClose,
   onReleased,
 }: ReleaseResourceModalProps) {
   const { t, i18n } = useTranslation();
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(presetDate ?? '');
   const [error, setError] = useState<string | null>(null);
   const releaseMutation = useCreateRelease();
   const daySummary = date === '' ? t('releases.release.summary.pendingDay') : longDate(date, i18n.language);
@@ -74,14 +78,20 @@ export function ReleaseResourceModal({
         <label className="field-label" htmlFor="release-resource-date">
           {t('releases.release.date')}
         </label>
-        <input
-          id="release-resource-date"
-          type="date"
-          className="field-input"
-          value={date}
-          min={todayIso()}
-          onChange={(event) => setDate(event.target.value)}
-        />
+        {presetDate ? (
+          <FieldValue readOnly>
+            <span id="release-resource-date">{longDate(presetDate, i18n.language)}</span>
+          </FieldValue>
+        ) : (
+          <input
+            id="release-resource-date"
+            type="date"
+            className="field-input"
+            value={date}
+            min={todayIso()}
+            onChange={(event) => setDate(event.target.value)}
+          />
+        )}
         <p className="hint">{t('releases.release.hint')}</p>
 
         <div className="release-summary">
