@@ -3,8 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { ConfigureParkingCard } from '../components/ConfigureParkingCard';
 import { Legend } from '../components/Legend';
+import { PageHeader } from '../components/PageHeader';
 import { ParkingSpaceFormModal } from '../components/ParkingSpaceFormModal';
-import { Spinner } from '../components/Spinner';
+import { SearchBox } from '../components/SearchBox';
+import { StatusPill } from '../components/StatusPill';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
+import { Toolbar } from '../components/Toolbar';
 import { emitApiErrorToast } from '../api/events';
 import { useParkingSpacesQuery, useUpdateParkingSpace } from '../hooks/useParkingSpaces';
 import type { ParkingSpace } from '../types/parkingSpace';
@@ -102,6 +106,7 @@ export function ParkingSpacesPage() {
   const visibleSpaces = search
     ? spaces.filter((space) => space.label.toLowerCase().includes(search))
     : spaces;
+  const ready = !query.isLoading && !query.isError;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
@@ -110,31 +115,27 @@ export function ParkingSpacesPage() {
   const floorSelectValue = floor === ALL_FLOORS ? ALL_FLOORS : String(floor);
 
   return (
-    <section className="parking-spaces-page" aria-labelledby="parking-spaces-title">
-      <header className="page-header">
-        <h1 id="parking-spaces-title" className="section-title">
-          {t('parkingSpaces.title')}
-        </h1>
-        <div className="page-actions">
+    <section className="parking-spaces-page" aria-label={t('parkingSpaces.title')}>
+      <PageHeader
+        eyebrow={t('parkingSpaces.eyebrow')}
+        title={t('parkingSpaces.title')}
+        description={t('parkingSpaces.description')}
+        actions={
           <Button variant="green" icon="plus" onClick={openCreate}>
             {t('parkingSpaces.new')}
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       <ConfigureParkingCard />
 
-      <div className="toolbar">
-        <div className="search-box">
-          <i className="ti ti-search" aria-hidden="true" />
-          <input
-            type="search"
-            aria-label={t('parkingSpaces.searchLabel')}
-            placeholder={t('parkingSpaces.searchPlaceholder')}
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-          />
-        </div>
+      <Toolbar ariaLabel={t('parkingSpaces.searchLabel')}>
+        <SearchBox
+          label={t('parkingSpaces.searchLabel')}
+          placeholder={t('parkingSpaces.searchPlaceholder')}
+          value={q}
+          onValueChange={setQ}
+        />
         <label className="field-label" htmlFor="parking-spaces-filter">
           {t('parkingSpaces.filterLabel')}
         </label>
@@ -164,43 +165,53 @@ export function ParkingSpacesPage() {
             </option>
           ))}
         </select>
-      </div>
+      </Toolbar>
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('parkingSpaces.loadError')}
-        </p>
+        <TableError
+          message={t('parkingSpaces.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
-        <div className="table-scroll">
-          <table className="table">
-            <thead>
-              <tr className="table-header">
-                <th scope="col">{t('parkingSpaces.columns.label')}</th>
-                <th scope="col">{t('parkingSpaces.columns.floor')}</th>
-                <th scope="col">{t('parkingSpaces.columns.status')}</th>
-                <th scope="col">{t('parkingSpaces.columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleSpaces.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="table-empty">
-                    {t('parkingSpaces.empty')}
-                  </td>
+      {ready ? (
+        visibleSpaces.length === 0 ? (
+          <TableEmpty
+            icon="parking"
+            message={t('parkingSpaces.empty')}
+            action={
+              <Button variant="green" icon="plus" onClick={openCreate}>
+                {t('parkingSpaces.new')}
+              </Button>
+            }
+          />
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr className="table-header">
+                  <th scope="col">{t('parkingSpaces.columns.label')}</th>
+                  <th scope="col">{t('parkingSpaces.columns.floor')}</th>
+                  <th scope="col">{t('parkingSpaces.columns.status')}</th>
+                  <th scope="col">{t('parkingSpaces.columns.actions')}</th>
                 </tr>
-              ) : (
-                visibleSpaces.map((space) => (
+              </thead>
+              <tbody>
+                {visibleSpaces.map((space) => (
                   <tr key={space.id} className="table-row">
                     <td>{space.label}</td>
                     <td>{t('parkingSpaces.floorValue', { floor: space.floor })}</td>
                     <td>
-                      <span className={`pill ${space.active ? 'pill-green' : 'pill-gray'}`}>
-                        {t(space.active ? 'parkingSpaces.status.active' : 'parkingSpaces.status.inactive')}
-                      </span>
+                      <StatusPill tone={space.active ? 'occupied' : 'free'}>
+                        {t(
+                          space.active
+                            ? 'parkingSpaces.status.active'
+                            : 'parkingSpaces.status.inactive',
+                        )}
+                      </StatusPill>
                     </td>
                     <td className="table-actions">
                       <Button
@@ -217,21 +228,25 @@ export function ParkingSpacesPage() {
                         disabled={updateMutation.isPending}
                         onClick={() => toggleActivation(space)}
                       >
-                        {t(space.active ? 'parkingSpaces.actions.deactivate' : 'parkingSpaces.actions.activate')}
+                        {t(
+                          space.active
+                            ? 'parkingSpaces.actions.deactivate'
+                            : 'parkingSpaces.actions.activate',
+                        )}
                       </Button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          <Legend
-            items={[
-              { color: 'var(--green)', label: t('parkingSpaces.status.active') },
-              { color: 'var(--text-muted)', label: t('parkingSpaces.status.inactive') },
-            ]}
-          />
-        </div>
+                ))}
+              </tbody>
+            </table>
+            <Legend
+              items={[
+                { color: 'var(--green)', label: t('parkingSpaces.status.active') },
+                { color: 'var(--text-muted)', label: t('parkingSpaces.status.inactive') },
+              ]}
+            />
+          </div>
+        )
       ) : null}
 
       {totalPages > 1 ? (

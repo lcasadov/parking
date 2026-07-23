@@ -9,6 +9,8 @@ import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
 import com.aleatica.parking.availability.dto.AvailabilityResponse;
 import com.aleatica.parking.availability.dto.CalendarCellResponse;
 import com.aleatica.parking.availability.dto.CalendarRowResponse;
+import com.aleatica.parking.availability.dto.EmployeeWeekDayResponse;
+import com.aleatica.parking.availability.dto.EmployeeWeekOccupancyResponse;
 import com.aleatica.parking.availability.dto.MyWeekDayResponse;
 import com.aleatica.parking.availability.dto.MyWeekResponse;
 import com.aleatica.parking.availability.dto.OccupancyItemResponse;
@@ -35,6 +37,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +78,7 @@ public class AvailabilityService {
 
     private static final int WEEK_DAYS = 7;
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
+    private static final String MSG_EMPLOYEE_NOT_FOUND = "Empleado no encontrado: ";
 
     private final ParkingSpaceRepository parkingSpaceRepository;
     private final DeskRepository deskRepository;
@@ -140,6 +144,58 @@ public class AvailabilityService {
      * @param label etiqueta humana del recurso ({@code P-08} / {@code D-05})
      */
     private record ResourceRef(Long id, String label) {
+    }
+
+    /**
+     * Clave (tipo de recurso, fecha) para indexar las solicitudes aprobadas del empleado en la
+     * ocupacion semanal por empleado.
+     *
+     * @param type tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param date fecha
+     */
+    private record TypeDate(ResourceType type, LocalDate date) {
+    }
+
+    /**
+     * Clave (tipo de recurso, dia de la semana) para indexar las asignaciones fijas del empleado
+     * en la ocupacion semanal por empleado.
+     *
+     * @param type tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param dow  dia de la semana (1=Lunes..7=Domingo)
+     */
+    private record TypeDow(ResourceType type, int dow) {
+    }
+
+    /**
+     * Clave (tipo de recurso, recurso, fecha) para indexar las liberaciones del empleado en la
+     * ocupacion semanal por empleado.
+     *
+     * @param type       tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param resourceId identificador del recurso
+     * @param date       fecha liberada
+     */
+    private record TypeResourceDate(ResourceType type, Long resourceId, LocalDate date) {
+    }
+
+    /**
+     * Contexto ensamblado de la ocupacion semanal de un empleado: los indices en memoria cargados
+     * por rango (una consulta por entidad) mas la identidad del empleado, para calcular las
+     * reservas de cada dia sin N+1 ni pasar demasiados parametros sueltos (S107).
+     *
+     * @param employeeId       empleado consultado
+     * @param employeeName     nombre completo del empleado consultado
+     * @param fixedByTypeDow   asignaciones fijas activas del empleado por (tipo, dia de la semana)
+     * @param approvedByTypeDate solicitudes aprobadas del empleado por (tipo, fecha)
+     * @param releasedKeys     liberaciones del empleado por (tipo, recurso, fecha)
+     * @param resourcesByType  recursos referenciados resueltos a su numero/planta, por tipo e id
+     */
+    private record WeekOccupancyContext(
+            Long employeeId,
+            String employeeName,
+            Map<TypeDow, FixedAssignmentEntity> fixedByTypeDow,
+            Map<TypeDate, RequestEntity> approvedByTypeDate,
+            Set<TypeResourceDate> releasedKeys,
+            Map<ResourceType, Map<Long, BookableResource>> resourcesByType) {
     }
 
     // -------------------------------------------------------------------------
@@ -474,6 +530,123 @@ public class AvailabilityService {
     }
 
     // -------------------------------------------------------------------------
+    // Ocupacion de un empleado por semana (Liberar por empleado/semana)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Construye la ocupacion de un empleado para una semana ({@code ADMIN}/{@code AGENCIA}): por
+     * cada uno de los siete dias, las reservas del empleado en plaza y puesto, cada una con su
+     * fecha (la del dia), tipo de recurso, recurso (numero/planta), origen
+     * ({@link OccupancyOrigin#FIXED_ASSIGNMENT} o {@link OccupancyOrigin#REQUEST_APPROVED}) y el
+     * {@code requestId} cuando proviene de una solicitud aprobada.
+     *
+     * <p>Generaliza a "por empleado y semana" la misma regla de precedencia que
+     * {@link #occupancyForType} usa "por fecha": una solicitud {@code APPROVED} para la fecha
+     * prevalece sobre la asignacion fija; en su ausencia, la asignacion fija vigente ese dia de la
+     * semana ocupa el recurso salvo que exista una liberacion para la fecha. La reserva de
+     * visitante no entra (no es un recurso con asignacion fija liberable administrativamente).
+     * Carga por rango (una consulta por entidad: asignaciones fijas, solicitudes y liberaciones del
+     * empleado, mas los recursos referenciados en lote) y ensambla en memoria, sin N+1.</p>
+     *
+     * @param employeeId     empleado a consultar
+     * @param weekStartInput lunes de la semana solicitada (se normaliza al lunes de esa semana)
+     * @return la ocupacion semanal del empleado (siempre los siete dias, con listas posiblemente vacias)
+     * @throws EntityNotFoundException si el empleado no existe
+     */
+    @Transactional(readOnly = true)
+    public EmployeeWeekOccupancyResponse employeeWeekOccupancy(Long employeeId, LocalDate weekStartInput) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException(MSG_EMPLOYEE_NOT_FOUND + employeeId));
+        LocalDate weekStart = mondayOf(weekStartInput);
+        LocalDate weekEnd = weekStart.plusDays(WEEK_DAYS - 1L);
+
+        List<FixedAssignmentEntity> fixed = fixedAssignmentRepository
+                .findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(employeeId);
+        List<RequestEntity> approved = requestRepository
+                .findByEmployeeIdAndRequestedDateBetween(employeeId, weekStart, weekEnd).stream()
+                .filter(r -> r.getStatus() == RequestStatus.APPROVED)
+                .toList();
+        List<ReleaseEntity> releases = releaseRepository
+                .findByEmployeeIdAndReleaseDateBetween(employeeId, weekStart, weekEnd);
+
+        WeekOccupancyContext context = new WeekOccupancyContext(
+                employeeId, fullName(employee),
+                fixed.stream().collect(Collectors.toMap(
+                        fa -> new TypeDow(fa.getResourceType(), fa.getDayOfWeek()),
+                        Function.identity(), (a, b) -> a)),
+                approved.stream().collect(Collectors.toMap(
+                        r -> new TypeDate(r.getResourceType(), r.getRequestedDate()),
+                        Function.identity(), (a, b) -> a)),
+                releases.stream()
+                        .map(r -> new TypeResourceDate(r.getResourceType(), r.getResourceId(), r.getReleaseDate()))
+                        .collect(Collectors.toSet()),
+                resolveResources(fixed, approved));
+
+        List<EmployeeWeekDayResponse> days = weekDays(weekStart).stream()
+                .map(day -> new EmployeeWeekDayResponse(day, dayReservations(day, context)))
+                .toList();
+        return new EmployeeWeekOccupancyResponse(
+                employeeId, context.employeeName(), weekStart, days);
+    }
+
+    private List<OccupancyItemResponse> dayReservations(LocalDate day, WeekOccupancyContext context) {
+        return Stream.of(ResourceType.PARKING, ResourceType.DESK)
+                .map(type -> reservationFor(type, day, context))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private OccupancyItemResponse reservationFor(
+            ResourceType type, LocalDate day, WeekOccupancyContext context) {
+        RequestEntity approved = context.approvedByTypeDate().get(new TypeDate(type, day));
+        if (approved != null) {
+            return reservationItem(
+                    type, approved.getResourceId(), OccupancyOrigin.REQUEST_APPROVED, approved.getId(), context);
+        }
+        FixedAssignmentEntity assignment = context.fixedByTypeDow()
+                .get(new TypeDow(type, day.getDayOfWeek().getValue()));
+        if (assignment != null
+                && !context.releasedKeys().contains(new TypeResourceDate(type, assignment.getResourceId(), day))) {
+            return reservationItem(
+                    type, assignment.getResourceId(), OccupancyOrigin.FIXED_ASSIGNMENT, null, context);
+        }
+        return null;
+    }
+
+    private static OccupancyItemResponse reservationItem(
+            ResourceType type, Long resourceId, OccupancyOrigin origin, Long requestId,
+            WeekOccupancyContext context) {
+        BookableResource resource = context.resourcesByType()
+                .getOrDefault(type, Map.of()).get(resourceId);
+        Integer number = resource != null ? resource.getNumber() : null;
+        Integer floor = resource != null ? resource.getFloor() : null;
+        return new OccupancyItemResponse(
+                type, resourceId, number, floor,
+                context.employeeId(), context.employeeName(), origin, requestId);
+    }
+
+    private Map<ResourceType, Map<Long, BookableResource>> resolveResources(
+            List<FixedAssignmentEntity> fixed, List<RequestEntity> approved) {
+        Set<Long> parkingIds = new HashSet<>();
+        Set<Long> deskIds = new HashSet<>();
+        for (FixedAssignmentEntity fa : fixed) {
+            (fa.getResourceType() == ResourceType.DESK ? deskIds : parkingIds).add(fa.getResourceId());
+        }
+        for (RequestEntity request : approved) {
+            (request.getResourceType() == ResourceType.DESK ? deskIds : parkingIds).add(request.getResourceId());
+        }
+        Map<ResourceType, Map<Long, BookableResource>> result = new EnumMap<>(ResourceType.class);
+        result.put(ResourceType.PARKING, bookableById(parkingSpaceRepository.findAllById(parkingIds)));
+        result.put(ResourceType.DESK, bookableById(deskRepository.findAllById(deskIds)));
+        return result;
+    }
+
+    private static Map<Long, BookableResource> bookableById(List<? extends BookableResource> resources) {
+        return resources.stream()
+                .collect(Collectors.toMap(BookableResource::getResourceId, resource -> resource));
+    }
+
+    // -------------------------------------------------------------------------
     // Mi Semana
     // -------------------------------------------------------------------------
 
@@ -527,18 +700,20 @@ public class AvailabilityService {
         RequestEntity approved = approvedByDate.get(day);
         if (approved != null) {
             return new MyWeekDayResponse(day, MyWeekDayState.ASSIGNED,
-                    labels.get(approved.getResourceId()), RequestStatus.APPROVED);
+                    labels.get(approved.getResourceId()), RequestStatus.APPROVED, approved.getId());
         }
         FixedAssignmentEntity assignment = fixedByDow.get(day.getDayOfWeek().getValue());
         if (assignment != null) {
             boolean released = releasedKeys.contains(new SpaceDate(assignment.getResourceId(), day));
             MyWeekDayState state = released ? MyWeekDayState.RELEASED : MyWeekDayState.ASSIGNED;
-            return new MyWeekDayResponse(day, state, labels.get(assignment.getResourceId()), null);
+            return new MyWeekDayResponse(day, state, labels.get(assignment.getResourceId()), null, null);
         }
-        if (pendingByDate.containsKey(day)) {
-            return new MyWeekDayResponse(day, MyWeekDayState.REQUEST_PENDING, null, RequestStatus.PENDING);
+        RequestEntity pending = pendingByDate.get(day);
+        if (pending != null) {
+            return new MyWeekDayResponse(day, MyWeekDayState.REQUEST_PENDING, null,
+                    RequestStatus.PENDING, pending.getId());
         }
-        return new MyWeekDayResponse(day, MyWeekDayState.FREE, null, null);
+        return new MyWeekDayResponse(day, MyWeekDayState.FREE, null, null, null);
     }
 
     // -------------------------------------------------------------------------

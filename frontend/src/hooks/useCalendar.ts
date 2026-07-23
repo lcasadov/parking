@@ -7,7 +7,7 @@ import type {
 } from '../types/calendar';
 import type { ResourceType } from '../types/request';
 import { isValidIsoDate } from '../utils/calendar';
-import { isWithinWindow } from '../utils/requests';
+import { isTodayOrFuture } from '../utils/requests';
 
 // Claves raiz de cache (S1192: sin literales repetidos).
 const CALENDAR_KEY = 'calendar';
@@ -41,8 +41,8 @@ export function useAvailabilityQuery(date: string): UseQueryResult<AvailabilityR
 }
 
 // Disponibilidad por recurso (plaza/puesto) para una fecha, usada como banner
-// informativo en la solicitud unificada. Solo consulta si la fecha cae dentro de
-// la ventana de reserva (hoy..+14d).
+// informativo en la solicitud unificada. Solo consulta si la fecha es hoy o
+// futura (no fechas pasadas).
 export function useResourceAvailabilityQuery(
   date: string,
   resourceType: ResourceType,
@@ -50,13 +50,13 @@ export function useResourceAvailabilityQuery(
   return useQuery({
     queryKey: resourceAvailabilityQueryKey(date, resourceType),
     queryFn: () => getAvailability(date, resourceType),
-    enabled: isValidIsoDate(date) && isWithinWindow(date),
+    enabled: isValidIsoDate(date) && isTodayOrFuture(date),
   });
 }
 
 // Disponibilidad por recurso para la aprobacion admin de una solicitud: lista los
 // recursos libres (plaza o puesto) de la fecha solicitada. A diferencia del banner,
-// no se limita a la ventana hoy..+14 (el admin puede resolver cualquier fecha).
+// no exige que la fecha sea hoy o futura (el admin puede resolver cualquier fecha).
 export function useApprovalAvailabilityQuery(
   date: string,
   resourceType: ResourceType,

@@ -27,6 +27,21 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
   });
 
+  it('should_render_brand_subtitle_and_description', () => {
+    renderLogin();
+    // Subtitulo de marca (task 1.1) y descripcion bajo el titulo (task 1.2).
+    expect(screen.getByText(/gestión de parking|parking management/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/usuario corporativo|corporate account/i),
+    ).toBeInTheDocument();
+  });
+
+  it('should_render_lockout_note', () => {
+    renderLogin();
+    // Aviso de bloqueo temporal (task 3.2): 5 intentos -> 15 minutos.
+    expect(screen.getByText(/5 intentos|5 failed attempts/i)).toBeInTheDocument();
+  });
+
   it('should_redirect_by_role_on_success', async () => {
     const user = userEvent.setup();
     renderLogin();

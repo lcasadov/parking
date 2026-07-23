@@ -11,6 +11,8 @@ export const es = {
     cancel: 'Cancelar',
     save: 'Guardar',
     loading: 'Cargando…',
+    retry: 'Reintentar',
+    search: 'Buscar',
     listAnd: 'y',
     dayIncluded: 'incluido',
     dayExcluded: 'no incluido',
@@ -36,6 +38,8 @@ export const es = {
   },
   auth: {
     loginTitle: 'Iniciar sesión',
+    loginSubtitle: 'Gestión de parking',
+    loginDescription: 'Acceso con tu usuario corporativo.',
     loginField: 'Usuario',
     passwordField: 'Contraseña',
     signIn: 'Entrar',
@@ -81,9 +85,15 @@ export const es = {
     },
   },
   layout: {
+    brandTagline: 'Gestión de parking',
     adminArea: 'Administración',
     employeeArea: 'Mi espacio',
     agencyArea: 'Agencia',
+    sections: {
+      management: 'Gestión',
+      operations: 'Operativa',
+      navigation: 'Navegación',
+    },
   },
   exports: {
     groupLabel: 'Opciones de exportación',
@@ -97,6 +107,8 @@ export const es = {
   },
   employees: {
     title: 'Empleados',
+    eyebrow: 'Administración',
+    description: 'Alta, edición y asignación fija de plazas y puestos por empleado.',
     navLabel: 'Empleados',
     searchPlaceholder: 'Buscar empleado…',
     searchLabel: 'Buscar empleado',
@@ -219,6 +231,8 @@ export const es = {
   },
   parkingSpaces: {
     title: 'Plazas',
+    eyebrow: 'Administración',
+    description: 'Configura el total de plazas del parking y gestiona su estado.',
     navLabel: 'Plazas',
     new: 'Nueva plaza',
     searchLabel: 'Buscar plaza',
@@ -290,6 +304,8 @@ export const es = {
   },
   desks: {
     title: 'Puestos',
+    eyebrow: 'Administración',
+    description: 'Gestiona los puestos de oficina, su categoría y activación.',
     navLabel: 'Puestos',
     new: 'Nuevo puesto',
     searchLabel: 'Buscar puesto',
@@ -412,6 +428,8 @@ export const es = {
     mine: {
       title: 'Mis asignaciones fijas',
       navLabel: 'Mis asignaciones',
+      eyebrow: 'Mi espacio',
+      description: 'Tus recursos fijos y los días que los tienes reservados.',
       empty: 'No tienes asignaciones fijas.',
       loadError: 'No se pudieron cargar tus asignaciones fijas.',
       columns: {
@@ -444,6 +462,8 @@ export const es = {
     mine: {
       title: 'Mis solicitudes',
       navLabel: 'Mis solicitudes',
+      eyebrow: 'Mi espacio',
+      description: 'Historial de tus solicitudes de plaza y puesto, con su estado.',
       new: 'Nueva solicitud',
       empty: 'No tienes solicitudes.',
       loadError: 'No se pudieron cargar tus solicitudes.',
@@ -465,8 +485,10 @@ export const es = {
       createdApproved: 'Solicitud aprobada: recurso asignado al instante.',
     },
     inbox: {
-      title: 'Solicitudes pendientes',
+      title: 'Solicitudes',
       navLabel: 'Solicitudes',
+      eyebrow: 'Operativa',
+      description: 'Resuelve las peticiones de plaza y puesto por orden de llegada.',
       pendingBadge: '{{count}} solicitudes pendientes',
       empty: 'No hay solicitudes pendientes.',
       loadError: 'No se pudieron cargar las solicitudes pendientes.',
@@ -484,9 +506,9 @@ export const es = {
       emptyByStatus: 'No hay solicitudes en este estado.',
       columns: {
         employee: 'Empleado',
-        resource: 'Recurso',
-        date: 'Fecha',
-        created: 'Solicitada',
+        date: 'Fecha solicitada',
+        day: 'Día',
+        created: 'Creada',
         status: 'Estado',
         actions: 'Acciones',
       },
@@ -497,7 +519,7 @@ export const es = {
     create: {
       title: 'Nueva solicitud',
       date: 'Fecha de la solicitud',
-      hint: 'Puedes solicitar cualquier día entre hoy y los próximos 14 días.',
+      hint: 'Puedes solicitar cualquier día desde hoy en adelante.',
       resources: 'Recursos a solicitar',
       resourceParking: 'Plaza de parking',
       resourceDesk: 'Puesto de oficina',
@@ -507,10 +529,10 @@ export const es = {
       changeDesk: 'Cambiar puesto',
       removeDesk: 'Quitar',
       chosenDesk: 'Puesto elegido: {{number}}',
-      chooseDeskDateHint: 'Elige primero una fecha dentro de la ventana para seleccionar un puesto.',
+      chooseDeskDateHint: 'Elige primero una fecha (hoy o futura) para seleccionar un puesto.',
       requiredDate: 'Selecciona una fecha.',
       requiredResource: 'Selecciona al menos un recurso (plaza o puesto).',
-      outsideWindow: 'La fecha debe estar entre hoy y los próximos 14 días.',
+      outsideWindow: 'La fecha no puede ser anterior a hoy.',
       availability: {
         loading: 'Comprobando disponibilidad…',
         count: '{{count}} disponible(s) para esta fecha',
@@ -521,6 +543,23 @@ export const es = {
       body: '¿Cancelar tu solicitud del {{date}}?',
       confirm: 'Cancelar solicitud',
       keep: 'No cancelar',
+      done: 'Solicitud cancelada. El recurso queda libre ese día.',
+    },
+    adminCancel: {
+      title: 'Liberar cancelando la solicitud',
+      summary: 'Resumen de la liberación',
+      employee: 'Empleado',
+      resource: 'Recurso',
+      date: 'Fecha',
+      reason: 'Motivo',
+      reasonHint: 'Obligatorio (mínimo 5 caracteres). Queda registrado en la auditoría.',
+      submit: 'Liberar',
+      cancel: 'Cancelar',
+      requiredReason: 'Indica el motivo (mínimo 5 caracteres).',
+      cancelled: 'Solicitud cancelada. El recurso queda libre esa fecha.',
+      errors: {
+        reason: 'Revisa el motivo (5 a 500 caracteres).',
+      },
     },
     approve: {
       title: 'Aprobar solicitud',
@@ -573,7 +612,7 @@ export const es = {
       emailNotice: 'El empleado recibirá un email informándole de la cancelación.',
     },
     errors: {
-      window: 'La fecha está fuera de la ventana permitida (hoy..hoy+14 días).',
+      window: 'La fecha no puede ser anterior a hoy.',
       duplicate: 'Ya tienes una solicitud pendiente para esa fecha.',
       alreadyResolved: 'La solicitud ya no está pendiente.',
       unavailable: 'La plaza no está disponible para esa fecha.',
@@ -595,6 +634,8 @@ export const es = {
     mine: {
       title: 'Mis liberaciones',
       navLabel: 'Mis liberaciones',
+      eyebrow: 'Mi espacio',
+      description: 'Días que has liberado tu recurso fijo para que otro lo use.',
       empty: 'No tienes liberaciones.',
       loadError: 'No se pudieron cargar tus liberaciones.',
       columns: {
@@ -635,6 +676,8 @@ export const es = {
     },
     admin: {
       title: 'Liberación administrativa',
+      eyebrow: 'Operativa',
+      description: 'Libera el recurso fijo de un empleado para una fecha concreta.',
       navLabel: 'Liberaciones',
       intro: 'Libera el recurso fijo de un empleado para una fecha concreta cuando no vaya a acudir. Requiere un motivo.',
       new: 'Nueva liberación',
@@ -656,6 +699,8 @@ export const es = {
     byDate: {
       navLabel: 'Liberar por fecha',
       title: 'Liberar por fecha',
+      eyebrow: 'Operativa',
+      description: 'Recursos ocupados por fecha y su titular, para liberarlos uno a uno.',
       intro: 'Elige una fecha para ver los recursos ocupados y por qué empleado, y libéralos uno a uno.',
       dateLabel: 'Fecha',
       loadError: 'No se pudo cargar la ocupación de esa fecha.',
@@ -680,6 +725,35 @@ export const es = {
         actions: 'Acciones',
       },
     },
+    employeeWeek: {
+      description: 'Selecciona un empleado, revisa sus reservas de la semana y libera las que no vaya a usar.',
+      intro: 'Elige un empleado para ver sus reservas (plaza y puesto) por semana, marca una o varias y libéralas con un único motivo.',
+      employee: 'Empleado',
+      selectEmployee: 'Selecciona un empleado',
+      selectEmployeePrompt: 'Selecciona un empleado para ver sus reservas de la semana.',
+      loading: 'Cargando reservas del empleado…',
+      loadError: 'No se pudieron cargar las reservas del empleado.',
+      empty: 'Este empleado no tiene reservas esta semana.',
+      reason: 'Motivo',
+      reasonHint: 'Obligatorio (mínimo 5 caracteres). Se aplica a todas las reservas marcadas y queda registrado en la auditoría.',
+      requiredReason: 'Indica el motivo (mínimo 5 caracteres).',
+      requiredSelection: 'Marca al menos una reserva para liberar.',
+      release: 'Liberar',
+      releaseBatch: 'Liberar reservas',
+      cancel: 'Cancelar',
+      weekNumber: 'Semana {{week}}',
+      selectedCount: '{{count}} reserva(s) seleccionada(s)',
+      selectedCountLabel: 'reserva(s) seleccionada(s)',
+      resourceKind: {
+        PARKING: 'Plaza de parking',
+        DESK: 'Puesto de oficina',
+      },
+      feedback: {
+        released: '{{count}} reserva(s) liberada(s).',
+        partial: '{{released}} reserva(s) liberada(s), {{failed}} con error.',
+        failedAll: 'No se pudo liberar ninguna reserva.',
+      },
+    },
     errors: {
       window: 'La fecha debe ser hoy o futura.',
       conflict: 'El recurso no tiene asignación fija ese día o ya está liberado.',
@@ -689,6 +763,8 @@ export const es = {
   },
   visitors: {
     title: 'Visitantes',
+    eyebrow: 'Administración',
+    description: 'Fichas de visitante y reservas de plaza para externos.',
     navLabel: 'Visitantes',
     emailNote: 'Las reservas de visitante no generan notificaciones por email.',
     tabs: {
@@ -794,7 +870,7 @@ export const es = {
     dateLabel: 'Fecha',
     invalidDate: 'Introduce una fecha válida.',
     loadError: 'No se pudo cargar el plano.',
-    outsideWindow: 'La fecha está fuera de la ventana de solicitud (hoy a +14 días).',
+    outsideWindow: 'La fecha no puede ser anterior a hoy.',
     editPositions: 'Editar posiciones',
     editHint: 'Arrastra los marcadores para colocar cada puesto; la posición se guarda al soltar.',
     savePositions: 'Guardar posiciones',
@@ -821,7 +897,7 @@ export const es = {
       previous: 'Día anterior',
       next: 'Día siguiente',
       today: 'Hoy',
-      window: 'Ventana de reserva: {{days}} días',
+      window: 'Puedes reservar desde hoy en adelante',
     },
     filters: {
       label: 'Filtros por estado',
@@ -839,6 +915,7 @@ export const es = {
       label: 'Panel de puestos',
       title: 'Puestos',
       occupancyTitle: 'Ocupación del día',
+      countersLabel: 'Ocupación por estado',
       searchLabel: 'Buscar puesto por número',
       searchPlaceholder: 'Buscar nº…',
       empty: 'Ningún puesto coincide con la búsqueda.',
@@ -859,6 +936,8 @@ export const es = {
   availability: {
     navLabel: 'Disponibilidad',
     title: 'Disponibilidad por fecha',
+    eyebrow: 'Operativa',
+    description: 'Consulta las plazas libres para una fecha concreta.',
     dateLabel: 'Fecha',
     invalidDate: 'Introduce una fecha válida.',
     hint: 'Elige una fecha para ver las plazas disponibles.',
@@ -873,13 +952,31 @@ export const es = {
   calendar: {
     admin: {
       navLabel: 'Asignación semanal',
-      title: 'Calendario semanal',
+      title: 'Asignación semanal',
+      eyebrow: 'Operativa',
+      description: 'Estado de cada plaza, día a día, de un vistazo.',
     },
     toolbar: {
       previous: 'Semana anterior',
       next: 'Semana siguiente',
       today: 'Hoy',
       weekOf: 'Semana del {{date}}',
+    },
+    actions: {
+      filter: 'Filtrar',
+      export: 'Exportar',
+    },
+    summary: {
+      spaces: 'Plazas activas',
+      assignments: 'Asignaciones',
+      releases: 'Liberadas',
+      requests: 'Solicitudes',
+    },
+    weekNav: {
+      week: 'Semana {{number}}',
+    },
+    export: {
+      filename: 'asignacion-semanal',
     },
     space: 'Plaza',
     loadError: 'No se pudo cargar el calendario.',
@@ -903,6 +1000,8 @@ export const es = {
     myWeek: {
       navLabel: 'Mi Semana',
       title: 'Mi Semana',
+      eyebrow: 'Mi espacio',
+      description: 'Tu semana de un vistazo: solicita o libera tu plaza día a día.',
       loadError: 'No se pudo cargar tu semana.',
       empty: 'No hay días que mostrar.',
       space: 'Plaza {{label}}',
@@ -920,6 +1019,8 @@ export const es = {
   },
   audit: {
     title: 'Auditoría de acciones',
+    eyebrow: 'Trazabilidad',
+    description: 'Registro de acciones relevantes por actor, tipo y rango de fechas.',
     navLabel: 'Auditoría',
     retentionNote: 'Los registros de auditoría se conservan durante 2 años y luego se purgan automáticamente.',
     systemActor: 'Sistema',
@@ -949,6 +1050,8 @@ export const es = {
   },
   loginLogs: {
     title: 'Accesos (login)',
+    eyebrow: 'Trazabilidad',
+    description: 'Intentos de inicio de sesión correctos y fallidos por fecha.',
     navLabel: 'Accesos',
     retentionNote: 'Los intentos de inicio de sesión se conservan durante 2 años y luego se purgan automáticamente.',
     filters: {

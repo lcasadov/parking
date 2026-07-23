@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Spinner } from './Spinner';
+import { SearchBox } from './SearchBox';
+import { TableEmpty, TableError, TableSkeleton } from './TableStates';
+import { Toolbar } from './Toolbar';
 import { VisitorDetailModal } from './VisitorDetailModal';
 import { VisitorFormModal } from './VisitorFormModal';
 import { VisitorReservationModal } from './VisitorReservationModal';
@@ -23,6 +25,7 @@ export function VisitorsPanel() {
 
   const query = useVisitorsQuery({ page, size: PAGE_SIZE, q });
   const visitors = query.data?.content ?? [];
+  const ready = !query.isLoading && !query.isError;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
@@ -50,52 +53,54 @@ export function VisitorsPanel() {
 
   return (
     <div className="visitors-panel">
-      <div className="toolbar">
-        <div className="search-box">
-          <i className="ti ti-search" aria-hidden="true" />
-          <input
-            type="search"
-            aria-label={t('visitors.searchLabel')}
-            placeholder={t('visitors.searchPlaceholder')}
-            value={q}
-            onChange={(event) => handleSearch(event.target.value)}
-          />
-        </div>
+      <Toolbar ariaLabel={t('visitors.searchLabel')}>
+        <SearchBox
+          label={t('visitors.searchLabel')}
+          placeholder={t('visitors.searchPlaceholder')}
+          value={q}
+          onValueChange={handleSearch}
+        />
         <Button variant="green" icon="plus" onClick={openCreate}>
           {t('visitors.newVisitor')}
         </Button>
-      </div>
+      </Toolbar>
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={6} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('visitors.loadError')}
-        </p>
+        <TableError
+          message={t('visitors.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
-        <div className="table-scroll">
-          <table className="table">
-            <thead>
-              <tr className="table-header">
-                <th scope="col">{t('visitors.columns.name')}</th>
-                <th scope="col">{t('visitors.columns.nationalId')}</th>
-                <th scope="col">{t('visitors.columns.licensePlate')}</th>
-                <th scope="col">{t('visitors.columns.company')}</th>
-                <th scope="col">{t('visitors.columns.usualReason')}</th>
-                <th scope="col">{t('visitors.columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visitors.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="table-empty">
-                    {t('visitors.empty')}
-                  </td>
+      {ready ? (
+        visitors.length === 0 ? (
+          <TableEmpty
+            icon="user-question"
+            message={t('visitors.empty')}
+            action={
+              <Button variant="green" icon="plus" onClick={openCreate}>
+                {t('visitors.newVisitor')}
+              </Button>
+            }
+          />
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr className="table-header">
+                  <th scope="col">{t('visitors.columns.name')}</th>
+                  <th scope="col">{t('visitors.columns.nationalId')}</th>
+                  <th scope="col">{t('visitors.columns.licensePlate')}</th>
+                  <th scope="col">{t('visitors.columns.company')}</th>
+                  <th scope="col">{t('visitors.columns.usualReason')}</th>
+                  <th scope="col">{t('visitors.columns.actions')}</th>
                 </tr>
-              ) : (
-                visitors.map((visitor) => (
+              </thead>
+              <tbody>
+                {visitors.map((visitor) => (
                   <tr key={visitor.id} className="table-row">
                     <td>{`${visitor.firstName} ${visitor.lastName}`}</td>
                     <td>{visitor.nationalId}</td>
@@ -103,18 +108,10 @@ export function VisitorsPanel() {
                     <td>{visitor.company ?? none}</td>
                     <td>{visitor.usualReason ?? none}</td>
                     <td className="table-actions">
-                      <Button
-                        variant="white"
-                        icon="eye"
-                        onClick={() => setDetailId(visitor.id)}
-                      >
+                      <Button variant="white" icon="eye" onClick={() => setDetailId(visitor.id)}>
                         {t('visitors.actions.view')}
                       </Button>
-                      <Button
-                        variant="white"
-                        icon="pencil"
-                        onClick={() => openEdit(visitor)}
-                      >
+                      <Button variant="white" icon="pencil" onClick={() => openEdit(visitor)}>
                         {t('visitors.actions.edit')}
                       </Button>
                       <Button
@@ -126,11 +123,11 @@ export function VisitorsPanel() {
                       </Button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : null}
 
       {totalPages > 1 ? (

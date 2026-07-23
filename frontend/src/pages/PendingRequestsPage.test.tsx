@@ -303,6 +303,40 @@ describe('PendingRequestsPage (ADMIN)', () => {
     expect(screen.getByText(requestRejected.requestedDate)).toBeInTheDocument();
   });
 
+  it('should_render_day_column_and_serif_date_and_avatar_when_listing', async () => {
+    // Fecha fija (2026-03-05 = jueves) para un dia de semana estable e independiente de la zona.
+    const fixedDate = { ...requestPending1, id: 999, requestedDate: '2026-03-05' };
+    server.use(
+      http.get(`${MSW_BASE}/requests/pending`, () =>
+        HttpResponse.json(pageOfRequests([fixedDate])),
+      ),
+    );
+    renderWithProviders(<PendingRequestsPage />);
+
+    // Nueva columna "Día" en la cabecera.
+    expect(await screen.findByRole('columnheader', { name: /^día$|^day$/i })).toBeInTheDocument();
+    // Fecha solicitada renderizada con la clase serif del design system.
+    const dateCell = await screen.findByText('2026-03-05');
+    expect(dateCell).toHaveClass('request-date');
+    // Dia de la semana derivado (jueves) visible en la fila.
+    expect(screen.getByText(/^jue$|^thu$/i)).toBeInTheDocument();
+    // Avatar de color por empleado (role=img con nombre accesible).
+    expect(screen.getAllByRole('img').length).toBeGreaterThan(0);
+  });
+
+  it('should_show_pending_count_badge_on_pending_tab', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/requests/pending`, () =>
+        HttpResponse.json(pageOfRequests([requestPending1, requestPending2], { totalElements: 7 })),
+      ),
+    );
+    renderWithProviders(<PendingRequestsPage />);
+
+    const pendingTab = await screen.findByRole('tab', { name: /pendientes|pending/i });
+    // El contador se rellena cuando resuelve la query de pendientes (totalElements).
+    await waitFor(() => expect(within(pendingTab).getByText('7')).toBeInTheDocument());
+  });
+
   it('should_offer_desks_and_approve_desk_request_when_request_is_desk', async () => {
     const user = userEvent.setup();
     let approvedBody: unknown = null;

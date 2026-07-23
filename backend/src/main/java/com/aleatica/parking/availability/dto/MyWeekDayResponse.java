@@ -19,6 +19,9 @@ import java.time.LocalDate;
  * @param state             estado del dia para el empleado
  * @param parkingSpaceLabel etiqueta del recurso propio ese dia; {@code null} si no aplica
  * @param requestStatus     estado de la solicitud propia ese dia; {@code null} si no aplica
+ * @param requestId         id de la solicitud propia ese dia; {@code null} si el dia no proviene
+ *                          de una solicitud (asignacion fija o libre). Permite a la UI "Liberar"
+ *                          el recurso del dia cancelando la solicitud (change release-occupied-resource)
  */
 @Schema(description = "Dia de la vista personal 'Mi Semana'")
 public record MyWeekDayResponse(
@@ -32,5 +35,9 @@ public record MyWeekDayResponse(
         @JsonProperty("parkingSpaceLabel") String parkingSpaceLabel,
 
         @Schema(description = "Estado de la solicitud propia ese dia; null si no aplica", example = "APPROVED")
-        @JsonProperty("requestStatus") RequestStatus requestStatus) {
+        @JsonProperty("requestStatus") RequestStatus requestStatus,
+
+        @Schema(description = "Id de la solicitud propia ese dia; null si no proviene de una solicitud",
+                example = "42")
+        @JsonProperty("requestId") Long requestId) {
 }

@@ -44,6 +44,22 @@ export function cellStateClass(state: CalendarCellState | MyWeekDayState): strin
   return `cell-${state.toLowerCase().replace(/_/g, '-')}`;
 }
 
+// Mapa estado de celda -> clase del design system (contrato §4, tokens --state-*).
+// Reutiliza el mapa unico estado->color: ocupado=verde, liberado=azul,
+// pendiente=amber, solicitud=naranja, libre=dashed. Sin hex sueltos.
+const CALENDAR_STATE_CLASS: Record<CalendarCellState, string> = {
+  ASSIGNED: 'state-occupied',
+  RELEASED: 'state-released',
+  REQUEST_PENDING: 'state-pending',
+  REQUEST_APPROVED: 'state-request',
+  FREE: 'state-free',
+};
+
+// Clase del design system (contrato §4) para el estado de una celda del calendario.
+export function calendarStateClass(state: CalendarCellState): string {
+  return CALENDAR_STATE_CLASS[state];
+}
+
 // Indice de dia de la semana (0 domingo .. 6 sabado) de una fecha ISO.
 export function weekdayIndex(dateIso: string): number {
   return new Date(`${dateIso}T00:00:00`).getDay();
@@ -53,6 +69,40 @@ export function weekdayIndex(dateIso: string): number {
 export function dayMonth(dateIso: string): string {
   const [, month, day] = dateIso.split('-');
   return `${day}/${month}`;
+}
+
+// Numero de semana ISO-8601 (lunes como primer dia; semana 1 = la del primer
+// jueves del año) a partir de un ISO date. Solo presentacion.
+export function isoWeekNumber(dateIso: string): number {
+  const date = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return 0;
+  }
+  // Jueves de la semana actual (define el año ISO al que pertenece la semana).
+  const dayNr = (date.getDay() + 6) % 7; // lunes=0 .. domingo=6
+  date.setDate(date.getDate() - dayNr + 3);
+  const firstThursday = new Date(date.getFullYear(), 0, 4);
+  const firstDayNr = (firstThursday.getDay() + 6) % 7;
+  firstThursday.setDate(firstThursday.getDate() - firstDayNr + 3);
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  return 1 + Math.round((date.getTime() - firstThursday.getTime()) / msPerWeek);
+}
+
+// Rango de fechas de la semana (primer .. ultimo dia) formateado y localizado,
+// p. ej. "11 may – 15 may 2026". Para el titulo serif del navegador de semana.
+export function weekRangeLabel(startIso: string, endIso: string, locale: string): string {
+  const start = new Date(`${startIso}T00:00:00`);
+  const end = new Date(`${endIso}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `${startIso} – ${endIso}`;
+  }
+  const dayMonthFmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+  const fullFmt = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  return `${dayMonthFmt.format(start)} – ${fullFmt.format(end)}`;
 }
 
 // Formato largo localizado (p. ej. "sábado, 5 de julio de 2026" / "Saturday,

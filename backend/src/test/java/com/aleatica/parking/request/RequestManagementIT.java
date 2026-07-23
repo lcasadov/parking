@@ -56,6 +56,7 @@ class RequestManagementIT extends BaseIntegrationTest {
 
     private static final LocalDate TODAY = LocalDate.now(ZoneOffset.UTC);
     private static final LocalDate WITHIN = TODAY.plusDays(3);
+    private static final LocalDate FAR_FUTURE = TODAY.plusDays(400);
     private static final LocalDate OUTSIDE_PAST = TODAY.minusDays(1);
 
     @Autowired
@@ -91,6 +92,15 @@ class RequestManagementIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.parkingSpaceId").doesNotExist());
         assertThat(statusOf(empAId, WITHIN)).isEqualTo("PENDING");
+    }
+
+    @Test
+    void shouldCreatePendingRequest_whenDateFarInFuture() throws Exception {
+        // Act / Assert: sin limite superior, una fecha muy lejana (hoy+400) crea la solicitud
+        createRequest(empASession, FAR_FUTURE)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+        assertThat(statusOf(empAId, FAR_FUTURE)).isEqualTo("PENDING");
     }
 
     @Test
@@ -220,6 +230,69 @@ class RequestManagementIT extends BaseIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("FORBIDDEN"));
         assertThat(statusOf(empBId, WITHIN)).isEqualTo("PENDING");
+    }
+
+    // ---- Cancelacion administrativa: estado + RBAC + motivo (release-occupied-resource) ----
+
+    @Test
+    void shouldAdminCancelApprovedFutureRequest_andReleaseResource() throws Exception {
+        // Arrange: solicitud APPROVED de OTRO empleado (empB) con plaza ocupando disponibilidad
+        long id = insertApproved(empBId, WITHIN, spaceX);
+        assertThat(approvedRowsForSpaceDate(spaceX, WITHIN)).isEqualTo(1);
+
+        // Act / Assert: el admin la cancela con motivo -> 200 CANCELLED y la plaza vuelve a libre
+        adminCancel(adminSession, id, "{\"reason\":\"El empleado ya no la necesita\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+        assertThat(statusOf(empBId, WITHIN)).isEqualTo("CANCELLED");
+        assertThat(approvedRowsForSpaceDate(spaceX, WITHIN)).isZero();
+    }
+
+    @Test
+    void shouldReturn400_whenAdminCancelWithoutReason() throws Exception {
+        // Arrange: APPROVED futura; el admin la cancela sin motivo
+        long id = insertApproved(empBId, WITHIN, spaceX);
+
+        // Act / Assert: 400 con el detalle en fields.reason y sin cancelar
+        adminCancel(adminSession, id, "{}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fields.reason").exists());
+        assertThat(statusOf(empBId, WITHIN)).isEqualTo("APPROVED");
+        assertThat(approvedRowsForSpaceDate(spaceX, WITHIN)).isEqualTo(1);
+    }
+
+    @Test
+    void shouldReturn409_whenAdminCancelPendingRequest() throws Exception {
+        // Arrange: una PENDING no se cancela administrativamente (se resuelve con reject)
+        long id = insertRequest(empBId, WITHIN, "PENDING", Instant.now());
+
+        // Act / Assert
+        adminCancel(adminSession, id, "{\"reason\":\"Motivo suficiente\"}")
+                .andExpect(status().isConflict());
+        assertThat(statusOf(empBId, WITHIN)).isEqualTo("PENDING");
+    }
+
+    @Test
+    void shouldReturn409_whenAdminCancelApprovedPastRequest() throws Exception {
+        // Arrange: APPROVED de fecha pasada -> no se libera un recurso ya transcurrido
+        long id = insertApproved(empBId, OUTSIDE_PAST, spaceX);
+
+        // Act / Assert
+        adminCancel(adminSession, id, "{\"reason\":\"Motivo suficiente\"}")
+                .andExpect(status().isConflict());
+        assertThat(statusOf(empBId, OUTSIDE_PAST)).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void shouldReturn403_whenEmployeeUsesAdminCancel() throws Exception {
+        // Arrange: APPROVED futura; un EMPLOYEE intenta usar el endpoint admin (RBAC)
+        long id = insertApproved(empBId, WITHIN, spaceX);
+
+        // Act / Assert
+        adminCancel(empASession, id, "{\"reason\":\"Motivo suficiente\"}")
+                .andExpect(status().isForbidden());
+        assertThat(statusOf(empBId, WITHIN)).isEqualTo("APPROVED");
     }
 
     // ---- Aprobacion: disponibilidad + concurrencia ----
@@ -365,6 +438,11 @@ class RequestManagementIT extends BaseIntegrationTest {
         String noteJson = note == null ? "" : ",\"approvalNote\":\"" + note + "\"";
         String body = "{\"parkingSpaceId\":" + spaceId + noteJson + "}";
         return mockMvc.perform(post(BASE_URL + "/" + id + "/approve").cookie(session)
+                .contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    private ResultActions adminCancel(Cookie session, long id, String body) throws Exception {
+        return mockMvc.perform(post(BASE_URL + "/" + id + "/admin-cancel").cookie(session)
                 .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 

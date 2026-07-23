@@ -11,6 +11,8 @@ export const en = {
     cancel: 'Cancel',
     save: 'Save',
     loading: 'Loading…',
+    retry: 'Retry',
+    search: 'Search',
     listAnd: 'and',
     dayIncluded: 'included',
     dayExcluded: 'not included',
@@ -36,6 +38,8 @@ export const en = {
   },
   auth: {
     loginTitle: 'Sign in',
+    loginSubtitle: 'Parking management',
+    loginDescription: 'Sign in with your corporate account.',
     loginField: 'Username',
     passwordField: 'Password',
     signIn: 'Sign in',
@@ -81,9 +85,15 @@ export const en = {
     },
   },
   layout: {
+    brandTagline: 'Parking management',
     adminArea: 'Administration',
     employeeArea: 'My space',
     agencyArea: 'Agency',
+    sections: {
+      management: 'Management',
+      operations: 'Operations',
+      navigation: 'Navigation',
+    },
   },
   exports: {
     groupLabel: 'Export options',
@@ -97,6 +107,8 @@ export const en = {
   },
   employees: {
     title: 'Employees',
+    eyebrow: 'Administration',
+    description: 'Create, edit and fix-assign spaces and desks per employee.',
     navLabel: 'Employees',
     searchPlaceholder: 'Search employee…',
     searchLabel: 'Search employee',
@@ -219,6 +231,8 @@ export const en = {
   },
   parkingSpaces: {
     title: 'Parking spaces',
+    eyebrow: 'Administration',
+    description: 'Configure the total number of parking spaces and manage their status.',
     navLabel: 'Parking spaces',
     new: 'New space',
     searchLabel: 'Search space',
@@ -290,6 +304,8 @@ export const en = {
   },
   desks: {
     title: 'Desks',
+    eyebrow: 'Administration',
+    description: 'Manage office desks, their category and activation.',
     navLabel: 'Desks',
     new: 'New desk',
     searchLabel: 'Search desk',
@@ -412,6 +428,8 @@ export const en = {
     mine: {
       title: 'My fixed assignments',
       navLabel: 'My assignments',
+      eyebrow: 'My space',
+      description: 'Your fixed resources and the days you have them reserved.',
       empty: 'You have no fixed assignments.',
       loadError: 'Could not load your fixed assignments.',
       columns: {
@@ -444,6 +462,8 @@ export const en = {
     mine: {
       title: 'My requests',
       navLabel: 'My requests',
+      eyebrow: 'My space',
+      description: 'History of your parking and desk requests, with their status.',
       new: 'New request',
       empty: 'You have no requests.',
       loadError: 'Could not load your requests.',
@@ -465,8 +485,10 @@ export const en = {
       createdApproved: 'Request approved: resource assigned instantly.',
     },
     inbox: {
-      title: 'Pending requests',
+      title: 'Requests',
       navLabel: 'Requests',
+      eyebrow: 'Operations',
+      description: 'Resolve parking and desk requests in arrival order.',
       pendingBadge: '{{count}} pending requests',
       empty: 'There are no pending requests.',
       loadError: 'Could not load pending requests.',
@@ -484,9 +506,9 @@ export const en = {
       emptyByStatus: 'There are no requests in this status.',
       columns: {
         employee: 'Employee',
-        resource: 'Resource',
-        date: 'Date',
-        created: 'Requested',
+        date: 'Requested date',
+        day: 'Day',
+        created: 'Created',
         status: 'Status',
         actions: 'Actions',
       },
@@ -497,7 +519,7 @@ export const en = {
     create: {
       title: 'New request',
       date: 'Request date',
-      hint: 'You can request any day between today and the next 14 days.',
+      hint: 'You can request any day from today onward.',
       resources: 'Resources to request',
       resourceParking: 'Parking space',
       resourceDesk: 'Office desk',
@@ -507,10 +529,10 @@ export const en = {
       changeDesk: 'Change desk',
       removeDesk: 'Remove',
       chosenDesk: 'Chosen desk: {{number}}',
-      chooseDeskDateHint: 'Pick a date within the window first to select a desk.',
+      chooseDeskDateHint: 'Pick a date (today or later) first to select a desk.',
       requiredDate: 'Select a date.',
       requiredResource: 'Select at least one resource (space or desk).',
-      outsideWindow: 'The date must be between today and the next 14 days.',
+      outsideWindow: 'The date cannot be earlier than today.',
       availability: {
         loading: 'Checking availability…',
         count: '{{count}} available for this date',
@@ -521,6 +543,23 @@ export const en = {
       body: 'Cancel your request for {{date}}?',
       confirm: 'Cancel request',
       keep: 'Keep request',
+      done: 'Request cancelled. The resource is free that day.',
+    },
+    adminCancel: {
+      title: 'Release by cancelling the request',
+      summary: 'Release summary',
+      employee: 'Employee',
+      resource: 'Resource',
+      date: 'Date',
+      reason: 'Reason',
+      reasonHint: 'Required (min. 5 characters). Recorded in the audit log.',
+      submit: 'Release',
+      cancel: 'Cancel',
+      requiredReason: 'Enter a reason (min. 5 characters).',
+      cancelled: 'Request cancelled. The resource is free that date.',
+      errors: {
+        reason: 'Check the reason (5 to 500 characters).',
+      },
     },
     approve: {
       title: 'Approve request',
@@ -572,7 +611,7 @@ export const en = {
       emailNotice: 'The employee will receive an email notifying them of the cancellation.',
     },
     errors: {
-      window: 'The date is outside the allowed window (today..today+14 days).',
+      window: 'The date cannot be earlier than today.',
       duplicate: 'You already have a pending request for that date.',
       alreadyResolved: 'The request is no longer pending.',
       unavailable: 'The space is not available for that date.',
@@ -594,6 +633,8 @@ export const en = {
     mine: {
       title: 'My releases',
       navLabel: 'My releases',
+      eyebrow: 'My space',
+      description: 'Days you released your fixed resource so someone else can use it.',
       empty: 'You have no releases.',
       loadError: 'Could not load your releases.',
       columns: {
@@ -634,6 +675,8 @@ export const en = {
     },
     admin: {
       title: 'Administrative release',
+      eyebrow: 'Operations',
+      description: 'Release an employee’s fixed resource for a specific date.',
       navLabel: 'Releases',
       intro: 'Release an employee’s fixed resource for a specific date when they will not attend. A reason is required.',
       new: 'New release',
@@ -655,6 +698,8 @@ export const en = {
     byDate: {
       navLabel: 'Release by date',
       title: 'Release by date',
+      eyebrow: 'Operations',
+      description: 'Occupied resources by date and their holder, to release one by one.',
       intro: 'Pick a date to see which resources are occupied and by which employee, and release them one by one.',
       dateLabel: 'Date',
       loadError: 'Could not load the occupancy for that date.',
@@ -679,6 +724,35 @@ export const en = {
         actions: 'Actions',
       },
     },
+    employeeWeek: {
+      description: 'Pick an employee, review their reservations for the week and release the ones they will not use.',
+      intro: 'Choose an employee to see their reservations (space and desk) by week, tick one or more and release them with a single reason.',
+      employee: 'Employee',
+      selectEmployee: 'Select an employee',
+      selectEmployeePrompt: 'Select an employee to see their reservations for the week.',
+      loading: 'Loading the employee’s reservations…',
+      loadError: 'Could not load the employee’s reservations.',
+      empty: 'This employee has no reservations this week.',
+      reason: 'Reason',
+      reasonHint: 'Required (minimum 5 characters). It applies to every ticked reservation and is recorded in the audit log.',
+      requiredReason: 'Provide the reason (minimum 5 characters).',
+      requiredSelection: 'Tick at least one reservation to release.',
+      release: 'Release',
+      releaseBatch: 'Release reservations',
+      cancel: 'Cancel',
+      weekNumber: 'Week {{week}}',
+      selectedCount: '{{count}} reservation(s) selected',
+      selectedCountLabel: 'reservation(s) selected',
+      resourceKind: {
+        PARKING: 'Parking space',
+        DESK: 'Office desk',
+      },
+      feedback: {
+        released: '{{count}} reservation(s) released.',
+        partial: '{{released}} reservation(s) released, {{failed}} failed.',
+        failedAll: 'No reservation could be released.',
+      },
+    },
     errors: {
       window: 'The date must be today or later.',
       conflict: 'The resource has no fixed assignment that day or is already released.',
@@ -688,6 +762,8 @@ export const en = {
   },
   visitors: {
     title: 'Visitors',
+    eyebrow: 'Administration',
+    description: 'Visitor records and parking reservations for external guests.',
     navLabel: 'Visitors',
     emailNote: 'Visitor reservations do not trigger email notifications.',
     tabs: {
@@ -793,7 +869,7 @@ export const en = {
     dateLabel: 'Date',
     invalidDate: 'Enter a valid date.',
     loadError: 'The floor plan could not be loaded.',
-    outsideWindow: 'The date is outside the request window (today to +14 days).',
+    outsideWindow: 'The date cannot be earlier than today.',
     editPositions: 'Edit positions',
     editHint: 'Drag the markers to place each desk; the position is saved on drop.',
     savePositions: 'Save positions',
@@ -820,7 +896,7 @@ export const en = {
       previous: 'Previous day',
       next: 'Next day',
       today: 'Today',
-      window: 'Booking window: {{days}} days',
+      window: 'You can book from today onward',
     },
     filters: {
       label: 'Filters by state',
@@ -838,6 +914,7 @@ export const en = {
       label: 'Desk panel',
       title: 'Desks',
       occupancyTitle: 'Occupancy for the day',
+      countersLabel: 'Occupancy by state',
       searchLabel: 'Search desk by number',
       searchPlaceholder: 'Search no.…',
       empty: 'No desk matches the search.',
@@ -858,6 +935,8 @@ export const en = {
   availability: {
     navLabel: 'Availability',
     title: 'Availability by date',
+    eyebrow: 'Operations',
+    description: 'Check the free parking spaces for a specific date.',
     dateLabel: 'Date',
     invalidDate: 'Enter a valid date.',
     hint: 'Pick a date to see available spaces.',
@@ -872,13 +951,31 @@ export const en = {
   calendar: {
     admin: {
       navLabel: 'Weekly schedule',
-      title: 'Weekly calendar',
+      title: 'Weekly assignment',
+      eyebrow: 'Operations',
+      description: 'Every space, day by day, at a glance.',
     },
     toolbar: {
       previous: 'Previous week',
       next: 'Next week',
       today: 'Today',
       weekOf: 'Week of {{date}}',
+    },
+    actions: {
+      filter: 'Filter',
+      export: 'Export',
+    },
+    summary: {
+      spaces: 'Active spaces',
+      assignments: 'Assignments',
+      releases: 'Released',
+      requests: 'Requests',
+    },
+    weekNav: {
+      week: 'Week {{number}}',
+    },
+    export: {
+      filename: 'weekly-assignment',
     },
     space: 'Space',
     loadError: 'The calendar could not be loaded.',
@@ -902,6 +999,8 @@ export const en = {
     myWeek: {
       navLabel: 'My Week',
       title: 'My Week',
+      eyebrow: 'My space',
+      description: 'Your week at a glance: request or release your space day by day.',
       loadError: 'Your week could not be loaded.',
       empty: 'No days to show.',
       space: 'Space {{label}}',
@@ -919,6 +1018,8 @@ export const en = {
   },
   audit: {
     title: 'Action audit',
+    eyebrow: 'Traceability',
+    description: 'Log of relevant actions by actor, type and date range.',
     navLabel: 'Audit',
     retentionNote: 'Audit records are kept for 2 years and then automatically purged.',
     systemActor: 'System',
@@ -948,6 +1049,8 @@ export const en = {
   },
   loginLogs: {
     title: 'Sign-ins (login)',
+    eyebrow: 'Traceability',
+    description: 'Successful and failed sign-in attempts by date.',
     navLabel: 'Sign-ins',
     retentionNote: 'Sign-in attempts are kept for 2 years and then automatically purged.',
     filters: {

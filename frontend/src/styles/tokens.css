@@ -1,56 +1,124 @@
-/* Tokens del design system (autoridad: docs/design-system.md / docs/mockups/styles.css).
-   Light en :root; modo oscuro reasigna en body.theme-dark. Ningun hex suelto
-   en componentes: todo color sale de aqui. */
+/* Tokens del design system ALEATICA.
+   Autoridad visual: docs/aleatica-design-contract.md.
+   La paleta ALEATICA (secciones 1–5 del contrato) es la fuente de verdad; los
+   nombres de token heredados (--green, --bg-page, --text…) se conservan como
+   ALIAS apuntando a los valores ALEATICA para que TODA la app adopte el nuevo
+   look sin reescribir cada componente. Ningun hex suelto en componentes: todo
+   color sale de aqui. Light en :root; modo oscuro reasigna en body.theme-dark. */
 :root {
-  /* Base (light) */
-  --bg-page: #f5f4ef;
-  --bg-card: #ffffff;
-  --bg-soft: #fafaf7;
-  --border: rgba(0, 0, 0, 0.12);
-  --border-strong: rgba(0, 0, 0, 0.2);
-  --text: #444441;
-  --text-muted: #888780;
-  --text-soft: #5f5e5a;
-  --highlight: #fcf6e6;
+  /* === ALEATICA · Paleta de marca (contrato §1) === */
+  --brand-green: #77b829; /* primario / ocupado */
+  --brand-green-deep: #527f16;
+  --brand-green-soft: #e9f3d8;
+  --brand-blue: #00a8e2; /* liberado */
+  --brand-blue-deep: #06678a;
+  --brand-blue-soft: #dcf0fa;
+  --brand-yellow: #fbdc17; /* pendiente asignar */
+  --amber-deep: #8a6a00;
+  --brand-orange: #f6a016; /* solicitud */
+  --orange-deep: #a55e05;
+  --orange-soft: #fde9ce;
+  --taupe: #867870;
+  --taupe-deep: #5c5149;
+  --taupe-soft: #ece8e3;
 
-  /* Corporativa */
-  --green: #639922;
-  --green-dark: #3b6d11;
-  --green-soft: #eaf3de;
-  --green-border: #c0dd97;
-  --green-darker: #173404;
-  --green-focus: #97c459;
-  --curve-orange: #ef9f27;
+  /* === ALEATICA · Neutros / superficie (contrato §2) === */
+  --bg: #eeede7;
+  --panel: #ffffff;
+  --panel-2: #f6f5f0;
+  --ink: #2b2a28;
+  --ink-soft: #6e6a63;
+  --ink-faint: #9a968d;
+  --line: rgba(43, 42, 40, 0.14);
+  --line-soft: rgba(43, 42, 40, 0.08);
+  --line-strong: rgba(43, 42, 40, 0.24);
+
+  /* === ALEATICA · Tipografia (contrato §3) === */
+  --font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Mulish', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+    sans-serif;
+  /* Escala tipografica del contrato §3. */
+  --fs-h1: 52px;
+  --fs-h2: 34px;
+  --fs-num: 34px; /* numerales grandes 34–42px */
+  --fs-num-lg: 42px;
+  --fs-body: 16px;
+  --fs-label: 11px;
+  --tracking-label: 0.16em; /* .13–.22em */
+
+  /* === ALEATICA · Estado de plaza/puesto -> color (contrato §4) ===
+     Mapa unico reutilizable por todas las vistas. */
+  --state-occupied-bg: var(--brand-green-soft);
+  --state-occupied-border: #c3e08f;
+  --state-occupied-ink: var(--brand-green-deep);
+  --state-released-bg: var(--brand-blue-soft);
+  --state-released-border: #a6dbf2;
+  --state-released-ink: var(--brand-blue-deep);
+  --state-pending-bg: #fcf3cc;
+  --state-pending-border: #eed873;
+  --state-pending-ink: var(--amber-deep);
+  --state-request-bg: var(--orange-soft);
+  --state-request-border: #f6c988;
+  --state-request-ink: var(--orange-deep);
+  --state-free-bg: var(--panel-2);
+  --state-free-border: var(--line-strong);
+  --state-free-ink: var(--ink-soft);
+
+  /* === Superficie (alias heredados -> ALEATICA) === */
+  --bg-page: var(--bg);
+  --bg-card: var(--panel);
+  --bg-soft: var(--panel-2);
+  --border: var(--line);
+  --border-strong: var(--line-strong);
+  --text: var(--ink);
+  --text-muted: var(--ink-faint);
+  --text-soft: var(--ink-soft);
+  --highlight: #faf6ea;
+
+  /* === Corporativa (alias heredados -> ALEATICA) === */
+  --green: var(--brand-green);
+  --green-dark: var(--brand-green-deep);
+  --green-soft: var(--brand-green-soft);
+  --green-border: var(--state-occupied-border);
+  --green-darker: #385a12;
+  --green-focus: #8fc65a;
+  --curve-orange: var(--brand-orange);
   --avatar-bg: #f5c4b3;
   --avatar-text: #712b13;
-  --teal: #1d9e75;
-  --blue: #378add;
-  --blue-soft: #e6f1fb;
-  --blue-border: #b5d4f4;
-  --blue-darker: #042c53;
+  --teal: var(--brand-green);
+  --blue: var(--brand-blue);
+  --blue-soft: var(--brand-blue-soft);
+  --blue-border: var(--state-released-border);
+  --blue-darker: var(--brand-blue-deep);
   --red: #e24b4a;
   --red-text: #a32d2d;
   --red-soft: #fcebeb;
   --red-border: #f09595;
 
-  /* Estado */
-  --amber-soft: #faeeda;
-  --amber-border: #fac775;
-  --amber-text: #633806;
+  /* === Estado (alias heredados -> ALEATICA) === */
+  --amber-soft: var(--state-pending-bg);
+  --amber-border: var(--state-pending-border);
+  --amber-text: var(--amber-deep);
   --pink-soft: #fbeaf0;
   --pink-border: #f4c0d1;
   --pink-text: #4b1528;
 
-  /* Neutro "libre / sin estado" (design-system §2.4) */
-  --neutral-soft: #f1efe8;
+  /* Neutro "libre / sin estado" (contrato §4, fila libre) */
+  --neutral-soft: var(--panel-2);
   --neutral-border: #d3d1c7;
   --neutral-strong: #b4b2a9;
 
   /* Fondo de campos de formulario (input/field-value/tab activa). */
-  --field-bg: var(--bg-card);
+  --field-bg: var(--panel);
 
   /* Acento rosa fuerte (borde izquierdo de semanas "liberadas"). */
   --pink-strong: #d4537e;
+
+  /* Campo "motivo" de liberación: énfasis coral de campo obligatorio
+     (borde + anillo de foco + tinta del hint con icono de alerta). */
+  --reason-field-border: #f2c4bd;
+  --reason-field-ring: rgba(226, 75, 74, 0.08);
+  --reason-hint-ink: #a2543a;
 
   /* Paleta de avatares por hash de nombre (mockup .av-*). */
   --av-purple-bg: #cecbf6;
@@ -70,13 +138,18 @@
   --exec-ring: #d99b1c;
 
   /* Marco exterior (auth/phones) */
-  --frame-bg: #e8e6df;
+  --frame-bg: #e7e5de;
 
   /* Radios */
   --radius-sm: 4px;
-  --radius-md: 6px;
+  --radius-md: 8px; /* controles (contrato §5) */
   --radius-lg: 8px;
   --radius-xl: 12px;
+  --radius-panel: 14px; /* tarjetas/paneles (contrato §5) */
+  --radius-pill: 20px; /* pills (contrato §5) */
+
+  /* Sombra de paneles (contrato §5). */
+  --shadow-panel: 0 30px 60px -48px rgba(43, 42, 40, 0.5);
 
   /* Espaciado */
   --space-1: 4px;
@@ -87,8 +160,7 @@
   --space-6: 24px;
   --space-8: 32px;
 
-  /* Tipografia */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  /* Tipografia (tamaños de UI densa; la escala editorial vive en --fs-*). */
   --text-xs: 11px;
   --text-sm: 13px;
   --text-base: 14px;
@@ -98,18 +170,43 @@
 }
 
 body.theme-dark {
-  --bg-page: #1c1c19;
-  --bg-card: #26261f;
-  --bg-soft: #222220;
-  --border: rgba(255, 255, 255, 0.14);
-  --border-strong: rgba(255, 255, 255, 0.24);
-  --text: #e9e7df;
-  --text-muted: #9c9a90;
-  --text-soft: #c7c5bb;
+  /* Neutros oscuros (se mantiene la identidad ALEATICA por reasignacion). */
+  --bg: #1c1c19;
+  --panel: #26261f;
+  --panel-2: #222220;
+  --ink: #e9e7df;
+  --ink-soft: #c7c5bb;
+  --ink-faint: #9c9a90;
+  --line: rgba(255, 255, 255, 0.14);
+  --line-soft: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.24);
+
+  /* Superficie (alias) */
+  --bg-page: var(--bg);
+  --bg-card: var(--panel);
+  --bg-soft: var(--panel-2);
+  --border: var(--line);
+  --border-strong: var(--line-strong);
+  --text: var(--ink);
+  --text-muted: var(--ink-faint);
+  --text-soft: var(--ink-soft);
   --highlight: rgba(252, 246, 230, 0.06);
-  --green-soft: rgba(99, 153, 34, 0.22);
+
+  /* Variantes soft de marca sobre fondo oscuro */
+  --brand-green-soft: rgba(119, 184, 41, 0.22);
+  --brand-blue-soft: rgba(0, 168, 226, 0.2);
+  --orange-soft: rgba(246, 160, 22, 0.2);
+  /* Variantes "deep" (contrato §1): en claro son tonos oscuros usados como texto
+     de acento (eyebrow, numerales, tinta de estado). Sobre superficie oscura hay
+     que aclararlas para conservar contraste (WCAG AA en texto pequeño). */
+  --brand-green-deep: #cfe6a8;
+  --brand-blue-deep: #bcdcff;
+  --orange-deep: #f7c98a;
+  --amber-deep: #f0cf94;
+  --taupe-deep: #cbc3bb;
+  --green-soft: var(--brand-green-soft);
   --green-darker: #cfe6a8;
-  --blue-soft: rgba(55, 138, 221, 0.22);
+  --blue-soft: var(--brand-blue-soft);
   --blue-darker: #bcdcff;
   --amber-soft: rgba(250, 199, 117, 0.2);
   --amber-text: #f0cf94;
@@ -120,7 +217,31 @@ body.theme-dark {
   --neutral-soft: rgba(255, 255, 255, 0.08);
   --neutral-border: rgba(255, 255, 255, 0.2);
   --neutral-strong: rgba(255, 255, 255, 0.28);
+  --taupe-soft: rgba(134, 120, 112, 0.24);
+  /* Campo "motivo" en oscuro: borde/tinta coral aclarados para conservar contraste. */
+  --reason-field-border: rgba(226, 75, 74, 0.5);
+  --reason-field-ring: rgba(226, 75, 74, 0.16);
+  --reason-hint-ink: #e6a58f;
   --field-bg: #2f2f27;
   --exec-ring: #e6b34a;
   --frame-bg: #141413;
+
+  /* Estado -> color: recalcular soft/ink/borde sobre superficie oscura. Los
+     bordes claros del tema claro (#c3e08f…) brillan demasiado sobre oscuro; se
+     sustituyen por bordes tintados translucidos coherentes con cada estado. */
+  --state-occupied-bg: var(--brand-green-soft);
+  --state-occupied-ink: #cfe6a8;
+  --state-occupied-border: rgba(119, 184, 41, 0.42);
+  --state-released-bg: var(--brand-blue-soft);
+  --state-released-ink: #bcdcff;
+  --state-released-border: rgba(0, 168, 226, 0.42);
+  --state-pending-bg: rgba(250, 199, 117, 0.2);
+  --state-pending-ink: #f0cf94;
+  --state-pending-border: rgba(250, 199, 117, 0.42);
+  --state-request-bg: var(--orange-soft);
+  --state-request-ink: #f7c98a;
+  --state-request-border: rgba(246, 160, 22, 0.42);
+  --state-free-bg: var(--panel-2);
+  --state-free-ink: var(--ink-soft);
+  --state-free-border: var(--line-strong);
 }

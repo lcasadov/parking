@@ -59,12 +59,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class FloorPlanCommandService {
 
-    /** Ventana de solicitud: hoy..hoy+14 dias naturales (extremos inclusive), como en requests. */
-    private static final int WINDOW_DAYS = 14;
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
     private static final String MSG_DESK_NOT_FOUND = "Puesto no encontrado: ";
     private static final String MSG_OUTSIDE_WINDOW =
-            "La fecha solicitada debe estar entre hoy y hoy+14 dias";
+            "La fecha solicitada no puede ser anterior a hoy";
     private static final String MSG_ALREADY_PENDING =
             "Ya existe una solicitud pendiente para esa fecha";
     private static final String MSG_DESK_UNAVAILABLE =
@@ -199,8 +197,7 @@ public class FloorPlanCommandService {
 
     private void requireWithinWindow(LocalDate date, Instant now) {
         LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
-        LocalDate maxDate = today.plusDays(WINDOW_DAYS);
-        if (date.isBefore(today) || date.isAfter(maxDate)) {
+        if (date.isBefore(today)) {
             throw new OutsideRequestWindowException(MSG_OUTSIDE_WINDOW);
         }
     }

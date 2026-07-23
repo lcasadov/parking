@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDaysIso,
+  calendarStateClass,
   calendarStateKey,
   cellStateClass,
   dayMonth,
+  isoWeekNumber,
   isValidIsoDate,
   mondayOfWeek,
   myWeekStateKey,
   weekdayIndex,
+  weekRangeLabel,
 } from './calendar';
 
 describe('calendar utils', () => {
@@ -47,5 +50,28 @@ describe('calendar utils', () => {
     expect(cellStateClass('REQUEST_APPROVED')).toBe('cell-request-approved');
     expect(calendarStateKey('FREE')).toBe('calendar.states.FREE');
     expect(myWeekStateKey('ASSIGNED')).toBe('calendar.myWeek.states.ASSIGNED');
+  });
+
+  it('should_mapStateToDesignSystemClass_when_stylingCells', () => {
+    // Mapa estado->color del design system (contrato §4): liberado=azul (state-released).
+    expect(calendarStateClass('ASSIGNED')).toBe('state-occupied');
+    expect(calendarStateClass('RELEASED')).toBe('state-released');
+    expect(calendarStateClass('REQUEST_PENDING')).toBe('state-pending');
+    expect(calendarStateClass('REQUEST_APPROVED')).toBe('state-request');
+    expect(calendarStateClass('FREE')).toBe('state-free');
+  });
+
+  it('should_computeIsoWeekNumber_when_givenIsoDate', () => {
+    // Semana ISO 1 de 2026 = Lun 29-dic-2025 .. Dom 04-ene-2026.
+    expect(isoWeekNumber('2026-01-05')).toBe(2);
+    expect(isoWeekNumber('2026-05-11')).toBe(20);
+  });
+
+  it('should_formatWeekRange_when_givenBounds', () => {
+    const label = weekRangeLabel('2026-05-11', '2026-05-15', 'en-US');
+    expect(label).toMatch(/11/);
+    expect(label).toMatch(/15/);
+    expect(label).toContain('2026');
+    expect(label).toContain('–');
   });
 });

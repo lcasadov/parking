@@ -68,9 +68,8 @@ class RequestServiceTest {
     private static final Instant NOW = Instant.parse("2026-07-04T10:00:00Z");
     private static final LocalDate TODAY = LocalDate.of(2026, 7, 4);
     private static final LocalDate WITHIN = LocalDate.of(2026, 7, 10);
-    private static final LocalDate MAX_DAY = LocalDate.of(2026, 7, 18);
+    private static final LocalDate FAR_FUTURE = TODAY.plusDays(400);
     private static final LocalDate BEFORE = LocalDate.of(2026, 7, 3);
-    private static final LocalDate AFTER = LocalDate.of(2026, 7, 19);
 
     private static final String EMP_LOGIN = "employee";
     private static final String OTHER_LOGIN = "otheremployee";
@@ -152,34 +151,23 @@ class RequestServiceTest {
     }
 
     @Test
-    void shouldCreatePendingRequest_whenDateExactlyMaxDay() {
-        // Arrange (frontera superior inclusive: hoy+14)
+    void shouldCreatePendingRequest_whenDateFarInFuture() {
+        // Arrange: sin limite superior, una fecha muy lejana (hoy+400) es valida
         givenActor(EMP_LOGIN, EMP_ID);
         givenManualMode();
 
         // Act / Assert
-        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(MAX_DAY, null)).status())
+        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(FAR_FUTURE, null)).status())
                 .isEqualTo(RequestStatus.PENDING);
     }
 
     @Test
     void shouldThrowOutsideWindow_whenDateBeforeToday() {
-        // Arrange
+        // Arrange (unica fecha rechazada: anterior a hoy)
         givenActor(EMP_LOGIN, EMP_ID);
 
         // Act / Assert
         assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(BEFORE, null)))
-                .isInstanceOf(OutsideRequestWindowException.class);
-        assertThat(requestRepository.saves()).isZero();
-    }
-
-    @Test
-    void shouldThrowOutsideWindow_whenDateAfterMaxDay() {
-        // Arrange
-        givenActor(EMP_LOGIN, EMP_ID);
-
-        // Act / Assert
-        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(AFTER, null)))
                 .isInstanceOf(OutsideRequestWindowException.class);
         assertThat(requestRepository.saves()).isZero();
     }
@@ -336,6 +324,101 @@ class RequestServiceTest {
 
         // Act / Assert
         assertThatThrownBy(() -> newService().cancel(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    // ---- Cancelacion administrativa: estado + auditoria (release-occupied-resource) ----
+
+    @Test
+    void shouldAdminCancelApprovedFutureRequest_andReleaseAndAudit() {
+        // Arrange: APPROVED de OTRO empleado con fecha futura (sin BOLA); el admin la cancela
+        Request approved = pending();
+        approved.approve(SPACE_ID, ADMIN_ID, "auto", NOW);
+        requestRepository.seed(approved);
+        givenActor(ADMIN_LOGIN, ADMIN_ID);
+
+        // Act
+        RequestResponse result = newService().adminCancel(REQUEST_ID, ADMIN_LOGIN, VALID_REASON);
+
+        // Assert: CANCELLED y auditoria con el admin actor, la accion admin y el motivo en detalle
+        assertThat(result.status()).isEqualTo(RequestStatus.CANCELLED);
+        verify(auditRecorder).record(auditCaptor.capture());
+        AuditEntry entry = auditCaptor.getValue();
+        assertThat(entry.actorEmployeeId()).isEqualTo(ADMIN_ID);
+        assertThat(entry.action()).isEqualTo("ADMIN_CANCEL_APPROVED_REQUEST");
+        assertThat(entry.entityType()).isEqualTo("Request");
+        assertThat(entry.entityId()).isEqualTo(REQUEST_ID);
+        assertThat(entry.details()).contains(VALID_REASON);
+    }
+
+    @Test
+    void shouldPublishCancelledEvent_whenAdminCancellingApprovedFutureRequest() {
+        // Arrange: APPROVED futura -> la cancelacion admin libera recurso y avisa a los admins
+        Request approved = pending();
+        approved.approve(SPACE_ID, ADMIN_ID, "auto", NOW);
+        requestRepository.seed(approved);
+        givenActor(ADMIN_LOGIN, ADMIN_ID);
+
+        // Act
+        newService().adminCancel(REQUEST_ID, ADMIN_LOGIN, VALID_REASON);
+
+        // Assert
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue()).isInstanceOfSatisfying(RequestCancelledEvent.class,
+                event -> {
+                    assertThat(event.request().id()).isEqualTo(REQUEST_ID);
+                    assertThat(event.request().status()).isEqualTo(RequestStatus.CANCELLED);
+                });
+    }
+
+    @Test
+    void shouldThrowState_whenAdminCancellingPendingRequest() {
+        // Arrange: una PENDING no se cancela administrativamente (se resuelve con reject). El
+        // servicio verifica el estado antes de resolver al admin, por lo que no se stubea el actor.
+        requestRepository.seed(pending());
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().adminCancel(REQUEST_ID, ADMIN_LOGIN, VALID_REASON))
+                .isInstanceOf(RequestStateException.class);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(auditRecorder);
+    }
+
+    @Test
+    void shouldThrowState_whenAdminCancellingApprovedPastRequest() {
+        // Arrange: APPROVED de fecha pasada -> no se libera un recurso ya transcurrido
+        Request approvedPast = Request.restore(
+                REQUEST_ID, EMP_ID, BEFORE, RequestStatus.APPROVED, SPACE_ID, ResourceType.PARKING,
+                "auto", null, null, ADMIN_ID, NOW, NOW);
+        requestRepository.seed(approvedPast);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().adminCancel(REQUEST_ID, ADMIN_LOGIN, VALID_REASON))
+                .isInstanceOf(RequestStateException.class);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(auditRecorder);
+    }
+
+    @Test
+    void shouldThrowState_whenAdminCancellingTerminalRequest() {
+        // Arrange: solicitud ya cancelada (estado terminal)
+        Request cancelled = pending();
+        cancelled.cancel();
+        requestRepository.seed(cancelled);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().adminCancel(REQUEST_ID, ADMIN_LOGIN, VALID_REASON))
+                .isInstanceOf(RequestStateException.class);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(auditRecorder);
+    }
+
+    @Test
+    void shouldThrowNotFound_whenAdminCancellingUnknownRequest() {
+        // Arrange (store vacio)
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().adminCancel(REQUEST_ID, ADMIN_LOGIN, VALID_REASON))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 

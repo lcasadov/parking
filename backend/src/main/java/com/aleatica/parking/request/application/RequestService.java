@@ -61,15 +61,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RequestService {
 
-    /** Ventana de solicitud: hoy..hoy+14 dias naturales (extremos inclusive). */
-    private static final int WINDOW_DAYS = 14;
     /** Longitud minima del texto libre cuando el motivo de rechazo es {@code OTHER}. */
     private static final int MIN_OTHER_REASON_LENGTH = 5;
 
     /**
-     * Categorias de rango ALTO (hasta Director N2): prefieren las plantas MAS ALTAS en la
-     * auto-asignacion (design §D3). El resto (Gerente, Mando intermedio, Empleado) prefiere las
-     * mas bajas.
+     * Categorias de rango ALTO (hasta Director N2): en un garaje SUBTERRANEO prefieren las plantas
+     * fisicas MAS ALTAS en la auto-asignacion (planta {@code -1}, plazas {@code 1xxx}; design §D3).
+     * El resto (Gerente, Mando intermedio, Empleado) prefiere las mas bajas (planta {@code -5},
+     * plazas {@code 5xxx}).
      */
     private static final Set<EmployeeCategory> HIGH_CATEGORIES = EnumSet.of(
             EmployeeCategory.CEO, EmployeeCategory.CONSEJO,
@@ -79,7 +78,7 @@ public class RequestService {
     private static final String MSG_REQUEST_NOT_FOUND = "Solicitud no encontrada: ";
     private static final String MSG_RESOURCE_NOT_FOUND = "Recurso no encontrado: ";
     private static final String MSG_OUTSIDE_WINDOW =
-            "La fecha solicitada debe estar entre hoy y hoy+14 dias";
+            "La fecha solicitada debe ser hoy o una fecha futura; no se permiten fechas pasadas";
     private static final String MSG_ALREADY_PENDING =
             "Ya existe una solicitud pendiente para esa fecha";
     private static final String MSG_NOT_OWNER = "No puede operar sobre la solicitud de otro empleado";
@@ -87,6 +86,8 @@ public class RequestService {
             "La solicitud no esta pendiente; no admite esta transicion";
     private static final String MSG_NOT_CANCELLABLE =
             "La solicitud no admite cancelacion; solo se cancela una PENDING o una APPROVED de fecha futura";
+    private static final String MSG_NOT_ADMIN_CANCELLABLE =
+            "La solicitud no admite cancelacion administrativa; solo se cancela una APPROVED de fecha futura";
     private static final String MSG_NOT_REJECTABLE =
             "La solicitud no admite rechazo; solo se rechaza una solicitud PENDING o APPROVED";
     private static final String MSG_SPACE_UNAVAILABLE =
@@ -100,6 +101,11 @@ public class RequestService {
 
     /** Accion de auditoria: el empleado cancela una solicitud APPROVED y libera el recurso. */
     private static final String AUDIT_ACTION_RELEASE = "CANCEL_APPROVED_REQUEST";
+    /**
+     * Accion de auditoria: un ADMIN cancela la solicitud APPROVED de otro empleado y libera el
+     * recurso (change {@code release-occupied-resource}); el detalle guarda el motivo.
+     */
+    private static final String AUDIT_ACTION_ADMIN_RELEASE = "ADMIN_CANCEL_APPROVED_REQUEST";
     /** Tipo de entidad auditada en la liberacion por cancelacion. */
     private static final String AUDIT_ENTITY_REQUEST = "Request";
 
@@ -145,8 +151,9 @@ public class RequestService {
     }
 
     /**
-     * Crea una solicitud para el empleado de la sesion y una fecha dentro de la ventana
-     * hoy..hoy+14, garantizando una unica solicitud {@code PENDING} por empleado/tipo/fecha.
+     * Crea una solicitud para el empleado de la sesion y una fecha desde hoy en adelante
+     * (hoy o cualquier fecha futura, sin limite superior; no se permiten fechas pasadas),
+     * garantizando una unica solicitud {@code PENDING} por empleado/tipo/fecha.
      *
      * <p>El comportamiento se ramifica por el <strong>modo de aprobacion global</strong>
      * ({@link ApprovalMode}, change {@code request-auto-assignment}):</p>
@@ -164,7 +171,7 @@ public class RequestService {
      * @param requesterLogin login del empleado solicitante (principal de la sesion)
      * @param request        fecha solicitada, tipo de recurso y (opcional) puesto elegido
      * @return la solicitud creada (DTO)
-     * @throws OutsideRequestWindowException    si la fecha esta fuera de la ventana
+     * @throws OutsideRequestWindowException    si la fecha es anterior a hoy (fecha pasada)
      * @throws DuplicatePendingRequestException si ya hay una solicitud pendiente esa fecha
      * @throws NoAvailabilityException          si en modo automatico no hay ninguna plaza libre
      * @throws SpaceUnavailableException        si en modo automatico el puesto elegido no esta libre
@@ -176,7 +183,7 @@ public class RequestService {
         Instant now = clock.now();
         LocalDate requestedDate = request.requestedDate();
         ResourceType resourceType = request.resourceTypeOrDefault();
-        requireWithinWindow(requestedDate, now);
+        requireNotPastDate(requestedDate, now);
         requireNoPendingDuplicate(employeeId, resourceType, requestedDate);
         if (systemSettingsService.approvalMode() == ApprovalMode.AUTOMATIC) {
             return createAutomatic(employee, request, resourceType, requestedDate, now);
@@ -234,9 +241,13 @@ public class RequestService {
     }
 
     /**
-     * Auto-asigna una plaza LIBRE para la fecha segun la preferencia de planta de la categoria:
-     * las categorias ALTAS (hasta Director N2) prefieren las plantas mas altas; el resto, las mas
-     * bajas. Recorre el espacio completo de plantas (fallback total): si existe cualquier plaza
+     * Auto-asigna una plaza LIBRE para la fecha segun la preferencia de planta de la categoria en un
+     * garaje SUBTERRANEO (la planta fisica es {@code -(number / 1000)}: {@code 1xxx} es la planta
+     * {@code -1}, la mas alta/cercana a superficie; {@code 5xxx} es la planta {@code -5}, la mas
+     * baja/profunda). Las categorias ALTAS (hasta Director N2) prefieren las plantas fisicas mas
+     * altas (planta {@code -1}, {@code 1xxx} primero, probando del millar mas bajo al mas alto); el
+     * resto prefiere las mas bajas (planta {@code -5}, {@code 5xxx} primero, del millar mas alto al
+     * mas bajo). Recorre el espacio completo de plantas (fallback total): si existe cualquier plaza
      * libre se asigna, la categoria solo fija el orden de preferencia. Dentro de una planta la
      * eleccion es determinista (menor {@code number}).
      *
@@ -258,7 +269,8 @@ public class RequestService {
 
     /**
      * Indica si la categoria pertenece al grupo de rango ALTO (CEO, Consejo, Director N1,
-     * Director N2), que prefiere las plantas mas altas en la auto-asignacion (design §D3).
+     * Director N2), que en el garaje subterraneo prefiere las plantas fisicas mas altas (planta
+     * {@code -1}, {@code 1xxx}) en la auto-asignacion (design §D3).
      *
      * @param category categoria del empleado
      * @return {@code true} si es una categoria alta
@@ -268,13 +280,21 @@ public class RequestService {
     }
 
     /**
-     * Clave de orden de planta segun la preferencia: para las categorias altas se niega la planta
-     * (mayor planta = clave menor = mas preferente); para el resto se usa la planta tal cual
-     * (menor planta = clave menor = mas preferente).
+     * Clave de orden de planta segun la preferencia, teniendo en cuenta que el aparcamiento es un
+     * garaje SUBTERRANEO: {@code space.floor()} devuelve el millar {@code number / 1000} (1..5),
+     * que se corresponde con la planta fisica {@code -(number / 1000)} (el millar 1 es la planta
+     * {@code -1}, la mas alta/cercana a superficie; el millar 5 es la planta {@code -5}, la mas
+     * baja/profunda). El comparador elige el minimo de esta clave:
+     * <ul>
+     *   <li>categorias ALTAS: clave = millar tal cual, de modo que el millar mas bajo ({@code 1xxx}
+     *       = planta {@code -1}, la mejor) es la clave menor = mas preferente;</li>
+     *   <li>resto de categorias: clave = millar negado, de modo que el millar mas alto ({@code 5xxx}
+     *       = planta {@code -5}) es la clave menor = mas preferente.</li>
+     * </ul>
      */
     private static int floorPreferenceKey(ParkingSpace space, boolean high) {
         int floor = space.floor() == null ? 0 : space.floor();
-        return high ? -floor : floor;
+        return high ? floor : -floor;
     }
 
     /**
@@ -443,6 +463,75 @@ public class RequestService {
     }
 
     /**
+     * Cancela administrativamente la solicitud {@code APPROVED} de fecha futura de un empleado para
+     * <strong>liberar el recurso ocupado</strong> por esa solicitud (change
+     * {@code release-occupied-resource}). Reservado al {@code ADMIN} (RBAC en el controlador); a
+     * diferencia de {@link #cancel(Long, String)} no hay verificacion de pertenencia (BOLA): el
+     * administrador opera sobre la solicitud de cualquier empleado. Exige que la solicitud este
+     * {@code APPROVED} y su {@code requestedDate} no sea pasada (via
+     * {@link Request#canBeAdminCancelledBy(LocalDate)}); en otro caso responde 409 sin efecto. La
+     * transicion a {@code CANCELLED} libera el recurso reutilizando la MISMA mecanica que la
+     * cancelacion del empleado (la fila deja de cumplir el filtro {@code status = 'APPROVED'} del
+     * indice unico y la plaza/puesto reaparece en disponibilidad) y publica un
+     * {@link RequestCancelledEvent} {@code AFTER_COMMIT} para avisar a los administradores activos.
+     * La accion queda trazada en auditoria con el administrador actor y el motivo.
+     *
+     * @param id         identificador de la solicitud
+     * @param adminLogin login del administrador que cancela (principal de la sesion)
+     * @param reason     motivo de la cancelacion administrativa (obligatorio, ya validado)
+     * @return la solicitud cancelada (DTO)
+     * @throws EntityNotFoundException si la solicitud no existe
+     * @throws RequestStateException   si la solicitud no esta {@code APPROVED} o es de fecha pasada
+     */
+    @Transactional
+    public RequestResponse adminCancel(Long id, String adminLogin, String reason) {
+        Request request = loadRequest(id);
+        LocalDate today = LocalDate.ofInstant(clock.now(), ZoneOffset.UTC);
+        requireAdminCancellable(request, today);
+        Long adminId = resolveEmployeeId(adminLogin);
+        request.cancel();
+        RequestResponse response = RequestResponse.from(requestRepository.save(request));
+        recordAdminRelease(adminId, response, reason);
+        // La cancelacion admin siempre parte de una APPROVED: libera recurso y avisa a los admins
+        // (design §Decisions); AFTER_COMMIT garantiza que el aviso solo sale si el commit tiene exito.
+        eventPublisher.publishEvent(new RequestCancelledEvent(response));
+        return response;
+    }
+
+    private void requireAdminCancellable(Request request, LocalDate today) {
+        if (!request.canBeAdminCancelledBy(today)) {
+            throw new RequestStateException(MSG_NOT_ADMIN_CANCELLABLE);
+        }
+    }
+
+    /**
+     * Registra en auditoria la cancelacion administrativa de una solicitud {@code APPROVED} como
+     * liberacion del recurso por el {@code ADMIN}, guardando el motivo en el detalle JSON. Reutiliza
+     * el puerto generico {@link AuditRecorder} (transaccion propia {@code REQUIRES_NEW}, best-effort:
+     * un fallo de registro no revierte la cancelacion).
+     */
+    private void recordAdminRelease(Long adminId, RequestResponse response, String reason) {
+        auditRecorder.record(new AuditEntry(
+                adminId, AUDIT_ACTION_ADMIN_RELEASE, AUDIT_ENTITY_REQUEST, response.id(),
+                reasonDetails(reason)));
+    }
+
+    /**
+     * Serializa el motivo a un objeto JSON minimo ({@code {"reason":"..."}}) para el detalle de
+     * auditoria, escapando los caracteres reservados de JSON para no romper el documento. Evita
+     * anadir una dependencia de serializacion al servicio para un unico campo de texto.
+     */
+    private static String reasonDetails(String reason) {
+        String escaped = reason
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+        return "{\"reason\":\"" + escaped + "\"}";
+    }
+
+    /**
      * Aprueba una solicitud {@code PENDING} asignando una plaza disponible para la
      * fecha, atribuyendo el resolutor y la nota opcional. La comprobacion de
      * disponibilidad y la asignacion ocurren en la misma transaccion; la colision de
@@ -505,10 +594,14 @@ public class RequestService {
         return response;
     }
 
-    private void requireWithinWindow(LocalDate requestedDate, Instant now) {
+    /**
+     * Exige que la fecha solicitada sea hoy o una fecha futura (sin limite superior): solo se
+     * rechazan las fechas anteriores a hoy. El "hoy" se deriva del reloj inyectable y la zona
+     * {@code ZoneOffset.UTC}, la misma referencia que usa la cancelacion.
+     */
+    private void requireNotPastDate(LocalDate requestedDate, Instant now) {
         LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
-        LocalDate maxDate = today.plusDays(WINDOW_DAYS);
-        if (requestedDate.isBefore(today) || requestedDate.isAfter(maxDate)) {
+        if (requestedDate.isBefore(today)) {
             throw new OutsideRequestWindowException(MSG_OUTSIDE_WINDOW);
         }
     }

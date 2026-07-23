@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Spinner } from './Spinner';
+import { TableEmpty, TableError, TableSkeleton } from './TableStates';
+import { Toolbar } from './Toolbar';
 import { CancelVisitorReservationModal } from './CancelVisitorReservationModal';
 import { VisitorReservationModal } from './VisitorReservationModal';
 import { useVisitorReservationsQuery } from '../hooks/useVisitorReservations';
@@ -25,27 +26,42 @@ export function VisitorReservationsPanel() {
 
   const query = useVisitorReservationsQuery({ page, size: PAGE_SIZE });
   const reservations = query.data?.content ?? [];
+  const ready = !query.isLoading && !query.isError;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
 
   return (
     <div className="visitor-reservations-panel">
-      <div className="toolbar">
+      <Toolbar ariaLabel={t('visitors.tabs.reservations')}>
         <Button variant="green" icon="calendar-plus" onClick={() => setIsCreateOpen(true)}>
           {t('visitors.newReservation')}
         </Button>
-      </div>
+      </Toolbar>
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={5} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('visitors.reservations.loadError')}
-        </p>
+        <TableError
+          message={t('visitors.reservations.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
+      {ready && reservations.length === 0 ? (
+        <TableEmpty
+          icon="calendar-off"
+          message={t('visitors.reservations.empty')}
+          action={
+            <Button variant="green" icon="calendar-plus" onClick={() => setIsCreateOpen(true)}>
+              {t('visitors.newReservation')}
+            </Button>
+          }
+        />
+      ) : null}
+
+      {ready && reservations.length > 0 ? (
         <div className="table-scroll">
           <table className="table">
             <thead>
@@ -58,37 +74,29 @@ export function VisitorReservationsPanel() {
               </tr>
             </thead>
             <tbody>
-              {reservations.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="table-empty">
-                    {t('visitors.reservations.empty')}
+              {reservations.map((reservation) => (
+                <tr key={reservation.id} className="table-row">
+                  <td>{reservation.reservationDate}</td>
+                  <td>{`#${reservation.visitorId}`}</td>
+                  <td>{`#${reservation.parkingSpaceId}`}</td>
+                  <td>{reservation.notes ?? t('visitors.detail.none')}</td>
+                  <td className="table-actions">
+                    <Button
+                      variant="red"
+                      icon="x"
+                      disabled={!canCancelReservation(reservation.reservationDate)}
+                      onClick={() =>
+                        setCancelTarget({
+                          id: reservation.id,
+                          reservationDate: reservation.reservationDate,
+                        })
+                      }
+                    >
+                      {t('visitors.reservations.cancel')}
+                    </Button>
                   </td>
                 </tr>
-              ) : (
-                reservations.map((reservation) => (
-                  <tr key={reservation.id} className="table-row">
-                    <td>{reservation.reservationDate}</td>
-                    <td>{`#${reservation.visitorId}`}</td>
-                    <td>{`#${reservation.parkingSpaceId}`}</td>
-                    <td>{reservation.notes ?? t('visitors.detail.none')}</td>
-                    <td className="table-actions">
-                      <Button
-                        variant="red"
-                        icon="x"
-                        disabled={!canCancelReservation(reservation.reservationDate)}
-                        onClick={() =>
-                          setCancelTarget({
-                            id: reservation.id,
-                            reservationDate: reservation.reservationDate,
-                          })
-                        }
-                      >
-                        {t('visitors.reservations.cancel')}
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>

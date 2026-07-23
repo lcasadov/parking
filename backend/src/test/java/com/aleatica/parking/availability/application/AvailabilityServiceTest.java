@@ -13,6 +13,7 @@ import com.aleatica.parking.availability.MyWeekDayState;
 import com.aleatica.parking.availability.dto.AdminWeeklyCalendarResponse;
 import com.aleatica.parking.availability.dto.AvailabilityResponse;
 import com.aleatica.parking.availability.dto.CalendarCellResponse;
+import com.aleatica.parking.availability.dto.EmployeeWeekOccupancyResponse;
 import com.aleatica.parking.availability.OccupancyOrigin;
 import com.aleatica.parking.availability.dto.MyWeekDayResponse;
 import com.aleatica.parking.availability.dto.MyWeekResponse;
@@ -358,7 +359,7 @@ class AvailabilityServiceTest {
                 EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(
                         approvedRequestWithId(3L, SPACE_ID, EMP_ID, thursday),
-                        pendingRequest(EMP_ID, friday)));
+                        pendingRequestWithId(9L, EMP_ID, friday)));
         given(releaseRepository.findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
                 EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6)))
                 .willReturn(List.of(release(SPACE_ID, tuesday)));
@@ -373,12 +374,17 @@ class AvailabilityServiceTest {
         assertThat(days).hasSize(7);
         assertThat(days.get(0).state()).isEqualTo(MyWeekDayState.ASSIGNED);
         assertThat(days.get(0).parkingSpaceLabel()).isEqualTo(SPACE_LABEL);
+        // Dia por asignacion fija: no proviene de solicitud -> requestId null
+        assertThat(days.get(0).requestId()).isNull();
         assertThat(days.get(1).state()).isEqualTo(MyWeekDayState.RELEASED);
         assertThat(days.get(2).state()).isEqualTo(MyWeekDayState.FREE);
         assertThat(days.get(3).state()).isEqualTo(MyWeekDayState.ASSIGNED);
         assertThat(days.get(3).requestStatus()).isEqualTo(RequestStatus.APPROVED);
+        // Dia por solicitud aprobada: expone el id para permitir liberar cancelando
+        assertThat(days.get(3).requestId()).isEqualTo(3L);
         assertThat(days.get(4).state()).isEqualTo(MyWeekDayState.REQUEST_PENDING);
         assertThat(days.get(4).requestStatus()).isEqualTo(RequestStatus.PENDING);
+        assertThat(days.get(4).requestId()).isEqualTo(9L);
         // MyWeekResponse no expone ningun campo de identidad por diseno (privacidad)
         assertThat(response).hasNoNullFieldsOrProperties();
     }
@@ -534,6 +540,120 @@ class AvailabilityServiceTest {
         assertThat(response.occupiedResources()).isEmpty();
     }
 
+    // ---- Ocupacion de un empleado por semana (Liberar por empleado/semana) ----
+
+    @Test
+    void shouldReturnEmployeeWeekOccupancy_withFixedParkingAndApprovedDeskRequest() {
+        // Arrange: el empleado tiene plaza fija el lunes (dow=1) y un puesto por solicitud
+        // APPROVED el jueves; una PENDING el martes debe quedar excluida.
+        LocalDate tuesday = MONDAY.plusDays(1);
+        LocalDate thursday = MONDAY.plusDays(3);
+        given(employeeRepository.findById(EMP_ID))
+                .willReturn(Optional.of(employee(EMP_ID, "Ada", "Lovelace")));
+        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
+                .willReturn(List.of(assignment(SPACE_ID, EMP_ID, 1)));
+        given(requestRepository.findByEmployeeIdAndRequestedDateBetween(
+                EMP_ID, MONDAY, MONDAY.plusDays(6)))
+                .willReturn(List.of(
+                        deskApprovedRequestWithId(5L, DESK_ID, EMP_ID, thursday),
+                        pendingRequestWithId(9L, EMP_ID, tuesday)));
+        given(releaseRepository.findByEmployeeIdAndReleaseDateBetween(
+                EMP_ID, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(parkingSpaceRepository.findAllById(any()))
+                .willReturn(List.of(spaceWithNumber(SPACE_ID, SPACE_NUMBER)));
+        given(deskRepository.findAllById(any())).willReturn(List.of(desk(DESK_ID, DESK_NUMBER)));
+
+        // Act
+        EmployeeWeekOccupancyResponse response = service().employeeWeekOccupancy(EMP_ID, MONDAY);
+
+        // Assert: cabecera + 7 dias
+        assertThat(response.employeeId()).isEqualTo(EMP_ID);
+        assertThat(response.employeeName()).isEqualTo("Ada Lovelace");
+        assertThat(response.weekStart()).isEqualTo(MONDAY);
+        assertThat(response.days()).hasSize(7);
+
+        // Lunes: plaza por asignacion fija (sin requestId)
+        assertThat(response.days().get(0).date()).isEqualTo(MONDAY);
+        assertThat(response.days().get(0).reservations()).singleElement().satisfies(item -> {
+            assertThat(item.resourceType()).isEqualTo(ResourceType.PARKING);
+            assertThat(item.resourceId()).isEqualTo(SPACE_ID);
+            assertThat(item.resourceNumber()).isEqualTo(SPACE_NUMBER);
+            assertThat(item.origin()).isEqualTo(OccupancyOrigin.FIXED_ASSIGNMENT);
+            assertThat(item.requestId()).isNull();
+            assertThat(item.employeeId()).isEqualTo(EMP_ID);
+        });
+
+        // Martes: la solicitud PENDING no ocupa
+        assertThat(response.days().get(1).reservations()).isEmpty();
+
+        // Jueves: puesto por solicitud aprobada (con requestId)
+        assertThat(response.days().get(3).reservations()).singleElement().satisfies(item -> {
+            assertThat(item.resourceType()).isEqualTo(ResourceType.DESK);
+            assertThat(item.resourceId()).isEqualTo(DESK_ID);
+            assertThat(item.resourceNumber()).isEqualTo(DESK_NUMBER);
+            assertThat(item.floor()).isNull();
+            assertThat(item.origin()).isEqualTo(OccupancyOrigin.REQUEST_APPROVED);
+            assertThat(item.requestId()).isEqualTo(5L);
+        });
+    }
+
+    @Test
+    void shouldExcludeFixedReservation_whenReleasedForThatDate() {
+        // Arrange: plaza fija el lunes PERO liberada ese lunes -> el dia queda sin reservas
+        given(employeeRepository.findById(EMP_ID))
+                .willReturn(Optional.of(employee(EMP_ID, "Ada", "Lovelace")));
+        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
+                .willReturn(List.of(assignment(SPACE_ID, EMP_ID, 1)));
+        given(requestRepository.findByEmployeeIdAndRequestedDateBetween(
+                EMP_ID, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(releaseRepository.findByEmployeeIdAndReleaseDateBetween(
+                EMP_ID, MONDAY, MONDAY.plusDays(6)))
+                .willReturn(List.of(release(SPACE_ID, MONDAY)));
+        given(parkingSpaceRepository.findAllById(any()))
+                .willReturn(List.of(spaceWithNumber(SPACE_ID, SPACE_NUMBER)));
+        given(deskRepository.findAllById(any())).willReturn(List.of());
+
+        // Act
+        EmployeeWeekOccupancyResponse response = service().employeeWeekOccupancy(EMP_ID, MONDAY);
+
+        // Assert: ningun dia ocupa (la liberacion neutraliza la asignacion fija)
+        assertThat(response.days()).hasSize(7);
+        assertThat(response.days()).allSatisfy(day -> assertThat(day.reservations()).isEmpty());
+    }
+
+    @Test
+    void shouldNormalizeWeekStartToMonday_whenEmployeeWeekOccupancyWeekStartIsNotMonday() {
+        // Arrange: weekStart en miercoles -> normaliza al lunes de esa semana
+        LocalDate wednesday = MONDAY.plusDays(2);
+        given(employeeRepository.findById(EMP_ID))
+                .willReturn(Optional.of(employee(EMP_ID, "Ada", "Lovelace")));
+        given(fixedAssignmentRepository.findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(EMP_ID))
+                .willReturn(List.of());
+        given(requestRepository.findByEmployeeIdAndRequestedDateBetween(
+                EMP_ID, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(releaseRepository.findByEmployeeIdAndReleaseDateBetween(
+                EMP_ID, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(parkingSpaceRepository.findAllById(any())).willReturn(List.of());
+        given(deskRepository.findAllById(any())).willReturn(List.of());
+
+        // Act
+        EmployeeWeekOccupancyResponse response = service().employeeWeekOccupancy(EMP_ID, wednesday);
+
+        // Assert
+        assertThat(response.weekStart()).isEqualTo(MONDAY);
+        assertThat(response.days().get(0).date()).isEqualTo(MONDAY);
+    }
+
+    @Test
+    void shouldThrowNotFound_whenEmployeeWeekOccupancyEmployeeUnknown() {
+        // Arrange
+        given(employeeRepository.findById(EMP_ID)).willReturn(Optional.empty());
+
+        // Act / Assert
+        assertThatThrownBy(() -> service().employeeWeekOccupancy(EMP_ID, MONDAY))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
     // ---- Helpers de arreglo (given*) ----
 
     private void givenActiveSpaces(ParkingSpace... spaces) {
@@ -617,8 +737,22 @@ class AvailabilityServiceTest {
         return request;
     }
 
+    private static RequestEntity deskApprovedRequestWithId(
+            Long id, Long deskId, Long employeeId, LocalDate date) {
+        RequestEntity request = RequestEntity.create(employeeId, ResourceType.DESK, date, NOW);
+        request.approve(deskId, 1L, null, NOW);
+        setField(request, "id", id);
+        return request;
+    }
+
     private static RequestEntity pendingRequest(Long employeeId, LocalDate date) {
         return RequestEntity.create(employeeId, date, NOW);
+    }
+
+    private static RequestEntity pendingRequestWithId(Long id, Long employeeId, LocalDate date) {
+        RequestEntity request = pendingRequest(employeeId, date);
+        setField(request, "id", id);
+        return request;
     }
 
     private static VisitorReservation reservation(Long spaceId, LocalDate date) {

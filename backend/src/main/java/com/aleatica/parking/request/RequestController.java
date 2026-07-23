@@ -5,6 +5,7 @@ import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.exception.ApiError;
 import com.aleatica.parking.request.application.RequestService;
 import com.aleatica.parking.request.domain.RequestStatus;
+import com.aleatica.parking.request.dto.RequestAdminCancelRequest;
 import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
@@ -64,8 +65,9 @@ public class RequestController {
     }
 
     /**
-     * Crea una solicitud para una fecha dentro de la ventana hoy..hoy+14 (solo
-     * {@code EMPLOYEE}). Maximo una solicitud {@code PENDING} por empleado y fecha.
+     * Crea una solicitud para una fecha desde hoy en adelante (hoy o cualquier fecha futura,
+     * sin limite superior; no se permiten fechas pasadas; solo {@code EMPLOYEE}). Maximo una
+     * solicitud {@code PENDING} por empleado y fecha.
      *
      * @param request        fecha solicitada
      * @param authentication autenticacion resuelta de la sesion (solicitante)
@@ -75,7 +77,7 @@ public class RequestController {
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Solicitud creada en estado PENDING"),
-            @ApiResponse(responseCode = "400", description = "Fecha fuera de la ventana o invalida",
+            @ApiResponse(responseCode = "400", description = "Fecha pasada (anterior a hoy) o invalida",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "401", description = "No autenticado",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
@@ -231,6 +233,51 @@ public class RequestController {
             @Parameter(description = "Id de la solicitud") @PathVariable Long id,
             Authentication authentication) {
         return ResponseEntity.ok(requestService.cancel(id, authentication.getName()));
+    }
+
+    /**
+     * Cancela administrativamente una solicitud {@code APPROVED} de fecha futura de cualquier
+     * empleado para liberar el recurso que ocupa ({@code ADMIN} o {@code AGENCIA}; changes
+     * {@code release-occupied-resource} y {@code admin-release-by-employee-week}). Exige un motivo
+     * obligatorio, que queda trazado en auditoria. Una solicitud que no esta {@code APPROVED}
+     * (p. ej. {@code PENDING}, que se resuelve con {@code reject}) o de fecha pasada responde
+     * {@code 409}. La logica de servicio no cambia: sigue exigiendo {@code APPROVED} futura y
+     * motivo; solo se amplia el RBAC para que {@code AGENCIA} pueda liberar por solicitud, en
+     * paridad con la liberacion administrativa de recurso fijo.
+     *
+     * @param id             identificador de la solicitud
+     * @param body           motivo obligatorio de la cancelacion
+     * @param authentication autenticacion resuelta de la sesion (administrador o agencia)
+     * @return {@code 200} con la solicitud en estado {@code CANCELLED} y el recurso liberado
+     */
+    @Operation(summary = "Cancela administrativamente una solicitud APPROVED futura (ADMIN/AGENCIA)",
+            description = "Cancela la solicitud APPROVED de fecha futura de un empleado, liberando "
+                    + "el recurso ocupado. Requiere un motivo, que se registra en auditoria. Una "
+                    + "solicitud no APPROVED o de fecha pasada responde 409.",
+            security = @SecurityRequirement(name = SESSION_COOKIE))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    description = "Solicitud cancelada y recurso liberado"),
+            @ApiResponse(responseCode = "400", description = "Motivo ausente o invalido",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Sin permisos",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Solicitud no encontrada",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409",
+                    description = "La solicitud no esta APPROVED o es de fecha pasada",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @PostMapping("/{id}/admin-cancel")
+    @PreAuthorize("hasAnyRole('ADMIN','AGENCIA')")
+    public ResponseEntity<RequestResponse> adminCancelRequest(
+            @Parameter(description = "Id de la solicitud") @PathVariable Long id,
+            @Valid @RequestBody RequestAdminCancelRequest body,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                requestService.adminCancel(id, authentication.getName(), body.reason()));
     }
 
     /**

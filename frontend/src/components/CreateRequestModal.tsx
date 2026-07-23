@@ -7,7 +7,7 @@ import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getApiError, getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRequest } from '../hooks/useRequests';
-import { isWithinWindow, maxRequestDateIso, todayIso } from '../utils/requests';
+import { isTodayOrFuture, todayIso } from '../utils/requests';
 import type { Request, RequestCreateRequest, ResourceType } from '../types/request';
 
 interface CreateRequestModalProps {
@@ -43,8 +43,8 @@ function successToastKey(created: Request[]): string {
     : 'requests.mine.created';
 }
 
-// Modal EMPLOYEE: solicitud unificada. Para una misma fecha (ventana hoy..hoy+14)
-// el empleado puede pedir plaza y/o puesto. Cada recurso seleccionado genera un
+// Modal EMPLOYEE: solicitud unificada. Para una misma fecha (hoy o cualquier
+// fecha futura) el empleado puede pedir plaza y/o puesto. Cada recurso genera un
 // Request independiente vía POST /requests con su `resourceType` (init-desks §4.2).
 export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalProps) {
   const { t } = useTranslation();
@@ -56,9 +56,9 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
   const [error, setError] = useState<string | null>(null);
   const createMutation = useCreateRequest();
 
-  // El selector solo tiene sentido con una fecha valida dentro de la ventana: usa
-  // esa fecha para colorear la disponibilidad de los puestos.
-  const canPickDesk = date !== '' && isWithinWindow(date);
+  // El selector solo tiene sentido con una fecha valida (hoy o futura): usa esa
+  // fecha para colorear la disponibilidad de los puestos.
+  const canPickDesk = date !== '' && isTodayOrFuture(date);
 
   // Al desmarcar PUESTO se descarta el puesto elegido para no enviar un resourceId
   // obsoleto (el envio de plaza nunca lleva resourceId).
@@ -89,7 +89,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
     if (date === '') {
       return t('requests.create.requiredDate');
     }
-    if (!isWithinWindow(date)) {
+    if (!isTodayOrFuture(date)) {
       return t('requests.create.outsideWindow');
     }
     if (resources.length === 0) {
@@ -157,7 +157,6 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
           className="field-input"
           value={date}
           min={todayIso()}
-          max={maxRequestDateIso()}
           onChange={(event) => setDate(event.target.value)}
         />
         <p className="hint">{t('requests.create.hint')}</p>

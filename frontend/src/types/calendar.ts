@@ -55,6 +55,9 @@ export interface MyWeekDay {
   state: MyWeekDayState;
   parkingSpaceLabel?: string | null;
   requestStatus?: RequestStatus | null;
+  // Id de la solicitud propia de ese dia; null si el dia no proviene de una
+  // solicitud (asignacion fija o libre). Permite "Liberar" cancelando la solicitud.
+  requestId?: number | null;
 }
 
 // MyWeekResponse: schema #/components/schemas/MyWeekResponse.

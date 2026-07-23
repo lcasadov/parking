@@ -7,6 +7,7 @@ import { server } from '../mocks/server';
 import { MSW_BASE } from '../mocks/handlers';
 import { requestApproved, requestPending1 } from '../mocks/requestFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
+import { addDaysIso } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
 import { API_ERROR_TOAST, type ApiErrorToastDetail } from '../api/events';
 import { floorPlanOf } from '../mocks/floorPlanFixtures';
@@ -37,9 +38,11 @@ function captureToasts(): { messages: string[] } {
 
 // Captura los cuerpos de cada POST /requests para comprobar resourceType/resourceId.
 function captureRequestBodies(): {
-  bodies: Array<{ resourceType?: string; resourceId?: number }>;
+  bodies: Array<{ requestedDate?: string; resourceType?: string; resourceId?: number }>;
 } {
-  const captured = { bodies: [] as Array<{ resourceType?: string; resourceId?: number }> };
+  const captured = {
+    bodies: [] as Array<{ requestedDate?: string; resourceType?: string; resourceId?: number }>,
+  };
   server.use(
     http.post(REQUESTS_URL, async ({ request }) => {
       const body = (await request.json()) as {
@@ -57,10 +60,10 @@ function captureRequestBodies(): {
   return captured;
 }
 
-async function fillDate(): Promise<void> {
+async function fillDate(value: string = todayIso()): Promise<void> {
   const user = userEvent.setup();
   await user.clear(screen.getByLabelText(/fecha de la solicitud|request date/i));
-  await user.type(screen.getByLabelText(/fecha de la solicitud|request date/i), todayIso());
+  await user.type(screen.getByLabelText(/fecha de la solicitud|request date/i), value);
 }
 
 async function submit(): Promise<void> {
@@ -81,6 +84,20 @@ describe('CreateRequestModal (unified request)', () => {
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
     expect(captured.bodies).toHaveLength(1);
     expect(captured.bodies[0].resourceType).toBe('PARKING');
+  });
+
+  it('should_allow_submitting_a_far_future_date_without_upper_bound', async () => {
+    const captured = captureRequestBodies();
+    const onCreated = vi.fn();
+    const farFuture = addDaysIso(todayIso(), 120);
+    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+    await fillDate(farFuture);
+    await submit();
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(captured.bodies).toHaveLength(1);
+    expect(captured.bodies[0].requestedDate).toBe(farFuture);
   });
 
   it('should_post_desk_request_when_only_desk_selected', async () => {

@@ -2,14 +2,15 @@ import type { TFunction } from 'i18next';
 import type { LegendItem } from '../components/Legend';
 import type { CalendarCellState } from '../types/calendar';
 
-// Colores de la leyenda del calendario, alineados con los estados de celda
-// (.cell-* en components.css). Tokens del design-system, sin hex sueltos.
+// Colores de la leyenda del calendario, alineados con el mapa estado->color del
+// design system (contrato §4, tokens --state-*). Sin hex sueltos: ocupado=verde,
+// liberado=azul, pendiente=amber, solicitud=naranja, libre=neutro.
 const STATE_COLOR: Record<CalendarCellState, string> = {
-  ASSIGNED: 'var(--green-soft)',
-  RELEASED: 'var(--pink-soft)',
-  REQUEST_PENDING: 'var(--amber-soft)',
-  REQUEST_APPROVED: 'var(--blue-soft)',
-  FREE: 'var(--neutral-soft)',
+  ASSIGNED: 'var(--state-occupied-bg)',
+  RELEASED: 'var(--state-released-bg)',
+  REQUEST_PENDING: 'var(--state-pending-bg)',
+  REQUEST_APPROVED: 'var(--state-request-bg)',
+  FREE: 'var(--state-free-bg)',
 };
 
 // Leyenda del calendario semanal ADMIN (mockup 01): 5 estados de celda.

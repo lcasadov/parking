@@ -4,17 +4,17 @@
 TBD - created by archiving change init-requests. Update Purpose after archive.
 ## Requirements
 ### Requirement: Creación de solicitud con ventana y unicidad
-**El sistema DEBE (MUST) crear una solicitud para un empleado y una fecha dentro de la ventana hoy..hoy+14 días, garantizando una única solicitud `PENDING` por empleado, tipo de recurso y fecha, y DEBE ramificar el estado inicial según el parámetro global `approvalMode`: en modo `MANUAL` la solicitud nace `PENDING` (con `resource_id = NULL`); en modo `AUTOMATIC` la solicitud nace `APPROVED` con recurso asignado (plaza auto-asignada o puesto elegido).**
+**El sistema DEBE (MUST) crear una solicitud para un empleado y una fecha DESDE HOY EN ADELANTE (hoy o cualquier fecha futura, sin límite superior; NO se permiten fechas anteriores a hoy), garantizando una única solicitud `PENDING` por empleado, tipo de recurso y fecha, y DEBE ramificar el estado inicial según el parámetro global `approvalMode`: en modo `MANUAL` la solicitud nace `PENDING` (con `resource_id = NULL`); en modo `AUTOMATIC` la solicitud nace `APPROVED` con recurso asignado (plaza auto-asignada o puesto elegido).**
 
-#### Scenario: Creación dentro de la ventana en modo MANUAL
+#### Scenario: Creación para cualquier fecha futura en modo MANUAL
 - **GIVEN** el parámetro global `approvalMode = MANUAL` y un `Employee` autenticado con rol `EMPLOYEE` sin solicitud `PENDING` para `requested_date`
-- **WHEN** envía `POST /requests` con `requested_date` entre hoy y hoy+14 días
+- **WHEN** envía `POST /requests` con `requested_date` igual a hoy o a cualquier fecha futura (sin límite superior)
 - **THEN** el sistema responde 201 con la solicitud en estado `PENDING` y `resource_id = NULL`
 - **AND** registra `created_at` con la marca temporal actual
 
-#### Scenario: Fecha fuera de la ventana
+#### Scenario: Fecha pasada rechazada
 - **GIVEN** un `Employee` autenticado con rol `EMPLOYEE`
-- **WHEN** envía `POST /requests` con `requested_date` anterior a hoy o posterior a hoy+14 días
+- **WHEN** envía `POST /requests` con `requested_date` anterior a hoy
 - **THEN** el sistema responde 400 con `error = OUTSIDE_REQUEST_WINDOW` y `fields` indicando `requested_date`
 - **AND** no crea ninguna solicitud
 
@@ -156,22 +156,22 @@ TBD - created by archiving change init-requests. Update Purpose after archive.
 - **THEN** cada fila muestra si la solicitud es de plaza o de puesto
 
 ### Requirement: Auto-asignación de plaza por categoría y planta en modo AUTOMATIC
-**Cuando `approvalMode = AUTOMATIC` y un empleado solicita una PLAZA, el sistema DEBE (MUST) asignar automáticamente una plaza LIBRE para la fecha eligiéndola por la categoría del empleado y la planta de la plaza (planta = número de plaza / 1000), y la solicitud DEBE nacer en estado `APPROVED` con la plaza asignada. Las categorías altas hasta Director nivel 2 (CEO, Consejo, Director N1, Director N2) DEBEN preferir las plantas más altas disponibles (probando de la más alta a la más baja); el resto de categorías (Gerente, Mando intermedio, Empleado) DEBEN preferir las plantas más bajas (de la más baja a la más alta), cayendo a la siguiente planta según el orden de preferencia cuando la preferida no tiene plazas libres.**
+**Cuando `approvalMode = AUTOMATIC` y un empleado solicita una PLAZA, el sistema DEBE (MUST) asignar automáticamente una plaza LIBRE para la fecha eligiéndola por la categoría del empleado y la planta FÍSICA de la plaza, y la solicitud DEBE nacer en estado `APPROVED` con la plaza asignada. El aparcamiento es un garaje SUBTERRÁNEO: la planta física es un sótano `-(número de plaza / 1000)`, de modo que las plazas `1xxx` están en la planta `-1` (la más alta, cercana a la superficie) y las `5xxx` en la planta `-5` (la más baja/profunda). Las categorías altas hasta Director nivel 2 (CEO, Consejo, Director N1, Director N2) DEBEN preferir las plantas físicas más altas disponibles (planta `-1` primero, probando de la `-1` a la `-5`, es decir del número de millar más bajo al más alto); el resto de categorías (Gerente, Mando intermedio, Empleado) DEBEN preferir las plantas físicas más bajas (planta `-5` primero, de la `-5` a la `-1`, del número de millar más alto al más bajo), cayendo a la siguiente planta según el orden de preferencia cuando la preferida no tiene plazas libres. Dentro de una misma planta la elección es determinista (menor número).**
 
-#### Scenario: Categoría alta recibe la planta más alta disponible
-- **GIVEN** `approvalMode = AUTOMATIC`, un `Employee` de categoría `DIRECTOR_N2` y plazas libres en las plantas 5 y 1 para `requested_date`
+#### Scenario: Categoría alta recibe la planta física más alta disponible
+- **GIVEN** `approvalMode = AUTOMATIC`, un `Employee` de categoría `DIRECTOR_N2` y plazas libres en la planta `-5` (números `5xxx`) y la planta `-1` (números `1xxx`) para `requested_date`
 - **WHEN** envía `POST /requests` de tipo `PARKING`
-- **THEN** el sistema responde 201 con la solicitud en estado `APPROVED` y una plaza de la planta 5 asignada
+- **THEN** el sistema responde 201 con la solicitud en estado `APPROVED` y una plaza de la planta `-1` (número `1xxx`) asignada
 
-#### Scenario: Categoría base recibe la planta más baja disponible
-- **GIVEN** `approvalMode = AUTOMATIC`, un `Employee` de categoría `EMPLEADO` y plazas libres en las plantas 5 y 1 para `requested_date`
+#### Scenario: Categoría base recibe la planta física más baja disponible
+- **GIVEN** `approvalMode = AUTOMATIC`, un `Employee` de categoría `EMPLEADO` y plazas libres en la planta `-5` (números `5xxx`) y la planta `-1` (números `1xxx`) para `requested_date`
 - **WHEN** envía `POST /requests` de tipo `PARKING`
-- **THEN** el sistema responde 201 con la solicitud en estado `APPROVED` y una plaza de la planta 1 asignada
+- **THEN** el sistema responde 201 con la solicitud en estado `APPROVED` y una plaza de la planta `-5` (número `5xxx`) asignada
 
 #### Scenario: Fallback a la siguiente planta según preferencia
-- **GIVEN** `approvalMode = AUTOMATIC`, un `Employee` de categoría `DIRECTOR_N1` y sin plazas libres en la planta 5 pero con plazas libres en la planta 4 para `requested_date`
+- **GIVEN** `approvalMode = AUTOMATIC`, un `Employee` de categoría `DIRECTOR_N1` y sin plazas libres en la planta `-1` (`1xxx`) pero con plazas libres en la planta `-2` (`2xxx`) para `requested_date`
 - **WHEN** envía `POST /requests` de tipo `PARKING`
-- **THEN** el sistema responde 201 con la solicitud en estado `APPROVED` y una plaza de la planta 4 asignada
+- **THEN** el sistema responde 201 con la solicitud en estado `APPROVED` y una plaza de la planta `-2` (número `2xxx`) asignada
 
 #### Scenario: Sin ninguna plaza libre no se puede auto-asignar
 - **GIVEN** `approvalMode = AUTOMATIC`, un `Employee` de cualquier categoría y ninguna plaza libre en ninguna planta para `requested_date`
@@ -259,4 +259,50 @@ Cuando `approvalMode = AUTOMATIC` y la solicitud de PUESTO incluye un `resourceI
 - **GIVEN** un `Employee` en "Mis solicitudes" con solicitudes en estado `REJECTED` y `CANCELLED`
 - **WHEN** se renderizan esas filas
 - **THEN** ninguna de esas filas muestra el botón **Cancelar**
+
+### Requirement: Presentación de solicitudes
+La bandeja de solicitudes DEBE (MUST) seguir la identidad ALEATICA y permitir filtrar y resolver
+peticiones sin cambiar las mutaciones existentes.
+
+#### Scenario: Filtrar por estado
+- **WHEN** el administrador selecciona una pestaña (Pendientes/Aprobadas/Rechazadas/Todas)
+- **THEN** la tabla muestra las solicitudes de ese estado
+- **AND** el contador de Pendientes refleja el número real
+
+#### Scenario: Resolver una solicitud
+- **WHEN** el administrador pulsa Aprobar o Rechazar en una fila
+- **THEN** se ejecuta la mutación existente correspondiente
+- **AND** la UI usa avatares de color, tipografía y tokens de marca
+
+### Requirement: Cancelación administrativa de una solicitud aprobada
+**El sistema DEBE (MUST) permitir a un `ADMIN` o a un `AGENCIA` cancelar la solicitud `APPROVED` de fecha futura de cualquier empleado mediante `POST /requests/{id}/admin-cancel` con un motivo obligatorio, transicionando la solicitud a `CANCELLED`, LIBERANDO el recurso asociado para esa fecha y registrando la acción en auditoría. La operación DEBE (MUST) rechazarse (sin efecto) si la solicitud no está `APPROVED`, si su fecha es pasada, o si el actor no es `ADMIN` ni `AGENCIA`.**
+
+#### Scenario: Admin cancela una solicitud aprobada futura y libera el recurso
+- **GIVEN** un `ADMIN` autenticado y una solicitud `APPROVED` de otro empleado con recurso asignado y fecha futura
+- **WHEN** envía `POST /requests/{id}/admin-cancel` con un `reason` no vacío
+- **THEN** el sistema responde 200 con la solicitud en estado `CANCELLED`
+- **AND** el recurso queda liberado y disponible para esa fecha
+- **AND** registra la acción en auditoría con el motivo y el actor
+
+#### Scenario: Agencia cancela una solicitud aprobada futura y libera el recurso
+- **GIVEN** un usuario `AGENCIA` autenticado y una solicitud `APPROVED` de un empleado con recurso asignado y fecha futura
+- **WHEN** envía `POST /requests/{id}/admin-cancel` con un `reason` no vacío
+- **THEN** el sistema responde 200 con la solicitud en estado `CANCELLED`
+- **AND** el recurso queda liberado y disponible para esa fecha
+
+#### Scenario: Motivo obligatorio
+- **GIVEN** un `ADMIN` o `AGENCIA` autenticado y una solicitud `APPROVED` futura
+- **WHEN** envía `POST /requests/{id}/admin-cancel` sin `reason` (vacío o ausente)
+- **THEN** el sistema responde 400 con `fields` indicando `reason`
+- **AND** no cancela la solicitud
+
+#### Scenario: Solo se cancela una APPROVED futura
+- **GIVEN** un `ADMIN` o `AGENCIA` autenticado y una solicitud que no está `APPROVED` (p. ej. `PENDING`, `CANCELLED` o `REJECTED`) o cuya fecha es pasada
+- **WHEN** envía `POST /requests/{id}/admin-cancel`
+- **THEN** el sistema responde 409 (estado no cancelable) y no modifica la solicitud
+
+#### Scenario: RBAC — un EMPLOYEE no puede usar admin-cancel
+- **GIVEN** un `EMPLOYEE` autenticado
+- **WHEN** envía `POST /requests/{id}/admin-cancel`
+- **THEN** el sistema responde 403 y no modifica la solicitud
 

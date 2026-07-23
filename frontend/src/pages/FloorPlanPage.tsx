@@ -148,7 +148,7 @@ export function FloorPlanPage() {
               onRequest={handleRequest}
               onDragStart={startDrag}
             />
-            <FloorPlanSidePanel desks={desks} showStatus={canEdit} />
+            <FloorPlanSidePanel desks={desks} />
           </div>
 
           {canEdit ? null : (

@@ -411,7 +411,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Traduce una fecha de solicitud fuera de la ventana hoy..hoy+14 a {@code 400}
+     * Traduce una fecha de solicitud pasada (anterior a hoy) a {@code 400}
      * con {@code error = OUTSIDE_REQUEST_WINDOW} y el detalle en {@code requestedDate}.
      *
      * @param ex excepcion de ventana de solicitud

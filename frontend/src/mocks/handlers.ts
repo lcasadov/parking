@@ -35,6 +35,7 @@ import {
   defaultMyWeek,
 } from './calendarFixtures';
 import { defaultAuditPage, defaultLoginLogPage } from './auditFixtures';
+import { addDaysIso } from '../utils/calendar';
 
 // baseURL relativo del cliente -> los handlers cubren la misma ruta.
 const BASE = '/parking-api/api/v1';
@@ -244,6 +245,10 @@ export const handlers = [
     HttpResponse.json({ ...requestPending1, id: Number(params.id), status: 'CANCELLED' }),
   ),
 
+  http.post(`${BASE}/requests/:id/admin-cancel`, ({ params }) =>
+    HttpResponse.json({ ...requestApproved, id: Number(params.id), status: 'CANCELLED' }),
+  ),
+
   http.post(`${BASE}/requests/:id/approve`, async ({ request, params }) => {
     const body = (await request.json()) as RequestApproveRequest;
     return HttpResponse.json({
@@ -282,6 +287,32 @@ export const handlers = [
   }),
 
   http.delete(`${BASE}/releases/:id`, () => new HttpResponse(null, { status: 204 })),
+
+  // ---- Seleccion de empleado y ocupacion semanal para liberacion
+  // (ADMIN/AGENCIA; defaults, cada test los sobrescribe con server.use) ----
+  http.get(`${BASE}/releases/employees`, () =>
+    HttpResponse.json([
+      { id: 10, fullName: 'Alice Employee' },
+      { id: 11, fullName: 'Bob Employee' },
+    ]),
+  ),
+
+  http.get(`${BASE}/releases/employees/:employeeId/occupancy`, ({ request, params }) => {
+    const weekStart = new URL(request.url).searchParams.get('weekStart');
+    if (!weekStart) {
+      return HttpResponse.json(apiError('validation', 'weekStart is required'), { status: 400 });
+    }
+    const days = Array.from({ length: 7 }, (_, index) => ({
+      date: addDaysIso(weekStart, index),
+      reservations: [],
+    }));
+    return HttpResponse.json({
+      employeeId: Number(params.employeeId),
+      employeeName: 'Alice Employee',
+      weekStart,
+      days,
+    });
+  }),
 
   http.post(`${BASE}/releases/administrative`, async ({ request }) => {
     const body = (await request.json()) as AdministrativeReleaseRequest;

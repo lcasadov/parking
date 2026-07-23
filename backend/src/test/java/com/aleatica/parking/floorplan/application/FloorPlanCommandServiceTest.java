@@ -175,9 +175,10 @@ class FloorPlanCommandServiceTest {
     }
 
     @Test
-    void shouldThrowOutsideWindow_whenDateBeyondFourteenDays() {
-        // Act / Assert: fuera de ventana antes de tocar repositorios
-        assertThatThrownBy(() -> service.requestDesk(LOGIN, DESK_ID, TODAY.plusDays(15)))
+    void shouldThrowOutsideWindow_whenDateIsInThePast() {
+        // Act / Assert: fecha pasada rechazada antes de tocar repositorios
+        // (ya no hay tope superior: cualquier fecha futura es valida)
+        assertThatThrownBy(() -> service.requestDesk(LOGIN, DESK_ID, TODAY.minusDays(1)))
                 .isInstanceOf(OutsideRequestWindowException.class);
         verify(requestRepository, never()).saveAndFlush(any());
     }

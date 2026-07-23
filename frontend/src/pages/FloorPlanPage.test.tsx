@@ -187,7 +187,7 @@ describe('FloorPlanPage', () => {
     renderWithProviders(<FloorPlanPage />);
 
     expect(
-      await screen.findByText(/fuera de la ventana|outside the request window/i),
+      await screen.findByText(/no puede ser anterior a hoy|cannot be earlier than today/i),
     ).toBeInTheDocument();
   });
 

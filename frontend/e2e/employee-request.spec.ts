@@ -27,7 +27,10 @@ test('should_create_parking_and_desk_requests_when_employee_submits_both_for_sam
   await loginAsEmployee(page);
   await page.goto('/employee/requests');
 
-  await page.getByRole('button', { name: 'Nueva solicitud' }).click();
+  // La accion primaria vive en la cabecera de pagina; el estado vacio de la
+  // tabla ofrece un segundo boton con el mismo nombre, por eso se acota a la
+  // cabecera para evitar la ambiguedad de strict mode.
+  await page.locator('.page-header').getByRole('button', { name: 'Nueva solicitud' }).click();
   await page.getByLabel('Fecha de la solicitud').fill(date);
   // "Plaza de parking" viene marcada por defecto; se añade "Puesto de oficina".
   await page.getByLabel('Puesto de oficina').check();

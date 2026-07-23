@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useResourceAvailabilityQuery } from '../hooks/useCalendar';
 import { isValidIsoDate } from '../utils/calendar';
-import { isWithinWindow } from '../utils/requests';
+import { isTodayOrFuture } from '../utils/requests';
 import type { ResourceType } from '../types/request';
 
 interface ResourceAvailabilityBannerProps {
@@ -16,7 +16,7 @@ export function ResourceAvailabilityBanner({ date, resourceType }: ResourceAvail
   const { t } = useTranslation();
   const { data, isLoading, isError } = useResourceAvailabilityQuery(date, resourceType);
 
-  if (!isValidIsoDate(date) || !isWithinWindow(date)) {
+  if (!isValidIsoDate(date) || !isTodayOrFuture(date)) {
     return null;
   }
   if (isLoading) {

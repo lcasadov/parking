@@ -22,7 +22,9 @@ test('should_download_csv_when_employee_exports_my_requests', async ({ page }) =
 test('should_download_xlsx_when_employee_exports_personal_data', async ({ page }) => {
   await loginAsEmployee(page);
 
-  // "Exportar mis datos" (RGPD) vive en la cabecera de cualquier página con sesión.
+  // "Exportar mis datos" (RGPD) vive en el panel de usuario del sidebar (antes
+  // en el top-bar): abrir el menú de usuario primero.
+  await page.getByRole('button', { name: 'Abrir menú de usuario' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Exportar mis datos' }).click(),

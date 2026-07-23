@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CancelReleaseModal } from '../components/CancelReleaseModal';
-import { Spinner } from '../components/Spinner';
+import { PageHeader } from '../components/PageHeader';
+import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { useMyReleasesQuery } from '../hooks/useReleases';
 import { canCancelRelease } from '../utils/releases';
 
@@ -23,46 +24,45 @@ export function MyReleasesPage() {
 
   const query = useMyReleasesQuery({ page, size: PAGE_SIZE });
   const releases = query.data?.content ?? [];
+  const ready = !query.isLoading && !query.isError;
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
 
   return (
-    <section className="my-releases-page" aria-labelledby="my-releases-title">
-      <header className="page-header">
-        <h1 id="my-releases-title" className="section-title">
-          {t('releases.mine.title')}
-        </h1>
-      </header>
+    <section className="my-releases-page" aria-label={t('releases.mine.title')}>
+      <PageHeader
+        eyebrow={t('releases.mine.eyebrow')}
+        title={t('releases.mine.title')}
+        description={t('releases.mine.description')}
+      />
 
-      {query.isLoading ? <Spinner /> : null}
+      {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('releases.mine.loadError')}
-        </p>
+        <TableError
+          message={t('releases.mine.loadError')}
+          retryLabel={t('common.retry')}
+          onRetry={() => void query.refetch()}
+        />
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
-        <div className="table-scroll">
-          <table className="table">
-            <thead>
-              <tr className="table-header">
-                <th scope="col">{t('releases.mine.columns.date')}</th>
-                <th scope="col">{t('releases.mine.columns.type')}</th>
-                <th scope="col">{t('releases.mine.columns.space')}</th>
-                <th scope="col">{t('releases.mine.columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {releases.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="table-empty">
-                    {t('releases.mine.empty')}
-                  </td>
+      {ready ? (
+        releases.length === 0 ? (
+          <TableEmpty icon="calendar-off" message={t('releases.mine.empty')} />
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr className="table-header">
+                  <th scope="col">{t('releases.mine.columns.date')}</th>
+                  <th scope="col">{t('releases.mine.columns.type')}</th>
+                  <th scope="col">{t('releases.mine.columns.space')}</th>
+                  <th scope="col">{t('releases.mine.columns.actions')}</th>
                 </tr>
-              ) : (
-                releases.map((release) => (
+              </thead>
+              <tbody>
+                {releases.map((release) => (
                   <tr key={release.id} className="table-row">
                     <td>{release.releaseDate}</td>
                     <td>
@@ -88,11 +88,11 @@ export function MyReleasesPage() {
                       </Button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : null}
 
       {totalPages > 1 ? (

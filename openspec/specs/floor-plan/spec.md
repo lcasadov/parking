@@ -8,14 +8,14 @@ TBD - created by archiving change init-floor-plan. Update Purpose after archive.
 
 #### Scenario: Consulta del plano para una fecha válida
 - **GIVEN** un empleado autenticado y un conjunto de `Desk` activos con `coord_x`/`coord_y` definidos
-- **WHEN** envía `GET /floor-plan?date={fecha}` dentro de la ventana de solicitud (hoy..+14d)
+- **WHEN** envía `GET /floor-plan?date={fecha}` para hoy o cualquier fecha futura (sin tope superior)
 - **THEN** el sistema responde 200 con una lista de puestos, cada uno con `deskId`, `deskNumber`, `category`, `coordX`, `coordY` y `state`
 - **AND** el `state` es uno de `FREE`, `ASSIGNED`, `REQUESTED`, `MINE`, `RELEASED` según asignaciones fijas, `Request` y `Release` para esa fecha
 - **AND** los puestos `EXECUTIVE` incluyen el flag de categoría para su distinción visual
 
-#### Scenario: Fecha fuera de la ventana de solicitud
+#### Scenario: Fecha pasada rechazada
 - **GIVEN** un empleado autenticado
-- **WHEN** envía `GET /floor-plan?date={fecha}` con una fecha pasada o posterior a hoy+14d
+- **WHEN** envía `GET /floor-plan?date={fecha}` con una fecha anterior a hoy
 - **THEN** el sistema responde 400 con `error = OUTSIDE_REQUEST_WINDOW` y `fields` indicando `date`
 - **AND** no devuelve estados de puestos
 
@@ -95,11 +95,11 @@ TBD - created by archiving change init-floor-plan. Update Purpose after archive.
 - **AND** un puesto `EXECUTIVE` muestra el anillo ámbar y el símbolo ◆ en marcador y leyenda
 
 ### Requirement: Controles del plano (fecha, filtros, zoom, panel lateral)
-**El plano DEBE (MUST) ofrecer navegación de fecha (día anterior/siguiente y "Hoy") dentro de la ventana de reserva, filtros por estado con contadores, controles de zoom, y un panel lateral con la lista de puestos buscable.**
+**El plano DEBE (MUST) ofrecer navegación de fecha (día anterior/siguiente y "Hoy") desde hoy en adelante (sin tope superior; no se navega a fechas pasadas), filtros por estado con contadores, controles de zoom, y un panel lateral con la lista de puestos buscable.**
 
 #### Scenario: Navegación de fecha recarga el plano
 - **GIVEN** el plano abierto para una fecha
-- **WHEN** el usuario pulsa "día siguiente" (dentro de la ventana hoy..+14d)
+- **WHEN** el usuario pulsa "día siguiente" (hoy o cualquier fecha futura)
 - **THEN** el plano recarga los estados de los puestos para la nueva fecha
 
 #### Scenario: Filtro por estado con contador
@@ -169,4 +169,18 @@ El plano en modo selector DEBE (MUST) marcar el puesto seleccionado con un **col
 - **GIVEN** un empleado que selecciona un puesto en el plano
 - **WHEN** el backend devuelve el estado de los puestos para la fecha
 - **THEN** el puesto sigue reportándose con su estado de dominio (`FREE`) y `SELECTED` no aparece como estado devuelto por el servidor
+
+### Requirement: Presentación del plano del día
+El plano DEBE (MUST) mostrar la planta real con marcadores de puesto coloreados por estado,
+usando las coordenadas y datos existentes.
+
+#### Scenario: Marcadores sobre la planta
+- **WHEN** se carga el plano de un día
+- **THEN** cada puesto se dibuja sobre la imagen real en su coordenada (%)
+- **AND** su color refleja el estado (ocupado/libre/liberado/solicitado)
+
+#### Scenario: Ocupación del día
+- **WHEN** se carga el plano
+- **THEN** el panel lateral muestra los contadores por estado y el listado de puestos
+- **AND** los datos provienen de los endpoints existentes
 
