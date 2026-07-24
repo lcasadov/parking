@@ -31,6 +31,30 @@
   padding: var(--space-8);
 }
 
+/* Topbar de ESCRITORIO (limpio, estilo mockup): barra fina de cristal, sticky,
+   con los controles (tema/idioma) alineados a la derecha. La marca vive solo en
+   el sidebar → un único header, sin duplicar. En móvil manda .shell-topbar. */
+.shell-deskbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin: calc(var(--space-8) * -1) calc(var(--space-8) * -1) var(--space-6);
+  padding: 11px var(--space-8);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--line-soft);
+}
+@media (max-width: 768px) {
+  .shell-deskbar {
+    display: none;
+  }
+}
+
 /* Header de cristal fijo (solo móvil). */
 .shell-topbar {
   display: none;
@@ -292,7 +316,9 @@
   height: calc(var(--topbar-h) + var(--safe-top));
   padding: var(--safe-top) calc(var(--space-3) + var(--safe-right)) 0
     calc(var(--space-3) + var(--safe-left));
-  display: flex;
+  /* display se gestiona por breakpoint: none en desktop (regla base .shell-topbar),
+     flex solo en el @media (max-width:768px). NO fijar display aquí o reaparece
+     el header móvil en escritorio (doble header). */
   align-items: center;
   gap: var(--space-3);
   background: var(--glass-bg);

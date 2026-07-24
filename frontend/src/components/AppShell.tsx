@@ -5,8 +5,10 @@ import { Outlet, useLocation } from 'react-router-dom';
 import aleaticaLogo from '../assets/aleatica-logo.png';
 import { useAuth } from '../auth/useAuth';
 import { DUR, EASE, drawerVariants, scrimVariants } from '../theme/motion';
+import { LanguageToggle } from './LanguageToggle';
 import { Sidebar } from './Sidebar';
 import { SidebarUserCard } from './SidebarUserCard';
+import { ThemeToggle } from './ThemeToggle';
 import { UserAvatar } from './UserAvatar';
 
 interface AppShellProps {
@@ -154,6 +156,12 @@ export function AppShell({ nav }: AppShellProps) {
       </AnimatePresence>
 
       <main className="main">
+        {/* Topbar de escritorio limpio (controles a la derecha). Oculto en móvil,
+            donde manda .shell-topbar de cristal con la hamburguesa. */}
+        <div className="shell-deskbar">
+          <LanguageToggle />
+          <ThemeToggle />
+        </div>
         <Outlet />
       </main>
     </div>
