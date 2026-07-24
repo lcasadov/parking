@@ -1517,6 +1517,10 @@ export const es = {
       autoEmpties: 'Auto en los días vacíos',
       editing: 'Editando: {{date}}',
     },
+    rail: {
+      title: 'Tu reserva',
+      label: 'Pasos y resumen de la reserva',
+    },
     result: {
       successTitle: '¡Reservas creadas!',
       mixedTitle: 'Reservas creadas con incidencias',

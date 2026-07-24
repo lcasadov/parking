@@ -1512,6 +1512,10 @@ export const en = {
       autoEmpties: 'Auto for empty days',
       editing: 'Editing: {{date}}',
     },
+    rail: {
+      title: 'Your booking',
+      label: 'Booking steps and summary',
+    },
     result: {
       successTitle: 'Reservations created!',
       mixedTitle: 'Reservations created with issues',

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../Button';
 import { Dialog } from '../Dialog';
 import { WizardStepper } from './WizardStepper';
+import { WizardRail } from './WizardRail';
 import { StepResourceType } from './StepResourceType';
 import { StepDates } from './StepDates';
 import { StepEmployee } from './StepEmployee';
@@ -240,6 +241,7 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
         </div>
       ) : (
         <>
+          {/* Móvil: stepper horizontal arriba (el riel lateral se oculta). */}
           <div className="rzw-stepper-zone">
             <WizardStepper
               steps={stepLabels}
@@ -248,19 +250,30 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
               onStepClick={goToStep}
             />
           </div>
-          <div className="rzw-scroll-zone">
-            <div className="rzw-viewport">
-              <AnimatePresence mode="wait" initial={false} custom={direction}>
-                <motion.div
-                  key={step}
-                  initial={{ opacity: 0, x: enterX }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -enterX }}
-                  transition={{ duration: reduceMotion ? 0 : DUR.base, ease: EASE.out }}
-                >
-                  {stepContent}
-                </motion.div>
-              </AnimatePresence>
+          <div className="rzw-body-row">
+            {/* Desktop: riel lateral con resumen en vivo + salto de sección. */}
+            <WizardRail
+              steps={stepLabels}
+              current={step}
+              reachable={reachableStep}
+              state={state}
+              dates={dates}
+              onStepClick={goToStep}
+            />
+            <div className="rzw-scroll-zone">
+              <div className="rzw-viewport">
+                <AnimatePresence mode="wait" initial={false} custom={direction}>
+                  <motion.div
+                    key={step}
+                    initial={{ opacity: 0, x: enterX }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -enterX }}
+                    transition={{ duration: reduceMotion ? 0 : DUR.base, ease: EASE.out }}
+                  >
+                    {stepContent}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </>
