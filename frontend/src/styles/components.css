@@ -6871,7 +6871,30 @@ button.rzw-step-btn:hover .rzw-step-label {
 }
 .rzw-plan-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.rzw-plan-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.rzw-plan-hint i {
+  font-size: 14px;
+  color: var(--accent);
+}
+/* Plano del asistente (paso Ubicación · puesto): acota el lienzo para que el mapa
+   se vea ENTERO sin scroll dentro del modal. Alto máx ~42vh (tope 420px) y ancho
+   derivado del ratio real del plano (1291×750) para conservar la geometría de los
+   marcadores; se centra si sobra ancho. El zoom/pan y la rueda siguen operando. */
+.rzw-loc .floor-plan-surface {
+  width: min(100%, calc(min(42vh, 420px) * 1291 / 750));
+  aspect-ratio: 1291 / 750;
+  height: auto;
+  margin-inline: auto;
 }
 
 /* ---- Paso 5 · Resumen ---- */

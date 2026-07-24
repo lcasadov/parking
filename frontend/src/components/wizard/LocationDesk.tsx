@@ -75,6 +75,10 @@ export function LocationDesk({ dates, deskId, onChange }: LocationDeskProps) {
       </span>
 
       <div className="rzw-plan-toolbar">
+        <span className="rzw-plan-hint">
+          <i className="ti ti-hand-finger" aria-hidden="true" />
+          {t('wizard.location.mapHint')}
+        </span>
         <FloorPlanZoom
           scale={viewport.scale}
           onZoomIn={viewport.zoomIn}

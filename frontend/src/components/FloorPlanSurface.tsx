@@ -1,7 +1,9 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react';
@@ -105,6 +107,45 @@ export function FloorPlanSurface({
     [editMode, surfaceRef],
   );
 
+  // Zoom con rueda/trackpad hacia el cursor: listener NATIVO no pasivo (React
+  // registra onWheel como pasivo y preventDefault no surtiría efecto) para evitar
+  // que la página haga scroll mientras se hace zoom sobre el plano.
+  const { zoomAtPoint, scale, reset } = viewport;
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface) {
+      return undefined;
+    }
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = surface.getBoundingClientRect();
+      // Factor exponencial suave: acerca al empujar hacia arriba (deltaY<0).
+      const factor = Math.exp(-event.deltaY * 0.0015);
+      zoomAtPoint(factor, event.clientX - rect.left, event.clientY - rect.top);
+    };
+    surface.addEventListener('wheel', onWheel, { passive: false });
+    return () => surface.removeEventListener('wheel', onWheel);
+  }, [surfaceRef, zoomAtPoint]);
+
+  // Doble clic: acerca hacia el punto; si ya está ampliado, vuelve al encuadre.
+  const handleDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (editMode) {
+        return;
+      }
+      const rect = surfaceRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+      if (scale > 1.05) {
+        reset();
+      } else {
+        zoomAtPoint(1.8, event.clientX - rect.left, event.clientY - rect.top);
+      }
+    },
+    [editMode, surfaceRef, scale, reset, zoomAtPoint],
+  );
+
   const tipDesk = tip ? placed.find((desk) => desk.deskId === tip.deskId) : undefined;
 
   function labelFor(desk: FloorPlanDesk, selected: boolean, focused: boolean): string {
@@ -134,6 +175,7 @@ export function FloorPlanSurface({
         onPointerMove={viewport.onPointerMove}
         onPointerUp={viewport.onPointerUp}
         onPointerCancel={viewport.onPointerUp}
+        onDoubleClick={handleDoubleClick}
       >
         <div className="plano-world" style={worldStyle}>
           <img src={floorPlanImage} alt={t('floorPlan.imageAlt')} className="floor-plan-image" />

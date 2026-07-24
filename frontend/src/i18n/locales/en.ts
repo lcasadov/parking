@@ -1477,6 +1477,7 @@ export const en = {
       orPick: 'or pick a specific space',
       suggestedForCategory: 'Suggested for {{category}} · floor {{floor}}',
       otherSpaces: 'Other spaces',
+      mapHint: 'Scroll or double-click to zoom · drag to pan',
       noneParking: 'No space is free on every selected date.',
       noneDesk: 'No desk is free on every selected date.',
     },

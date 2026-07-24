@@ -1482,6 +1482,7 @@ export const es = {
       orPick: 'o elige una plaza concreta',
       suggestedForCategory: 'Sugeridas para {{category}} · planta {{floor}}',
       otherSpaces: 'Otras plazas',
+      mapHint: 'Rueda o doble clic para acercar · arrastra para mover',
       noneParking: 'No hay ninguna plaza libre en todas las fechas elegidas.',
       noneDesk: 'No hay ningún puesto libre en todas las fechas elegidas.',
     },
