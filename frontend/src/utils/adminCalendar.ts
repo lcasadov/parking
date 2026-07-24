@@ -16,6 +16,42 @@ export interface AdminCalendarSummary {
   requests: number; // solicitudes pendientes
 }
 
+// Instantanea de un unico dia (columna del calendario), para la fila de KPIs del
+// modo activo (total del recurso / ocupados / libres / liberados ese dia). Opera
+// sobre las filas ya cargadas por useAdminCalendarQuery; no consulta endpoints.
+export interface DaySnapshot {
+  total: number; // recursos del tipo activo (filas)
+  occupied: number; // ocupados ese dia (asignacion fija o solicitud aprobada)
+  free: number; // libres ese dia
+  released: number; // liberados ese dia
+  pending: number; // con solicitud pendiente ese dia
+}
+
+// Cuenta los estados de la columna `date` (un dia) en las filas ya cargadas. Si
+// una fila no tiene celda para esa fecha, se ignora (no aporta a los contadores).
+export function summarizeDay(rows: CalendarRow[], date: string): DaySnapshot {
+  let occupied = 0;
+  let free = 0;
+  let released = 0;
+  let pending = 0;
+  for (const row of rows) {
+    const cell = row.cells.find((item) => item.date === date);
+    if (!cell) {
+      continue;
+    }
+    if (cell.state === 'ASSIGNED' || cell.state === 'REQUEST_APPROVED') {
+      occupied += 1;
+    } else if (cell.state === 'FREE') {
+      free += 1;
+    } else if (cell.state === 'RELEASED') {
+      released += 1;
+    } else if (cell.state === 'REQUEST_PENDING') {
+      pending += 1;
+    }
+  }
+  return { total: rows.length, occupied, free, released, pending };
+}
+
 // Cuenta estados a partir de las filas ya cargadas. Cada celda se cuenta una vez.
 export function summarizeAdminCalendar(rows: CalendarRow[]): AdminCalendarSummary {
   let assignments = 0;

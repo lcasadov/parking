@@ -174,6 +174,11 @@ export const en = {
     weekly: {
       actionableHint: 'Click a free cell to assign, or an occupied one to release.',
       resourceTypeLabel: 'Resource type',
+      modeSwitchLabel: 'Switch between parking spaces and desks',
+      modeTitle: {
+        PARKING: 'Parking spaces',
+        DESK: 'Office desks',
+      },
       resourceType: {
         PARKING: 'Spaces',
         DESK: 'Desks',
@@ -185,6 +190,20 @@ export const en = {
       summarySpaces: {
         PARKING: 'Active spaces',
         DESK: 'Active desks',
+      },
+      kpi: {
+        today: 'today',
+        totalLabel: {
+          PARKING: 'Total spaces',
+          DESK: 'Total desks',
+        },
+        occupied: 'Occupied {{day}}',
+        free: 'Free {{day}}',
+        released: 'Released {{day}}',
+        inInventory: 'in inventory',
+        ofOccupancy: '{{pct}}% occupancy',
+        availableNow: 'available now',
+        releasedSub: 'temporarily released',
       },
       cellAction: {
         ASSIGN: 'Assign {{resource}}',

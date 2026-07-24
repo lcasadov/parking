@@ -174,6 +174,11 @@ export const es = {
     weekly: {
       actionableHint: 'Pulsa una celda libre para asignar, o una ocupada para liberar.',
       resourceTypeLabel: 'Tipo de recurso',
+      modeSwitchLabel: 'Cambiar entre plazas y puestos',
+      modeTitle: {
+        PARKING: 'Plazas de parking',
+        DESK: 'Puestos de oficina',
+      },
       resourceType: {
         PARKING: 'Plazas',
         DESK: 'Puestos',
@@ -185,6 +190,20 @@ export const es = {
       summarySpaces: {
         PARKING: 'Plazas activas',
         DESK: 'Puestos activos',
+      },
+      kpi: {
+        today: 'hoy',
+        totalLabel: {
+          PARKING: 'Plazas totales',
+          DESK: 'Puestos totales',
+        },
+        occupied: 'Ocupados {{day}}',
+        free: 'Libres {{day}}',
+        released: 'Liberados {{day}}',
+        inInventory: 'en inventario',
+        ofOccupancy: '{{pct}}% de ocupación',
+        availableNow: 'disponibles ahora',
+        releasedSub: 'liberados temporalmente',
       },
       cellAction: {
         ASSIGN: 'Asignar {{resource}}',

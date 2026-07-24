@@ -74,7 +74,7 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     expect(cell).not.toHaveClass('cell-released');
   });
 
-  it('should_showSummaryCards_when_calendarLoaded', async () => {
+  it('should_showModeKpis_when_calendarLoaded', async () => {
     server.use(
       http.get(`${MSW_BASE}/calendar/admin`, ({ request }) =>
         HttpResponse.json(
@@ -85,10 +85,11 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     renderWithProviders(<AdminCalendarPage />);
 
     await screen.findByRole('table');
-    const assignments = screen.getByText(/asignaciones|assignments/i).closest('.summary-card');
-    expect(assignments).not.toBeNull();
-    // ASSIGNED (1) + REQUEST_APPROVED (1) = 2 asignaciones en la semana fixture.
-    expect(within(assignments as HTMLElement).getByText('2')).toBeInTheDocument();
+    // La fila de KPIs del modo activo se refiere al primer dia visible del fixture
+    // (2026-05-11): P-01 ASSIGNED => 1 ocupado; P-02 FREE => 1 libre.
+    const occupied = screen.getByText(/ocupados|occupied/i).closest('.occ-kpi');
+    expect(occupied).not.toBeNull();
+    expect(within(occupied as HTMLElement).getByText('1')).toBeInTheDocument();
   });
 
   it('should_toggleStateFilter_when_filterButtonClicked', async () => {

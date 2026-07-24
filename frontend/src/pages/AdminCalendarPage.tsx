@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CalendarCellView } from '../components/CalendarCellView';
@@ -13,11 +14,12 @@ import {
   type AdminCancelRequestPrefill,
 } from '../components/AdminCancelRequestModal';
 import { OccupancyAssignModal } from '../components/OccupancyAssignModal';
+import { ResourceModeSwitch } from '../components/ResourceModeSwitch';
 import { emitApiErrorToast } from '../api/events';
 import { useAdminCalendarQuery } from '../hooks/useCalendar';
 import { useToast } from '../hooks/useToast';
 import { adminCalendarLegend } from '../utils/calendarLegend';
-import { summarizeAdminCalendar, buildAdminCalendarCsv } from '../utils/adminCalendar';
+import { summarizeDay, type DaySnapshot, buildAdminCalendarCsv } from '../utils/adminCalendar';
 import { triggerBlobDownload } from '../utils/download';
 import type { CalendarCell, CalendarCellState, CalendarRow } from '../types/calendar';
 import type { ResourceType } from '../types/request';
@@ -33,9 +35,6 @@ import {
 import { isTodayOrFuture, todayIso } from '../utils/requests';
 
 const WEEK_LENGTH = 7;
-
-// Orden fijo del conmutador plaza/puesto (S1192: sin literales repetidos).
-const RESOURCE_TYPES: ResourceType[] = ['PARKING', 'DESK'];
 
 // Estados del calendario en orden de lectura (S1192: sin literales repetidos).
 const ALL_STATES: CalendarCellState[] = [
@@ -80,6 +79,33 @@ interface AssignTarget {
   date: string;
 }
 
+// Vista de KPIs del modo activo (referidos a hoy). La columna es HOY si la semana
+// mostrada la contiene; si el admin navego a otra semana, se cae al primer dia
+// visible para que los numeros sigan siendo reales (la etiqueta pasa de "hoy" a la
+// fecha). Extraido a modulo para no cargar la complejidad del componente (S3776).
+interface KpiView {
+  snapshot: DaySnapshot;
+  occupancyPct: number;
+  isToday: boolean;
+  date: string;
+}
+
+function deriveKpiView(rows: CalendarRow[], days: string[], today: string): KpiView {
+  const date = days.includes(today) ? today : (days[0] ?? today);
+  const snapshot = summarizeDay(rows, date);
+  const occupancyPct =
+    snapshot.total > 0 ? Math.round((snapshot.occupied / snapshot.total) * 100) : 0;
+  return { snapshot, occupancyPct, isToday: date === today, date };
+}
+
+// Etiqueta del dia de los KPIs: "hoy" cuando la columna es hoy; si no, "Lun 11 may".
+function formatKpiDay(kpi: KpiView, t: TFunction): string {
+  if (kpi.isToday) {
+    return t('occupancy.weekly.kpi.today');
+  }
+  return `${t(`calendar.weekdaysShort.${weekdayIndex(kpi.date)}`)} ${dayMonth(kpi.date)}`;
+}
+
 // Rejilla de calendario semanal ADMIN (consume GET /calendar/admin). Presentacion
 // ALEATICA + celdas ACCIONABLES (weekly-assignment spec, restructure-admin-workflows):
 // una celda libre inicia la asignacion (fija o puntual) en contexto; una celda
@@ -99,11 +125,16 @@ export function AdminCalendarPage() {
   const [cancelPrefill, setCancelPrefill] = useState<AdminCancelRequestPrefill | null>(null);
 
   const query = useAdminCalendarQuery(weekStart, resourceType);
-  const days = query.data?.days ?? [];
+  const days = useMemo(() => query.data?.days ?? [], [query.data]);
   const rows = useMemo(() => query.data?.rows ?? [], [query.data]);
   const today = todayIso();
 
-  const summary = useMemo(() => summarizeAdminCalendar(rows), [rows]);
+  // KPIs del modo activo, referidos a HOY (todo derivado de las filas ya cargadas,
+  // sin fetch). La seleccion de columna y los ratios viven en helpers de modulo
+  // para mantener baja la complejidad del componente (Sonar S3776).
+  const kpi = useMemo(() => deriveKpiView(rows, days, today), [rows, days, today]);
+  const dayTag = formatKpiDay(kpi, t);
+
   const rangeLabel =
     days.length > 0 ? weekRangeLabel(days[0], days[days.length - 1], i18n.language) : '';
   const weekNumber = isoWeekNumber(weekStart);
@@ -206,33 +237,18 @@ export function AdminCalendarPage() {
   const showGrid = !query.isLoading && !query.isError;
 
   return (
-    <section className="admin-calendar-page" aria-labelledby="admin-calendar-title">
-      <header className="page-header">
-        <div className="page-heading">
-          <span className="page-eyebrow">{t('calendar.admin.eyebrow')}</span>
-          <h1 id="admin-calendar-title" className="section-title">
-            {t('calendar.admin.title')}
+    <section className="admin-calendar-page occ-weekly" aria-labelledby="admin-calendar-title">
+      {/* Hero MODO-EXPLÍCITO: el titulo grande dice qué se está viendo (Plazas de
+          parking / Puestos de oficina) y cambia con el conmutador. */}
+      <header className="occ-hero">
+        <div className="occ-hero-text">
+          <span className="page-eyebrow">{t('occupancy.title')}</span>
+          <h1 id="admin-calendar-title" className="occ-hero-title" aria-live="polite">
+            {t(`occupancy.weekly.modeTitle.${resourceType}`)}
           </h1>
-          <p className="page-description">{t('occupancy.weekly.actionableHint')}</p>
+          <p className="occ-hero-sub">{t('occupancy.weekly.actionableHint')}</p>
         </div>
-        <div className="page-actions">
-          <div
-            className="segmented"
-            role="group"
-            aria-label={t('occupancy.weekly.resourceTypeLabel')}
-          >
-            {RESOURCE_TYPES.map((type) => (
-              <button
-                key={type}
-                type="button"
-                className={resourceType === type ? 'active' : ''}
-                aria-pressed={resourceType === type}
-                onClick={() => setResourceType(type)}
-              >
-                {t(`occupancy.weekly.resourceType.${type}`)}
-              </button>
-            ))}
-          </div>
+        <div className="occ-hero-actions">
           <Button
             variant="white"
             icon="filter"
@@ -252,22 +268,39 @@ export function AdminCalendarPage() {
         </div>
       </header>
 
-      <div className="calendar-summary">
-        <SummaryCard
-          tone="ink"
-          value={summary.spaces}
-          label={t(`occupancy.weekly.summarySpaces.${resourceType}`)}
+      {/* Selector GRANDE plaza/puesto: imposible de ignorar. Al cambiarlo cambian
+          titulo, KPIs y rejilla. */}
+      <ResourceModeSwitch
+        value={resourceType}
+        onChange={setResourceType}
+        ariaLabel={t('occupancy.weekly.modeSwitchLabel')}
+      />
+
+      {/* KPIs del modo activo, referidos a HOY (datos reales de la rejilla). */}
+      <div className="occ-kpis">
+        <KpiCard
+          dot="var(--ink-faint)"
+          label={t(`occupancy.weekly.kpi.totalLabel.${resourceType}`)}
+          value={kpi.snapshot.total}
+          sub={t('occupancy.weekly.kpi.inInventory')}
         />
-        <SummaryCard
-          tone="green"
-          value={summary.assignments}
-          label={t('calendar.summary.assignments')}
+        <KpiCard
+          dot="var(--accent)"
+          label={t('occupancy.weekly.kpi.occupied', { day: dayTag })}
+          value={kpi.snapshot.occupied}
+          sub={t('occupancy.weekly.kpi.ofOccupancy', { pct: kpi.occupancyPct })}
         />
-        <SummaryCard tone="blue" value={summary.releases} label={t('calendar.summary.releases')} />
-        <SummaryCard
-          tone="orange"
-          value={summary.requests}
-          label={t('calendar.summary.requests')}
+        <KpiCard
+          dot="var(--info)"
+          label={t('occupancy.weekly.kpi.free', { day: dayTag })}
+          value={kpi.snapshot.free}
+          sub={t('occupancy.weekly.kpi.availableNow')}
+        />
+        <KpiCard
+          dot="var(--rel)"
+          label={t('occupancy.weekly.kpi.released', { day: dayTag })}
+          value={kpi.snapshot.released}
+          sub={t('occupancy.weekly.kpi.releasedSub')}
         />
       </div>
 
@@ -428,20 +461,28 @@ export function AdminCalendarPage() {
   );
 }
 
-// Tarjeta de resumen (numeral serif + etiqueta), coloreada por metrica.
-function SummaryCard({
-  tone,
-  value,
+// Tarjeta KPI (mismo lenguaje que el Dashboard: punto de color + etiqueta +
+// numeral Geist Mono tabular + sublinea). El color solo tiñe el punto; el
+// numeral queda en tinta para legibilidad en claro y oscuro.
+function KpiCard({
+  dot,
   label,
+  value,
+  sub,
 }: {
-  tone: 'ink' | 'green' | 'blue' | 'orange';
-  value: number;
+  dot: string;
   label: string;
+  value: number;
+  sub: string;
 }) {
   return (
-    <div className={`summary-card summary-card--${tone}`}>
-      <span className="summary-card-value">{value}</span>
-      <span className="summary-card-label">{label}</span>
+    <div className="card occ-kpi">
+      <div className="occ-kpi-lbl">
+        <span className="occ-kpi-dot" style={{ background: dot }} />
+        {label}
+      </div>
+      <div className="occ-kpi-val mono">{value}</div>
+      <div className="occ-kpi-sub">{sub}</div>
     </div>
   );
 }

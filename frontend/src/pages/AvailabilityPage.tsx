@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '../components/Input';
 import { PageHeader } from '../components/PageHeader';
+import { ResourceModeSwitch } from '../components/ResourceModeSwitch';
 import { ResourceTypePill } from '../components/ResourceTypePill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
@@ -9,9 +10,6 @@ import { useAvailabilityQuery } from '../hooks/useCalendar';
 import { isValidIsoDate } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
 import type { ResourceType } from '../types/request';
-
-// Orden fijo del conmutador plaza/puesto (S1192: sin literales repetidos).
-const RESOURCE_TYPES: ResourceType[] = ['PARKING', 'DESK'];
 
 // Vista ADMIN: elige una fecha y un tipo de recurso, y lista los recursos
 // disponibles esa fecha (consume GET /availability?date&resourceType). Cada fila
@@ -27,11 +25,20 @@ export function AvailabilityPage() {
   const resources = query.data?.availableResources ?? [];
 
   return (
-    <section className="availability-page" aria-label={t('availability.title')}>
+    <section className="availability-page occ-availability" aria-label={t('availability.title')}>
+      {/* Cabecera coherente con la vista Semanal: eyebrow "Ocupación" + titulo
+          mode-explicito (Plazas de parking / Puestos de oficina). */}
       <PageHeader
-        eyebrow={t('availability.eyebrow')}
-        title={t('availability.title')}
+        eyebrow={t('occupancy.title')}
+        title={t(`occupancy.weekly.modeTitle.${resourceType}`)}
         description={t('availability.description')}
+      />
+
+      {/* Mismo selector GRANDE plaza/puesto que la vista Semanal. */}
+      <ResourceModeSwitch
+        value={resourceType}
+        onChange={setResourceType}
+        ariaLabel={t('occupancy.weekly.modeSwitchLabel')}
       />
 
       <Toolbar ariaLabel={t('availability.title')}>
@@ -42,23 +49,6 @@ export function AvailabilityPage() {
           value={date}
           onChange={(event) => setDate(event.target.value)}
         />
-        <div
-          className="segmented"
-          role="group"
-          aria-label={t('availability.resourceTypeLabel')}
-        >
-          {RESOURCE_TYPES.map((type) => (
-            <button
-              key={type}
-              type="button"
-              className={resourceType === type ? 'active' : ''}
-              aria-pressed={resourceType === type}
-              onClick={() => setResourceType(type)}
-            >
-              {t(`availability.resourceType.${type}`)}
-            </button>
-          ))}
-        </div>
       </Toolbar>
 
       {!isDateValid ? (
