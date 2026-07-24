@@ -1871,18 +1871,21 @@ body.theme-dark .floor-mini-img {
   font-size: 18px;
   color: var(--accent);
 }
-/* En pantalla completa el lienzo llena la pantalla conservando el ratio del plano
-   (1291×750) para no deformar la geometría de los marcadores; se centra con fondo. */
-.floor-plan-surface-wrap:fullscreen,
-.floor-plan-surface-wrap:-webkit-full-screen {
+/* Maximizado IN-APP: overlay fijo que llena el viewport conservando el ratio del
+   plano (1291×750, no deforma los marcadores). z-index 90 = por DEBAJO de los
+   diálogos Radix (rx-overlay 100 / rx-dialog 101), de modo que el modal de
+   confirmación de asignación siga saliendo por encima del plano y se pueda asignar.
+   (En el asistente, cuyo modal usa transform, el overlay cubre la caja del modal.) */
+.floor-plan-surface-wrap.is-maximized {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
   display: grid;
   place-items: center;
-  width: 100vw;
-  height: 100vh;
   padding: 2vmin;
   background: var(--bg);
 }
-.floor-plan-surface-wrap:fullscreen .floor-plan-surface {
+.floor-plan-surface-wrap.is-maximized .floor-plan-surface {
   width: min(96vw, calc(92vh * 1291 / 750));
   height: auto;
   max-height: 96vh;

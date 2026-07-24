@@ -93,7 +93,7 @@ export function FloorPlanSurface({
   const wrapRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<TipState | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const [marquee, setMarquee] = useState<MarqueeState | null>(null);
   const marqueeStart = useRef<{ x: number; y: number } | null>(null);
   const placed = desks.filter(isPlaced);
@@ -169,39 +169,31 @@ export function FloorPlanSurface({
     return () => surface.removeEventListener('wheel', onWheel);
   }, [surfaceRef, zoomAtPoint]);
 
-  // Pantalla completa del lienzo (Fullscreen API nativa sobre el wrap): sincroniza
-  // el estado con los cambios reales (incluida la salida con Escape del navegador).
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(document.fullscreenElement === wrapRef.current);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+  // Maximizado IN-APP (no la Fullscreen API nativa, que sube el lienzo al "top
+  // layer" del navegador por encima de los diálogos Radix e impide asignar desde el
+  // plano): un overlay fijo con z-index por debajo de los modales, de modo que el
+  // diálogo de confirmación de asignación siga apareciendo por encima del plano.
+  const toggleMaximize = useCallback(() => setMaximized((prev) => !prev), []);
 
-  const toggleFullscreen = useCallback(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) {
-      return;
-    }
-    if (document.fullscreenElement === wrap) {
-      void document.exitFullscreen();
-    } else {
-      void wrap.requestFullscreen?.();
-    }
-  }, []);
-
-  // Escape (modo explorar): vuelve al encuadre completo.
+  // Escape: si el plano está maximizado, primero lo restaura; si no, en modo
+  // explorar vuelve al encuadre. (Los modales ya no se cierran con Escape.)
   useEffect(() => {
-    if (!exploring) {
+    if (!maximized && !exploring) {
       return undefined;
     }
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (maximized) {
+        setMaximized(false);
+      } else {
         reset();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [exploring, reset]);
+  }, [maximized, exploring, reset]);
 
   // Doble clic: acerca hacia el punto; si ya está ampliado, vuelve al encuadre.
   const handleDoubleClick = useCallback(
@@ -317,7 +309,7 @@ export function FloorPlanSurface({
     : null;
 
   return (
-    <div className="floor-plan-surface-wrap" ref={wrapRef}>
+    <div className={`floor-plan-surface-wrap${maximized ? ' is-maximized' : ''}`} ref={wrapRef}>
       <div
         ref={surfaceRef}
         data-testid="floor-plan-surface"
@@ -364,12 +356,12 @@ export function FloorPlanSurface({
         <button
           type="button"
           className="floor-fullscreen-btn"
-          aria-label={t(isFullscreen ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter')}
-          title={t(isFullscreen ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter')}
+          aria-label={t(maximized ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter')}
+          title={t(maximized ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter')}
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={toggleFullscreen}
+          onClick={toggleMaximize}
         >
-          <i className={`ti ti-${isFullscreen ? 'arrows-minimize' : 'arrows-maximize'}`} aria-hidden="true" />
+          <i className={`ti ti-${maximized ? 'arrows-minimize' : 'arrows-maximize'}`} aria-hidden="true" />
         </button>
       </div>
 
