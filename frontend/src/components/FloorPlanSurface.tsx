@@ -41,6 +41,10 @@ interface FloorPlanSurfaceProps {
   surfaceRef: RefObject<HTMLDivElement>;
   // Puesto elegido en el plano-selector: se realza (SELECTED) y se marca accesible.
   selectedDeskId?: number | null;
+  // Puesto enfocado al llegar desde la rejilla ("Ver en plano"): anillo de acento
+  // (`focusDeskId`) + pulso temporal mientras `focusPulsing` esté activo.
+  focusDeskId?: number | null;
+  focusPulsing?: boolean;
   onRequest: (desk: FloorPlanDesk) => void;
   onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
@@ -56,6 +60,8 @@ export function FloorPlanSurface({
   viewport,
   surfaceRef,
   selectedDeskId = null,
+  focusDeskId = null,
+  focusPulsing = false,
   onRequest,
   onDragStart,
 }: FloorPlanSurfaceProps) {
@@ -101,8 +107,13 @@ export function FloorPlanSurface({
 
   const tipDesk = tip ? placed.find((desk) => desk.deskId === tip.deskId) : undefined;
 
-  function labelFor(desk: FloorPlanDesk, selected: boolean): string {
-    const key = selected ? 'floorPlan.markerLabelSelected' : 'floorPlan.markerLabel';
+  function labelFor(desk: FloorPlanDesk, selected: boolean, focused: boolean): string {
+    let key = 'floorPlan.markerLabel';
+    if (focused) {
+      key = 'floorPlan.markerLabelFocused';
+    } else if (selected) {
+      key = 'floorPlan.markerLabelSelected';
+    }
     return t(key, {
       number: desk.deskNumber,
       state: t(`floorPlan.states.${desk.state}`),
@@ -129,14 +140,17 @@ export function FloorPlanSurface({
           {placed.map((desk) => {
             const dragging = dragPos !== null && dragPos.deskId === desk.deskId;
             const selected = desk.deskId === selectedDeskId;
+            const focused = focusDeskId !== null && desk.deskId === focusDeskId;
             return (
               <FloorPlanMarker
                 key={desk.deskId}
                 desk={desk}
-                label={labelFor(desk, selected)}
+                label={labelFor(desk, selected, focused)}
                 editMode={editMode}
                 dimmed={!matchesFilter(desk, filter)}
                 selected={selected}
+                focused={focused}
+                pulsing={focused && focusPulsing}
                 left={dragging ? dragPos.x : (desk.coordX ?? 0)}
                 top={dragging ? dragPos.y : (desk.coordY ?? 0)}
                 onRequest={onRequest}

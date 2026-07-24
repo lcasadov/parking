@@ -140,6 +140,7 @@ export function FloorPlanPage() {
   }
 
   const desks = query.data?.desks ?? [];
+
   // Posiciones efectivas para pintar: override local si el puesto se ha arrastrado,
   // si no las del backend. Los estados/estilo del puesto no cambian, solo coord.
   const effectiveDesks =

@@ -11,6 +11,9 @@ export interface FloorPlanViewport extends ViewportState {
   zoomIn: () => void;
   zoomOut: () => void;
   reset: () => void;
+  // Centra el viewport en un punto (xPercent/yPercent = coordenadas 0-100 del
+  // marcador) con un ligero acercamiento, midiendo el lienzo con width/height (px).
+  focusOn: (xPercent: number, yPercent: number, width: number, height: number) => void;
   panEnabled: boolean;
   onPointerDown: (event: ReactPointerEvent) => void;
   onPointerMove: (event: ReactPointerEvent) => void;
@@ -32,6 +35,10 @@ interface PinchStart {
 
 const INITIAL: ViewportState = { scale: 1, offsetX: 0, offsetY: 0 };
 
+// Acercamiento al centrar en un puesto (enlace "Ver en plano" desde la rejilla):
+// destaca el marcador sin perder el contexto del plano.
+const FOCUS_SCALE = 1.6;
+
 function distanceBetween(a: { clientX: number; clientY: number }, b: { clientX: number; clientY: number }): number {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
@@ -52,6 +59,23 @@ export function useFloorPlanViewport(panEnabled: boolean): FloorPlanViewport {
   const zoomIn = useCallback(() => zoomTo(state.scale + ZOOM_STEP), [zoomTo, state.scale]);
   const zoomOut = useCallback(() => zoomTo(state.scale - ZOOM_STEP), [zoomTo, state.scale]);
   const reset = useCallback(() => setState(INITIAL), []);
+
+  // Centra el marcador (xPercent/yPercent) en el lienzo de tamaño width x height,
+  // aplicando FOCUS_SCALE. El layout del "mundo" no depende del transform, así que
+  // width/height (rect del lienzo, ~alto de la imagen a escala 1) son estables.
+  const focusOn = useCallback(
+    (xPercent: number, yPercent: number, width: number, height: number) => {
+      const scale = clampScale(FOCUS_SCALE);
+      const targetX = (xPercent / 100) * width;
+      const targetY = (yPercent / 100) * height;
+      setState({
+        scale,
+        offsetX: width / 2 - scale * targetX,
+        offsetY: height / 2 - scale * targetY,
+      });
+    },
+    [],
+  );
 
   const beginPan = useCallback(
     (event: ReactPointerEvent) => {
@@ -131,6 +155,7 @@ export function useFloorPlanViewport(panEnabled: boolean): FloorPlanViewport {
     zoomIn,
     zoomOut,
     reset,
+    focusOn,
     panEnabled,
     onPointerDown,
     onPointerMove,

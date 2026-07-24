@@ -73,13 +73,15 @@ export function AppRoutes() {
           path="desks"
           element={<LegacyTabRedirect to={ROUTES.adminResources} tab="desks" />}
         />
+        {/* "Disponibilidad" se fusionó en la rejilla como filtro rápido "Solo
+            libres": ambas rutas antiguas caen en la Ocupación (rejilla única). */}
         <Route
           path="calendar"
-          element={<LegacyTabRedirect to={ROUTES.adminOccupancy} tab="weekly" />}
+          element={<LegacyTabRedirect to={ROUTES.adminOccupancy} />}
         />
         <Route
           path="availability"
-          element={<LegacyTabRedirect to={ROUTES.adminOccupancy} tab="availability" />}
+          element={<LegacyTabRedirect to={ROUTES.adminOccupancy} />}
         />
         <Route
           path="releases"

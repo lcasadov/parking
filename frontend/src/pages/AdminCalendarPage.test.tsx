@@ -92,7 +92,7 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     expect(within(occupied as HTMLElement).getByText('1')).toBeInTheDocument();
   });
 
-  it('should_toggleStateFilter_when_filterButtonClicked', async () => {
+  it('should_filterGridByQuickFilter_when_chipSelected', async () => {
     server.use(
       http.get(`${MSW_BASE}/calendar/admin`, ({ request }) =>
         HttpResponse.json(
@@ -104,15 +104,18 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     renderWithProviders(<AdminCalendarPage />);
 
     await screen.findByRole('table');
-    expect(screen.queryByRole('group', { name: /filtrar|filter/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /filtrar|filter/i }));
-    const group = screen.getByRole('group', { name: /filtrar|filter/i });
-    const freeChip = within(group).getByRole('button', { name: /libre|free/i });
-    expect(freeChip).toHaveAttribute('aria-pressed', 'true');
-
-    await user.click(freeChip);
+    // Los filtros rápidos están SIEMPRE visibles (sin botón "Filtrar" que los abra).
+    const group = screen.getByRole('group', { name: /filtrar por estado|filter by state/i });
+    const allChip = within(group).getByRole('button', { name: /todos|all/i });
+    const freeChip = within(group).getByRole('button', { name: /solo libres|only free/i });
+    // "Todos" es la selección por defecto.
+    expect(allChip).toHaveAttribute('aria-pressed', 'true');
     expect(freeChip).toHaveAttribute('aria-pressed', 'false');
+
+    // Selección única: al elegir "Solo libres" se activa ese chip y se desactiva "Todos".
+    await user.click(freeChip);
+    expect(freeChip).toHaveAttribute('aria-pressed', 'true');
+    expect(allChip).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('should_enableExport_when_rowsPresent', async () => {

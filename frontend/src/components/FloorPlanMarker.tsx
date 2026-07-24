@@ -14,6 +14,10 @@ interface FloorPlanMarkerProps {
   dimmed?: boolean;
   // Realce "puesto elegido" en el plano-selector (estado visual SELECTED, solo UI).
   selected?: boolean;
+  // Realce "puesto enfocado" al llegar desde la rejilla ("Ver en plano"): anillo de
+  // acento persistente (`focused`) + animación de pulso temporal (`pulsing`, ~3-4s).
+  focused?: boolean;
+  pulsing?: boolean;
   onRequest: (desk: FloorPlanDesk) => void;
   onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
   // Notifica al plano el hover/focus para renderizar el tooltip en una capa no
@@ -33,6 +37,8 @@ export function FloorPlanMarker({
   top,
   dimmed = false,
   selected = false,
+  focused = false,
+  pulsing = false,
   onRequest,
   onDragStart,
   onHover,
@@ -48,6 +54,8 @@ export function FloorPlanMarker({
     isExecutive ? 'floor-marker-executive' : '',
     editMode ? 'floor-marker-editing' : '',
     dimmed ? 'floor-marker-dimmed' : '',
+    focused ? 'floor-marker-focused' : '',
+    pulsing ? 'floor-marker-pulse' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -77,6 +85,7 @@ export function FloorPlanMarker({
         style={pos}
         aria-label={label}
         aria-pressed={selected ? true : undefined}
+        aria-current={focused ? 'location' : undefined}
         disabled={!editMode && desk.state !== 'FREE'}
         onClick={handleClick}
         onPointerDown={handlePointerDown}

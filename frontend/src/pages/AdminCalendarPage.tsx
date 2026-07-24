@@ -5,6 +5,7 @@ import { Button } from '../components/Button';
 import { CalendarCellView } from '../components/CalendarCellView';
 import { Legend } from '../components/Legend';
 import { Spinner } from '../components/Spinner';
+import { ViewInPlanTrigger } from '../components/ViewInPlanTrigger';
 import {
   AdministrativeReleaseModal,
   type AdministrativeReleasePrefill,
@@ -17,12 +18,14 @@ import { OccupancyAssignModal } from '../components/OccupancyAssignModal';
 import { ResourceModeSwitch } from '../components/ResourceModeSwitch';
 import { emitApiErrorToast } from '../api/events';
 import { useAdminCalendarQuery } from '../hooks/useCalendar';
+import { useFloorPlanQuery } from '../hooks/useFloorPlan';
 import { useToast } from '../hooks/useToast';
 import { adminCalendarLegend } from '../utils/calendarLegend';
 import { summarizeDay, type DaySnapshot, buildAdminCalendarCsv } from '../utils/adminCalendar';
 import { triggerBlobDownload } from '../utils/download';
 import type { CalendarCell, CalendarCellState, CalendarRow } from '../types/calendar';
 import type { ResourceType } from '../types/request';
+import type { FloorPlanDesk } from '../types/floorPlan';
 import {
   addDaysIso,
   calendarStateKey,
@@ -36,23 +39,77 @@ import { isTodayOrFuture, todayIso } from '../utils/requests';
 
 const WEEK_LENGTH = 7;
 
-// Estados del calendario en orden de lectura (S1192: sin literales repetidos).
-const ALL_STATES: CalendarCellState[] = [
-  'ASSIGNED',
-  'RELEASED',
-  'REQUEST_PENDING',
-  'REQUEST_APPROVED',
-  'FREE',
-];
+// Filtros rápidos SIEMPRE visibles sobre la rejilla (sustituyen al antiguo botón
+// "Filtrar" + panel plegable). Segmento de selección única que agrupa los estados
+// del contrato en categorías legibles. "free" replica lo que hacía la vista
+// Disponibilidad (recursos con hueco). Orden de lectura (S1192: sin literales sueltos).
+type QuickFilter = 'all' | 'free' | 'occupied' | 'released' | 'requests';
 
-// Punto de color por estado para los chips del filtro (mapa estado->color, §4).
-const STATE_DOT: Record<CalendarCellState, string> = {
-  ASSIGNED: 'var(--state-occupied-bg)',
-  RELEASED: 'var(--state-released-bg)',
-  REQUEST_PENDING: 'var(--state-pending-bg)',
-  REQUEST_APPROVED: 'var(--state-request-bg)',
-  FREE: 'var(--state-free-bg)',
+const QUICK_FILTERS: QuickFilter[] = ['all', 'free', 'occupied', 'released', 'requests'];
+
+// Estados de CalendarCellState que cubre cada filtro rápido. `null` = todos (sin
+// filtrar). "occupied" agrupa fija (ASSIGNED) y solicitud aprobada (ambas ocupan
+// el día); "requests" agrupa las derivadas de una solicitud (pendiente/aprobada).
+const QUICK_FILTER_STATES: Record<QuickFilter, CalendarCellState[] | null> = {
+  all: null,
+  free: ['FREE'],
+  occupied: ['ASSIGNED', 'REQUEST_APPROVED'],
+  released: ['RELEASED'],
+  requests: ['REQUEST_PENDING', 'REQUEST_APPROVED'],
 };
+
+// Punto de color por filtro (mapa filtro->color del design system, §4).
+const QUICK_FILTER_DOT: Record<QuickFilter, string> = {
+  all: 'var(--ink-faint)',
+  free: 'var(--state-free-bg)',
+  occupied: 'var(--state-occupied-bg)',
+  released: 'var(--state-released-bg)',
+  requests: 'var(--state-pending-bg)',
+};
+
+// ¿Encaja una celda (por su estado) en el filtro rápido activo? "all" siempre.
+function cellMatchesQuickFilter(state: CalendarCellState, filter: QuickFilter): boolean {
+  const states = QUICK_FILTER_STATES[filter];
+  return states === null || states.includes(state);
+}
+
+// ¿Tiene la fila (recurso) al menos una celda que encaje en el filtro? Determina si
+// el recurso sigue visible: "Solo libres" oculta los recursos sin ningún hueco.
+function rowMatchesQuickFilter(row: CalendarRow, filter: QuickFilter): boolean {
+  return filter === 'all' || row.cells.some((cell) => cellMatchesQuickFilter(cell.state, filter));
+}
+
+// Filtra las filas por el filtro rápido (filtrado REAL de recursos, no cosmético).
+function filterCalendarRows(rows: CalendarRow[], filter: QuickFilter): CalendarRow[] {
+  return filter === 'all' ? rows : rows.filter((row) => rowMatchesQuickFilter(row, filter));
+}
+
+// Nº de recursos que encaja en cada filtro (badge del chip: refuerza que el filtro
+// es efectivo). Extraído a módulo para no cargar la complejidad del componente (S3776).
+function countRowsByFilter(rows: CalendarRow[]): Record<QuickFilter, number> {
+  const counts: Record<QuickFilter, number> = {
+    all: rows.length,
+    free: 0,
+    occupied: 0,
+    released: 0,
+    requests: 0,
+  };
+  for (const row of rows) {
+    for (const filter of QUICK_FILTERS) {
+      if (filter !== 'all' && rowMatchesQuickFilter(row, filter)) {
+        counts[filter] += 1;
+      }
+    }
+  }
+  return counts;
+}
+
+// Número de puesto (1-65) a partir de la etiqueta de la fila DESK ("D-05" -> 5),
+// para resolver el puesto en el plano ("Ver en plano"). Null si no hay dígitos.
+function deskNumberFromLabel(label: string): number | null {
+  const match = /\d+/.exec(label);
+  return match ? Number(match[0]) : null;
+}
 
 // Accion inline resoluble desde una celda (weekly-assignment spec, celdas
 // accionables): asignar (celda FREE) o liberar (ASSIGNED = fija, REQUEST_APPROVED
@@ -116,10 +173,7 @@ export function AdminCalendarPage() {
   const toast = useToast();
   const [weekStart, setWeekStart] = useState<string>(mondayOfWeek());
   const [resourceType, setResourceType] = useState<ResourceType>('PARKING');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [activeStates, setActiveStates] = useState<Set<CalendarCellState>>(
-    () => new Set(ALL_STATES),
-  );
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
   const [assignTarget, setAssignTarget] = useState<AssignTarget | null>(null);
   const [releasePrefill, setReleasePrefill] = useState<AdministrativeReleasePrefill | null>(null);
   const [cancelPrefill, setCancelPrefill] = useState<AdminCancelRequestPrefill | null>(null);
@@ -129,11 +183,29 @@ export function AdminCalendarPage() {
   const rows = useMemo(() => query.data?.rows ?? [], [query.data]);
   const today = todayIso();
 
+  // Plano de puestos para HOY (solo en modo DESK): alimenta el tooltip mini-plano y
+  // el modal de "Ver en plano". React Query deduplica la petición aunque haya 65
+  // filas. El mapa nº de puesto -> puesto resuelve cada fila por su etiqueta.
+  const floorPlanQuery = useFloorPlanQuery(today, resourceType === 'DESK');
+  const desksByNumber = useMemo(() => {
+    const map = new Map<number, FloorPlanDesk>();
+    for (const desk of floorPlanQuery.data?.desks ?? []) {
+      map.set(desk.deskNumber, desk);
+    }
+    return map;
+  }, [floorPlanQuery.data]);
+
   // KPIs del modo activo, referidos a HOY (todo derivado de las filas ya cargadas,
   // sin fetch). La seleccion de columna y los ratios viven en helpers de modulo
   // para mantener baja la complejidad del componente (Sonar S3776).
   const kpi = useMemo(() => deriveKpiView(rows, days, today), [rows, days, today]);
   const dayTag = formatKpiDay(kpi, t);
+
+  // Filas visibles según el filtro rápido y contadores por filtro (derivados de las
+  // filas ya cargadas, sin fetch). El filtrado es real: oculta recursos y atenúa
+  // celdas que no cumplen (más abajo).
+  const filteredRows = useMemo(() => filterCalendarRows(rows, quickFilter), [rows, quickFilter]);
+  const filterCounts = useMemo(() => countRowsByFilter(rows), [rows]);
 
   const rangeLabel =
     days.length > 0 ? weekRangeLabel(days[0], days[days.length - 1], i18n.language) : '';
@@ -151,16 +223,11 @@ export function AdminCalendarPage() {
     setWeekStart(mondayOfWeek());
   }
 
-  function toggleState(state: CalendarCellState): void {
-    setActiveStates((current) => {
-      const next = new Set(current);
-      if (next.has(state)) {
-        next.delete(state);
-      } else {
-        next.add(state);
-      }
-      return next;
-    });
+  // Resuelve el puesto del plano para una fila DESK a partir de su etiqueta ("D-05"
+  // -> puesto nº 5). Null mientras el plano carga o si la etiqueta no trae número.
+  function deskForRow(label: string): FloorPlanDesk | null {
+    const deskNumber = deskNumberFromLabel(label);
+    return deskNumber !== null ? (desksByNumber.get(deskNumber) ?? null) : null;
   }
 
   function handleExport(): void {
@@ -250,14 +317,6 @@ export function AdminCalendarPage() {
         </div>
         <div className="occ-hero-actions">
           <Button
-            variant="white"
-            icon="filter"
-            aria-pressed={isFilterOpen}
-            onClick={() => setIsFilterOpen((open) => !open)}
-          >
-            {t('calendar.actions.filter')}
-          </Button>
-          <Button
             variant="green"
             icon="download"
             disabled={rows.length === 0}
@@ -333,33 +392,35 @@ export function AdminCalendarPage() {
         <Legend items={adminCalendarLegend(t)} />
       </nav>
 
-      {isFilterOpen ? (
-        <div
-          className="chip-filters calendar-state-filter"
-          role="group"
-          aria-label={t('calendar.actions.filter')}
-        >
-          {ALL_STATES.map((state) => {
-            const isActive = activeStates.has(state);
-            return (
-              <button
-                key={state}
-                type="button"
-                className={`chip-filter${isActive ? ' is-active' : ''}`}
-                aria-pressed={isActive}
-                onClick={() => toggleState(state)}
-              >
-                <span
-                  className="cf-dot"
-                  style={{ background: STATE_DOT[state] }}
-                  aria-hidden="true"
-                />
-                {t(calendarStateKey(state))}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+      {/* Filtros rápidos SIEMPRE visibles: segmento de selección única que filtra
+          la rejilla al instante (oculta recursos + atenúa celdas que no cumplen).
+          "Solo libres" replica la antigua vista Disponibilidad. */}
+      <div
+        className="chip-filters occ-quick-filters"
+        role="group"
+        aria-label={t('occupancy.weekly.filterLabel')}
+      >
+        {QUICK_FILTERS.map((filter) => {
+          const isActive = quickFilter === filter;
+          return (
+            <button
+              key={filter}
+              type="button"
+              className={`chip-filter${isActive ? ' is-active' : ''}`}
+              aria-pressed={isActive}
+              onClick={() => setQuickFilter(filter)}
+            >
+              <span
+                className="cf-dot"
+                style={{ background: QUICK_FILTER_DOT[filter] }}
+                aria-hidden="true"
+              />
+              {t(`occupancy.weekly.filters.${filter}`)}
+              <span className="cf-count">{filterCounts[filter]}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {query.isLoading ? <Spinner /> : null}
 
@@ -395,14 +456,27 @@ export function AdminCalendarPage() {
                     {t('calendar.empty')}
                   </td>
                 </tr>
+              ) : filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={days.length + 1} className="table-empty">
+                    {t('occupancy.weekly.noMatches')}
+                  </td>
+                </tr>
               ) : (
-                rows.map((row) => (
+                filteredRows.map((row) => (
                   <tr key={row.parkingSpaceId} className="table-row">
                     <th scope="row" className="calendar-space-cell">
                       <span className="calendar-space-label">{row.label}</span>
                       <span className="calendar-space-zone" aria-hidden="true">
                         #{row.parkingSpaceId}
                       </span>
+                      {resourceType === 'DESK' ? (
+                        <ViewInPlanTrigger
+                          desk={deskForRow(row.label)}
+                          deskLabel={row.label}
+                          date={today}
+                        />
+                      ) : null}
                     </th>
                     {row.cells.map((cell) => {
                       const actionable = isCellActionable(cell);
@@ -411,7 +485,9 @@ export function AdminCalendarPage() {
                           key={cell.date}
                           cell={cell}
                           isToday={cell.date === today}
-                          dimmed={!activeStates.has(cell.state)}
+                          dimmed={
+                            quickFilter !== 'all' && !cellMatchesQuickFilter(cell.state, quickFilter)
+                          }
                           onActivate={actionable ? () => openCellAction(row, cell) : undefined}
                           actionLabel={
                             actionable
