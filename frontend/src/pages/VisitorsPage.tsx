@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { InfoBanner } from '../components/InfoBanner';
 import { PageHeader } from '../components/PageHeader';
 import { SectionSwitch, type SectionSwitchItem } from '../components/SectionSwitch';
 import { VisitorReservationsPanel } from '../components/VisitorReservationsPanel';
@@ -27,10 +26,6 @@ export function VisitorsPage() {
         title={t('visitors.title')}
         description={t('visitors.description')}
       />
-
-      <InfoBanner variant="blue" icon="info-circle">
-        {t('visitors.emailNote')}
-      </InfoBanner>
 
       <SectionSwitch items={items} active={tab} onChange={(id) => setTab(id as Tab)} ariaLabel={t('visitors.title')} />
 
