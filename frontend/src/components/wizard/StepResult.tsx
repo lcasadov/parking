@@ -5,12 +5,14 @@ import type { BookingOutcome } from './wizardTypes';
 interface StepResultProps {
   outcomes: BookingOutcome[];
   employeeName: string;
+  // Visitante: no se notifica por email, así que el resumen no menciona notificación.
+  isVisitor?: boolean;
 }
 
 // Paso final — Resultado por fecha del loop de confirmación. Estado celebratorio
 // cuando todas las reservas se crean; resumen mixto ("N creadas · M no disponibles")
 // cuando hay fallos parciales, detallando el motivo por fecha.
-export function StepResult({ outcomes, employeeName }: StepResultProps) {
+export function StepResult({ outcomes, employeeName, isVisitor = false }: StepResultProps) {
   const { t, i18n } = useTranslation();
   const created = outcomes.filter((outcome) => outcome.ok);
   const failed = outcomes.filter((outcome) => !outcome.ok);
@@ -26,7 +28,7 @@ export function StepResult({ outcomes, employeeName }: StepResultProps) {
           {allOk ? t('wizard.result.successTitle') : t('wizard.result.mixedTitle')}
         </h3>
         <p className="rzw-result-sub">
-          {t('wizard.result.summary', {
+          {t(isVisitor ? 'wizard.result.summaryVisitor' : 'wizard.result.summary', {
             created: created.length,
             failed: failed.length,
             name: employeeName,

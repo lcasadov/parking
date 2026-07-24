@@ -4,7 +4,7 @@ import { Button } from './Button';
 import { TableEmpty, TableError, TableSkeleton } from './TableStates';
 import { Toolbar } from './Toolbar';
 import { CancelVisitorReservationModal } from './CancelVisitorReservationModal';
-import { VisitorReservationModal } from './VisitorReservationModal';
+import { ReservationWizard } from './wizard/ReservationWizard';
 import { useVisitorReservationsQuery } from '../hooks/useVisitorReservations';
 import { canCancelReservation } from '../utils/visitors';
 
@@ -127,9 +127,9 @@ export function VisitorReservationsPanel() {
       ) : null}
 
       {isCreateOpen ? (
-        <VisitorReservationModal
+        <ReservationWizard
+          initialBeneficiaryType="VISITOR"
           onClose={() => setIsCreateOpen(false)}
-          onCreated={() => setIsCreateOpen(false)}
         />
       ) : null}
 

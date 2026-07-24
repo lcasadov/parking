@@ -1475,6 +1475,14 @@ export const es = {
       noMatch: 'Ningún empleado coincide con la búsqueda.',
       error: 'No se han podido cargar los empleados.',
     },
+    beneficiary: {
+      lead: 'Elige para quién es la reserva: un empleado o un visitante.',
+      typeLabel: 'Tipo de beneficiario',
+      employee: 'Empleado',
+      visitor: 'Visitante',
+      searchVisitor: 'Buscar por nombre o documento…',
+      noVisitor: 'Ningún visitante coincide con la búsqueda.',
+    },
     location: {
       leadDesk: 'Elige un puesto que esté libre en todas las fechas seleccionadas.',
       leadParking:
@@ -1496,12 +1504,15 @@ export const es = {
     summary: {
       resourceType: 'Tipo de recurso',
       employee: 'Empleado',
+      visitor: 'Visitante',
       category: 'Categoría',
       location: 'Ubicación',
       dates_one: '{{count}} fecha',
       dates_other: '{{count}} fechas',
       emailNotice:
         'Al confirmar, se notificará por email a {{name}} y su reserva quedará confirmada.',
+      noEmailNotice:
+        'Reserva de visitante: no se envía ningún email. La reserva quedará confirmada.',
       unknownEmployee: 'Empleado',
       autoAssignTitle: 'Plaza asignada automáticamente',
       autoAssignHint: 'Según la categoría del empleado, por fecha:',
@@ -1530,6 +1541,7 @@ export const es = {
       successTitle: '¡Reservas creadas!',
       mixedTitle: 'Reservas creadas con incidencias',
       summary: '{{created}} creadas · {{failed}} no disponibles · notificado a {{name}}',
+      summaryVisitor: '{{created}} creadas · {{failed}} no disponibles · visitante {{name}} (sin email)',
       reasonOk: 'Creada',
       reasonNoAvailability: 'Sin disponibilidad',
       reasonDuplicate: 'Ya reservada',

@@ -9,15 +9,17 @@ import type { ParkingChoice } from './wizardTypes';
 interface LocationParkingProps {
   dates: string[];
   employeeId: number | null;
+  // Auto-asignación por categoría: solo para empleados. Los visitantes no tienen
+  // categoría, así que eligen SIEMPRE una plaza concreta (sin tarjeta de auto).
+  allowAuto?: boolean;
   choice: ParkingChoice | null;
   onChange: (choice: ParkingChoice, label: string) => void;
 }
 
-// Ubicación PARKING: elegir una plaza concreta (libre en TODAS las fechas) o
-// "asignación automática" por categoría. Las plazas manuales se ordenan por la
-// prioridad de la categoría del empleado y se dividen en "sugeridas" (planta
-// preferente, las que elegiría el auto) y "otras".
-export function LocationParking({ dates, employeeId, choice, onChange }: LocationParkingProps) {
+// Ubicación PARKING: elegir una plaza concreta (libre en TODAS las fechas) o, para
+// empleados, "asignación automática" por categoría. Las plazas manuales se ordenan
+// por la prioridad de la categoría y se dividen en "sugeridas" y "otras".
+export function LocationParking({ dates, employeeId, allowAuto = true, choice, onChange }: LocationParkingProps) {
   const { t } = useTranslation();
   const availability = useWizardAvailability(dates, RESOURCE_PARKING, true);
   const employeesQuery = useSelectableReleaseEmployeesQuery();
@@ -72,28 +74,32 @@ export function LocationParking({ dates, employeeId, choice, onChange }: Locatio
 
   return (
     <div className="rzw-loc">
-      <button
-        type="button"
-        className={`rzw-auto-card${autoSelected ? ' is-selected' : ''}`}
-        aria-pressed={autoSelected}
-        disabled={!availability.anyFreeSomeDate}
-        onClick={() => onChange(PARKING_AUTO, '')}
-      >
-        <span className="rzw-auto-icon" aria-hidden="true">
-          <i className="ti ti-wand" />
-        </span>
-        <span className="rzw-auto-text">
-          <span className="rzw-auto-title">{t('wizard.location.anyFree')}</span>
-          <span className="rzw-auto-desc">{t('wizard.location.anyFreeDesc')}</span>
-        </span>
-        <span className="rzw-choice-check" aria-hidden="true">
-          <i className="ti ti-check" />
-        </span>
-      </button>
+      {allowAuto ? (
+        <>
+          <button
+            type="button"
+            className={`rzw-auto-card${autoSelected ? ' is-selected' : ''}`}
+            aria-pressed={autoSelected}
+            disabled={!availability.anyFreeSomeDate}
+            onClick={() => onChange(PARKING_AUTO, '')}
+          >
+            <span className="rzw-auto-icon" aria-hidden="true">
+              <i className="ti ti-wand" />
+            </span>
+            <span className="rzw-auto-text">
+              <span className="rzw-auto-title">{t('wizard.location.anyFree')}</span>
+              <span className="rzw-auto-desc">{t('wizard.location.anyFreeDesc')}</span>
+            </span>
+            <span className="rzw-choice-check" aria-hidden="true">
+              <i className="ti ti-check" />
+            </span>
+          </button>
 
-      <div className="rzw-loc-divider">
-        <span>{t('wizard.location.orPick')}</span>
-      </div>
+          <div className="rzw-loc-divider">
+            <span>{t('wizard.location.orPick')}</span>
+          </div>
+        </>
+      ) : null}
 
       {availability.eligible.length === 0 ? (
         <p className="rzw-empty">{t('wizard.location.noneParking')}</p>

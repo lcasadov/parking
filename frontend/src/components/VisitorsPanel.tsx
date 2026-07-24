@@ -6,7 +6,7 @@ import { TableEmpty, TableError, TableSkeleton } from './TableStates';
 import { Toolbar } from './Toolbar';
 import { VisitorDetailModal } from './VisitorDetailModal';
 import { VisitorFormModal } from './VisitorFormModal';
-import { VisitorReservationModal } from './VisitorReservationModal';
+import { ReservationWizard } from './wizard/ReservationWizard';
 import { useVisitorsQuery } from '../hooks/useVisitors';
 import type { Visitor } from '../types/visitor';
 
@@ -161,10 +161,10 @@ export function VisitorsPanel() {
       ) : null}
 
       {reserveVisitor ? (
-        <VisitorReservationModal
-          visitor={reserveVisitor}
+        <ReservationWizard
+          initialBeneficiaryType="VISITOR"
+          initialVisitorId={reserveVisitor.id}
           onClose={() => setReserveVisitor(null)}
-          onCreated={() => setReserveVisitor(null)}
         />
       ) : null}
     </div>

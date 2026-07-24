@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useSelectableReleaseEmployeesQuery } from '../../hooks/useReleaseSelection';
+import { useVisitorsQuery } from '../../hooks/useVisitors';
 import { longDate } from '../../utils/calendar';
 import {
   PARKING_AUTO,
@@ -26,8 +27,11 @@ interface WizardRailProps {
 // espacio sobrante del modal a pantalla completa.
 export function WizardRail({ steps, current, reachable, state, dates, onStepClick }: WizardRailProps) {
   const { t, i18n } = useTranslation();
+  const isVisitor = state.beneficiaryType === 'VISITOR';
   const employeesQuery = useSelectableReleaseEmployeesQuery();
+  const visitorsQuery = useVisitorsQuery({ page: 0, size: 100 });
   const employee = employeesQuery.data?.find((candidate) => candidate.id === state.employeeId);
+  const visitor = visitorsQuery.data?.content.find((candidate) => candidate.id === state.visitorId);
   const isDesk = state.resourceType === RESOURCE_DESK;
 
   function resourceValue(): string | null {
@@ -48,6 +52,9 @@ export function WizardRail({ steps, current, reachable, state, dates, onStepClic
   }
 
   function employeeValue(): string | null {
+    if (isVisitor) {
+      return visitor ? `${visitor.firstName} ${visitor.lastName}`.trim() : null;
+    }
     if (!employee) {
       return null;
     }

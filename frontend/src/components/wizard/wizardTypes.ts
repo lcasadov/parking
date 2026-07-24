@@ -36,6 +36,11 @@ export const STEP_SUMMARY = 4;
 // Estado completo del asistente. `dates` es la lista canónica y ordenada de
 // fechas ISO (YYYY-MM-DD) derivada del modo activo; el resto de campos son la
 // materia prima de cada modo para poder reconstruir la selección al volver atrás.
+// Beneficiario de la reserva: un empleado interno o un visitante externo. El
+// visitante reserva por su propio endpoint (/visitor-reservations) y NO recibe email;
+// no tiene categoría, así que no hay auto-asignación por planta.
+export type BeneficiaryType = 'EMPLOYEE' | 'VISITOR';
+
 export interface WizardState {
   resourceType: ResourceType | null;
   dateMode: DateMode;
@@ -46,7 +51,10 @@ export interface WizardState {
   rangeEnd: string;
   // SCATTER
   scatterDates: string[];
+  // Beneficiario: empleado o visitante.
+  beneficiaryType: BeneficiaryType;
   employeeId: number | null;
+  visitorId: number | null;
   // Modo de asignación de ubicación (relevante con varias fechas).
   locationMode: LocationMode;
   // --- Modo ALL (misma ubicación para todos los días) ---

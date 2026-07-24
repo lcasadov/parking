@@ -1471,6 +1471,14 @@ export const en = {
       noMatch: 'No employee matches your search.',
       error: 'Employees could not be loaded.',
     },
+    beneficiary: {
+      lead: 'Choose who the booking is for: an employee or a visitor.',
+      typeLabel: 'Beneficiary type',
+      employee: 'Employee',
+      visitor: 'Visitor',
+      searchVisitor: 'Search by name or ID…',
+      noVisitor: 'No visitor matches your search.',
+    },
     location: {
       leadDesk: 'Pick a desk that is free on every selected date.',
       leadParking: 'Pick a space free on every date, or let it be assigned automatically by category.',
@@ -1491,12 +1499,15 @@ export const en = {
     summary: {
       resourceType: 'Resource type',
       employee: 'Employee',
+      visitor: 'Visitor',
       category: 'Category',
       location: 'Location',
       dates_one: '{{count}} date',
       dates_other: '{{count}} dates',
       emailNotice:
         'On confirmation, {{name}} will be notified by email and the reservation will be confirmed.',
+      noEmailNotice:
+        'Visitor booking: no email is sent. The reservation will be confirmed.',
       unknownEmployee: 'Employee',
       autoAssignTitle: 'Automatically assigned space',
       autoAssignHint: 'By the employee’s category, per date:',
@@ -1525,6 +1536,7 @@ export const en = {
       successTitle: 'Reservations created!',
       mixedTitle: 'Reservations created with issues',
       summary: '{{created}} created · {{failed}} unavailable · {{name}} notified',
+      summaryVisitor: '{{created}} created · {{failed}} unavailable · visitor {{name}} (no email)',
       reasonOk: 'Created',
       reasonNoAvailability: 'No availability',
       reasonDuplicate: 'Already booked',

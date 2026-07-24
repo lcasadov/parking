@@ -81,6 +81,7 @@ export function StepLocation({ state, dates, patch }: StepLocationProps) {
         <LocationParking
           dates={dates}
           employeeId={state.employeeId}
+          allowAuto={state.beneficiaryType === 'EMPLOYEE'}
           choice={state.parkingChoice}
           onChange={(choice: ParkingChoice, label) =>
             patch({ parkingChoice: choice, chosenLabel: choice === PARKING_AUTO ? null : label })

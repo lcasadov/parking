@@ -144,6 +144,7 @@ export function StepLocationPerDay({ state, dates, patch }: StepLocationPerDayPr
           <LocationParking
             dates={[activeDate]}
             employeeId={state.employeeId}
+            allowAuto={state.beneficiaryType === 'EMPLOYEE'}
             choice={parkingValue}
             onChange={onParkingChange}
           />

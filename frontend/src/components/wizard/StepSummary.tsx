@@ -1,5 +1,7 @@
+import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSelectableReleaseEmployeesQuery } from '../../hooks/useReleaseSelection';
+import { useVisitorsQuery } from '../../hooks/useVisitors';
 import { useSuggestedSpaces } from '../../hooks/useSuggestedSpaces';
 import { longDate } from '../../utils/calendar';
 import { PARKING_AUTO, RESOURCE_DESK } from './wizardTypes';
@@ -8,6 +10,18 @@ import type { WizardState } from './wizardTypes';
 interface StepSummaryProps {
   state: WizardState;
   dates: string[];
+}
+
+interface SummaryRow {
+  icon: string;
+  label: string;
+  value: string;
+}
+
+interface PreviewItem {
+  date: string;
+  value: string;
+  tone: string;
 }
 
 // Fechas cuya plaza auto hay que previsualizar: en PER_DAY las marcadas como auto;
@@ -24,40 +38,26 @@ function autoPreviewDates(
   return allAuto ? dates : [];
 }
 
-// Paso 5 — Resumen y confirmación. Recap (tipo · empleado · categoría) + aviso de
-// email. La ubicación se muestra según el modo: ALL con una sola plaza/puesto (y si
-// es auto, la plaza exacta por fecha); PER_DAY con una fila por fecha y su recurso
-// (auto resuelto a la plaza concreta). El botón Confirmar vive en el pie.
+// Paso 5 — Resumen y confirmación. Recap (tipo · beneficiario · categoría) + aviso de
+// email (empleado) o "sin email" (visitante). La ubicación se muestra según el modo.
 export function StepSummary({ state, dates }: StepSummaryProps) {
   const { t, i18n } = useTranslation();
+  const isVisitor = state.beneficiaryType === 'VISITOR';
   const employeesQuery = useSelectableReleaseEmployeesQuery();
+  const visitorsQuery = useVisitorsQuery({ page: 0, size: 100 });
   const employee = employeesQuery.data?.find((candidate) => candidate.id === state.employeeId);
-  const employeeName = employee?.fullName ?? t('wizard.summary.unknownEmployee');
+  const visitor = visitorsQuery.data?.content.find((candidate) => candidate.id === state.visitorId);
+  const beneficiaryName = isVisitor
+    ? (visitor ? `${visitor.firstName} ${visitor.lastName}`.trim() : t('wizard.summary.unknownEmployee'))
+    : (employee?.fullName ?? t('wizard.summary.unknownEmployee'));
 
   const isDesk = state.resourceType === RESOURCE_DESK;
-  const resourceTypeLabel = t(isDesk ? 'wizard.resource.desk' : 'wizard.resource.parking');
   const perDayMode = dates.length > 1 && state.locationMode === 'PER_DAY';
   const allAuto = !perDayMode && !isDesk && state.parkingChoice === PARKING_AUTO;
 
-  // Fechas con auto-asignación (según el modo) cuya plaza hay que previsualizar.
   const autoDates = autoPreviewDates(state, dates, perDayMode, allAuto);
   const suggested = useSuggestedSpaces(state.employeeId, autoDates, autoDates.length > 0);
   const suggestedByDate = new Map(suggested.byDate.map((entry) => [entry.date, entry]));
-
-  const rows = [
-    { icon: isDesk ? 'armchair' : 'car', label: t('wizard.summary.resourceType'), value: resourceTypeLabel },
-    { icon: 'user', label: t('wizard.summary.employee'), value: employeeName },
-  ];
-  if (employee?.category) {
-    rows.push({
-      icon: 'stairs-up',
-      label: t('wizard.summary.category'),
-      value: t(`employees.category.${employee.category}`),
-    });
-  }
-  if (!perDayMode && !allAuto) {
-    rows.push({ icon: 'map-pin', label: t('wizard.summary.location'), value: state.chosenLabel ?? '—' });
-  }
 
   // Texto de la plaza auto para una fecha (cargando / plaza N · planta P / sin plaza).
   function autoText(date: string): { value: string; tone: string } {
@@ -91,10 +91,63 @@ export function StepSummary({ state, dates }: StepSummaryProps) {
     return { value: '—', tone: '' };
   }
 
+  function summaryRows(): SummaryRow[] {
+    const rows: SummaryRow[] = [
+      {
+        icon: isDesk ? 'armchair' : 'car',
+        label: t('wizard.summary.resourceType'),
+        value: t(isDesk ? 'wizard.resource.desk' : 'wizard.resource.parking'),
+      },
+      {
+        icon: isVisitor ? 'user-plus' : 'user',
+        label: t(isVisitor ? 'wizard.summary.visitor' : 'wizard.summary.employee'),
+        value: beneficiaryName,
+      },
+    ];
+    if (!isVisitor && employee?.category) {
+      rows.push({
+        icon: 'stairs-up',
+        label: t('wizard.summary.category'),
+        value: t(`employees.category.${employee.category}`),
+      });
+    }
+    if (!perDayMode && !allAuto) {
+      rows.push({ icon: 'map-pin', label: t('wizard.summary.location'), value: state.chosenLabel ?? '—' });
+    }
+    return rows;
+  }
+
+  function renderPreview(icon: string, heading: ReactNode, items: PreviewItem[]): ReactNode {
+    return (
+      <div className="rzw-auto-preview">
+        <p className="rzw-auto-preview-head">
+          <i className={`ti ti-${icon}`} aria-hidden="true" />
+          <span>{heading}</span>
+        </p>
+        <ul className="rzw-auto-preview-list">
+          {items.map((item) => (
+            <li key={item.date} className={`rzw-auto-preview-row${item.tone}`}>
+              <span className="rzw-auto-preview-date mono">{longDate(item.date, i18n.language)}</span>
+              <span className="rzw-auto-preview-space">{item.value}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  const autoHead = (
+    <>
+      <strong>{t('wizard.summary.autoAssignTitle')}</strong>
+      <br />
+      {t('wizard.summary.autoAssignHint')}
+    </>
+  );
+
   return (
     <div className="rzw-step-body">
       <dl className="rzw-recap">
-        {rows.map((row) => (
+        {summaryRows().map((row) => (
           <div key={row.label} className="rzw-recap-row">
             <dt>
               <i className={`ti ti-${row.icon}`} aria-hidden="true" />
@@ -122,55 +175,25 @@ export function StepSummary({ state, dates }: StepSummaryProps) {
         ) : null}
       </dl>
 
-      {allAuto ? (
-        <div className="rzw-auto-preview">
-          <p className="rzw-auto-preview-head">
-            <i className="ti ti-wand" aria-hidden="true" />
-            <span>
-              <strong>{t('wizard.summary.autoAssignTitle')}</strong>
-              <br />
-              {t('wizard.summary.autoAssignHint')}
-            </span>
-          </p>
-          <ul className="rzw-auto-preview-list">
-            {dates.map((date) => {
-              const { value, tone } = autoText(date);
-              return (
-                <li key={date} className={`rzw-auto-preview-row${tone}`}>
-                  <span className="rzw-auto-preview-date mono">{longDate(date, i18n.language)}</span>
-                  <span className="rzw-auto-preview-space">{value}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
+      {allAuto
+        ? renderPreview('wand', autoHead, dates.map((date) => ({ date, ...autoText(date) })))
+        : null}
 
-      {perDayMode ? (
-        <div className="rzw-auto-preview">
-          <p className="rzw-auto-preview-head">
-            <i className="ti ti-calendar-cog" aria-hidden="true" />
-            <span>
-              <strong>{t('wizard.summary.perDayTitle')}</strong>
-            </span>
-          </p>
-          <ul className="rzw-auto-preview-list">
-            {dates.map((date) => {
-              const { value, tone } = perDayText(date);
-              return (
-                <li key={date} className={`rzw-auto-preview-row${tone}`}>
-                  <span className="rzw-auto-preview-date mono">{longDate(date, i18n.language)}</span>
-                  <span className="rzw-auto-preview-space">{value}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
+      {perDayMode
+        ? renderPreview(
+            'calendar-cog',
+            <strong>{t('wizard.summary.perDayTitle')}</strong>,
+            dates.map((date) => ({ date, ...perDayText(date) })),
+          )
+        : null}
 
-      <p className="rzw-notice" role="note">
-        <i className="ti ti-mail" aria-hidden="true" />
-        <span>{t('wizard.summary.emailNotice', { name: employeeName })}</span>
+      <p className={`rzw-notice${isVisitor ? ' is-muted' : ''}`} role="note">
+        <i className={`ti ti-${isVisitor ? 'mail-off' : 'mail'}`} aria-hidden="true" />
+        <span>
+          {t(isVisitor ? 'wizard.summary.noEmailNotice' : 'wizard.summary.emailNotice', {
+            name: beneficiaryName,
+          })}
+        </span>
       </p>
     </div>
   );
