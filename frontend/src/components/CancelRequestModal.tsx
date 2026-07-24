@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCancelRequest } from '../hooks/useRequests';
@@ -52,8 +52,19 @@ export function CancelRequestModal({
   );
 
   return (
-    <Modal title={t('requests.cancel.title')} onClose={onClose} variant="red" footer={footer}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t('requests.cancel.title')}
+      tone="red"
+      narrow
+      footer={footer}
+    >
       <p>{t('requests.cancel.body', { date: requestedDate })}</p>
-    </Modal>
+    </Dialog>
   );
 }

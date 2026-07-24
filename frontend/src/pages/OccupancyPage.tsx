@@ -1,6 +1,8 @@
+import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, type TabItem } from '../components/Tabs';
+import { DUR, EASE } from '../theme/motion';
 import { AdminCalendarPage } from './AdminCalendarPage';
 import { AvailabilityPage } from './AvailabilityPage';
 
@@ -20,6 +22,7 @@ function isOccupancyTab(value: string | null): value is OccupancyTab {
 // solo de navegacion, sin cambios de contrato.
 export function OccupancyPage() {
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get('tab');
   const tab: OccupancyTab = isOccupancyTab(requested) ? requested : DEFAULT_TAB;
@@ -38,7 +41,17 @@ export function OccupancyPage() {
   return (
     <section className="occupancy-page" aria-label={t('occupancy.title')}>
       <Tabs tabs={tabs} active={tab} onChange={handleChange} ariaLabel={t('occupancy.title')} />
-      {tab === 'availability' ? <AvailabilityPage /> : <AdminCalendarPage />}
+      {/* Fundido de entrada al cambiar de pestaña (mismo patron que
+          MyResourcesPage/.tab-fade-panel, Ola B4 · barrido de consistencia). */}
+      <motion.div
+        key={tab}
+        className="tab-fade-panel"
+        initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: DUR.fast, ease: EASE.standard }}
+      >
+        {tab === 'availability' ? <AvailabilityPage /> : <AdminCalendarPage />}
+      </motion.div>
     </section>
   );
 }

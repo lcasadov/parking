@@ -69,9 +69,7 @@ export function ChangePasswordPage() {
           autoComplete="new-password"
           error={confirmPassword.length > 0 && !passwordsMatch}
           hint={
-            confirmPassword.length > 0 && !passwordsMatch
-              ? t('auth.passwordMismatch')
-              : undefined
+            confirmPassword.length > 0 && !passwordsMatch ? t('auth.passwordMismatch') : undefined
           }
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
@@ -98,6 +96,7 @@ export function ChangePasswordPage() {
           submit
           icon="device-floppy"
           disabled={!canSubmit || mutation.isPending}
+          aria-busy={mutation.isPending}
           className="btn-block"
         >
           {t('auth.changePasswordCta')}

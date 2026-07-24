@@ -1,6 +1,8 @@
+import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, type TabItem } from '../components/Tabs';
+import { DUR, EASE } from '../theme/motion';
 import { DesksPage } from './DesksPage';
 import { ParkingSpacesPage } from './ParkingSpacesPage';
 
@@ -17,6 +19,7 @@ function isResourceTab(value: string | null): value is ResourceTab {
 // (/admin/parking-spaces, /admin/desks) puedan redirigir aqui preseleccionada.
 export function ResourcesPage() {
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get('tab');
   const tab: ResourceTab = isResourceTab(requested) ? requested : DEFAULT_TAB;
@@ -35,7 +38,15 @@ export function ResourcesPage() {
   return (
     <section className="resources-page" aria-label={t('resources.title')}>
       <Tabs tabs={tabs} active={tab} onChange={handleChange} ariaLabel={t('resources.title')} />
-      {tab === 'desks' ? <DesksPage /> : <ParkingSpacesPage />}
+      <motion.div
+        key={tab}
+        className="tab-fade-panel"
+        initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: DUR.fast, ease: EASE.standard }}
+      >
+        {tab === 'desks' ? <DesksPage /> : <ParkingSpacesPage />}
+      </motion.div>
     </section>
   );
 }

@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import { SessionExpiredModal } from './components/SessionExpiredModal';
 import { Toast } from './components/Toast';
+import { TooltipProvider } from './components/Tooltip';
 import i18n from './i18n';
 import { AppRoutes } from './routes/AppRoutes';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -22,15 +23,15 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
         <ThemeProvider>
-          <BrowserRouter
-            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-          >
-            <AuthProvider>
-              <AppRoutes />
-              <SessionExpiredModal />
-              <Toast />
-            </AuthProvider>
-          </BrowserRouter>
+          <TooltipProvider>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <AuthProvider>
+                <AppRoutes />
+                <SessionExpiredModal />
+                <Toast />
+              </AuthProvider>
+            </BrowserRouter>
+          </TooltipProvider>
         </ThemeProvider>
       </I18nextProvider>
     </QueryClientProvider>

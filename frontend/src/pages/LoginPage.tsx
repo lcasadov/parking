@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +10,7 @@ import { AuthShell } from '../components/AuthShell';
 import { Button } from '../components/Button';
 import { InfoBanner } from '../components/InfoBanner';
 import { homePathForRole } from '../routes/paths';
+import { DUR, EASE } from '../theme/motion';
 import type { ApiError, CurrentUser } from '../types/auth';
 
 // Extrae los intentos restantes del error del backend, si los expone en
@@ -30,6 +32,7 @@ export function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { setUser } = useAuth();
+  const reduceMotion = useReducedMotion();
   const [loginValue, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -49,22 +52,26 @@ export function LoginPage() {
     mutation.mutate();
   }
 
-  const remainingAttempts = mutation.isError
-    ? remainingAttemptsFromError(mutation.error)
-    : null;
+  const remainingAttempts = mutation.isError ? remainingAttemptsFromError(mutation.error) : null;
 
   return (
     <AuthShell title={t('auth.loginTitle')} subtitle={t('auth.loginSubtitle')}>
       <form onSubmit={handleSubmit} noValidate>
         <p className="auth-desc">{t('auth.loginDescription')}</p>
         {mutation.isError ? (
-          <div role="alert">
+          <motion.div
+            role="alert"
+            key={mutation.failureCount}
+            initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
+            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, x: [0, -6, 6, -3, 3, 0] }}
+            transition={{ duration: reduceMotion ? 0 : DUR.slow, ease: EASE.out }}
+          >
             <InfoBanner variant="red" icon="alert-circle">
               {remainingAttempts !== null
                 ? t('auth.invalidCredentialsAttempts', { count: remainingAttempts })
                 : t('auth.invalidCredentials')}
             </InfoBanner>
-          </div>
+          </motion.div>
         ) : null}
         <div className="auth-field">
           <label className="field-label" htmlFor={loginId}>
@@ -110,7 +117,14 @@ export function LoginPage() {
             </button>
           </div>
         </div>
-        <Button variant="green" submit icon="login-2" disabled={mutation.isPending} className="btn-block">
+        <Button
+          variant="green"
+          submit
+          icon="login-2"
+          disabled={mutation.isPending}
+          aria-busy={mutation.isPending}
+          className="btn-block"
+        >
           {t('auth.signIn')}
         </Button>
         <p className="auth-help">{t('auth.forgotPassword')}</p>

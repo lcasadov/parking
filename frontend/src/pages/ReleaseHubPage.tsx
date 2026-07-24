@@ -1,7 +1,9 @@
+import { motion, useReducedMotion } from 'framer-motion';
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, type TabItem } from '../components/Tabs';
+import { DUR, EASE } from '../theme/motion';
 import { AdministrativeReleasesPage } from './AdministrativeReleasesPage';
 import { ReleaseByDatePage } from './ReleaseByDatePage';
 import { MyAdministrativeReleasesPage } from './MyAdministrativeReleasesPage';
@@ -20,6 +22,7 @@ function isReleaseHubTab(value: string | null): value is ReleaseHubTab {
 // pestaña activa se refleja en `?tab=` para que las rutas antiguas redirijan aqui.
 export function ReleaseHubPage() {
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get('tab');
   const tab: ReleaseHubTab = isReleaseHubTab(requested) ? requested : DEFAULT_TAB;
@@ -49,7 +52,15 @@ export function ReleaseHubPage() {
   return (
     <section className="release-hub-page" aria-label={t('releases.hub.title')}>
       <Tabs tabs={tabs} active={tab} onChange={handleChange} ariaLabel={t('releases.hub.title')} />
-      {renderTab()}
+      <motion.div
+        key={tab}
+        className="tab-fade-panel"
+        initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: DUR.fast, ease: EASE.standard }}
+      >
+        {renderTab()}
+      </motion.div>
     </section>
   );
 }

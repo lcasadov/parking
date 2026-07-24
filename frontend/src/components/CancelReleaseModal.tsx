@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCancelRelease } from '../hooks/useReleases';
@@ -60,8 +60,19 @@ export function CancelReleaseModal({
   );
 
   return (
-    <Modal title={t('releases.cancel.title')} onClose={onClose} variant="red" footer={footer}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t('releases.cancel.title')}
+      tone="red"
+      narrow
+      footer={footer}
+    >
       <p>{t('releases.cancel.body', { date: releaseDate })}</p>
-    </Modal>
+    </Dialog>
   );
 }

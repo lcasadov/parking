@@ -12,6 +12,7 @@ import { emitApiErrorToast } from '../api/events';
 import { useAuth } from '../auth/useAuth';
 import { useMyWeekQuery } from '../hooks/useCalendar';
 import { useEmployeeFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
+import { useToast } from '../hooks/useToast';
 import { toEmployeeFixedResources, type FixedAssignmentGroup } from '../utils/fixedAssignments';
 import { myWeekLegend } from '../utils/calendarLegend';
 import { isPastDate } from '../utils/releases';
@@ -19,7 +20,13 @@ import { todayIso } from '../utils/requests';
 import { DUR, EASE } from '../theme/motion';
 import type { MyWeekDay, MyWeekDayState } from '../types/calendar';
 import type { RequestStatus, ResourceType } from '../types/request';
-import { addDaysIso, dayMonth, mondayOfWeek, myWeekStateKey, weekdayIndex } from '../utils/calendar';
+import {
+  addDaysIso,
+  dayMonth,
+  mondayOfWeek,
+  myWeekStateKey,
+  weekdayIndex,
+} from '../utils/calendar';
 
 const WEEK_LENGTH = 7;
 
@@ -94,7 +101,12 @@ function releaseKindForView(
   if (hasRequest && view.requestStatus === 'APPROVED' && !isPastDate(date)) {
     return 'CANCEL_REQUEST';
   }
-  if (view.state === 'ASSIGNED' && !view.requestStatus && Boolean(view.label) && !isPastDate(date)) {
+  if (
+    view.state === 'ASSIGNED' &&
+    !view.requestStatus &&
+    Boolean(view.label) &&
+    !isPastDate(date)
+  ) {
     return 'FIXED_RELEASE';
   }
   return null;
@@ -130,6 +142,7 @@ function resolveReleaseAction(
 export function MyWeekPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const toast = useToast();
   const reduceMotion = useReducedMotion();
   const [weekStart, setWeekStart] = useState<string>(mondayOfWeek());
   const [isRequestOpen, setIsRequestOpen] = useState(false);
@@ -174,7 +187,7 @@ export function MyWeekPage() {
   function handleReleased(): void {
     setReleaseAction(null);
     void query.refetch();
-    emitApiErrorToast('releases.release.created');
+    toast.success('releases.release.created');
   }
 
   function handleCancelled(): void {
@@ -214,10 +227,7 @@ export function MyWeekPage() {
     const action = resolveReleaseAction(view, date, fixedGroupFor(view.resourceType));
     const isCancel = action?.kind === 'CANCEL_REQUEST';
     return (
-      <li
-        key={view.resourceType}
-        className={`week-resource ${RESOURCE_STATE_VARIANT[view.state]}`}
-      >
+      <li key={view.resourceType} className={`week-resource ${RESOURCE_STATE_VARIANT[view.state]}`}>
         <span className="week-resource-icon" aria-hidden="true">
           <i className={`ti ti-${RESOURCE_ICON[view.resourceType]}`} />
         </span>

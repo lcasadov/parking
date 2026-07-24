@@ -68,6 +68,10 @@ export const es = {
     changePasswordCta: 'Cambiar contraseña',
     passwordMismatch: 'Las contraseñas no coinciden',
     changePasswordSuccess: 'Contraseña actualizada',
+    showcaseTagline: 'Encuentra tu plaza o tu puesto en segundos, sin fricción.',
+    showcasePoint1: 'Disponibilidad en tiempo real de plazas y puestos',
+    showcasePoint2: 'Solicita, libera y consulta tu semana desde el móvil',
+    showcasePoint3: 'Trazabilidad clara: quién pidió, quién aprobó',
     policy: {
       length: 'Al menos 10 caracteres',
       upper: 'Una letra mayúscula',
@@ -716,8 +720,7 @@ export const es = {
       cancel: 'Cancelar',
       requiredReason: 'Selecciona un motivo.',
       requiredDetail: 'Indica el detalle del motivo (mínimo 5 caracteres).',
-      intro:
-        'Estás a punto de rechazar la solicitud de {{resource}} de {{name}} para el {{date}}.',
+      intro: 'Estás a punto de rechazar la solicitud de {{resource}} de {{name}} para el {{date}}.',
       emailNotice: 'El empleado recibirá un email con el motivo del rechazo.',
     },
     cancelApproved: {
@@ -818,7 +821,8 @@ export const es = {
       eyebrow: 'Operativa',
       description: 'Libera el recurso fijo de un empleado para una fecha concreta.',
       navLabel: 'Liberaciones',
-      intro: 'Libera el recurso fijo de un empleado para una fecha concreta cuando no vaya a acudir. Requiere un motivo.',
+      intro:
+        'Libera el recurso fijo de un empleado para una fecha concreta cuando no vaya a acudir. Requiere un motivo.',
       new: 'Nueva liberación',
       employee: 'Empleado',
       selectEmployee: 'Selecciona un empleado',
@@ -840,7 +844,8 @@ export const es = {
       title: 'Liberar por fecha',
       eyebrow: 'Operativa',
       description: 'Recursos ocupados por fecha y su titular, para liberarlos uno a uno.',
-      intro: 'Elige una fecha para ver los recursos ocupados y por qué empleado, y libéralos uno a uno.',
+      intro:
+        'Elige una fecha para ver los recursos ocupados y por qué empleado, y libéralos uno a uno.',
       dateLabel: 'Fecha',
       loadError: 'No se pudo cargar la ocupación de esa fecha.',
       empty: 'No hay recursos ocupados esa fecha.',
@@ -865,8 +870,10 @@ export const es = {
       },
     },
     employeeWeek: {
-      description: 'Selecciona un empleado, revisa sus reservas de la semana y libera las que no vaya a usar.',
-      intro: 'Elige un empleado para ver sus reservas (plaza y puesto) por semana, marca una o varias y libéralas con un único motivo.',
+      description:
+        'Selecciona un empleado, revisa sus reservas de la semana y libera las que no vaya a usar.',
+      intro:
+        'Elige un empleado para ver sus reservas (plaza y puesto) por semana, marca una o varias y libéralas con un único motivo.',
       employee: 'Empleado',
       selectEmployee: 'Selecciona un empleado',
       selectEmployeePrompt: 'Selecciona un empleado para ver sus reservas de la semana.',
@@ -874,7 +881,8 @@ export const es = {
       loadError: 'No se pudieron cargar las reservas del empleado.',
       empty: 'Este empleado no tiene reservas esta semana.',
       reason: 'Motivo',
-      reasonHint: 'Obligatorio (mínimo 5 caracteres). Se aplica a todas las reservas marcadas y queda registrado en la auditoría.',
+      reasonHint:
+        'Obligatorio (mínimo 5 caracteres). Se aplica a todas las reservas marcadas y queda registrado en la auditoría.',
       requiredReason: 'Indica el motivo (mínimo 5 caracteres).',
       requiredSelection: 'Marca al menos una reserva para liberar.',
       release: 'Liberar',
@@ -1189,7 +1197,8 @@ export const es = {
     eyebrow: 'Trazabilidad',
     description: 'Registro de acciones relevantes por actor, tipo y rango de fechas.',
     navLabel: 'Auditoría',
-    retentionNote: 'Los registros de auditoría se conservan durante 2 años y luego se purgan automáticamente.',
+    retentionNote:
+      'Los registros de auditoría se conservan durante 2 años y luego se purgan automáticamente.',
     systemActor: 'Sistema',
     filters: {
       actor: 'ID de empleado (actor)',
@@ -1220,7 +1229,8 @@ export const es = {
     eyebrow: 'Trazabilidad',
     description: 'Intentos de inicio de sesión correctos y fallidos por fecha.',
     navLabel: 'Accesos',
-    retentionNote: 'Los intentos de inicio de sesión se conservan durante 2 años y luego se purgan automáticamente.',
+    retentionNote:
+      'Los intentos de inicio de sesión se conservan durante 2 años y luego se purgan automáticamente.',
     filters: {
       result: 'Resultado',
       allResults: 'Todos los resultados',

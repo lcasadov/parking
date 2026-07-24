@@ -7,6 +7,7 @@ import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getApiError, getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRequest } from '../hooks/useRequests';
+import { useToast } from '../hooks/useToast';
 import { useApprovalModeQuery } from '../hooks/useSettings';
 import { isTodayOrFuture, todayIso } from '../utils/requests';
 import type { Request, RequestCreateRequest, ResourceType } from '../types/request';
@@ -56,6 +57,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const createMutation = useCreateRequest();
+  const toast = useToast();
   // Modo de aprobacion vigente (null si no se puede resolver, p.ej. AGENCIA):
   // en MANUAL el resourceId del puesto elegido se ignora en el backend, asi que
   // el modal debe avisar de que la eleccion es una preferencia (requests spec).
@@ -127,7 +129,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
       const created = await Promise.all(
         resources.map((resourceType) => createMutation.mutateAsync(buildBody(resourceType))),
       );
-      emitApiErrorToast(successToastKey(created));
+      toast.success(successToastKey(created));
       onCreated();
     } catch (mutationError) {
       emitApiErrorToast(toastKeyForError(mutationError));
@@ -139,12 +141,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
       <Button variant="white" onClick={onClose}>
         {t('requests.create.cancel')}
       </Button>
-      <Button
-        variant="green"
-        submit
-        form="create-request-form"
-        disabled={createMutation.isPending}
-      >
+      <Button variant="green" submit form="create-request-form" disabled={createMutation.isPending}>
         {t('requests.create.submit')}
       </Button>
     </>
@@ -152,108 +149,112 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
 
   return (
     <>
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) {
-          onClose();
-        }
-      }}
-      title={t('requests.create.title')}
-      icon="calendar-plus"
-      footer={footer}
-    >
-      <form id="create-request-form" onSubmit={handleSubmit} noValidate>
-        <label className="field-label" htmlFor="create-request-date">
-          {t('requests.create.date')}
-        </label>
-        <input
-          id="create-request-date"
-          type="date"
-          className="field-input"
-          value={date}
-          min={todayIso()}
-          onChange={(event) => setDate(event.target.value)}
-        />
-        <p className="hint">{t('requests.create.hint')}</p>
-
-        <fieldset className="resource-fieldset">
-          <legend className="field-label">{t('requests.create.resources')}</legend>
-          <label className={`checkbox-field resource-option${parkingSelected ? ' is-selected' : ''}`}>
-            <input
-              type="checkbox"
-              checked={parkingSelected}
-              onChange={(event) => setParkingSelected(event.target.checked)}
-            />
-            <span className="resource-option-icon" aria-hidden="true">
-              <i className="ti ti-parking" />
-            </span>
-            <span className="resource-option-label">{t('requests.create.resourceParking')}</span>
+      <Dialog
+        open
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+        title={t('requests.create.title')}
+        icon="calendar-plus"
+        footer={footer}
+      >
+        <form id="create-request-form" onSubmit={handleSubmit} noValidate>
+          <label className="field-label" htmlFor="create-request-date">
+            {t('requests.create.date')}
           </label>
-          <ResourceAvailabilityBanner date={date} resourceType="PARKING" />
-          <label className={`checkbox-field resource-option${deskSelected ? ' is-selected' : ''}`}>
-            <input
-              type="checkbox"
-              checked={deskSelected}
-              onChange={(event) => handleDeskToggle(event.target.checked)}
-            />
-            <span className="resource-option-icon" aria-hidden="true">
-              <i className="ti ti-armchair" />
-            </span>
-            <span className="resource-option-label">{t('requests.create.resourceDesk')}</span>
-          </label>
-          <ResourceAvailabilityBanner date={date} resourceType="DESK" />
+          <input
+            id="create-request-date"
+            type="date"
+            className="field-input"
+            value={date}
+            min={todayIso()}
+            onChange={(event) => setDate(event.target.value)}
+          />
+          <p className="hint">{t('requests.create.hint')}</p>
 
-          {deskSelected ? (
-            <div className="desk-pick">
-              {selectedDesk ? (
-                <p className="desk-pick-chosen">
-                  {t('requests.create.chosenDesk', { number: selectedDesk.deskNumber })}
-                </p>
-              ) : null}
-              {selectedDesk && isManualMode ? (
-                <p className="hint" role="status">
-                  {t('requests.create.chosenDeskPreferenceNote')}
-                </p>
-              ) : null}
-              <div className="desk-pick-actions">
-                <Button
-                  variant="white"
-                  icon="map-pin"
-                  disabled={!canPickDesk}
-                  onClick={() => setPickerOpen(true)}
-                >
-                  {selectedDesk
-                    ? t('requests.create.changeDesk')
-                    : t('requests.create.chooseDesk')}
-                </Button>
+          <fieldset className="resource-fieldset">
+            <legend className="field-label">{t('requests.create.resources')}</legend>
+            <label
+              className={`checkbox-field resource-option${parkingSelected ? ' is-selected' : ''}`}
+            >
+              <input
+                type="checkbox"
+                checked={parkingSelected}
+                onChange={(event) => setParkingSelected(event.target.checked)}
+              />
+              <span className="resource-option-icon" aria-hidden="true">
+                <i className="ti ti-parking" />
+              </span>
+              <span className="resource-option-label">{t('requests.create.resourceParking')}</span>
+            </label>
+            <ResourceAvailabilityBanner date={date} resourceType="PARKING" />
+            <label
+              className={`checkbox-field resource-option${deskSelected ? ' is-selected' : ''}`}
+            >
+              <input
+                type="checkbox"
+                checked={deskSelected}
+                onChange={(event) => handleDeskToggle(event.target.checked)}
+              />
+              <span className="resource-option-icon" aria-hidden="true">
+                <i className="ti ti-armchair" />
+              </span>
+              <span className="resource-option-label">{t('requests.create.resourceDesk')}</span>
+            </label>
+            <ResourceAvailabilityBanner date={date} resourceType="DESK" />
+
+            {deskSelected ? (
+              <div className="desk-pick">
                 {selectedDesk ? (
-                  <Button variant="white" icon="x" onClick={() => setSelectedDesk(null)}>
-                    {t('requests.create.removeDesk')}
-                  </Button>
+                  <p className="desk-pick-chosen">
+                    {t('requests.create.chosenDesk', { number: selectedDesk.deskNumber })}
+                  </p>
                 ) : null}
+                {selectedDesk && isManualMode ? (
+                  <p className="hint" role="status">
+                    {t('requests.create.chosenDeskPreferenceNote')}
+                  </p>
+                ) : null}
+                <div className="desk-pick-actions">
+                  <Button
+                    variant="white"
+                    icon="map-pin"
+                    disabled={!canPickDesk}
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    {selectedDesk
+                      ? t('requests.create.changeDesk')
+                      : t('requests.create.chooseDesk')}
+                  </Button>
+                  {selectedDesk ? (
+                    <Button variant="white" icon="x" onClick={() => setSelectedDesk(null)}>
+                      {t('requests.create.removeDesk')}
+                    </Button>
+                  ) : null}
+                </div>
+                {canPickDesk ? null : (
+                  <p className="hint">{t('requests.create.chooseDeskDateHint')}</p>
+                )}
               </div>
-              {canPickDesk ? null : (
-                <p className="hint">{t('requests.create.chooseDeskDateHint')}</p>
-              )}
-            </div>
-          ) : null}
-        </fieldset>
+            ) : null}
+          </fieldset>
 
-        {error ? (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        ) : null}
-      </form>
-    </Dialog>
-    {pickerOpen ? (
-      <DeskPickerModal
-        date={date}
-        onPick={handleDeskPicked}
-        onClose={() => setPickerOpen(false)}
-      />
-    ) : null}
+          {error ? (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </form>
+      </Dialog>
+      {pickerOpen ? (
+        <DeskPickerModal
+          date={date}
+          onPick={handleDeskPicked}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : null}
     </>
   );
 }

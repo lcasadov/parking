@@ -68,6 +68,10 @@ export const en = {
     changePasswordCta: 'Change password',
     passwordMismatch: 'Passwords do not match',
     changePasswordSuccess: 'Password updated',
+    showcaseTagline: 'Find your parking space or desk in seconds, without the friction.',
+    showcasePoint1: 'Real-time availability of spaces and desks',
+    showcasePoint2: 'Request, release and check your week from your phone',
+    showcasePoint3: 'Clear traceability: who asked, who approved',
     policy: {
       length: 'At least 10 characters',
       upper: 'One uppercase letter',
@@ -403,8 +407,7 @@ export const en = {
       statusLabel: 'Status',
       active: 'Active space',
       activeHint: 'Only active spaces are bookable.',
-      holderInfo:
-        'The fixed holder and days are assigned later, from the employee record.',
+      holderInfo: 'The fixed holder and days are assigned later, from the employee record.',
       save: 'Save',
       cancel: 'Cancel',
       required: 'This field is required',
@@ -461,8 +464,7 @@ export const en = {
       statusLabel: 'Status',
       active: 'Active desk',
       activeHint: 'Only active desks are bookable.',
-      holderInfo:
-        'The fixed holder and days are assigned later, from the employee record.',
+      holderInfo: 'The fixed holder and days are assigned later, from the employee record.',
       save: 'Save',
       cancel: 'Cancel',
       required: 'This field is required',
@@ -803,7 +805,8 @@ export const en = {
         type: 'Type',
         voluntary: 'VOLUNTARY',
         pendingDay: 'Select a day',
-        availableNote: 'That day your resource will become available for another employee to request.',
+        availableNote:
+          'That day your resource will become available for another employee to request.',
       },
     },
     cancel: {
@@ -817,7 +820,8 @@ export const en = {
       eyebrow: 'Operations',
       description: 'Release an employee’s fixed resource for a specific date.',
       navLabel: 'Releases',
-      intro: 'Release an employee’s fixed resource for a specific date when they will not attend. A reason is required.',
+      intro:
+        'Release an employee’s fixed resource for a specific date when they will not attend. A reason is required.',
       new: 'New release',
       employee: 'Employee',
       selectEmployee: 'Select an employee',
@@ -839,7 +843,8 @@ export const en = {
       title: 'Release by date',
       eyebrow: 'Operations',
       description: 'Occupied resources by date and their holder, to release one by one.',
-      intro: 'Pick a date to see which resources are occupied and by which employee, and release them one by one.',
+      intro:
+        'Pick a date to see which resources are occupied and by which employee, and release them one by one.',
       dateLabel: 'Date',
       loadError: 'Could not load the occupancy for that date.',
       empty: 'No resources are occupied on that date.',
@@ -864,8 +869,10 @@ export const en = {
       },
     },
     employeeWeek: {
-      description: 'Pick an employee, review their reservations for the week and release the ones they will not use.',
-      intro: 'Choose an employee to see their reservations (space and desk) by week, tick one or more and release them with a single reason.',
+      description:
+        'Pick an employee, review their reservations for the week and release the ones they will not use.',
+      intro:
+        'Choose an employee to see their reservations (space and desk) by week, tick one or more and release them with a single reason.',
       employee: 'Employee',
       selectEmployee: 'Select an employee',
       selectEmployeePrompt: 'Select an employee to see their reservations for the week.',
@@ -873,7 +880,8 @@ export const en = {
       loadError: 'Could not load the employee’s reservations.',
       empty: 'This employee has no reservations this week.',
       reason: 'Reason',
-      reasonHint: 'Required (minimum 5 characters). It applies to every ticked reservation and is recorded in the audit log.',
+      reasonHint:
+        'Required (minimum 5 characters). It applies to every ticked reservation and is recorded in the audit log.',
       requiredReason: 'Provide the reason (minimum 5 characters).',
       requiredSelection: 'Tick at least one reservation to release.',
       release: 'Release',
@@ -1268,8 +1276,7 @@ export const en = {
     saveError: 'Settings could not be updated.',
     approvalMode: {
       label: 'Request approval mode',
-      description:
-        'Defines how new space or desk requests from employees are resolved.',
+      description: 'Defines how new space or desk requests from employees are resolved.',
       options: {
         MANUAL: 'Manual (administrator approves)',
         AUTOMATIC: 'Automatic (instant assignment)',

@@ -15,6 +15,7 @@ import {
 import { OccupancyAssignModal } from '../components/OccupancyAssignModal';
 import { emitApiErrorToast } from '../api/events';
 import { useAdminCalendarQuery } from '../hooks/useCalendar';
+import { useToast } from '../hooks/useToast';
 import { adminCalendarLegend } from '../utils/calendarLegend';
 import { summarizeAdminCalendar, buildAdminCalendarCsv } from '../utils/adminCalendar';
 import { triggerBlobDownload } from '../utils/download';
@@ -86,6 +87,7 @@ interface AssignTarget {
 // conmutador plaza/puesto pasa `resourceType` a GET /calendar/admin (design §D4).
 export function AdminCalendarPage() {
   const { t, i18n } = useTranslation();
+  const toast = useToast();
   const [weekStart, setWeekStart] = useState<string>(mondayOfWeek());
   const [resourceType, setResourceType] = useState<ResourceType>('PARKING');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -149,7 +151,11 @@ export function AdminCalendarPage() {
   function openCellAction(row: CalendarRow, cell: CalendarCell): void {
     const kind = cellActionKind(cell);
     if (kind === 'ASSIGN') {
-      setAssignTarget({ resourceId: row.parkingSpaceId, resourceLabel: row.label, date: cell.date });
+      setAssignTarget({
+        resourceId: row.parkingSpaceId,
+        resourceLabel: row.label,
+        date: cell.date,
+      });
     } else if (kind === 'RELEASE_FIXED') {
       setReleasePrefill({
         employeeId: cell.employeeId ?? 0,
@@ -182,7 +188,7 @@ export function AdminCalendarPage() {
   function handleAssigned(): void {
     setAssignTarget(null);
     refresh();
-    emitApiErrorToast('occupancy.assign.done');
+    toast.success('occupancy.assign.done');
   }
 
   function handleReleased(): void {
@@ -257,11 +263,7 @@ export function AdminCalendarPage() {
           value={summary.assignments}
           label={t('calendar.summary.assignments')}
         />
-        <SummaryCard
-          tone="blue"
-          value={summary.releases}
-          label={t('calendar.summary.releases')}
-        />
+        <SummaryCard tone="blue" value={summary.releases} label={t('calendar.summary.releases')} />
         <SummaryCard
           tone="orange"
           value={summary.requests}
@@ -299,7 +301,11 @@ export function AdminCalendarPage() {
       </nav>
 
       {isFilterOpen ? (
-        <div className="chip-filters calendar-state-filter" role="group" aria-label={t('calendar.actions.filter')}>
+        <div
+          className="chip-filters calendar-state-filter"
+          role="group"
+          aria-label={t('calendar.actions.filter')}
+        >
           {ALL_STATES.map((state) => {
             const isActive = activeStates.has(state);
             return (
@@ -310,7 +316,11 @@ export function AdminCalendarPage() {
                 aria-pressed={isActive}
                 onClick={() => toggleState(state)}
               >
-                <span className="cf-dot" style={{ background: STATE_DOT[state] }} aria-hidden="true" />
+                <span
+                  className="cf-dot"
+                  style={{ background: STATE_DOT[state] }}
+                  aria-hidden="true"
+                />
                 {t(calendarStateKey(state))}
               </button>
             );

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { FloorPlanStatus } from './FloorPlanStatus';
 import { FloorPlanSurface } from './FloorPlanSurface';
 import { FloorPlanZoom } from './FloorPlanZoom';
@@ -56,7 +56,17 @@ export function DeskPickerModal({ date, onPick, onClose }: DeskPickerModalProps)
   );
 
   return (
-    <Modal title={t('floorPlan.select.title')} onClose={onClose} footer={footer}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t('floorPlan.select.title')}
+      icon="map-pin"
+      footer={footer}
+    >
       <p className="hint">{t('floorPlan.select.hint')}</p>
 
       {picked ? (
@@ -95,6 +105,6 @@ export function DeskPickerModal({ date, onPick, onClose }: DeskPickerModalProps)
           />
         </>
       ) : null}
-    </Modal>
+    </Dialog>
   );
 }
