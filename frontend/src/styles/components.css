@@ -182,6 +182,26 @@
   color: var(--ink-faint);
 }
 
+/* CTA destacado "Nueva reserva" bajo la marca (antes vivía en la barra superior). */
+.sidebar-cta {
+  padding: 0 var(--space-5) var(--space-2);
+}
+.sidebar-cta button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Controles globales (idioma + tema) sobre la tarjeta de usuario (antes en la
+   barra superior, ahora en el pie del sidebar). */
+.sidebar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--line-soft);
+}
+
 /* Zona de navegacion desplazable (entre wordmark y tarjeta de usuario). */
 .sidebar-nav {
   flex: 1;

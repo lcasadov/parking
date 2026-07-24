@@ -15,12 +15,18 @@ export interface SidebarItem {
 export function Sidebar({
   items = [],
   children,
+  cta,
+  controls,
   footer,
   className,
   ariaLabel = 'primary',
 }: {
   items?: SidebarItem[];
   children?: ReactNode;
+  // CTA destacado bajo la marca (p. ej. "Nueva reserva").
+  cta?: ReactNode;
+  // Controles globales sobre el pie (idioma + tema).
+  controls?: ReactNode;
   footer?: ReactNode;
   className?: string;
   ariaLabel?: string;
@@ -37,6 +43,7 @@ export function Sidebar({
           <span className="sidebar-brand-sub">ALEATICA</span>
         </div>
       </div>
+      {cta ? <div className="sidebar-cta">{cta}</div> : null}
       <div className="sidebar-nav">
         {items.map((item) => (
           <span key={item.key} className={`nav-item${item.active ? ' active' : ''}`}>
@@ -46,6 +53,7 @@ export function Sidebar({
         ))}
         {children}
       </div>
+      {controls ? <div className="sidebar-controls">{controls}</div> : null}
       {footer}
     </nav>
   );

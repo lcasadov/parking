@@ -79,10 +79,25 @@ export function AppShell({ nav }: AppShellProps) {
     ? { duration: 0 }
     : { type: 'spring' as const, bounce: 0, duration: DUR.slow };
 
+  // Controles globales y CTA, ahora alojados en el sidebar (la barra superior de
+  // escritorio se elimina para recuperar la franja superior del contenido).
+  const sidebarCta = canReserve ? <TopbarReserve isAdmin={isAdmin} /> : null;
+  const sidebarControls = (
+    <>
+      <LanguageToggle />
+      <ThemeToggle />
+    </>
+  );
+
   return (
     <div className="app-shell">
       {/* Sidebar fijo (desktop). Oculto en móvil vía CSS. */}
-      <Sidebar className="shell-sidebar" footer={<SidebarUserCard />}>
+      <Sidebar
+        className="shell-sidebar"
+        cta={sidebarCta}
+        controls={sidebarControls}
+        footer={<SidebarUserCard />}
+      >
         {nav}
       </Sidebar>
 
@@ -153,7 +168,12 @@ export function AppShell({ nav }: AppShellProps) {
                 >
                   <i className="ti ti-x" aria-hidden="true" />
                 </button>
-                <Sidebar ariaLabel="mobile" footer={<SidebarUserCard />}>
+                <Sidebar
+                  ariaLabel="mobile"
+                  cta={sidebarCta}
+                  controls={sidebarControls}
+                  footer={<SidebarUserCard />}
+                >
                   {nav}
                 </Sidebar>
               </div>
@@ -163,13 +183,6 @@ export function AppShell({ nav }: AppShellProps) {
       </AnimatePresence>
 
       <main className="main">
-        {/* Topbar de escritorio limpio (controles a la derecha). Oculto en móvil,
-            donde manda .shell-topbar de cristal con la hamburguesa. */}
-        <div className="shell-deskbar">
-          <LanguageToggle />
-          <ThemeToggle />
-          {canReserve ? <TopbarReserve isAdmin={isAdmin} /> : null}
-        </div>
         <Outlet />
       </main>
     </div>
