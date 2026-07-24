@@ -1089,6 +1089,12 @@ body.theme-dark .segmented button.active {
 .toolbar-end {
   margin-left: auto;
 }
+/* En Visitantes el buscador va pegado a la IZQUIERDA (anula el margin-left:auto
+   global de .toolbar .search-box, pensado para el layout tabs+buscador-derecha);
+   la acción a la derecha ya la aporta .toolbar-end. */
+.visitors-page .toolbar .search-box {
+  margin-left: 0;
+}
 
 /* Tabs + búsqueda en una misma barra (mockup 02): la búsqueda se alinea a la
    derecha y las pestañas pierden su margen inferior dentro del toolbar. */
