@@ -61,7 +61,7 @@ export function LocationParking({ dates, employeeId, choice, onChange }: Locatio
                 onClick={() => onChange(resource.resourceId, resource.label)}
               >
                 <i className="ti ti-car" aria-hidden="true" />
-                <span className="mono">{resource.label}</span>
+                <span className="rzw-res-num">{resource.label}</span>
               </button>
             </li>
           );

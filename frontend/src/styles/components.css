@@ -6843,6 +6843,12 @@ button.rzw-step-btn:hover .rzw-step-label {
   color: var(--accent);
   font-size: 15px;
 }
+/* Número de plaza: misma fuente que el resto de la UI (Geist sans, sin el 0
+   tachado de Geist Mono); solo cifras tabulares para mantener la alineación. */
+.rzw-res-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
 .rzw-res-chip:hover {
   transform: translateY(-1px);
   box-shadow:
