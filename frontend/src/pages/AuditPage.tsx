@@ -4,7 +4,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { ExportMenu } from '../components/ExportMenu';
 import { Input } from '../components/Input';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
 import { getStatus } from '../api/apiError';
@@ -131,7 +131,7 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
 }
 
 // Panel ADMIN de consulta de auditoria funcional (GET /audit). tasks §4.1.
-export function AuditPage() {
+export function AuditPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [actorId, setActorId] = useState('');
   const [action, setAction] = useState('');
@@ -159,7 +159,8 @@ export function AuditPage() {
 
   return (
     <section className="audit-page" aria-label={t('audit.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('audit.eyebrow')}
         title={t('audit.title')}
         description={t('audit.description')}

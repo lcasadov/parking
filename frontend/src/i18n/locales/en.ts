@@ -150,6 +150,7 @@ export const en = {
     navLabel: 'Resources',
     title: 'Resources',
     eyebrow: 'Management',
+    description: 'Manage the inventory of parking spaces and office desks.',
     tabs: {
       parking: 'Parking spaces',
       desks: 'Desks',
@@ -159,6 +160,7 @@ export const en = {
     navLabel: 'Records',
     title: 'Records',
     eyebrow: 'Management',
+    description: 'Review the action audit log and system access records.',
     tabs: {
       audit: 'Audit',
       loginLogs: 'Sign-ins',
@@ -258,6 +260,7 @@ export const en = {
     navLabel: 'My spaces',
     title: 'My spaces',
     eyebrow: 'My space',
+    description: 'Review your fixed assignments and your releases in one place.',
     tabs: {
       fixed: 'Fixed assignments',
       releases: 'Releases',
@@ -831,6 +834,7 @@ export const en = {
       navLabel: 'Release',
       title: 'Release',
       eyebrow: 'Operations',
+      description: 'Release parking spaces and desks by employee or by date, and review history.',
       tabs: {
         byEmployee: 'By employee',
         byDate: 'By date',

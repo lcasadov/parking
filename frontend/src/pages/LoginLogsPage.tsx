@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { StatTile } from '../components/StatTile';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
@@ -169,7 +169,7 @@ function LoginLogsResults({ query, windowValid, page, onPageChange }: ResultsPro
 }
 
 // Panel ADMIN de consulta de logs de login (GET /login-logs). tasks §4.2.
-export function LoginLogsPage() {
+export function LoginLogsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [result, setResult] = useState<LoginResult | ''>('');
   const [from, setFrom] = useState('');
@@ -195,7 +195,8 @@ export function LoginLogsPage() {
 
   return (
     <section className="login-logs-page" aria-label={t('loginLogs.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('loginLogs.eyebrow')}
         title={t('loginLogs.title')}
         description={t('loginLogs.description')}

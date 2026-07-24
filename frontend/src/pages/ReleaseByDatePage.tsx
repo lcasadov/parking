@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { InfoBanner } from '../components/InfoBanner';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import {
@@ -25,7 +25,7 @@ const OCCUPANCY_KEY = 'occupancy';
 // Vista ADMIN: "Liberar por fecha". Elige una fecha, lista los recursos OCUPADOS
 // (plazas y puestos) con su titular y origen, y libera uno a uno abriendo el modal
 // administrativo pre-rellenado (tasks §Liberar por fecha).
-export function ReleaseByDatePage() {
+export function ReleaseByDatePage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [date, setDate] = useState(todayIso());
@@ -76,7 +76,8 @@ export function ReleaseByDatePage() {
 
   return (
     <section className="release-by-date-page" aria-label={t('releases.byDate.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('releases.byDate.eyebrow')}
         title={t('releases.byDate.title')}
         description={t('releases.byDate.description')}

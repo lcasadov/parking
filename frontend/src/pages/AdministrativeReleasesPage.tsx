@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { InfoBanner } from '../components/InfoBanner';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { StatusPill, type StatusTone } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import {
@@ -54,7 +54,7 @@ function reservationKey(date: string, item: OccupancyItem): string {
 // lote con un unico motivo. Cada reserva se libera por su mecanismo (asignacion
 // fija -> liberacion administrativa; solicitud aprobada -> admin-cancel), resuelto
 // en useBatchRelease segun el `origin`.
-export function AdministrativeReleasesPage() {
+export function AdministrativeReleasesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const employeesQuery = useSelectableReleaseEmployeesQuery();
@@ -63,7 +63,8 @@ export function AdministrativeReleasesPage() {
 
   return (
     <section className="administrative-releases-page" aria-label={t('releases.admin.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('releases.admin.eyebrow')}
         title={t('releases.admin.title')}
         description={t('releases.employeeWeek.description')}

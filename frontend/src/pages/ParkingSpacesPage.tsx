@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { ConfigureParkingCard } from '../components/ConfigureParkingCard';
 import { Legend } from '../components/Legend';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { ParkingSpaceFormModal } from '../components/ParkingSpaceFormModal';
 import { SearchBox } from '../components/SearchBox';
 import { StatTile } from '../components/StatTile';
@@ -93,7 +93,10 @@ function buildFloorOptions(spaces: ParkingSpace[], selected: FloorFilter): numbe
   return Array.from(floors).sort((a, b) => a - b);
 }
 
-export function ParkingSpacesPage() {
+// `embedded`: cuando se monta dentro de la sección "Recursos", no pinta su propia
+// cabecera (el contenedor aporta el título de sección + el conmutador); solo la
+// acción de crear en una barra compacta, para evitar títulos duplicados.
+export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
   const [floor, setFloor] = useState<FloorFilter>(ALL_FLOORS);
@@ -161,7 +164,8 @@ export function ParkingSpacesPage() {
 
   return (
     <section className="parking-spaces-page" aria-label={t('parkingSpaces.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('parkingSpaces.eyebrow')}
         title={t('parkingSpaces.title')}
         description={t('parkingSpaces.description')}

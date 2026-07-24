@@ -1,7 +1,8 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Tabs, type TabItem } from '../components/Tabs';
+import { PageHeader } from '../components/PageHeader';
+import { SectionSwitch, type SectionSwitchItem } from '../components/SectionSwitch';
 import { DUR, EASE } from '../theme/motion';
 import { MyFixedAssignmentsPage } from './MyFixedAssignmentsPage';
 import { MyReleasesPage } from './MyReleasesPage';
@@ -26,9 +27,9 @@ export function MyResourcesPage() {
   const requested = searchParams.get('tab');
   const tab: MyResourcesTab = isMyResourcesTab(requested) ? requested : DEFAULT_TAB;
 
-  const tabs: TabItem[] = [
-    { id: 'fixed', label: t('myResources.tabs.fixed') },
-    { id: 'releases', label: t('myResources.tabs.releases') },
+  const items: SectionSwitchItem[] = [
+    { id: 'fixed', label: t('myResources.tabs.fixed'), icon: 'parking' },
+    { id: 'releases', label: t('myResources.tabs.releases'), icon: 'arrow-back-up' },
   ];
 
   function handleChange(id: string): void {
@@ -39,10 +40,13 @@ export function MyResourcesPage() {
 
   return (
     <section className="my-resources-page" aria-label={t('myResources.title')}>
-      <Tabs tabs={tabs} active={tab} onChange={handleChange} ariaLabel={t('myResources.title')} />
-      {/* Fundido de entrada al cambiar de pestaña (sin desplazamiento): el
-          contenido de cada pestaña ya se pinta completo tal cual, solo se
-          envuelve en un fade corto para suavizar el cambio. */}
+      <PageHeader
+        eyebrow={t('myResources.eyebrow')}
+        title={t('myResources.title')}
+        description={t('myResources.description')}
+      />
+      <SectionSwitch items={items} active={tab} onChange={handleChange} ariaLabel={t('myResources.title')} />
+      {/* Fundido de entrada al cambiar de pestaña (sin desplazamiento). */}
       <motion.div
         key={tab}
         className="my-resources-tabpanel"
@@ -50,7 +54,7 @@ export function MyResourcesPage() {
         animate={{ opacity: 1 }}
         transition={{ duration: DUR.fast, ease: EASE.standard }}
       >
-        {tab === 'releases' ? <MyReleasesPage /> : <MyFixedAssignmentsPage />}
+        {tab === 'releases' ? <MyReleasesPage embedded /> : <MyFixedAssignmentsPage embedded />}
       </motion.div>
     </section>
   );

@@ -150,6 +150,7 @@ export const es = {
     navLabel: 'Recursos',
     title: 'Recursos',
     eyebrow: 'Gestión',
+    description: 'Gestiona el inventario de plazas de parking y puestos de oficina.',
     tabs: {
       parking: 'Plazas',
       desks: 'Puestos',
@@ -159,6 +160,7 @@ export const es = {
     navLabel: 'Registros',
     title: 'Registros',
     eyebrow: 'Gestión',
+    description: 'Consulta la auditoría de acciones y el registro de accesos al sistema.',
     tabs: {
       audit: 'Auditoría',
       loginLogs: 'Accesos',
@@ -258,6 +260,7 @@ export const es = {
     navLabel: 'Mis plazas',
     title: 'Mis plazas',
     eyebrow: 'Mi espacio',
+    description: 'Consulta tus asignaciones fijas y tus liberaciones en un solo lugar.',
     tabs: {
       fixed: 'Asignaciones fijas',
       releases: 'Liberaciones',
@@ -833,6 +836,7 @@ export const es = {
       navLabel: 'Liberar',
       title: 'Liberar',
       eyebrow: 'Operativa',
+      description: 'Libera plazas y puestos por empleado o por fecha, y consulta el historial.',
       tabs: {
         byEmployee: 'Por empleado',
         byDate: 'Por fecha',

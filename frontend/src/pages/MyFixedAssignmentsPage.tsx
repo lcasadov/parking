@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { DayBadges } from '../components/DayBadges';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { ReleaseResourceModal } from '../components/ReleaseResourceModal';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { emitApiErrorToast } from '../api/events';
@@ -22,7 +22,7 @@ interface ReleaseTarget {
 // Vista EMPLOYEE: "mis asignaciones fijas" del usuario autenticado
 // (getEmployeeFixedAssignments con su propio id). Cada recurso fijo ofrece la
 // accion "Liberar" para una fecha presente o futura (tasks §4.1).
-export function MyFixedAssignmentsPage() {
+export function MyFixedAssignmentsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const employeeId = user?.employeeId ?? null;
@@ -69,7 +69,8 @@ export function MyFixedAssignmentsPage() {
 
   return (
     <section className="my-fixed-assignments-page" aria-label={t('fixedAssignments.mine.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('fixedAssignments.mine.eyebrow')}
         title={t('fixedAssignments.mine.title')}
         description={t('fixedAssignments.mine.description')}

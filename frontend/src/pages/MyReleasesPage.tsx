@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CancelReleaseModal } from '../components/CancelReleaseModal';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { useMyReleasesQuery } from '../hooks/useReleases';
 import { canCancelRelease } from '../utils/releases';
@@ -17,7 +17,7 @@ interface CancelTarget {
 // Vista EMPLOYEE: lista paginada de las liberaciones propias (GET /releases/mine)
 // con anulacion de las futuras (DELETE /releases/{id}); las pasadas no son
 // anulables y su boton se muestra deshabilitado (tasks §4.2).
-export function MyReleasesPage() {
+export function MyReleasesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [page, setPage] = useState(0);
   const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
@@ -31,7 +31,8 @@ export function MyReleasesPage() {
 
   return (
     <section className="my-releases-page" aria-label={t('releases.mine.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('releases.mine.eyebrow')}
         title={t('releases.mine.title')}
         description={t('releases.mine.description')}

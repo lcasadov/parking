@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { useMyAdministrativeReleasesQuery } from '../hooks/useReleases';
@@ -11,7 +11,7 @@ const PAGE_SIZE = 20;
 // Vista ADMIN/AGENCIA (solo lectura): historial paginado de las liberaciones
 // administrativas creadas por el propio actor (GET /releases/administrative/mine).
 // Orienta al actor sobre las liberaciones que ha ido aplicando; no ofrece acciones.
-export function MyAdministrativeReleasesPage() {
+export function MyAdministrativeReleasesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [page, setPage] = useState(0);
 
@@ -27,7 +27,8 @@ export function MyAdministrativeReleasesPage() {
       className="administrative-releases-history-page"
       aria-label={t('releases.history.title')}
     >
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('releases.history.eyebrow')}
         title={t('releases.history.title')}
         description={t('releases.history.description')}

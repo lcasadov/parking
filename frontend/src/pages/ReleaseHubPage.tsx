@@ -2,7 +2,8 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Tabs, type TabItem } from '../components/Tabs';
+import { PageHeader } from '../components/PageHeader';
+import { SectionSwitch, type SectionSwitchItem } from '../components/SectionSwitch';
 import { DUR, EASE } from '../theme/motion';
 import { AdministrativeReleasesPage } from './AdministrativeReleasesPage';
 import { ReleaseByDatePage } from './ReleaseByDatePage';
@@ -27,10 +28,10 @@ export function ReleaseHubPage() {
   const requested = searchParams.get('tab');
   const tab: ReleaseHubTab = isReleaseHubTab(requested) ? requested : DEFAULT_TAB;
 
-  const tabs: TabItem[] = [
-    { id: 'byEmployee', label: t('releases.hub.tabs.byEmployee') },
-    { id: 'byDate', label: t('releases.hub.tabs.byDate') },
-    { id: 'history', label: t('releases.hub.tabs.history') },
+  const items: SectionSwitchItem[] = [
+    { id: 'byEmployee', label: t('releases.hub.tabs.byEmployee'), icon: 'user' },
+    { id: 'byDate', label: t('releases.hub.tabs.byDate'), icon: 'calendar' },
+    { id: 'history', label: t('releases.hub.tabs.history'), icon: 'history' },
   ];
 
   function handleChange(id: string): void {
@@ -41,17 +42,22 @@ export function ReleaseHubPage() {
 
   function renderTab(): ReactNode {
     if (tab === 'byDate') {
-      return <ReleaseByDatePage />;
+      return <ReleaseByDatePage embedded />;
     }
     if (tab === 'history') {
-      return <MyAdministrativeReleasesPage />;
+      return <MyAdministrativeReleasesPage embedded />;
     }
-    return <AdministrativeReleasesPage />;
+    return <AdministrativeReleasesPage embedded />;
   }
 
   return (
     <section className="release-hub-page" aria-label={t('releases.hub.title')}>
-      <Tabs tabs={tabs} active={tab} onChange={handleChange} ariaLabel={t('releases.hub.title')} />
+      <PageHeader
+        eyebrow={t('releases.hub.eyebrow')}
+        title={t('releases.hub.title')}
+        description={t('releases.hub.description')}
+      />
+      <SectionSwitch items={items} active={tab} onChange={handleChange} ariaLabel={t('releases.hub.title')} />
       <motion.div
         key={tab}
         className="tab-fade-panel"

@@ -4,7 +4,7 @@ import { Button } from '../components/Button';
 import { DeskCategoryBadge } from '../components/DeskCategoryBadge';
 import { DeskFormModal } from '../components/DeskFormModal';
 import { Legend } from '../components/Legend';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { SearchBox } from '../components/SearchBox';
 import { StatTile } from '../components/StatTile';
 import { StatusPill } from '../components/StatusPill';
@@ -75,7 +75,8 @@ function filterToActive(filter: ActiveFilter): boolean | undefined {
 // Vista de gestión de puestos (ADMIN): tabla paginada con filtro activo/inactivo,
 // alta/edición y activación/desactivación. Distingue EXECUTIVE visualmente
 // (init-desks §4.1/§4.3). El plano interactivo llega en floor-plan.
-export function DesksPage() {
+// `embedded`: montada dentro de "Recursos", sin su propia cabecera (ver ParkingSpacesPage).
+export function DesksPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
   const [q, setQ] = useState('');
@@ -133,7 +134,8 @@ export function DesksPage() {
 
   return (
     <section className="desks-page" aria-label={t('desks.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('desks.eyebrow')}
         title={t('desks.title')}
         description={t('desks.description')}
