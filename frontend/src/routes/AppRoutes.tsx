@@ -4,6 +4,7 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { AgencyLayout } from '../layouts/AgencyLayout';
 import { EmployeeLayout } from '../layouts/EmployeeLayout';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
+import { DashboardPage } from '../pages/DashboardPage';
 import { EmployeesPage } from '../pages/EmployeesPage';
 import { ResourcesPage } from '../pages/ResourcesPage';
 import { FloorPlanPage } from '../pages/FloorPlanPage';
@@ -46,9 +47,9 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        {/* Indice ADMIN sin cambios (fuera de alcance de esta fase: solo el
-            indice EMPLOYEE se mueve a "Mi Semana", app-shell spec). */}
-        <Route index element={<Navigate to={ROUTES.adminEmployees} replace />} />
+        {/* Indice ADMIN: Panel/Dashboard de inicio (rediseño 2026). Empleados deja
+            de ser el índice y conserva su sitio en el menú de Gestión. */}
+        <Route index element={<DashboardPage />} />
 
         {/* Operativa */}
         <Route path="requests" element={<PendingRequestsPage />} />

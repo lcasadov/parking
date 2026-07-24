@@ -20,6 +20,10 @@ export function AdminLayout() {
       nav={
         <>
           <SidebarSection label={t('layout.sections.operations')} />
+          <NavLink to={ROUTES.admin} end className={navItemClass}>
+            <i className="ti ti-layout-dashboard" aria-hidden="true" />
+            {t('dashboard.navLabel')}
+          </NavLink>
           <NavLink to={ROUTES.adminRequests} className={navItemClass}>
             <i className="ti ti-inbox" aria-hidden="true" />
             {t('requests.inbox.navLabel')}

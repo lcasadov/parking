@@ -1,57 +1,79 @@
-/* Tokens del design system ALEATICA.
-   Autoridad visual: docs/aleatica-design-contract.md.
-   La paleta ALEATICA (secciones 1–5 del contrato) es la fuente de verdad; los
-   nombres de token heredados (--green, --bg-page, --text…) se conservan como
-   ALIAS apuntando a los valores ALEATICA para que TODA la app adopte el nuevo
-   look sin reescribir cada componente. Ningun hex suelto en componentes: todo
-   color sale de aqui. Light en :root; modo oscuro reasigna en body.theme-dark. */
+/* Tokens del design system ALEATICA — REDISEÑO 2026 (dark-premium estilo Flexopus).
+   Autoridad visual: mockup aprobado (redesign-mockup.html). La paleta del mockup
+   (dark-premium + acento verde ESMERALDA) es ahora la fuente de verdad; los
+   nombres de token heredados (--green, --bg-page, --text, --state-*…) se
+   conservan como ALIAS apuntando a los valores nuevos, de modo que TODA la app
+   adopta el nuevo look sin reescribir cada componente. Ningún hex suelto en
+   componentes: todo color sale de aquí.
+
+   Estructura de tema (se respeta el mecanismo existente de la app):
+   · Tema CLARO  → :root            (paleta clara del mockup)
+   · Tema OSCURO → body.theme-dark  (paleta dark-premium del mockup)
+   El mockup define ambos con prefers-color-scheme + data-theme; aquí se mapean a
+   la clase .theme-dark que ya alterna el ThemeProvider. */
 :root {
-  /* === Paleta de marca — RESTYLE 2026 (premium Stripe/Apple) ===
-     El verde ALEATICA se reinterpreta como un VERDE PINO PROFUNDO desaturado:
-     el mismo hue de marca, pero con la sobriedad "cara" de Stripe/Linear en vez
-     del lima saturado anterior. Es el ÚNICO acento fuerte de la app. */
-  --brand-green: #1a7548; /* acento primario (botones, activo, foco) */
-  --brand-green-deep: #124e30; /* tinta de acento (eyebrow, numerales, estado) */
-  --brand-green-hover: #155f3a; /* hover del primario */
-  --brand-green-active: #0f4730; /* pulsado del primario */
-  --brand-green-soft: #e8efe9; /* fondo suave (nav activo / ocupado) desaturado */
-  --brand-blue: #1f88bd; /* liberado — cian calmado, menos neón */
+  /* === Acento ESMERALDA (mockup --accent). Único acento fuerte de la app. === */
+  --accent: #0f9e68;
+  --accent-2: #0c8557;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(15, 158, 104, 0.11);
+  --accent-line: rgba(15, 158, 104, 0.3);
+
+  /* === Semánticos de estado (mockup ok/busy/rel/pend/info) === */
+  --ok: #0f9e68;
+  --ok-soft: rgba(15, 158, 104, 0.13);
+  --busy: #e05260;
+  --busy-soft: rgba(224, 82, 96, 0.12);
+  --rel: #c98a12;
+  --rel-soft: rgba(201, 138, 18, 0.14);
+  --pend: #cf8a3a;
+  --pend-soft: rgba(207, 138, 58, 0.13);
+  --info: #0e8fc4;
+
+  /* === Paleta de marca (alias -> acento esmeralda + semánticos) === */
+  --brand-green: var(--accent); /* acento primario (botones, activo, foco) */
+  --brand-green-deep: #0b5e3f; /* tinta de acento sobre claro (eyebrow, numerales) */
+  --brand-green-hover: var(--accent-2); /* hover del primario */
+  --brand-green-active: #0a6b45; /* pulsado del primario */
+  --brand-green-soft: var(--accent-soft); /* fondo suave (nav activo / ocupado) */
+  --brand-blue: var(--info); /* liberado — cian calmado */
   --brand-blue-deep: #0d597c;
-  --brand-blue-soft: #e4f1f8;
-  --brand-yellow: #e8c34a; /* pendiente — oro suave (era lima-amarillo neón) */
+  --brand-blue-soft: rgba(14, 143, 196, 0.1);
+  --brand-yellow: var(--rel); /* pendiente — oro suave */
   --amber-deep: #8a6512;
-  --brand-orange: #e08a1e; /* solicitud — ámbar contenido */
+  --brand-orange: var(--pend); /* solicitud — ámbar contenido */
   --orange-deep: #9c5c08;
-  --orange-soft: #fbe9d1;
+  --orange-soft: rgba(207, 138, 58, 0.13);
   --taupe: #867870;
   --taupe-deep: #5c5149;
   --taupe-soft: #ece8e3;
 
-  /* === Neutros / superficie — neutro CÁLIDO (Stripe/Apple) ===
-     Off-white cálido y aireado; tintas casi-negras cálidas; hairlines discretas. */
-  --bg: #f4f3ef; /* fondo de contenido: warm stone, aireado */
+  /* === Neutros / superficie — tema CLARO del mockup ===
+     Fondo verde-piedra frío y aireado; tintas verde-carbón; hairlines discretas. */
+  --bg: #eaf0ed; /* fondo de contenido */
   --panel: #ffffff; /* tarjetas/tablas */
-  --panel-2: #faf9f5; /* superficies suaves (cabeceras/footers) */
-  --ink: #1b1a17; /* texto primario casi-negro cálido */
-  --ink-soft: #5f5c56; /* texto secundario */
-  --ink-faint: #918d84; /* texto atenuado / labels */
-  --line: rgba(27, 26, 23, 0.1); /* hairline discreta */
-  --line-soft: rgba(27, 26, 23, 0.06);
-  --line-strong: rgba(27, 26, 23, 0.16);
+  --panel-2: #f5f9f7; /* superficies suaves (cabeceras/footers) */
+  --elev: #ffffff; /* material elevado (tooltips, popovers) */
+  --ink: #0e1a15; /* texto primario verde-carbón */
+  --ink-soft: #586a62; /* texto secundario (mockup ink-2) */
+  --ink-faint: #8a998f; /* texto atenuado / labels (mockup ink-3) */
+  --ink-2: #586a62; /* alias mockup */
+  --ink-3: #8a998f; /* alias mockup */
+  --line: rgba(12, 32, 24, 0.09); /* hairline discreta */
+  --line-soft: rgba(12, 32, 24, 0.05);
+  --line-strong: rgba(12, 32, 24, 0.15);
+  --line-2: rgba(12, 32, 24, 0.15); /* alias mockup */
 
-  /* === Tipografia — RESTYLE 2026 ===
-     Familia única, auto-alojada vía @fontsource (sin CDN). GEIST VARIABLE:
-     grotesca contemporánea (Vercel) con carácter técnico-premium tipo Stripe/Apple
-     — sustituye a la serif editorial (Cormorant) que desentonaba con el norte.
-     · --font-sans   → cuerpo + UI + titulares (Geist, con tracking negativo óptico)
-     · --font-display→ titulares grandes (misma Geist; el nombre marca intención)
-     · --font-mono   → numerales/KPI tabulares (Geist Mono, sabor técnico Stripe) */
+  /* === Tipografia (GEIST Variable, auto-alojada vía @fontsource; sin CDN) ===
+     · --font-sans   → cuerpo + UI + titulares (Geist, tracking negativo óptico)
+     · --font-display→ titulares grandes (misma Geist)
+     · --font-mono   → numerales/KPI tabulares (Geist Mono) */
   --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', 'Menlo', monospace;
   /* Alias heredado: componentes que aún piden --font-serif reciben la display. */
   --font-serif: var(--font-display);
-  /* Escala tipografica — recalibrada, restraint Stripe/Apple. */
+  /* Escala tipografica. */
   --fs-h1: 40px;
   --fs-h2: 27px;
   --fs-num: 32px; /* numerales grandes (mono) */
@@ -59,29 +81,29 @@
   --fs-body: 15px;
   --fs-label: 11px;
   --tracking-label: 0.14em; /* labels uppercase pequeñas */
-  /* Tracking óptico: negativo en display (las letras "se abren" al crecer). */
-  --tracking-display: -0.022em;
+  --tracking-display: -0.025em; /* titulares grandes */
   --tracking-tight: -0.014em; /* titulares medianos / botones */
 
-  /* === ALEATICA · Estado de plaza/puesto -> color (contrato §4) ===
-     Mapa unico reutilizable por todas las vistas. */
-  --state-occupied-bg: var(--brand-green-soft);
-  --state-occupied-border: #c3d6c8;
+  /* === Estado de plaza/puesto -> color (mapa único reutilizable) ===
+     Se conserva la SEMÁNTICA de la app (ocupado=verde, liberado=azul,
+     pendiente=ámbar, solicitud=naranja) con la paleta nueva del mockup. */
+  --state-occupied-bg: var(--accent-soft);
+  --state-occupied-border: rgba(15, 158, 104, 0.28);
   --state-occupied-ink: var(--brand-green-deep);
   --state-released-bg: var(--brand-blue-soft);
-  --state-released-border: #bcdcec;
+  --state-released-border: rgba(14, 143, 196, 0.3);
   --state-released-ink: var(--brand-blue-deep);
-  --state-pending-bg: #fbf1cf;
-  --state-pending-border: #e7d597;
+  --state-pending-bg: var(--rel-soft);
+  --state-pending-border: rgba(201, 138, 18, 0.4);
   --state-pending-ink: var(--amber-deep);
   --state-request-bg: var(--orange-soft);
-  --state-request-border: #f0cf9e;
+  --state-request-border: rgba(207, 138, 58, 0.4);
   --state-request-ink: var(--orange-deep);
   --state-free-bg: var(--panel-2);
   --state-free-border: var(--line-strong);
   --state-free-ink: var(--ink-soft);
 
-  /* === Superficie (alias heredados -> ALEATICA) === */
+  /* === Superficie (alias heredados -> mockup) === */
   --bg-page: var(--bg);
   --bg-card: var(--panel);
   --bg-soft: var(--panel-2);
@@ -90,15 +112,15 @@
   --text: var(--ink);
   --text-muted: var(--ink-faint);
   --text-soft: var(--ink-soft);
-  --highlight: #f6f5f0;
+  --highlight: #eef4f1;
 
-  /* === Corporativa (alias heredados -> ALEATICA) === */
+  /* === Corporativa (alias heredados -> mockup) === */
   --green: var(--brand-green);
   --green-dark: var(--brand-green-deep);
   --green-soft: var(--brand-green-soft);
   --green-border: var(--state-occupied-border);
   --green-darker: var(--brand-green-deep);
-  --green-focus: #2f9c62;
+  --green-focus: #1fb377;
   --curve-orange: var(--brand-orange);
   --avatar-bg: #f5c4b3;
   --avatar-text: #712b13;
@@ -107,12 +129,12 @@
   --blue-soft: var(--brand-blue-soft);
   --blue-border: var(--state-released-border);
   --blue-darker: var(--brand-blue-deep);
-  --red: #c1392f; /* destructivo contenido (era neón #e24b4a) */
-  --red-text: #a32d2d;
-  --red-soft: #fbecea;
-  --red-border: #eaa9a4;
+  --red: #e05260; /* destructivo (mockup busy) */
+  --red-text: #b3323f;
+  --red-soft: rgba(224, 82, 96, 0.12);
+  --red-border: rgba(224, 82, 96, 0.4);
 
-  /* === Estado (alias heredados -> ALEATICA) === */
+  /* === Estado (alias heredados -> mockup) === */
   --amber-soft: var(--state-pending-bg);
   --amber-border: var(--state-pending-border);
   --amber-text: var(--amber-deep);
@@ -120,10 +142,10 @@
   --pink-border: #f4c0d1;
   --pink-text: #4b1528;
 
-  /* Neutro "libre / sin estado" (contrato §4, fila libre) */
+  /* Neutro "libre / sin estado". */
   --neutral-soft: var(--panel-2);
-  --neutral-border: #d3d1c7;
-  --neutral-strong: #b4b2a9;
+  --neutral-border: #cfd6d1;
+  --neutral-strong: #aeb6b0;
 
   /* Fondo de campos de formulario (input/field-value/tab activa). */
   --field-bg: var(--panel);
@@ -131,10 +153,9 @@
   /* Acento rosa fuerte (borde izquierdo de semanas "liberadas"). */
   --pink-strong: #d4537e;
 
-  /* Campo "motivo" de liberación: énfasis coral de campo obligatorio
-     (borde + anillo de foco + tinta del hint con icono de alerta). */
+  /* Campo "motivo" de liberación: énfasis coral de campo obligatorio. */
   --reason-field-border: #f2c4bd;
-  --reason-field-ring: rgba(226, 75, 74, 0.08);
+  --reason-field-ring: rgba(224, 82, 96, 0.08);
   --reason-hint-ink: #a2543a;
 
   /* Paleta de avatares por hash de nombre (mockup .av-*). */
@@ -151,29 +172,26 @@
   --av-coral-bg: #f5c4b3;
   --av-coral-text: #712b13;
 
-  /* Anillo del puesto de dirección (EXECUTIVE) en el plano */
-  --exec-ring: #d99b1c;
+  /* Anillo del puesto de dirección (EXECUTIVE) en el plano. */
+  --exec-ring: var(--brand-yellow);
 
-  /* Marco exterior (auth/phones) */
-  --frame-bg: #e7e5de;
+  /* Marco exterior (auth/phones). */
+  --frame-bg: #e0e6e3;
 
-  /* Radios */
-  --radius-sm: 4px;
-  --radius-md: 8px; /* controles (contrato §5) */
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-panel: 14px; /* tarjetas/paneles (contrato §5) */
-  --radius-pill: 20px; /* pills (contrato §5) */
+  /* Radios — mockup: controles 11px, tarjetas 20px, pills full. */
+  --radius-sm: 6px;
+  --radius-md: 11px; /* controles / botones (mockup .btn) */
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-panel: 20px; /* tarjetas/paneles (mockup --r-lg) */
+  --radius-pill: 999px; /* pills (mockup --r-pill) */
 
-  /* Sombra de paneles: elevación SUAVE EN CAPAS (Stripe/Apple) — contacto fino
-     + halo ambiental amplio, nunca una sombra plana y dura. */
-  --shadow-panel: 0 30px 60px -48px rgba(27, 26, 23, 0.42);
-  --shadow-card: 0 1px 1px rgba(27, 26, 23, 0.04), 0 2px 6px -2px rgba(27, 26, 23, 0.08),
-    0 12px 28px -14px rgba(27, 26, 23, 0.1);
-  --shadow-card-hover: 0 1px 1px rgba(27, 26, 23, 0.05), 0 4px 10px -3px rgba(27, 26, 23, 0.1),
-    0 18px 40px -18px rgba(27, 26, 23, 0.16);
+  /* Sombra de paneles: elevación SUAVE EN CAPAS (mockup --shadow). */
+  --shadow-panel: 0 30px 60px -48px rgba(16, 40, 30, 0.4);
+  --shadow-card: 0 1px 2px rgba(16, 40, 30, 0.06), 0 10px 30px rgba(16, 40, 30, 0.08);
+  --shadow-card-hover: 0 2px 8px rgba(16, 40, 30, 0.08), 0 18px 44px -18px rgba(16, 40, 30, 0.16);
 
-  /* Espaciado */
+  /* Espaciado. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -182,7 +200,7 @@
   --space-6: 24px;
   --space-8: 32px;
 
-  /* Tipografia (tamaños de UI densa; la escala editorial vive en --fs-*). */
+  /* Tipografia (tamaños de UI densa). */
   --text-xs: 11px;
   --text-sm: 13px;
   --text-base: 14px;
@@ -191,35 +209,30 @@
   --text-2xl: 22px;
 
   /* === MOTION (Ola A · fundaciones) ===
-     Escala de duraciones + curvas + resortes. Autoridad de motion del rediseño.
-     Regla: animar solo transform/opacity; UI < 300ms; entrada con ease-out.
-     Los componentes JS (Framer Motion) leen los SPRINGS equivalentes definidos
-     en src/theme/motion.ts — mantener ambos en sync. */
-  --dur-instant: 90ms; /* feedback de pulsado / hover */
-  --dur-fast: 140ms; /* micro-transiciones (color, fondo) */
-  --dur-base: 200ms; /* entradas de UI (popover, dropdown) */
-  --dur-slow: 280ms; /* superficies mayores (modal, drawer) */
+     Animar solo transform/opacity; UI < 300ms; entrada con ease-out. */
+  --dur-instant: 90ms;
+  --dur-fast: 140ms;
+  --dur-base: 200ms;
+  --dur-slow: 280ms;
 
-  /* Curvas: entradas ease-out fuerte; salidas ease-in; estándar simétrico. */
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* respuesta inmediata (entrada) */
-  --ease-in: cubic-bezier(0.4, 0, 1, 1); /* salida */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoot sutil (solo momentum) */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* Escala del efecto de pulsado táctil (Button). */
   --press-scale: 0.96;
 
-  /* Elevación en capas (materiales / profundidad). */
-  --shadow-1: 0 1px 2px rgba(43, 42, 40, 0.06), 0 1px 1px rgba(43, 42, 40, 0.04);
-  --shadow-2: 0 4px 12px -4px rgba(43, 42, 40, 0.16);
-  --shadow-3: 0 12px 32px -12px rgba(43, 42, 40, 0.28);
-  --shadow-4: 0 24px 60px -24px rgba(43, 42, 40, 0.36);
+  /* Elevación en capas (materiales / profundidad) — mockup --shadow/--shadow-lg. */
+  --shadow-1: 0 1px 2px rgba(16, 40, 30, 0.06), 0 1px 1px rgba(16, 40, 30, 0.04);
+  --shadow-2: 0 4px 12px -4px rgba(16, 40, 30, 0.14);
+  --shadow-3: 0 12px 32px -12px rgba(16, 40, 30, 0.2);
+  --shadow-4: 0 24px 60px -24px rgba(16, 40, 30, 0.28);
 
   /* Cristal / material translúcido (chrome fijo: header, drawer). */
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-blur: saturate(180%) blur(20px);
+  --glass-bg: color-mix(in srgb, var(--bg) 82%, transparent);
+  --glass-blur: saturate(160%) blur(14px);
 
-  /* Safe-areas iOS (notch / home indicator). */
+  /* Safe-areas iOS. */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
@@ -231,29 +244,58 @@
 }
 
 body.theme-dark {
-  /* Materiales translúcidos recalibrados para superficie oscura. */
-  --glass-bg: rgba(30, 30, 27, 0.72);
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 4px 12px -4px rgba(0, 0, 0, 0.5);
-  --shadow-3: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
-  --shadow-4: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.55);
-  --shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.45), 0 16px 38px -16px rgba(0, 0, 0, 0.7);
-}
+  /* === Neutros / superficie — tema OSCURO dark-premium del mockup === */
+  --bg: #0c1411;
+  --panel: #121b17;
+  --panel-2: #18231e;
+  --elev: #1f2c26;
+  --ink: #ecf3ef;
+  --ink-soft: #9db1a8;
+  --ink-faint: #6a7c74;
+  --ink-2: #9db1a8;
+  --ink-3: #6a7c74;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-soft: rgba(255, 255, 255, 0.05);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --line-2: rgba(255, 255, 255, 0.13);
 
-body.theme-dark {
-  /* Neutros oscuros (se mantiene la identidad ALEATICA por reasignacion). */
-  --bg: #1c1c19;
-  --panel: #26261f;
-  --panel-2: #222220;
-  --ink: #e9e7df;
-  --ink-soft: #c7c5bb;
-  --ink-faint: #9c9a90;
-  --line: rgba(255, 255, 255, 0.14);
-  --line-soft: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.24);
+  /* Acento esmeralda más luminoso sobre superficie oscura. */
+  --accent: #33d68a;
+  --accent-2: #27b271;
+  --accent-ink: #062016;
+  --accent-soft: rgba(51, 214, 138, 0.13);
+  --accent-line: rgba(51, 214, 138, 0.32);
 
-  /* Superficie (alias) */
+  /* Semánticos dark. */
+  --ok: #34d399;
+  --ok-soft: rgba(52, 211, 153, 0.14);
+  --busy: #fb7185;
+  --busy-soft: rgba(251, 113, 133, 0.14);
+  --rel: #fbbf24;
+  --rel-soft: rgba(251, 191, 36, 0.15);
+  --pend: #f6ad55;
+  --pend-soft: rgba(246, 173, 85, 0.15);
+  --info: #38bdf8;
+
+  /* Marca (alias -> mockup dark). Las variantes "deep" se aclaran para conservar
+     contraste como texto de acento (WCAG AA en texto pequeño sobre oscuro). */
+  --brand-green: var(--accent);
+  --brand-green-deep: #a7e0bd;
+  --brand-green-hover: #3cb976;
+  --brand-green-active: #2c8f5a;
+  --brand-green-soft: var(--accent-soft);
+  --brand-blue: var(--info);
+  --brand-blue-deep: #bcdcff;
+  --brand-blue-soft: rgba(56, 189, 248, 0.16);
+  --brand-yellow: var(--rel);
+  --amber-deep: #f6d98a;
+  --brand-orange: var(--pend);
+  --orange-deep: #f7c98a;
+  --orange-soft: rgba(246, 173, 85, 0.16);
+  --taupe-deep: #cbc3bb;
+  --taupe-soft: rgba(134, 120, 112, 0.24);
+
+  /* Superficie (alias). */
   --bg-page: var(--bg);
   --bg-card: var(--panel);
   --bg-soft: var(--panel-2);
@@ -262,63 +304,69 @@ body.theme-dark {
   --text: var(--ink);
   --text-muted: var(--ink-faint);
   --text-soft: var(--ink-soft);
-  --highlight: rgba(252, 246, 230, 0.06);
+  --highlight: rgba(255, 255, 255, 0.05);
 
-  /* Variantes soft de marca sobre fondo oscuro */
-  --brand-green-soft: rgba(119, 184, 41, 0.22);
-  --brand-blue-soft: rgba(0, 168, 226, 0.2);
-  --orange-soft: rgba(246, 160, 22, 0.2);
-  /* Variantes "deep" (contrato §1): en claro son tonos oscuros usados como texto
-     de acento (eyebrow, numerales, tinta de estado). Sobre superficie oscura hay
-     que aclararlas para conservar contraste (WCAG AA en texto pequeño). */
-  --brand-green-deep: #a7e0bd;
-  --brand-blue-deep: #bcdcff;
-  --orange-deep: #f7c98a;
-  /* Acento primario más luminoso sobre superficie oscura (botones/activo/foco). */
-  --brand-green: #34a86a;
-  --brand-green-hover: #3cb976;
-  --brand-green-active: #2c8f5a;
-  --green-focus: #3cb976;
-  --amber-deep: #f0cf94;
-  --taupe-deep: #cbc3bb;
+  /* Corporativa (alias). */
+  --green: var(--brand-green);
+  --green-dark: var(--brand-green-deep);
   --green-soft: var(--brand-green-soft);
-  --green-darker: #cfe6a8;
+  --green-border: var(--state-occupied-border);
+  --green-darker: var(--brand-green-deep);
+  --green-focus: #3cb976;
+  --blue: var(--brand-blue);
   --blue-soft: var(--brand-blue-soft);
-  --blue-darker: #bcdcff;
-  --amber-soft: rgba(250, 199, 117, 0.2);
-  --amber-text: #f0cf94;
-  --pink-soft: rgba(212, 83, 126, 0.24);
-  --pink-text: #f3b9cd;
-  --red-soft: rgba(226, 75, 74, 0.2);
+  --blue-border: var(--state-released-border);
+  --blue-darker: var(--brand-blue-deep);
+  --red: var(--busy);
   --red-text: #f3a3a3;
-  --neutral-soft: rgba(255, 255, 255, 0.08);
-  --neutral-border: rgba(255, 255, 255, 0.2);
-  --neutral-strong: rgba(255, 255, 255, 0.28);
-  --taupe-soft: rgba(134, 120, 112, 0.24);
-  /* Campo "motivo" en oscuro: borde/tinta coral aclarados para conservar contraste. */
-  --reason-field-border: rgba(226, 75, 74, 0.5);
-  --reason-field-ring: rgba(226, 75, 74, 0.16);
-  --reason-hint-ink: #e6a58f;
-  --field-bg: #2f2f27;
-  --exec-ring: #e6b34a;
-  --frame-bg: #141413;
+  --red-soft: rgba(251, 113, 133, 0.16);
+  --red-border: rgba(251, 113, 133, 0.4);
 
-  /* Estado -> color: recalcular soft/ink/borde sobre superficie oscura. Los
-     bordes claros del tema claro (#c3e08f…) brillan demasiado sobre oscuro; se
-     sustituyen por bordes tintados translucidos coherentes con cada estado. */
-  --state-occupied-bg: var(--brand-green-soft);
-  --state-occupied-ink: #cfe6a8;
-  --state-occupied-border: rgba(119, 184, 41, 0.42);
+  /* Estado (alias). */
+  --amber-soft: var(--state-pending-bg);
+  --amber-border: var(--state-pending-border);
+  --amber-text: var(--amber-deep);
+  --pink-soft: rgba(212, 83, 126, 0.24);
+  --pink-border: rgba(212, 83, 126, 0.4);
+  --pink-text: #f3b9cd;
+
+  --neutral-soft: rgba(255, 255, 255, 0.06);
+  --neutral-border: rgba(255, 255, 255, 0.18);
+  --neutral-strong: rgba(255, 255, 255, 0.26);
+
+  --field-bg: #18231e;
+  --exec-ring: var(--brand-yellow);
+  --frame-bg: #0a110e;
+
+  /* Campo "motivo" en oscuro. */
+  --reason-field-border: rgba(251, 113, 133, 0.5);
+  --reason-field-ring: rgba(251, 113, 133, 0.16);
+  --reason-hint-ink: #f0a58f;
+
+  /* Estado -> color: soft/ink/borde recalculados sobre superficie oscura. */
+  --state-occupied-bg: var(--accent-soft);
+  --state-occupied-ink: #a7e0bd;
+  --state-occupied-border: rgba(51, 214, 138, 0.4);
   --state-released-bg: var(--brand-blue-soft);
   --state-released-ink: #bcdcff;
-  --state-released-border: rgba(0, 168, 226, 0.42);
-  --state-pending-bg: rgba(250, 199, 117, 0.2);
-  --state-pending-ink: #f0cf94;
-  --state-pending-border: rgba(250, 199, 117, 0.42);
+  --state-released-border: rgba(56, 189, 248, 0.4);
+  --state-pending-bg: var(--rel-soft);
+  --state-pending-ink: #f6d98a;
+  --state-pending-border: rgba(251, 191, 36, 0.4);
   --state-request-bg: var(--orange-soft);
   --state-request-ink: #f7c98a;
-  --state-request-border: rgba(246, 160, 22, 0.42);
+  --state-request-border: rgba(246, 173, 85, 0.4);
   --state-free-bg: var(--panel-2);
   --state-free-ink: var(--ink-soft);
   --state-free-border: var(--line-strong);
+
+  /* Cristal + sombras recalibradas para superficie oscura (mockup dark). */
+  --glass-bg: color-mix(in srgb, var(--bg) 82%, transparent);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 12px -4px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --shadow-4: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  --shadow-panel: 0 2px 6px rgba(0, 0, 0, 0.45), 0 24px 60px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 30px rgba(0, 0, 0, 0.35);
+  --shadow-card-hover: 0 2px 6px rgba(0, 0, 0, 0.45), 0 24px 60px -20px rgba(0, 0, 0, 0.6);
 }

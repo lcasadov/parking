@@ -168,21 +168,26 @@
   padding-top: var(--space-1);
 }
 
+/* Item de navegación — PILL SUAVE (mockup): margen horizontal + radio; el estado
+   activo es una pastilla esmeralda con fondo accent-soft + anillo interior
+   accent-line (inset ring) e icono en acento, sin el antiguo border-left. */
 .nav-item {
   position: relative;
-  padding: 10px var(--space-5);
+  margin: 0 var(--space-3);
+  padding: 9px var(--space-3);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   color: var(--ink-soft);
-  font-size: var(--text-base);
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 520;
   cursor: pointer;
   text-decoration: none;
-  border-left: 3px solid transparent;
+  border: 1px solid transparent;
   transition:
-    background 120ms ease,
-    color 120ms ease;
+    background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
 }
 .nav-item:hover {
   background: var(--panel-2);
@@ -190,15 +195,17 @@
 }
 .nav-item i {
   font-size: 18px;
+  opacity: 0.9;
 }
 .nav-item.active {
-  color: var(--brand-green-deep);
-  background: var(--brand-green-soft);
-  border-left-color: var(--brand-green);
+  color: var(--ink);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
   font-weight: 600;
 }
 .nav-item.active i {
-  color: var(--brand-green);
+  color: var(--accent);
+  opacity: 1;
 }
 
 /* Area de usuario al pie del sidebar (prototipo): tarjeta clicable (avatar +
@@ -422,25 +429,29 @@
 /* Boton PRIMARIO: verde pino profundo, texto blanco, peso medio (no 800). Doble
    sombra en capas + hairline interior claro que "atrapa la luz" en el borde
    superior (material real, no plano). Hover = tono más oscuro; sin filtros. */
+/* Botón PRIMARIO (mockup .btn.primary): gradiente esmeralda (accent -> accent-2),
+   tinta accent-ink (blanco en claro, verde-tinta oscuro en oscuro para contraste),
+   hairline interior claro que "atrapa la luz" + doble sombra en capas. El pulsado
+   táctil (scale) lo aporta el componente Button (Framer Motion). */
 .btn-primary,
 .btn-green {
-  background: var(--brand-green);
-  color: #fff;
-  border-color: color-mix(in srgb, var(--brand-green) 82%, #000 18%);
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  color: var(--accent-ink);
+  border-color: color-mix(in srgb, var(--accent-2) 82%, #000 18%);
   font-weight: 560;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 1px 1px rgba(27, 26, 23, 0.08),
-    0 2px 6px -2px color-mix(in srgb, var(--brand-green) 40%, transparent);
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 1px 1px rgba(16, 40, 30, 0.1),
+    0 2px 8px -2px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover:not(:disabled),
   .btn-green:hover:not(:disabled) {
-    background: var(--brand-green-hover);
+    background: linear-gradient(180deg, var(--brand-green-hover), var(--accent-2));
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.18),
-      0 2px 4px rgba(27, 26, 23, 0.1),
-      0 6px 16px -4px color-mix(in srgb, var(--brand-green) 48%, transparent);
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      0 2px 4px rgba(16, 40, 30, 0.12),
+      0 6px 18px -4px color-mix(in srgb, var(--accent) 50%, transparent);
   }
 }
 .btn-primary:active:not(:disabled),
@@ -1261,6 +1272,55 @@ body.theme-dark .segmented button.active {
   background: var(--red-soft);
   color: var(--red-text);
   border-color: var(--red-border);
+}
+
+/* ============================================================
+   Rediseño 2026 — primitivas del mockup reutilizables.
+   ============================================================ */
+
+/* Tarjeta genérica (mockup .card): panel con hairline + radio grande +
+   sombra en capas. Base de los paneles del dashboard y de futuras vistas. */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+/* Pills de estado del mockup (ok/busy/rel/pend) con punto de color al inicio.
+   Conviven con las pills heredadas (.pill-green…) sin colisión de clases. */
+.pill.ok,
+.pill.busy,
+.pill.rel,
+.pill.pend {
+  gap: 6px;
+  border-color: transparent;
+}
+.pill.ok::before,
+.pill.busy::before,
+.pill.rel::before,
+.pill.pend::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pill.ok {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+.pill.busy {
+  color: var(--busy);
+  background: var(--busy-soft);
+}
+.pill.rel {
+  color: var(--rel);
+  background: var(--rel-soft);
+}
+.pill.pend {
+  color: var(--pend);
+  background: var(--pend-soft);
 }
 
 .pagination {
@@ -4618,5 +4678,205 @@ button.pop-row.pop-danger:disabled {
   .btn-blue[aria-busy='true']::after,
   .btn-red[aria-busy='true']::after {
     animation: none;
+  }
+}
+
+/* ============================================================
+   DASHBOARD DE INICIO (admin) — rediseño 2026, "Panel" del mockup.
+   Saludo + fecha, fila de KPIs con sparklines, panel de solicitudes
+   pendientes accionables y panel de actividad reciente.
+   ============================================================ */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Cabecera: saludo (hi) + fecha (h1) a la izquierda, acción a la derecha. */
+.dash-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.dash-hi {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.dash-title {
+  margin: 5px 0 0;
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 640;
+  line-height: 1.12;
+  letter-spacing: var(--tracking-display);
+  color: var(--ink);
+  text-transform: capitalize;
+}
+
+/* Fila de KPIs. */
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.dash-kpi {
+  padding: 18px 18px 16px;
+  position: relative;
+  overflow: hidden;
+}
+.dash-kpi-lbl {
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-weight: 540;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dash-kpi-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dash-kpi-val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 34px;
+  font-weight: 680;
+  margin-top: 10px;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  line-height: 1;
+}
+.dash-kpi-val small {
+  font-size: 15px;
+  color: var(--ink-faint);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.dash-kpi-sub {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 4px;
+}
+.dash-kpi-spark {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 96px;
+  height: 44px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* Dos paneles (solicitudes / actividad). */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+.dash-panel-ttl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 16px 18px 6px;
+}
+.dash-panel-ttl h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.dash-panel-link {
+  font-size: 12.5px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 560;
+  white-space: nowrap;
+}
+.dash-panel-link:hover {
+  text-decoration: underline;
+}
+
+/* Fila de un panel (empleado / actividad). */
+.dash-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+.dash-row-who {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.dash-row-who b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 580;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-row-who small {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+.dash-row-rt {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Botón "Aprobar" compacto dentro de una fila del dashboard. */
+.dash-row-rt .btn {
+  height: 30px;
+  padding: 0 13px;
+  font-size: 13px;
+}
+
+/* Chip mono para la actividad reciente (tipo de evento). */
+.dash-chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  padding: 3px 9px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Estado vacío / carga dentro de un panel del dashboard. */
+.dash-empty {
+  padding: 22px 18px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .dash-kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .dash-grid {
+    grid-template-columns: 1fr;
   }
 }
