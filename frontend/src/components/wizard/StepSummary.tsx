@@ -10,6 +10,20 @@ interface StepSummaryProps {
   dates: string[];
 }
 
+// Fechas cuya plaza auto hay que previsualizar: en PER_DAY las marcadas como auto;
+// en ALL-auto todas; en el resto ninguna.
+function autoPreviewDates(
+  state: WizardState,
+  dates: string[],
+  perDayMode: boolean,
+  allAuto: boolean,
+): string[] {
+  if (perDayMode) {
+    return dates.filter((date) => state.perDay[date]?.auto);
+  }
+  return allAuto ? dates : [];
+}
+
 // Paso 5 — Resumen y confirmación. Recap (tipo · empleado · categoría) + aviso de
 // email. La ubicación se muestra según el modo: ALL con una sola plaza/puesto (y si
 // es auto, la plaza exacta por fecha); PER_DAY con una fila por fecha y su recurso
@@ -26,11 +40,7 @@ export function StepSummary({ state, dates }: StepSummaryProps) {
   const allAuto = !perDayMode && !isDesk && state.parkingChoice === PARKING_AUTO;
 
   // Fechas con auto-asignación (según el modo) cuya plaza hay que previsualizar.
-  const autoDates = perDayMode
-    ? dates.filter((date) => state.perDay[date]?.auto)
-    : allAuto
-      ? dates
-      : [];
+  const autoDates = autoPreviewDates(state, dates, perDayMode, allAuto);
   const suggested = useSuggestedSpaces(state.employeeId, autoDates, autoDates.length > 0);
   const suggestedByDate = new Map(suggested.byDate.map((entry) => [entry.date, entry]));
 
@@ -65,6 +75,20 @@ export function StepSummary({ state, dates }: StepSummaryProps) {
       };
     }
     return { value: t('wizard.summary.autoNoSpace'), tone: ' is-warn' };
+  }
+
+  // Texto de la elección de un día (modo PER_DAY): auto → resuelto a la plaza;
+  // recurso concreto → su etiqueta; sin elegir → guion.
+  function perDayText(date: string): { value: string; tone: string } {
+    const choice = state.perDay[date];
+    if (choice?.auto) {
+      const auto = autoText(date);
+      return { value: `${t('wizard.perday.auto')} · ${auto.value}`, tone: auto.tone };
+    }
+    if (choice && choice.resourceId !== null) {
+      return { value: choice.label ?? String(choice.resourceId), tone: '' };
+    }
+    return { value: '—', tone: '' };
   }
 
   return (
@@ -132,16 +156,7 @@ export function StepSummary({ state, dates }: StepSummaryProps) {
           </p>
           <ul className="rzw-auto-preview-list">
             {dates.map((date) => {
-              const choice = state.perDay[date];
-              let value = '—';
-              let tone = '';
-              if (choice?.auto) {
-                const auto = autoText(date);
-                value = `${t('wizard.perday.auto')} · ${auto.value}`;
-                tone = auto.tone;
-              } else if (choice?.resourceId != null) {
-                value = choice.label ?? String(choice.resourceId);
-              }
+              const { value, tone } = perDayText(date);
               return (
                 <li key={date} className={`rzw-auto-preview-row${tone}`}>
                   <span className="rzw-auto-preview-date mono">{longDate(date, i18n.language)}</span>

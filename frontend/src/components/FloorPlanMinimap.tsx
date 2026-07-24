@@ -20,7 +20,24 @@ const MINI_W = 150;
 export function FloorPlanMinimap({ viewport, box }: FloorPlanMinimapProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
   const { scale, offsetX, offsetY, centerOnPoint } = viewport;
+
+  // Panea centrando la vista en el punto del mundo señalado en el minimapa. Todos
+  // los hooks se declaran ANTES de cualquier return condicional (reglas de hooks).
+  const panFromEvent = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const rect = ref.current?.getBoundingClientRect();
+      if (!rect || box.w === 0) {
+        return;
+      }
+      const miniScale = MINI_W / box.w;
+      const mmx = event.clientX - rect.left;
+      const mmy = event.clientY - rect.top;
+      centerOnPoint(mmx / miniScale, mmy / miniScale, box.w, box.h);
+    },
+    [centerOnPoint, box.w, box.h],
+  );
 
   if (box.w === 0 || box.h === 0) {
     return null;
@@ -36,21 +53,6 @@ export function FloorPlanMinimap({ viewport, box }: FloorPlanMinimapProps) {
   const rectH = Math.min(miniH, miniH / scale);
   const left = Math.min(Math.max(rawLeft, 0), MINI_W - rectW);
   const top = Math.min(Math.max(rawTop, 0), miniH - rectH);
-
-  const panFromEvent = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const rect = ref.current?.getBoundingClientRect();
-      if (!rect) {
-        return;
-      }
-      const mmx = event.clientX - rect.left;
-      const mmy = event.clientY - rect.top;
-      centerOnPoint(mmx / miniScale, mmy / miniScale, box.w, box.h);
-    },
-    [centerOnPoint, miniScale, box.w, box.h],
-  );
-
-  const dragging = useRef(false);
 
   return (
     <div

@@ -28,6 +28,37 @@ interface FloorPlanMarkerProps {
   onHover: (desk: FloorPlanDesk, button: HTMLButtonElement | null) => void;
 }
 
+// Construye la lista de clases del marcador según su estado visual. Extraído del
+// componente para mantener su complejidad cognitiva baja (S3776). En modo edición
+// los marcadores se pintan neutros (gris) para enfocar el reposicionamiento; fuera
+// de él, el color semántico de estado o el realce de selección (SELECTED).
+function markerClasses(args: {
+  desk: FloorPlanDesk;
+  editMode: boolean;
+  selected: boolean;
+  isExecutive: boolean;
+  dimmed: boolean;
+  focused: boolean;
+  pulsing: boolean;
+  emphasis: 'free' | 'muted' | null;
+}): string {
+  const { desk, editMode, selected, isExecutive, dimmed, focused, pulsing, emphasis } = args;
+  const colorClass = editMode ? 'floor-marker-neutral' : markerColorClass(desk.state, selected);
+  return [
+    'floor-marker',
+    colorClass,
+    isExecutive ? 'floor-marker-executive' : '',
+    editMode ? 'floor-marker-editing' : '',
+    dimmed ? 'floor-marker-dimmed' : '',
+    focused ? 'floor-marker-focused' : '',
+    pulsing ? 'floor-marker-pulse' : '',
+    emphasis === 'free' ? 'floor-marker-free-pulse' : '',
+    emphasis === 'muted' ? 'floor-marker-muted' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
 // Un marcador de puesto sobre el plano: botón accesible posicionado por %.
 // En modo edición inicia el arrastre (Pointer Events, ratón + táctil); fuera de
 // él, un puesto FREE se solicita. Al pasar/enfocar muestra un tooltip con el
@@ -48,23 +79,7 @@ export function FloorPlanMarker({
   onHover,
 }: FloorPlanMarkerProps) {
   const isExecutive = desk.category === 'EXECUTIVE';
-  // En modo edición los marcadores se pintan neutros (gris uniforme) para
-  // enfocar el reposicionamiento; fuera de él, el color semántico de estado, o el
-  // realce de selección (SELECTED) cuando el puesto está elegido en el selector.
-  const colorClass = editMode ? 'floor-marker-neutral' : markerColorClass(desk.state, selected);
-  const classes = [
-    'floor-marker',
-    colorClass,
-    isExecutive ? 'floor-marker-executive' : '',
-    editMode ? 'floor-marker-editing' : '',
-    dimmed ? 'floor-marker-dimmed' : '',
-    focused ? 'floor-marker-focused' : '',
-    pulsing ? 'floor-marker-pulse' : '',
-    emphasis === 'free' ? 'floor-marker-free-pulse' : '',
-    emphasis === 'muted' ? 'floor-marker-muted' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const classes = markerClasses({ desk, editMode, selected, isExecutive, dimmed, focused, pulsing, emphasis });
 
   const canRequest = !editMode && desk.state === 'FREE';
   const showPin = !editMode && !dimmed && isOccupiedState(desk.state);
