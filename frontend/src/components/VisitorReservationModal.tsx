@@ -81,7 +81,8 @@ export function VisitorReservationModal({
     createMutation.mutate(
       {
         visitorId: Number(visitorId),
-        parkingSpaceId: Number(parkingSpaceId),
+        resourceType: 'PARKING',
+        resourceId: Number(parkingSpaceId),
         reservationDate: date,
         notes: notes.trim() || undefined,
       },

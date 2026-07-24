@@ -2,6 +2,7 @@
 // VisitorReservation). Los nombres de campo replican exactamente el contrato:
 // firstName, lastName, nationalId, licensePlate, company, usualReason /
 // visitorId, parkingSpaceId, reservationDate, notes.
+import type { ResourceType } from './request';
 
 // Visitor: schema #/components/schemas/Visitor.
 export interface Visitor {
@@ -45,11 +46,13 @@ export interface VisitorListParams {
   q?: string;
 }
 
-// VisitorReservation: schema #/components/schemas/VisitorReservation.
+// VisitorReservation: schema #/components/schemas/VisitorReservation. El recurso es
+// genérico (plaza o puesto): resourceType + resourceId (migración backend V25).
 export interface VisitorReservation {
   id: number;
   visitorId: number;
-  parkingSpaceId: number;
+  resourceType: ResourceType;
+  resourceId: number;
   reservationDate: string;
   notes?: string | null;
   createdById: number;
@@ -57,10 +60,11 @@ export interface VisitorReservation {
 }
 
 // VisitorReservationCreateRequest: schema #/components/schemas/VisitorReservationCreateRequest.
-// Requeridos: visitorId, parkingSpaceId, reservationDate.
+// Requeridos: visitorId, resourceType, resourceId, reservationDate.
 export interface VisitorReservationCreateRequest {
   visitorId: number;
-  parkingSpaceId: number;
+  resourceType: ResourceType;
+  resourceId: number;
   reservationDate: string;
   notes?: string;
 }

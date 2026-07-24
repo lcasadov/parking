@@ -85,7 +85,7 @@ export function VisitorReservationsPanel() {
                     {`#${reservation.visitorId}`}
                   </td>
                   <td data-label={t('visitors.reservations.columns.space')}>
-                    {`#${reservation.parkingSpaceId}`}
+                    {`#${reservation.resourceId}`}
                   </td>
                   <td data-label={t('visitors.reservations.columns.notes')}>
                     {reservation.notes ?? t('visitors.detail.none')}
