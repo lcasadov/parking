@@ -6,59 +6,76 @@
    look sin reescribir cada componente. Ningun hex suelto en componentes: todo
    color sale de aqui. Light en :root; modo oscuro reasigna en body.theme-dark. */
 :root {
-  /* === ALEATICA · Paleta de marca (contrato §1) === */
-  --brand-green: #77b829; /* primario / ocupado */
-  --brand-green-deep: #527f16;
-  --brand-green-soft: #e9f3d8;
-  --brand-blue: #00a8e2; /* liberado */
-  --brand-blue-deep: #06678a;
-  --brand-blue-soft: #dcf0fa;
-  --brand-yellow: #fbdc17; /* pendiente asignar */
-  --amber-deep: #8a6a00;
-  --brand-orange: #f6a016; /* solicitud */
-  --orange-deep: #a55e05;
-  --orange-soft: #fde9ce;
+  /* === Paleta de marca — RESTYLE 2026 (premium Stripe/Apple) ===
+     El verde ALEATICA se reinterpreta como un VERDE PINO PROFUNDO desaturado:
+     el mismo hue de marca, pero con la sobriedad "cara" de Stripe/Linear en vez
+     del lima saturado anterior. Es el ÚNICO acento fuerte de la app. */
+  --brand-green: #1a7548; /* acento primario (botones, activo, foco) */
+  --brand-green-deep: #124e30; /* tinta de acento (eyebrow, numerales, estado) */
+  --brand-green-hover: #155f3a; /* hover del primario */
+  --brand-green-active: #0f4730; /* pulsado del primario */
+  --brand-green-soft: #e8efe9; /* fondo suave (nav activo / ocupado) desaturado */
+  --brand-blue: #1f88bd; /* liberado — cian calmado, menos neón */
+  --brand-blue-deep: #0d597c;
+  --brand-blue-soft: #e4f1f8;
+  --brand-yellow: #e8c34a; /* pendiente — oro suave (era lima-amarillo neón) */
+  --amber-deep: #8a6512;
+  --brand-orange: #e08a1e; /* solicitud — ámbar contenido */
+  --orange-deep: #9c5c08;
+  --orange-soft: #fbe9d1;
   --taupe: #867870;
   --taupe-deep: #5c5149;
   --taupe-soft: #ece8e3;
 
-  /* === ALEATICA · Neutros / superficie (contrato §2) === */
-  --bg: #eeede7;
-  --panel: #ffffff;
-  --panel-2: #f6f5f0;
-  --ink: #2b2a28;
-  --ink-soft: #6e6a63;
-  --ink-faint: #9a968d;
-  --line: rgba(43, 42, 40, 0.14);
-  --line-soft: rgba(43, 42, 40, 0.08);
-  --line-strong: rgba(43, 42, 40, 0.24);
+  /* === Neutros / superficie — neutro CÁLIDO (Stripe/Apple) ===
+     Off-white cálido y aireado; tintas casi-negras cálidas; hairlines discretas. */
+  --bg: #f4f3ef; /* fondo de contenido: warm stone, aireado */
+  --panel: #ffffff; /* tarjetas/tablas */
+  --panel-2: #faf9f5; /* superficies suaves (cabeceras/footers) */
+  --ink: #1b1a17; /* texto primario casi-negro cálido */
+  --ink-soft: #5f5c56; /* texto secundario */
+  --ink-faint: #918d84; /* texto atenuado / labels */
+  --line: rgba(27, 26, 23, 0.1); /* hairline discreta */
+  --line-soft: rgba(27, 26, 23, 0.06);
+  --line-strong: rgba(27, 26, 23, 0.16);
 
-  /* === ALEATICA · Tipografia (contrato §3) === */
-  --font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-  --font-sans: 'Mulish', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
-    sans-serif;
-  /* Escala tipografica del contrato §3. */
-  --fs-h1: 52px;
-  --fs-h2: 34px;
-  --fs-num: 34px; /* numerales grandes 34–42px */
-  --fs-num-lg: 42px;
-  --fs-body: 16px;
+  /* === Tipografia — RESTYLE 2026 ===
+     Familia única, auto-alojada vía @fontsource (sin CDN). GEIST VARIABLE:
+     grotesca contemporánea (Vercel) con carácter técnico-premium tipo Stripe/Apple
+     — sustituye a la serif editorial (Cormorant) que desentonaba con el norte.
+     · --font-sans   → cuerpo + UI + titulares (Geist, con tracking negativo óptico)
+     · --font-display→ titulares grandes (misma Geist; el nombre marca intención)
+     · --font-mono   → numerales/KPI tabulares (Geist Mono, sabor técnico Stripe) */
+  --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', 'Menlo', monospace;
+  /* Alias heredado: componentes que aún piden --font-serif reciben la display. */
+  --font-serif: var(--font-display);
+  /* Escala tipografica — recalibrada, restraint Stripe/Apple. */
+  --fs-h1: 40px;
+  --fs-h2: 27px;
+  --fs-num: 32px; /* numerales grandes (mono) */
+  --fs-num-lg: 40px;
+  --fs-body: 15px;
   --fs-label: 11px;
-  --tracking-label: 0.16em; /* .13–.22em */
+  --tracking-label: 0.14em; /* labels uppercase pequeñas */
+  /* Tracking óptico: negativo en display (las letras "se abren" al crecer). */
+  --tracking-display: -0.022em;
+  --tracking-tight: -0.014em; /* titulares medianos / botones */
 
   /* === ALEATICA · Estado de plaza/puesto -> color (contrato §4) ===
      Mapa unico reutilizable por todas las vistas. */
   --state-occupied-bg: var(--brand-green-soft);
-  --state-occupied-border: #c3e08f;
+  --state-occupied-border: #c3d6c8;
   --state-occupied-ink: var(--brand-green-deep);
   --state-released-bg: var(--brand-blue-soft);
-  --state-released-border: #a6dbf2;
+  --state-released-border: #bcdcec;
   --state-released-ink: var(--brand-blue-deep);
-  --state-pending-bg: #fcf3cc;
-  --state-pending-border: #eed873;
+  --state-pending-bg: #fbf1cf;
+  --state-pending-border: #e7d597;
   --state-pending-ink: var(--amber-deep);
   --state-request-bg: var(--orange-soft);
-  --state-request-border: #f6c988;
+  --state-request-border: #f0cf9e;
   --state-request-ink: var(--orange-deep);
   --state-free-bg: var(--panel-2);
   --state-free-border: var(--line-strong);
@@ -73,15 +90,15 @@
   --text: var(--ink);
   --text-muted: var(--ink-faint);
   --text-soft: var(--ink-soft);
-  --highlight: #faf6ea;
+  --highlight: #f6f5f0;
 
   /* === Corporativa (alias heredados -> ALEATICA) === */
   --green: var(--brand-green);
   --green-dark: var(--brand-green-deep);
   --green-soft: var(--brand-green-soft);
   --green-border: var(--state-occupied-border);
-  --green-darker: #385a12;
-  --green-focus: #8fc65a;
+  --green-darker: var(--brand-green-deep);
+  --green-focus: #2f9c62;
   --curve-orange: var(--brand-orange);
   --avatar-bg: #f5c4b3;
   --avatar-text: #712b13;
@@ -90,10 +107,10 @@
   --blue-soft: var(--brand-blue-soft);
   --blue-border: var(--state-released-border);
   --blue-darker: var(--brand-blue-deep);
-  --red: #e24b4a;
+  --red: #c1392f; /* destructivo contenido (era neón #e24b4a) */
   --red-text: #a32d2d;
-  --red-soft: #fcebeb;
-  --red-border: #f09595;
+  --red-soft: #fbecea;
+  --red-border: #eaa9a4;
 
   /* === Estado (alias heredados -> ALEATICA) === */
   --amber-soft: var(--state-pending-bg);
@@ -148,8 +165,13 @@
   --radius-panel: 14px; /* tarjetas/paneles (contrato §5) */
   --radius-pill: 20px; /* pills (contrato §5) */
 
-  /* Sombra de paneles (contrato §5). */
-  --shadow-panel: 0 30px 60px -48px rgba(43, 42, 40, 0.5);
+  /* Sombra de paneles: elevación SUAVE EN CAPAS (Stripe/Apple) — contacto fino
+     + halo ambiental amplio, nunca una sombra plana y dura. */
+  --shadow-panel: 0 30px 60px -48px rgba(27, 26, 23, 0.42);
+  --shadow-card: 0 1px 1px rgba(27, 26, 23, 0.04), 0 2px 6px -2px rgba(27, 26, 23, 0.08),
+    0 12px 28px -14px rgba(27, 26, 23, 0.1);
+  --shadow-card-hover: 0 1px 1px rgba(27, 26, 23, 0.05), 0 4px 10px -3px rgba(27, 26, 23, 0.1),
+    0 18px 40px -18px rgba(27, 26, 23, 0.16);
 
   /* Espaciado */
   --space-1: 4px;
@@ -215,6 +237,8 @@ body.theme-dark {
   --shadow-2: 0 4px 12px -4px rgba(0, 0, 0, 0.5);
   --shadow-3: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
   --shadow-4: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.55);
+  --shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.45), 0 16px 38px -16px rgba(0, 0, 0, 0.7);
 }
 
 body.theme-dark {
@@ -247,9 +271,14 @@ body.theme-dark {
   /* Variantes "deep" (contrato §1): en claro son tonos oscuros usados como texto
      de acento (eyebrow, numerales, tinta de estado). Sobre superficie oscura hay
      que aclararlas para conservar contraste (WCAG AA en texto pequeño). */
-  --brand-green-deep: #cfe6a8;
+  --brand-green-deep: #a7e0bd;
   --brand-blue-deep: #bcdcff;
   --orange-deep: #f7c98a;
+  /* Acento primario más luminoso sobre superficie oscura (botones/activo/foco). */
+  --brand-green: #34a86a;
+  --brand-green-hover: #3cb976;
+  --brand-green-active: #2c8f5a;
+  --green-focus: #3cb976;
   --amber-deep: #f0cf94;
   --taupe-deep: #cbc3bb;
   --green-soft: var(--brand-green-soft);

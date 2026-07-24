@@ -11,6 +11,89 @@
 
 ---
 
+# RESTYLE 2026 — Lenguaje visual PREMIUM (norte: Stripe / Apple)
+
+> **Autoridad vigente del lenguaje visual.** Esta sección **prevalece** sobre la
+> tipografía y la paleta descritas más abajo (§2–§3, redacción ALEATICA original).
+> Objetivo: acabado "caro y profesional" — neutro cálido, tipografía muy cuidada,
+> profundidad sutil en capas, acento restringido, micro-motion pulido. Fuente única
+> de verdad de tokens: [`frontend/src/styles/tokens.css`](../frontend/src/styles/tokens.css).
+
+## R.1 Tipografía — **Geist** (auto-alojada, sin CDN)
+
+- **Familia única**: **Geist Variable** (Vercel) para cuerpo, UI **y** titulares —
+  grotesca contemporánea con carácter técnico-premium. Sustituye a la serif editorial
+  Cormorant Garamond (desentonaba con el norte) y a Mulish.
+- **Numerales / KPI**: **Geist Mono Variable**, cifras **tabulares** (`tnum`, `zero`)
+  — sabor técnico/financiero Stripe, columnas perfectamente alineadas.
+- **Auto-alojamiento**: `@fontsource-variable/geist` + `@fontsource-variable/geist-mono`
+  importados en `src/main.tsx` (npm, woff2 empaquetados por Vite; **jamás** `<link>` a
+  Google Fonts). Tokens: `--font-sans`, `--font-display`, `--font-mono` (alias
+  `--font-serif` → display, por retrocompatibilidad).
+- **Tracking óptico** (clave del look): titulares con tracking **negativo**
+  (`--tracking-display: -0.022em`), cuerpo casi neutro (`-0.006em`), labels uppercase
+  con tracking amplio (`--tracking-label: 0.14em`). Leading ceñido en display.
+- **Pesos**: cuerpo 400, énfasis 500, titulares 600. Botones **550–560** (se abandona
+  el 700/800 anterior). `font-optical-sizing: auto`.
+- **Escala**: `--fs-h1 40px`, `--fs-h2 27px`, `--fs-body 15px`, `--fs-num 32/40px`.
+
+## R.2 Color — acento **restringido** + neutro cálido
+
+**Acento (único acento fuerte de la app):** el verde ALEATICA se reinterpreta como
+**verde pino profundo desaturado** — mismo hue de marca, sobriedad Stripe/Linear.
+
+| Token | Light | Dark | Uso |
+|---|---|---|---|
+| `--brand-green` | `#1a7548` | `#34a86a` | Primario: botones, nav activo, foco |
+| `--brand-green-hover` | `#155f3a` | `#3cb976` | Hover del primario |
+| `--brand-green-active` | `#0f4730` | `#2c8f5a` | Pulsado del primario |
+| `--brand-green-deep` | `#124e30` | `#a7e0bd` | Tinta de acento (eyebrow, numerales) |
+| `--brand-green-soft` | `#e8efe9` | `rgba(119,184,41,.22)` | Fondo suave (nav activo / ocupado) |
+
+**Neutros cálidos** (Stripe/Apple): `--bg #f4f3ef` · `--panel #ffffff` ·
+`--panel-2 #faf9f5` · `--ink #1b1a17` · `--ink-soft #5f5c56` · `--ink-faint #918d84`.
+Hairlines discretas: `--line rgba(27,26,23,.10)`. Dark: neutros cálidos oscuros
+(no negro puro): `--bg #1c1c19` · `--panel #26261f` · `--ink #e9e7df`.
+
+**Estado (desaturado, mismo hue):** ocupado=verde · liberado=`--brand-blue #1f88bd`
+(cian calmado) · pendiente=`--brand-yellow #e8c34a` (oro suave, se abandona el lima
+neón) · solicitud=`--brand-orange #e08a1e` (ámbar contenido). Destructivo:
+`--red #c1392f` (contenido, se abandona `#e24b4a`).
+
+## R.3 Superficies y profundidad
+
+- **Sombras suaves EN CAPAS** (nunca planas ni duras): `--shadow-card` combina
+  contacto fino + halo ambiental amplio; `--shadow-card-hover` levanta un punto.
+  Cards, tablas, `auth-card` y KPI usan `--shadow-card`.
+- **Radios**: controles `--radius-md 8px`, tarjetas/paneles `--radius-panel 14px`,
+  pills `--radius-pill 20px`.
+
+## R.4 Componentes núcleo (antes → después)
+
+- **Tablas**: cabecera negra (`background: --ink`) **→** cabecera Stripe **quieta**
+  (fondo `--panel-2`, etiqueta versalita 11px `letter-spacing .07em`, tinta
+  `--ink-faint`, hairline inferior). Filas con separador hairline + hover cálido sutil,
+  padding `13px 18px`, card con `--shadow-card`.
+- **Botones**: saturación bootstrap + peso 800 **→** primario verde pino con doble
+  sombra en capas + filete interior superior claro ("atrapa la luz"), peso 560;
+  secundario **ghost** (panel + hairline); destructivo rojo contenido. Se conserva el
+  pulsado táctil (`whileTap` + `--press-scale`), afinado (hover oscurece el tono, sin
+  `filter: brightness`; active con sombra interior).
+- **Modales**: barra de cabecera de color saturado **→** cabecera **quieta** (título
+  Geist sobre `--panel-2` + hairline) con **filete de acento superior** + icono teñido
+  según semántica (`green`/`red`/`amber`); overlay con `backdrop-filter: blur(3px)` y
+  scrim cálido; superficie con `--shadow-4` y radio `--radius-panel`.
+- **Pills**: peso 700 **→** 600, tracking ceñido.
+
+## R.5 Motion
+
+Sin cambios de arquitectura: se reutilizan los tokens `--dur-*` / `--ease-*` y los
+resortes de `theme/motion.ts` (Ola A). Regla vigente: animar solo `transform`/`opacity`,
+UI < 300 ms, entradas `ease-out`, resortes sin rebote salvo momentum; todo respeta
+`prefers-reduced-motion`.
+
+---
+
 ## 1. Identidad de marca
 
 - **Familia QRIA (ALEATICA)**: conjunto de aplicaciones corporativas. `parking` es una de ellas.
