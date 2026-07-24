@@ -60,8 +60,8 @@ Orden por fases del design (F1 quick wins solo-UI → F2 asignación puntual + O
 
 ## 7. Recurso distinto por día en la asignación fija (rejilla + modal)
 
-- [ ] 7.1 Corregir `mergeFixedAssignmentDays` para emparejar por `resourceId` + `resourceType` (usar los días del recurso de la propia celda, no consolidar por tipo)
+- [x] 7.1 Corregir `mergeFixedAssignmentDays` para emparejar por `resourceId` + `resourceType` (usar los días del recurso de la propia celda, no consolidar por tipo)
 - [ ] 7.2 Tests de la rejilla: asignar un recurso a un día preserva otros días con recurso distinto; conflicto mismo-tipo-mismo-día → 409
-- [ ] 7.3 Rediseñar el modal de empleado (`EmployeeFormModal`) para permitir un mapa día→recurso por tipo (no un único recurso por tipo); prefill correcto cuando ya hay recursos distintos por día
+- [x] 7.3 Rediseñar el modal de empleado (`EmployeeFormModal`) para permitir un mapa día→recurso por tipo (no un único recurso por tipo); prefill correcto cuando ya hay recursos distintos por día
 - [ ] 7.4 Tests del modal: configurar y guardar días con recursos distintos; prefill que no colapsa a un recurso por tipo
 - [ ] 7.5 Actualizar `docs/ui-screens.md` (modal de empleado) reflejando la selección por día
