@@ -14,6 +14,14 @@ interface DialogProps {
   // Panel más ancho (flujos ricos como el asistente de reserva). Aditivo: el
   // resto de diálogos conservan el ancho base sin cambios.
   wide?: boolean;
+  // Panel a pantalla completa (con inset en desktop, edge-to-edge en móvil).
+  // Pensado para flujos multipaso (asistente de reserva) donde el contenido
+  // interno necesita todo el alto de viewport disponible. Aditivo: el resto
+  // de diálogos conservan el tamaño base sin cambios.
+  fullScreen?: boolean;
+  // Quita el padding por defecto de rx-dialog-body para que el contenido
+  // gestione sus propias zonas (p.ej. cabecera sticky + área con scroll).
+  flushBody?: boolean;
   // Icono Tabler opcional (sin prefijo "ti-").
   icon?: string;
   // Oculta el botón cerrar (x) para diálogos de decisión obligatoria.
@@ -34,11 +42,20 @@ export function Dialog({
   tone = 'green',
   narrow = false,
   wide = false,
+  fullScreen = false,
+  flushBody = false,
   icon,
   closeable = true,
 }: DialogProps) {
   const { t } = useTranslation();
-  const widthClass = narrow ? ' rx-dialog-narrow' : wide ? ' rx-dialog-wide' : '';
+  const widthClass = fullScreen
+    ? ' rx-dialog-full'
+    : narrow
+      ? ' rx-dialog-narrow'
+      : wide
+        ? ' rx-dialog-wide'
+        : '';
+  const bodyClass = flushBody ? ' is-flush' : '';
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
@@ -55,7 +72,7 @@ export function Dialog({
               </RadixDialog.Close>
             ) : null}
           </div>
-          <div className="rx-dialog-body">{children}</div>
+          <div className={`rx-dialog-body${bodyClass}`}>{children}</div>
           {footer ? <div className="rx-dialog-footer">{footer}</div> : null}
         </RadixDialog.Content>
       </RadixDialog.Portal>

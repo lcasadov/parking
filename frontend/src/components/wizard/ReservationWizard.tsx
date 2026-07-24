@@ -72,6 +72,21 @@ function isStepValid(step: number, state: WizardState, dates: string[]): boolean
   return true;
 }
 
+// Índice de paso más alto alcanzable "desde cero" con los datos actuales:
+// recorre los pasos en orden y se detiene en el primero inválido. Se recalcula
+// en cada render, así que si el usuario invalida un paso previo (p.ej. borra
+// todas las fechas) los pasos que dependían de él dejan de ser clicables.
+function computeReachableStep(state: WizardState, dates: string[]): number {
+  let max = STEP_RESOURCE;
+  for (let s = STEP_RESOURCE; s < LAST_STEP; s += 1) {
+    if (!isStepValid(s, state, dates)) {
+      break;
+    }
+    max = s + 1;
+  }
+  return max;
+}
+
 // Asistente de reserva ADMIN (modal multipaso): crea, en nombre de un empleado,
 // una reserva APPROVED por cada fecha elegida vía POST /requests/admin (que envía
 // el email). Reutiliza las primitivas Dialog/Button, el plano y los hooks de datos.
@@ -86,6 +101,7 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
   const booking = useReservationBooking();
   const employeesQuery = useSelectableReleaseEmployeesQuery();
   const dates = useMemo(() => resolveWizardDates(state), [state]);
+  const reachableStep = useMemo(() => computeReachableStep(state, dates), [state, dates]);
 
   const employeeName =
     employeesQuery.data?.find((candidate) => candidate.id === state.employeeId)?.fullName ??
@@ -114,6 +130,16 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
   function goBack(): void {
     setDirection(-1);
     setStep((prev) => Math.max(prev - 1, STEP_RESOURCE));
+  }
+
+  // Navegación directa desde el stepper: solo a pasos ya alcanzados (clic en
+  // el propio paso actual no hace nada).
+  function goToStep(target: number): void {
+    if (target === step || target > reachableStep) {
+      return;
+    }
+    setDirection(target > step ? 1 : -1);
+    setStep(target);
   }
 
   async function handleConfirm(): Promise<void> {
@@ -202,7 +228,8 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
   return (
     <Dialog
       open
-      wide
+      fullScreen
+      flushBody
       onOpenChange={(next) => {
         if (!next) {
           onClose();
@@ -213,22 +240,33 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
       footer={footer}
     >
       {outcomes ? (
-        <StepResult outcomes={outcomes} employeeName={employeeName} />
+        <div className="rzw-scroll-zone">
+          <StepResult outcomes={outcomes} employeeName={employeeName} />
+        </div>
       ) : (
         <>
-          <WizardStepper steps={stepLabels} current={step} />
-          <div className="rzw-viewport">
-            <AnimatePresence mode="wait" initial={false} custom={direction}>
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: enterX }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -enterX }}
-                transition={{ duration: reduceMotion ? 0 : DUR.base, ease: EASE.out }}
-              >
-                {stepContent}
-              </motion.div>
-            </AnimatePresence>
+          <div className="rzw-stepper-zone">
+            <WizardStepper
+              steps={stepLabels}
+              current={step}
+              reachable={reachableStep}
+              onStepClick={goToStep}
+            />
+          </div>
+          <div className="rzw-scroll-zone">
+            <div className="rzw-viewport">
+              <AnimatePresence mode="wait" initial={false} custom={direction}>
+                <motion.div
+                  key={step}
+                  initial={{ opacity: 0, x: enterX }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -enterX }}
+                  transition={{ duration: reduceMotion ? 0 : DUR.base, ease: EASE.out }}
+                >
+                  {stepContent}
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
         </>
       )}

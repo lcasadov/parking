@@ -1430,6 +1430,7 @@ export const es = {
       confirming: 'Creando…',
       done: 'Hecho',
       another: 'Otra reserva',
+      goToStep: 'Ir al paso {{label}}',
     },
     resource: {
       lead: '¿Qué tipo de recurso quieres reservar?',

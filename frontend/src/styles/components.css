@@ -4203,11 +4203,84 @@ button.pop-row.pop-danger:disabled {
 .rx-dialog-wide {
   width: 900px;
 }
+/* Variante a pantalla completa (flujos multipaso como el asistente de
+   reserva): inset generoso en desktop, borde a borde en móvil. Sustituye el
+   centrado por transform en desktop por top/bottom fijos + centrado
+   horizontal, para que el contenido interno disponga de todo el alto. */
+.rx-dialog-full {
+  top: var(--space-5);
+  bottom: var(--space-5);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(1180px, calc(100vw - var(--space-5) * 2));
+  max-width: none;
+  height: auto;
+  max-height: none;
+}
 .rx-dialog[data-state='open'] {
   animation: rx-dialog-in var(--dur-slow) var(--ease-out);
 }
 .rx-dialog[data-state='closed'] {
   animation: rx-dialog-out var(--dur-fast) var(--ease-in);
+}
+.rx-dialog-full[data-state='open'] {
+  animation: rx-dialog-full-in var(--dur-slow) var(--ease-out);
+}
+.rx-dialog-full[data-state='closed'] {
+  animation: rx-dialog-full-out var(--dur-fast) var(--ease-in);
+}
+@keyframes rx-dialog-full-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+@keyframes rx-dialog-full-out {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.99);
+  }
+}
+@media (max-width: 640px) {
+  .rx-dialog-full {
+    inset: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100vw;
+    border-radius: 0;
+  }
+  @keyframes rx-dialog-full-in {
+    from {
+      opacity: 0;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes rx-dialog-full-out {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: none;
+    }
+  }
 }
 .rx-dialog-header {
   min-height: 48px;
@@ -4257,6 +4330,15 @@ button.pop-row.pop-danger:disabled {
   padding: var(--space-5);
   color: var(--text);
   overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Sin padding propio: el contenido gestiona sus zonas (p.ej. cabecera
+   sticky + área con scroll independiente), como el asistente de reserva. */
+.rx-dialog-body.is-flush {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 .rx-dialog-footer {
   border-top: 0.5px solid var(--border);
@@ -5879,17 +5961,35 @@ button.pop-row.pop-danger:disabled {
   letter-spacing: -0.02em;
 }
 
+/* ---- Cabecera sticky + área con scroll (layout fijo del asistente) ----
+   El Dialog fullScreen+flushBody delega el padding al contenido: la zona del
+   stepper queda pegada (sticky) bajo la cabecera del diálogo y NUNCA
+   scrollea; solo .rzw-scroll-zone se desplaza si el paso no cabe entero. */
+.rzw-stepper-zone {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg-card);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 0.5px solid var(--border);
+}
+.rzw-scroll-zone {
+  padding: var(--space-5);
+  flex: 1 1 auto;
+}
+
 /* ---- Stepper de progreso ---- */
 .rzw-stepper {
   position: relative;
   list-style: none;
-  margin: 0 0 var(--space-6);
+  margin: 0;
   padding: 0 6px;
   display: flex;
   justify-content: space-between;
 }
 .rzw-stepper-rail {
   position: absolute;
+  z-index: 0;
   top: 15px;
   left: 30px;
   right: 30px;
@@ -5914,7 +6014,38 @@ button.pop-row.pop-danger:disabled {
   flex: 1;
   min-width: 0;
 }
+/* Nodo del paso: <button> si es alcanzable (clicable), <div> si es futuro. */
+.rzw-step-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 2px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  font: inherit;
+  color: inherit;
+  border-radius: var(--radius-md);
+}
+button.rzw-step-btn {
+  cursor: pointer;
+}
+button.rzw-step-btn:hover .rzw-step-dot {
+  transform: scale(1.06);
+}
+button.rzw-step-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.rzw-step-btn.is-static {
+  cursor: default;
+}
 .rzw-step-dot {
+  position: relative;
+  z-index: 1;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -5923,6 +6054,8 @@ button.pop-row.pop-danger:disabled {
   font-size: var(--text-sm);
   font-weight: 640;
   font-variant-numeric: tabular-nums;
+  /* Fondo SIEMPRE opaco: el conector (.rzw-stepper-rail) vive detrás
+     (z-index 0) y nunca debe verse a través del número/check. */
   background: var(--bg-card);
   color: var(--text-muted);
   box-shadow: inset 0 0 0 1.5px var(--border);
@@ -5936,10 +6069,12 @@ button.pop-row.pop-danger:disabled {
   font-size: 16px;
 }
 .rzw-step.is-active .rzw-step-dot {
-  background: var(--accent-soft);
+  /* Anillo esmeralda, pero el centro sigue siendo un color opaco de panel:
+     nunca un tono "soft" translúcido (dejaría pasar la línea del rail). */
+  background: var(--bg-card);
   color: var(--accent);
   box-shadow:
-    inset 0 0 0 1.5px var(--accent-line),
+    inset 0 0 0 2px var(--accent),
     0 0 0 4px var(--accent-soft);
   transform: scale(1.06);
 }
@@ -5957,6 +6092,9 @@ button.pop-row.pop-danger:disabled {
   line-height: 1.2;
 }
 .rzw-step.is-active .rzw-step-label {
+  color: var(--text);
+}
+button.rzw-step-btn:hover .rzw-step-label {
   color: var(--text);
 }
 
@@ -6123,12 +6261,15 @@ button.pop-row.pop-danger:disabled {
 /* ---- Paso 2 · Calendario + chips ---- */
 .rzw-dates-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  /* Columna del calendario acotada (no crece con el ancho del diálogo
+     fullScreen): así las celdas se mantienen compactas y el paso cabe en
+     alto sin scroll. La columna de chips absorbe el resto del ancho. */
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
   gap: var(--space-5);
 }
 .rzw-cal {
   border-radius: var(--radius-panel);
-  padding: var(--space-4);
+  padding: var(--space-3);
   background: var(--bg-card);
   box-shadow: inset 0 0 0 1px var(--border);
 }
@@ -6176,6 +6317,11 @@ button.pop-row.pop-danger:disabled {
 }
 .rzw-cal-cell {
   aspect-ratio: 1;
+  /* Techo de tamaño independiente del ancho de columna: garantiza que el
+     calendario quepa en alto incluso en el layout de una sola columna
+     (móvil) donde la columna ya no está acotada por rzw-dates-layout. */
+  max-width: 38px;
+  margin: 0 auto;
   border-radius: 9px;
   display: grid;
   place-items: center;

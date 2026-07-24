@@ -1426,6 +1426,7 @@ export const en = {
       confirming: 'Creating…',
       done: 'Done',
       another: 'New reservation',
+      goToStep: 'Go to step {{label}}',
     },
     resource: {
       lead: 'What type of resource do you want to book?',
