@@ -6,6 +6,7 @@ import { DeskFormModal } from '../components/DeskFormModal';
 import { Legend } from '../components/Legend';
 import { PageHeader } from '../components/PageHeader';
 import { SearchBox } from '../components/SearchBox';
+import { StatTile } from '../components/StatTile';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
@@ -14,6 +15,49 @@ import { useDesksQuery, useSetDeskActivation } from '../hooks/useDesks';
 import type { Desk } from '../types/desk';
 
 const PAGE_SIZE = 20;
+const COUNT_SIZE = 1;
+
+// Fila de KPIs de inventario de puestos (total / activos / inactivos). Consultas
+// de recuento propias (size=1) sobre el mismo endpoint, reflejan el inventario
+// GLOBAL con independencia del filtro visible. Subcomponente aislado (S3776).
+function DeskStats() {
+  const { t } = useTranslation();
+  const totalQuery = useDesksQuery({ page: 0, size: COUNT_SIZE });
+  const activeQuery = useDesksQuery({ page: 0, size: COUNT_SIZE, active: true });
+  const total = totalQuery.data?.totalElements;
+  const active = activeQuery.data?.totalElements;
+  if (total === undefined || active === undefined) {
+    return null;
+  }
+  const inactive = Math.max(total - active, 0);
+  const unit = t('desks.stats.unit');
+  return (
+    <div className="mgmt-stats">
+      <StatTile
+        dot="var(--ink-faint)"
+        icon="armchair"
+        label={t('desks.stats.total')}
+        value={total}
+        unit={unit}
+      />
+      <StatTile
+        dot="var(--accent)"
+        icon="circle-check"
+        label={t('desks.stats.active')}
+        value={active}
+        unit={unit}
+        sub={t('desks.stats.ofTotal', { total })}
+      />
+      <StatTile
+        dot="var(--rel)"
+        icon="circle-off"
+        label={t('desks.stats.inactive')}
+        value={inactive}
+        unit={unit}
+      />
+    </div>
+  );
+}
 
 type ActiveFilter = 'all' | 'active' | 'inactive';
 
@@ -100,27 +144,35 @@ export function DesksPage() {
         }
       />
 
-      <Toolbar ariaLabel={t('desks.searchLabel')}>
-        <SearchBox
-          label={t('desks.searchLabel')}
-          placeholder={t('desks.searchPlaceholder')}
-          value={q}
-          onValueChange={setQ}
-        />
-        <label className="field-label" htmlFor="desks-filter">
-          {t('desks.filterLabel')}
-        </label>
-        <select
-          id="desks-filter"
-          className="field-input"
-          value={filter}
-          onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
-        >
-          <option value="all">{t('desks.filter.all')}</option>
-          <option value="active">{t('desks.filter.active')}</option>
-          <option value="inactive">{t('desks.filter.inactive')}</option>
-        </select>
-      </Toolbar>
+      <DeskStats />
+
+      <div className="filter-card">
+        <div className="filter-card-head">
+          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
+          {t('common.filters')}
+        </div>
+        <Toolbar ariaLabel={t('desks.searchLabel')}>
+          <SearchBox
+            label={t('desks.searchLabel')}
+            placeholder={t('desks.searchPlaceholder')}
+            value={q}
+            onValueChange={setQ}
+          />
+          <label className="field-label" htmlFor="desks-filter">
+            {t('desks.filterLabel')}
+          </label>
+          <select
+            id="desks-filter"
+            className="field-input"
+            value={filter}
+            onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
+          >
+            <option value="all">{t('desks.filter.all')}</option>
+            <option value="active">{t('desks.filter.active')}</option>
+            <option value="inactive">{t('desks.filter.inactive')}</option>
+          </select>
+        </Toolbar>
+      </div>
 
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 

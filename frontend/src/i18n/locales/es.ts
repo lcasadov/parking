@@ -14,6 +14,7 @@ export const es = {
     loading: 'Cargando…',
     retry: 'Reintentar',
     search: 'Buscar',
+    filters: 'Filtros',
     listAnd: 'y',
     dayIncluded: 'incluido',
     dayExcluded: 'no incluido',
@@ -422,6 +423,13 @@ export const es = {
     floorFilter: {
       all: 'Todas las plantas',
     },
+    stats: {
+      total: 'Total',
+      active: 'Activas',
+      inactive: 'Inactivas',
+      unit: 'plazas',
+      ofTotal: 'de {{total}}',
+    },
     floorOption: 'Planta {{floor}}',
     floorValue: 'Planta {{floor}}',
     columns: {
@@ -490,6 +498,13 @@ export const es = {
       all: 'Todos',
       active: 'Activos',
       inactive: 'Inactivos',
+    },
+    stats: {
+      total: 'Total',
+      active: 'Activos',
+      inactive: 'Inactivos',
+      unit: 'puestos',
+      ofTotal: 'de {{total}}',
     },
     columns: {
       number: 'Número',
@@ -1291,6 +1306,10 @@ export const es = {
     },
     empty: 'No hay entradas de auditoría que mostrar.',
     loadError: 'No se pudo cargar la auditoría.',
+    eventsCount_one: '{{count}} evento',
+    eventsCount_other: '{{count}} eventos',
+    inRange: 'en el rango seleccionado',
+    allTime: 'histórico completo',
     pagination: {
       previous: 'Anterior',
       next: 'Siguiente',
@@ -1312,6 +1331,12 @@ export const es = {
       allResults: 'Todos los resultados',
       from: 'Desde',
       to: 'Hasta',
+    },
+    stats: {
+      total: 'Total',
+      ok: 'Correctos',
+      failed: 'Fallidos',
+      unit: 'accesos',
     },
     result: {
       OK: 'Correcto',
@@ -1355,8 +1380,14 @@ export const es = {
     saveError: 'No se pudo actualizar la configuración.',
     approvalMode: {
       label: 'Modo de aprobación de solicitudes',
+      heading: 'Resolución de solicitudes',
       description:
         'Define cómo se resuelven las nuevas solicitudes de plaza o puesto de los empleados.',
+      activeBadge: 'Modo actual',
+      short: {
+        MANUAL: 'Manual',
+        AUTOMATIC: 'Automático',
+      },
       options: {
         MANUAL: 'Manual (el administrador aprueba)',
         AUTOMATIC: 'Automático (asignación inmediata)',

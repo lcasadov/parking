@@ -65,8 +65,13 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
     return <TableEmpty icon="history-off" message={t('audit.empty')} />;
   }
 
+  const totalElements = query.data?.totalElements ?? entries.length;
+
   return (
     <>
+      <p className="records-meta">
+        {t('audit.eventsCount', { count: totalElements })}
+      </p>
       <div className="table-scroll table-cards-mobile">
         <table className="table">
           <thead>
@@ -90,7 +95,9 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
                 <td data-label={t('audit.columns.action')}>
                   <span className={`pill ${auditPillClass(entry.action)}`}>{entry.action}</span>
                 </td>
-                <td data-label={t('audit.columns.entity')}>{entityLabel(entry)}</td>
+                <td data-label={t('audit.columns.entity')}>
+                  <span className="mono-chip">{entityLabel(entry)}</span>
+                </td>
                 <td data-label={t('audit.columns.details')}>{entry.details ?? DASH}</td>
               </tr>
             ))}
@@ -161,37 +168,43 @@ export function AuditPage() {
 
       <p className="form-hint">{t('audit.retentionNote')}</p>
 
-      <Toolbar ariaLabel={t('audit.title')}>
-        <Input
-          id="audit-actor"
-          type="number"
-          min={1}
-          label={t('audit.filters.actor')}
-          value={actorId}
-          onChange={(event) => onFilterChange(setActorId, event.target.value)}
-        />
-        <Input
-          id="audit-action"
-          type="text"
-          label={t('audit.filters.action')}
-          value={action}
-          onChange={(event) => onFilterChange(setAction, event.target.value)}
-        />
-        <Input
-          id="audit-from"
-          type="date"
-          label={t('audit.filters.from')}
-          value={from}
-          onChange={(event) => onFilterChange(setFrom, event.target.value)}
-        />
-        <Input
-          id="audit-to"
-          type="date"
-          label={t('audit.filters.to')}
-          value={to}
-          onChange={(event) => onFilterChange(setTo, event.target.value)}
-        />
-      </Toolbar>
+      <div className="filter-card">
+        <div className="filter-card-head">
+          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
+          {t('common.filters')}
+        </div>
+        <Toolbar ariaLabel={t('audit.title')}>
+          <Input
+            id="audit-actor"
+            type="number"
+            min={1}
+            label={t('audit.filters.actor')}
+            value={actorId}
+            onChange={(event) => onFilterChange(setActorId, event.target.value)}
+          />
+          <Input
+            id="audit-action"
+            type="text"
+            label={t('audit.filters.action')}
+            value={action}
+            onChange={(event) => onFilterChange(setAction, event.target.value)}
+          />
+          <Input
+            id="audit-from"
+            type="date"
+            label={t('audit.filters.from')}
+            value={from}
+            onChange={(event) => onFilterChange(setFrom, event.target.value)}
+          />
+          <Input
+            id="audit-to"
+            type="date"
+            label={t('audit.filters.to')}
+            value={to}
+            onChange={(event) => onFilterChange(setTo, event.target.value)}
+          />
+        </Toolbar>
+      </div>
 
       <AuditResults query={query} windowValid={windowValid} page={page} onPageChange={setPage} />
     </section>

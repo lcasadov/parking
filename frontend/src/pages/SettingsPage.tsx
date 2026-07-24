@@ -9,6 +9,31 @@ import type { ApprovalMode } from '../types/settings';
 
 const MODES: ApprovalMode[] = ['MANUAL', 'AUTOMATIC'];
 
+// Icono Tabler por modo (mapa fijo, sin literales repetidos S1192).
+const MODE_ICON: Record<ApprovalMode, string> = {
+  MANUAL: 'user-check',
+  AUTOMATIC: 'bolt',
+};
+
+// Tesela explicativa de un modo de aprobación (presentacional): icono + nombre
+// corto + explicación; resalta el modo actualmente seleccionado con la insignia
+// «Modo actual». Refleja el valor elegido; el control real es el <select>.
+function ModeTile({ mode, active }: { mode: ApprovalMode; active: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <div className={`settings-mode${active ? ' is-active' : ''}`}>
+      <div className="settings-mode-head">
+        <i className={`ti ti-${MODE_ICON[mode]}`} aria-hidden="true" />
+        <span className="settings-mode-name">{t(`settings.approvalMode.short.${mode}`)}</span>
+        {active ? (
+          <span className="settings-mode-badge">{t('settings.approvalMode.activeBadge')}</span>
+        ) : null}
+      </div>
+      <p className="settings-mode-hint">{t(`settings.approvalMode.hints.${mode}`)}</p>
+    </div>
+  );
+}
+
 // Vista ADMIN: configuracion global del sistema. Permite consultar y conmutar el
 // modo de aprobacion de solicitudes (MANUAL/AUTOMATIC) contra GET/PUT /admin/settings
 // (tasks §6.2). RBAC ADMIN garantizado por la ruta protegida.
@@ -54,18 +79,27 @@ export function SettingsPage() {
       ) : null}
 
       {!query.isLoading && !query.isError ? (
-        <form className="settings-card" onSubmit={handleSubmit}>
-          <div className="settings-field">
-            <div className="settings-field-head">
+        <form className="settings-card settings-approval" onSubmit={handleSubmit}>
+          <div className="settings-hero">
+            <span className="settings-hero-icon">
               <i className="ti ti-checklist" aria-hidden="true" />
-              <div>
-                <label className="settings-field-title" htmlFor="approval-mode">
-                  {t('settings.approvalMode.label')}
-                </label>
-                <p className="settings-field-desc">{t('settings.approvalMode.description')}</p>
-              </div>
+            </span>
+            <div>
+              <h2 className="settings-hero-title">{t('settings.approvalMode.heading')}</h2>
+              <p className="settings-hero-desc">{t('settings.approvalMode.description')}</p>
             </div>
+          </div>
 
+          <div className="settings-modes">
+            {MODES.map((mode) => (
+              <ModeTile key={mode} mode={mode} active={value === mode} />
+            ))}
+          </div>
+
+          <div className="settings-control">
+            <label className="field-label" htmlFor="approval-mode">
+              {t('settings.approvalMode.label')}
+            </label>
             <select
               id="approval-mode"
               className="field-input settings-select"
@@ -78,7 +112,6 @@ export function SettingsPage() {
                 </option>
               ))}
             </select>
-            <p className="hint">{t(`settings.approvalMode.hints.${value}`)}</p>
           </div>
 
           <div className="settings-actions">

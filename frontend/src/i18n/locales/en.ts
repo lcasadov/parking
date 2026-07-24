@@ -14,6 +14,7 @@ export const en = {
     loading: 'Loading…',
     retry: 'Retry',
     search: 'Search',
+    filters: 'Filters',
     listAnd: 'and',
     dayIncluded: 'included',
     dayExcluded: 'not included',
@@ -422,6 +423,13 @@ export const en = {
     floorFilter: {
       all: 'All floors',
     },
+    stats: {
+      total: 'Total',
+      active: 'Active',
+      inactive: 'Inactive',
+      unit: 'spaces',
+      ofTotal: 'of {{total}}',
+    },
     floorOption: 'Floor {{floor}}',
     floorValue: 'Floor {{floor}}',
     columns: {
@@ -489,6 +497,13 @@ export const en = {
       all: 'All',
       active: 'Active',
       inactive: 'Inactive',
+    },
+    stats: {
+      total: 'Total',
+      active: 'Active',
+      inactive: 'Inactive',
+      unit: 'desks',
+      ofTotal: 'of {{total}}',
     },
     columns: {
       number: 'Number',
@@ -1289,6 +1304,10 @@ export const en = {
     },
     empty: 'No audit entries to show.',
     loadError: 'The audit log could not be loaded.',
+    eventsCount_one: '{{count}} event',
+    eventsCount_other: '{{count}} events',
+    inRange: 'in the selected range',
+    allTime: 'all time',
     pagination: {
       previous: 'Previous',
       next: 'Next',
@@ -1309,6 +1328,12 @@ export const en = {
       allResults: 'All results',
       from: 'From',
       to: 'To',
+    },
+    stats: {
+      total: 'Total',
+      ok: 'Successful',
+      failed: 'Failed',
+      unit: 'sign-ins',
     },
     result: {
       OK: 'Success',
@@ -1352,7 +1377,13 @@ export const en = {
     saveError: 'Settings could not be updated.',
     approvalMode: {
       label: 'Request approval mode',
+      heading: 'Request resolution',
       description: 'Defines how new space or desk requests from employees are resolved.',
+      activeBadge: 'Current mode',
+      short: {
+        MANUAL: 'Manual',
+        AUTOMATIC: 'Automatic',
+      },
       options: {
         MANUAL: 'Manual (administrator approves)',
         AUTOMATIC: 'Automatic (instant assignment)',

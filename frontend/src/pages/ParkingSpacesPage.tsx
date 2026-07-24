@@ -6,6 +6,7 @@ import { Legend } from '../components/Legend';
 import { PageHeader } from '../components/PageHeader';
 import { ParkingSpaceFormModal } from '../components/ParkingSpaceFormModal';
 import { SearchBox } from '../components/SearchBox';
+import { StatTile } from '../components/StatTile';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
@@ -14,6 +15,50 @@ import { useParkingSpacesQuery, useUpdateParkingSpace } from '../hooks/useParkin
 import type { ParkingSpace } from '../types/parkingSpace';
 
 const PAGE_SIZE = 20;
+const COUNT_SIZE = 1;
+
+// Fila de KPIs de inventario (total / activas / inactivas). Usa consultas de
+// recuento propias (size=1) contra el mismo endpoint para reflejar el inventario
+// GLOBAL con independencia del filtro/planta visible en la tabla. Aislada como
+// subcomponente para no cargar la complejidad de la vista (S3776).
+function ParkingStats() {
+  const { t } = useTranslation();
+  const totalQuery = useParkingSpacesQuery({ page: 0, size: COUNT_SIZE });
+  const activeQuery = useParkingSpacesQuery({ page: 0, size: COUNT_SIZE, active: true });
+  const total = totalQuery.data?.totalElements;
+  const active = activeQuery.data?.totalElements;
+  if (total === undefined || active === undefined) {
+    return null;
+  }
+  const inactive = Math.max(total - active, 0);
+  const unit = t('parkingSpaces.stats.unit');
+  return (
+    <div className="mgmt-stats">
+      <StatTile
+        dot="var(--ink-faint)"
+        icon="parking"
+        label={t('parkingSpaces.stats.total')}
+        value={total}
+        unit={unit}
+      />
+      <StatTile
+        dot="var(--accent)"
+        icon="circle-check"
+        label={t('parkingSpaces.stats.active')}
+        value={active}
+        unit={unit}
+        sub={t('parkingSpaces.stats.ofTotal', { total })}
+      />
+      <StatTile
+        dot="var(--rel)"
+        icon="circle-off"
+        label={t('parkingSpaces.stats.inactive')}
+        value={inactive}
+        unit={unit}
+      />
+    </div>
+  );
+}
 
 type ActiveFilter = 'all' | 'active' | 'inactive';
 
@@ -127,45 +172,53 @@ export function ParkingSpacesPage() {
         }
       />
 
+      <ParkingStats />
+
       <ConfigureParkingCard />
 
-      <Toolbar ariaLabel={t('parkingSpaces.searchLabel')}>
-        <SearchBox
-          label={t('parkingSpaces.searchLabel')}
-          placeholder={t('parkingSpaces.searchPlaceholder')}
-          value={q}
-          onValueChange={setQ}
-        />
-        <label className="field-label" htmlFor="parking-spaces-filter">
-          {t('parkingSpaces.filterLabel')}
-        </label>
-        <select
-          id="parking-spaces-filter"
-          className="field-input"
-          value={filter}
-          onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
-        >
-          <option value="all">{t('parkingSpaces.filter.all')}</option>
-          <option value="active">{t('parkingSpaces.filter.active')}</option>
-          <option value="inactive">{t('parkingSpaces.filter.inactive')}</option>
-        </select>
-        <label className="field-label" htmlFor="parking-spaces-floor">
-          {t('parkingSpaces.filterFloorLabel')}
-        </label>
-        <select
-          id="parking-spaces-floor"
-          className="field-input"
-          value={floorSelectValue}
-          onChange={(event) => handleFloor(event.target.value)}
-        >
-          <option value={ALL_FLOORS}>{t('parkingSpaces.floorFilter.all')}</option>
-          {floorOptions.map((value) => (
-            <option key={value} value={String(value)}>
-              {t('parkingSpaces.floorOption', { floor: value })}
-            </option>
-          ))}
-        </select>
-      </Toolbar>
+      <div className="filter-card">
+        <div className="filter-card-head">
+          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
+          {t('common.filters')}
+        </div>
+        <Toolbar ariaLabel={t('parkingSpaces.searchLabel')}>
+          <SearchBox
+            label={t('parkingSpaces.searchLabel')}
+            placeholder={t('parkingSpaces.searchPlaceholder')}
+            value={q}
+            onValueChange={setQ}
+          />
+          <label className="field-label" htmlFor="parking-spaces-filter">
+            {t('parkingSpaces.filterLabel')}
+          </label>
+          <select
+            id="parking-spaces-filter"
+            className="field-input"
+            value={filter}
+            onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
+          >
+            <option value="all">{t('parkingSpaces.filter.all')}</option>
+            <option value="active">{t('parkingSpaces.filter.active')}</option>
+            <option value="inactive">{t('parkingSpaces.filter.inactive')}</option>
+          </select>
+          <label className="field-label" htmlFor="parking-spaces-floor">
+            {t('parkingSpaces.filterFloorLabel')}
+          </label>
+          <select
+            id="parking-spaces-floor"
+            className="field-input"
+            value={floorSelectValue}
+            onChange={(event) => handleFloor(event.target.value)}
+          >
+            <option value={ALL_FLOORS}>{t('parkingSpaces.floorFilter.all')}</option>
+            {floorOptions.map((value) => (
+              <option key={value} value={String(value)}>
+                {t('parkingSpaces.floorOption', { floor: value })}
+              </option>
+            ))}
+          </select>
+        </Toolbar>
+      </div>
 
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 
