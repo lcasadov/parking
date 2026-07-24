@@ -3,12 +3,15 @@
 // (EmployeeOption, EmployeeWeekOccupancy, EmployeeWeekDay, OccupancyItem).
 
 import type { OccupancyItem } from './occupancy';
+import type { EmployeeCategory } from './employee';
 
-// EmployeeOption: opcion minima de empleado (id + nombre) para el selector.
-// Schema #/components/schemas/EmployeeOption.
+// EmployeeOption: opcion minima de empleado (id + nombre + categoria) para el
+// selector. Schema #/components/schemas/EmployeeOption. La categoria jerarquica
+// determina la planta de auto-asignacion de plaza y se muestra en los selectores.
 export interface EmployeeOption {
   id: number;
   fullName: string;
+  category?: EmployeeCategory;
 }
 
 // EmployeeWeekDay: reservas del empleado para un dia (plaza y/o puesto).

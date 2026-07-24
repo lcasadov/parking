@@ -14,12 +14,14 @@ import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
 import com.aleatica.parking.employee.dto.EmployeeCreateRequest;
+import com.aleatica.parking.employee.dto.EmployeeOptionResponse;
 import com.aleatica.parking.employee.dto.EmployeeResetPasswordResponse;
 import com.aleatica.parking.employee.dto.EmployeeResponse;
 import com.aleatica.parking.employee.dto.EmployeeUpdateRequest;
 import com.aleatica.parking.support.EmployeeTestFactory;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -224,6 +226,24 @@ class EmployeeServiceTest {
         assertThat(response.mustChange()).isTrue();
         assertThat(employee.isPasswordMustChange()).isTrue();
         verify(passwordResetNotifier).notifyReset(eq(employee), eq(temp));
+    }
+
+    @Test
+    void shouldReturnCategory_whenListingSelectableEmployeesForRelease() {
+        // Arrange
+        Employee employee = existing();
+        EmployeeTestFactory.set(employee, "category", EmployeeCategory.GERENTE);
+        given(employeeRepository.findByActiveTrueOrderByFirstNameAscLastNameAsc())
+                .willReturn(List.of(employee));
+
+        // Act
+        List<EmployeeOptionResponse> options = phase1Service.listSelectableForRelease();
+
+        // Assert
+        assertThat(options).singleElement().satisfies(option -> {
+            assertThat(option.id()).isEqualTo(ID);
+            assertThat(option.category()).isEqualTo(EmployeeCategory.GERENTE);
+        });
     }
 
     private EmployeeCreateRequest validCreateRequest() {

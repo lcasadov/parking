@@ -1436,8 +1436,10 @@ export const es = {
       lead: '¿Qué tipo de recurso quieres reservar?',
       parking: 'Plaza de parking',
       parkingDesc: 'Una plaza para el vehículo del empleado.',
+      parkingTag: 'Movilidad',
       desk: 'Puesto de oficina',
       deskDesc: 'Un puesto de trabajo señalado en el plano de la planta.',
+      deskTag: 'Espacio de trabajo',
     },
     dates: {
       modeLabel: 'Modo de selección de fechas',
@@ -1469,13 +1471,14 @@ export const es = {
     location: {
       leadDesk: 'Elige un puesto que esté libre en todas las fechas seleccionadas.',
       leadParking:
-        'Elige una plaza libre en todas las fechas, o deja que se asigne automáticamente.',
+        'Elige una plaza libre en todas las fechas, o deja que se asigne automáticamente por categoría.',
       checking: 'Comprobando disponibilidad…',
       error: 'No se ha podido comprobar la disponibilidad.',
       eligibleCount_one: '{{count}} recurso disponible en todas las fechas',
       eligibleCount_other: '{{count}} recursos disponibles en todas las fechas',
-      anyFree: 'Cualquier plaza libre',
-      anyFreeDesc: 'Se asignará automáticamente la primera plaza libre de cada fecha.',
+      anyFree: 'Asignación automática',
+      anyFreeDesc:
+        'Se asignará la plaza según la categoría del empleado (los cargos superiores, plantas altas). Verás la plaza exacta en el resumen antes de confirmar.',
       orPick: 'o elige una plaza concreta',
       noneParking: 'No hay ninguna plaza libre en todas las fechas elegidas.',
       noneDesk: 'No hay ningún puesto libre en todas las fechas elegidas.',
@@ -1483,12 +1486,19 @@ export const es = {
     summary: {
       resourceType: 'Tipo de recurso',
       employee: 'Empleado',
+      category: 'Categoría',
       location: 'Ubicación',
       dates_one: '{{count}} fecha',
       dates_other: '{{count}} fechas',
       emailNotice:
         'Al confirmar, se notificará por email a {{name}} y su reserva quedará confirmada.',
       unknownEmployee: 'Empleado',
+      autoAssignTitle: 'Plaza asignada automáticamente',
+      autoAssignHint: 'Según la categoría del empleado, por fecha:',
+      autoResolving: 'Calculando la plaza…',
+      autoError: 'No se ha podido calcular la plaza.',
+      autoSpace: 'Plaza {{number}} · Planta {{floor}}',
+      autoNoSpace: 'Sin plaza libre esa fecha',
     },
     result: {
       successTitle: '¡Reservas creadas!',

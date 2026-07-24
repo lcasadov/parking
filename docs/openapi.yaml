@@ -961,13 +961,14 @@ paths:
       operationId: listSelectableReleaseEmployees
       summary: Empleados seleccionables para liberación (ADMIN/AGENCIA)
       description: >
-        Listado de solo lectura de empleados activos (id + nombre) para poblar el
-        selector del flujo de liberación administrativa. No expone datos de
-        contacto ni credenciales y es independiente del CRUD de empleados
+        Listado de solo lectura de empleados activos (id + nombre + categoría) para
+        poblar el selector del flujo de liberación administrativa. La categoría
+        permite al frontend mostrar el rango del empleado en el selector. No expone
+        datos de contacto ni credenciales y es independiente del CRUD de empleados
         (reservado a ADMIN). Accesible a ADMIN y AGENCIA; cualquier otro rol → 403.
       responses:
         '200':
-          description: Empleados seleccionables (id + nombre)
+          description: Empleados seleccionables (id + nombre + categoría)
           content:
             application/json:
               schema:
@@ -1117,6 +1118,42 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/admin/suggested-space:
+    get:
+      tags: [Requests]
+      operationId: getSuggestedParkingSpace
+      summary: Vista previa de la plaza auto-asignada a un empleado (ADMIN)
+      description: >
+        Devuelve la plaza que se auto-asignaría a ese empleado para esa fecha según su
+        categoría/planta, reutilizando la MISMA regla que `POST /requests/admin` y el
+        modo automático de `POST /requests`, sin crear la asignación. Pensado para que
+        el resumen del asistente de reserva muestre la plaza sugerida antes de
+        confirmar. Si no hay ninguna plaza libre esa fecha, responde `200` con
+        `available = false` (no es un error).
+      parameters:
+        - name: employeeId
+          in: query
+          required: true
+          description: Empleado destino de la futura asignación.
+          schema: { type: integer, format: int64 }
+        - name: date
+          in: query
+          required: true
+          description: Fecha a consultar (ISO-8601).
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Plaza sugerida (o `available = false` si no hay disponibilidad)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestedParkingSpace'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/ServerError' }
 
   /requests/pending:
@@ -2237,10 +2274,11 @@ components:
     # ---- Selección de empleado y ocupación semanal para liberación ----
     EmployeeOption:
       type: object
-      description: Opción mínima de empleado (id + nombre) para un selector.
+      description: Opción mínima de empleado (id + nombre + categoría) para un selector.
       properties:
         id: { type: integer, format: int64 }
         fullName: { type: string }
+        category: { $ref: '#/components/schemas/EmployeeCategory' }
     OccupancyOrigin:
       type: string
       description: Origen por el que un recurso queda ocupado para una fecha.
@@ -2346,6 +2384,29 @@ components:
             Recurso a asignar. Opcional en PARKING (auto-asignación por categoría/planta
             si se omite; 409 NO_AVAILABILITY si no hay ninguna plaza libre). Obligatorio
             en DESK (400 si se omite; no hay auto-asignación de puestos).
+    SuggestedParkingSpace:
+      type: object
+      description: >
+        Vista previa de solo lectura de la plaza que se auto-asignaría a un empleado
+        para una fecha (misma regla de categoría/planta que `POST /requests/admin`),
+        sin crear la asignación.
+      properties:
+        available:
+          type: boolean
+          description: Indica si hay una plaza libre que se auto-asignaría.
+        parkingSpaceId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Identificador de la plaza sugerida; null si no hay disponibilidad.
+        number:
+          type: integer
+          nullable: true
+          description: Número humano de la plaza sugerida; null si no hay disponibilidad.
+        floor:
+          type: integer
+          nullable: true
+          description: Planta de la plaza sugerida; null si no hay disponibilidad.
     RequestApproveRequest:
       type: object
       required: [parkingSpaceId]

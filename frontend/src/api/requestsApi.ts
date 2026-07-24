@@ -7,6 +7,7 @@ import type {
   RequestCreateRequest,
   RequestListParams,
   RequestRejectRequest,
+  SuggestedParkingSpace,
 } from '../types/request';
 
 // Endpoints de Requests segun docs/openapi.yaml. baseURL relativo del apiClient.
@@ -80,6 +81,19 @@ export async function adminAssignRequest(body: RequestAdminAssignRequest): Promi
     `${REQUESTS}/admin`,
     buildAdminAssignBody(body),
   );
+  return data;
+}
+
+// GET /requests/admin/suggested-space?employeeId&date (ADMIN): vista previa de la
+// plaza que la auto-asignacion daria al empleado esa fecha (segun categoria/planta),
+// sin crear la asignacion. Alimenta el resumen del asistente antes de confirmar.
+export async function getSuggestedSpace(
+  employeeId: number,
+  date: string,
+): Promise<SuggestedParkingSpace> {
+  const { data } = await apiClient.get<SuggestedParkingSpace>(`${REQUESTS}/admin/suggested-space`, {
+    params: { employeeId, date },
+  });
   return data;
 }
 

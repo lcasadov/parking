@@ -23,6 +23,7 @@ import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.request.dto.SuggestedParkingSpaceResponse;
 import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
@@ -348,6 +349,29 @@ public class RequestService {
     private Employee loadEmployeeById(Long employeeId) {
         return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EntityNotFoundException(MSG_EMPLOYEE_NOT_FOUND + employeeId));
+    }
+
+    /**
+     * Vista previa de solo lectura de la plaza que se auto-asignaria a un empleado para una
+     * fecha concreta (solo {@code ADMIN}), sin llegar a crear la asignacion. Reutiliza
+     * integramente {@link #autoAssignParkingSpace(EmployeeCategory, LocalDate)} (la misma regla
+     * de categoria/planta que {@link #adminAssign(String, RequestAdminAssignRequest)} y el modo
+     * automatico de {@link #create(String, RequestCreateRequest)}): el resumen del asistente de
+     * reserva consulta este endpoint ANTES de confirmar la asignacion puntual, para mostrar al
+     * ADMIN la plaza que le tocaria al empleado destino.
+     *
+     * @param employeeId    empleado destino de la futura asignacion
+     * @param requestedDate fecha para la que se consulta la disponibilidad
+     * @return la plaza sugerida ({@code available = true}), o una respuesta con
+     *         {@code available = false} si no hay ninguna plaza libre esa fecha
+     * @throws EntityNotFoundException si el empleado no existe
+     */
+    @Transactional(readOnly = true)
+    public SuggestedParkingSpaceResponse suggestedSpace(Long employeeId, LocalDate requestedDate) {
+        Employee employee = loadEmployeeById(employeeId);
+        return autoAssignParkingSpace(employee.getCategory(), requestedDate)
+                .map(SuggestedParkingSpaceResponse::from)
+                .orElseGet(SuggestedParkingSpaceResponse::unavailable);
     }
 
     /**

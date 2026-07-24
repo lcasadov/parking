@@ -11,6 +11,7 @@ import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.request.dto.SuggestedParkingSpaceResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -20,8 +21,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -134,6 +137,46 @@ public class RequestController {
         RequestResponse created = concurrencyRetry.execute(
                 () -> requestService.adminAssign(authentication.getName(), request));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * Vista previa de la plaza que se auto-asignaria a un empleado para una fecha concreta
+     * (solo {@code ADMIN}), sin llegar a crear la asignacion. Reutiliza la MISMA regla de
+     * categoria/planta que {@code POST /requests/admin}; sirve para que el resumen del
+     * asistente de reserva muestre la plaza antes de confirmar.
+     *
+     * @param employeeId     empleado destino de la futura asignacion
+     * @param requestedDate  fecha para la que se consulta la disponibilidad
+     * @return {@code 200} con la plaza sugerida, o {@code available = false} si no hay
+     *         ninguna plaza libre esa fecha
+     */
+    @Operation(summary = "Vista previa de la plaza auto-asignada a un empleado (ADMIN)",
+            description = "Devuelve la plaza que se auto-asignaria a ese empleado esa fecha segun "
+                    + "su categoria (misma regla que POST /requests/admin), sin crear la asignacion. "
+                    + "Si no hay ninguna plaza libre, responde 200 con available = false.",
+            security = @SecurityRequirement(name = SESSION_COOKIE))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Plaza sugerida (o available = false "
+                    + "si no hay disponibilidad)"),
+            @ApiResponse(responseCode = "400", description = "employeeId o date ausente o invalido",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Sin permisos (rol distinto de ADMIN)",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Empleado no encontrado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @GetMapping("/admin/suggested-space")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SuggestedParkingSpaceResponse> suggestedSpace(
+            @Parameter(description = "Empleado destino", required = true, example = "15")
+            @RequestParam(name = "employeeId") Long employeeId,
+            @Parameter(description = "Fecha a consultar (ISO-8601)", required = true,
+                    example = "2026-07-10")
+            @RequestParam(name = "date")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(requestService.suggestedSpace(employeeId, date));
     }
 
     /**

@@ -63,15 +63,18 @@ export function MiniCalendar({ anchor, onAnchorChange, state, onPick }: MiniCale
         {cells.map((cell) => {
           const past = isPastDate(cell.iso);
           const selected = isDateSelected(state, cell.iso);
+          const isRange = state.dateMode === 'RANGE';
           const isEdge =
-            state.dateMode === 'RANGE' &&
-            (cell.iso === state.rangeStart || cell.iso === state.rangeEnd);
+            isRange && (cell.iso === state.rangeStart || cell.iso === state.rangeEnd);
+          // Días interiores del rango: relleno suave (los extremos van sólidos).
+          const isRangeMid = selected && isRange && !isEdge;
           const classes = [
             'rzw-cal-cell',
             cell.inMonth ? '' : 'is-out',
             cell.iso === today ? 'is-today' : '',
             selected ? 'is-selected' : '',
             isEdge ? 'is-edge' : '',
+            isRangeMid ? 'is-range-mid' : '',
           ]
             .filter(Boolean)
             .join(' ');

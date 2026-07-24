@@ -12,11 +12,27 @@ interface Option {
   icon: string;
   titleKey: string;
   descKey: string;
+  tagIcon: string;
+  tagKey: string;
 }
 
 const OPTIONS: Option[] = [
-  { type: RESOURCE_PARKING, icon: 'car', titleKey: 'wizard.resource.parking', descKey: 'wizard.resource.parkingDesc' },
-  { type: RESOURCE_DESK, icon: 'armchair', titleKey: 'wizard.resource.desk', descKey: 'wizard.resource.deskDesc' },
+  {
+    type: RESOURCE_PARKING,
+    icon: 'car',
+    titleKey: 'wizard.resource.parking',
+    descKey: 'wizard.resource.parkingDesc',
+    tagIcon: 'steering-wheel',
+    tagKey: 'wizard.resource.parkingTag',
+  },
+  {
+    type: RESOURCE_DESK,
+    icon: 'armchair',
+    titleKey: 'wizard.resource.desk',
+    descKey: 'wizard.resource.deskDesc',
+    tagIcon: 'map-2',
+    tagKey: 'wizard.resource.deskTag',
+  },
 ];
 
 // Paso 1 — Tipo de recurso: dos tarjetas grandes seleccionables (plaza / puesto).
@@ -41,6 +57,10 @@ export function StepResourceType({ value, onChange }: StepResourceTypeProps) {
               </span>
               <span className="rzw-choice-title">{t(option.titleKey)}</span>
               <span className="rzw-choice-desc">{t(option.descKey)}</span>
+              <span className="rzw-choice-tag">
+                <i className={`ti ti-${option.tagIcon}`} aria-hidden="true" />
+                {t(option.tagKey)}
+              </span>
               <span className="rzw-choice-check" aria-hidden="true">
                 <i className="ti ti-check" />
               </span>

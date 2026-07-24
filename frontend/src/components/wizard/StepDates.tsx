@@ -90,9 +90,9 @@ export function StepDates({ state, dates, patch }: StepDatesProps) {
             <ul className="rzw-chips">
               {dates.map((iso) => (
                 <li key={iso}>
-                  <span className="rzw-chip">
+                  <span className="rzw-chip rzw-chip-date-row">
                     <i className="ti ti-calendar" aria-hidden="true" />
-                    <span className="mono">{longDate(iso, i18n.language)}</span>
+                    <span className="rzw-chip-date">{longDate(iso, i18n.language)}</span>
                     <button
                       type="button"
                       className="rzw-chip-x"

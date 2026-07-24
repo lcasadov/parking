@@ -1,5 +1,6 @@
 package com.aleatica.parking.request;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,6 +25,7 @@ import com.aleatica.parking.request.application.ResourceSelectionRequiredExcepti
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.request.dto.SuggestedParkingSpaceResponse;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -52,6 +54,7 @@ class RequestControllerTest {
     private static final String BASE_URL = "/api/v1/requests";
     private static final String MINE_URL = BASE_URL + "/mine";
     private static final String ADMIN_ASSIGN_URL = BASE_URL + "/admin";
+    private static final String SUGGESTED_SPACE_URL = BASE_URL + "/admin/suggested-space";
     private static final String PENDING_URL = BASE_URL + "/pending";
     private static final String ID_URL = BASE_URL + "/42";
     private static final String CANCEL_URL = ID_URL + "/cancel";
@@ -441,6 +444,80 @@ class RequestControllerTest {
                         .content("{\"employeeId\":15,\"requestedDate\":\"2026-07-10\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath(ERROR_PATH).value("NO_AVAILABILITY"));
+    }
+
+    // ---- Vista previa de la plaza auto-asignada (GET /requests/admin/suggested-space) ----
+
+    @Test
+    void shouldReturn401_whenSuggestedSpaceWithoutSession() throws Exception {
+        mockMvc.perform(get(SUGGESTED_SPACE_URL).param("employeeId", "15").param("date", "2026-07-10"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn403_whenEmployeeRequestsSuggestedSpace() throws Exception {
+        mockMvc.perform(get(SUGGESTED_SPACE_URL).with(user(EMP).roles(ROLE_EMPLOYEE))
+                        .param("employeeId", "15").param("date", "2026-07-10"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath(ERROR_PATH).value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldReturn200WithSpace_whenAdminRequestsSuggestedSpaceAndAvailable() throws Exception {
+        // Arrange
+        given(requestService.suggestedSpace(15L, LocalDate.of(2026, 7, 10)))
+                .willReturn(new SuggestedParkingSpaceResponse(true, 8L, 1001, 1));
+
+        // Act / Assert
+        mockMvc.perform(get(SUGGESTED_SPACE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .param("employeeId", "15").param("date", "2026-07-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(true))
+                .andExpect(jsonPath("$.parkingSpaceId").value(8))
+                .andExpect(jsonPath("$.number").value(1001))
+                .andExpect(jsonPath("$.floor").value(1));
+    }
+
+    @Test
+    void shouldReturn200Unavailable_whenAdminRequestsSuggestedSpaceAndNoneFree() throws Exception {
+        // Arrange
+        given(requestService.suggestedSpace(15L, LocalDate.of(2026, 7, 10)))
+                .willReturn(SuggestedParkingSpaceResponse.unavailable());
+
+        // Act / Assert
+        mockMvc.perform(get(SUGGESTED_SPACE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .param("employeeId", "15").param("date", "2026-07-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false))
+                .andExpect(jsonPath("$.parkingSpaceId").value(nullValue()));
+    }
+
+    @Test
+    void shouldReturn404_whenSuggestedSpaceEmployeeUnknown() throws Exception {
+        // Arrange
+        willThrow(new EntityNotFoundException("no")).given(requestService)
+                .suggestedSpace(999L, LocalDate.of(2026, 7, 10));
+
+        // Act / Assert
+        mockMvc.perform(get(SUGGESTED_SPACE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .param("employeeId", "999").param("date", "2026-07-10"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath(ERROR_PATH).value("NOT_FOUND"));
+    }
+
+    @Test
+    void shouldReturn400_whenSuggestedSpaceMissingParams() throws Exception {
+        mockMvc.perform(get(SUGGESTED_SPACE_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath(ERROR_PATH).value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldReturn400_whenSuggestedSpaceDateMalformed() throws Exception {
+        mockMvc.perform(get(SUGGESTED_SPACE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .param("employeeId", "15").param("date", "not-a-date"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath(ERROR_PATH).value("VALIDATION_ERROR"));
     }
 
     private RequestResponse sample(RequestStatus status) {

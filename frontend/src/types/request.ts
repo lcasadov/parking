@@ -86,3 +86,14 @@ export interface RequestListParams {
   size?: number;
   status?: RequestStatus;
 }
+
+// SuggestedParkingSpace: vista previa de la plaza que la auto-asignacion daria a
+// un empleado para una fecha, segun su categoria/planta, SIN crear la asignacion.
+// Schema #/components/schemas/SuggestedParkingSpaceResponse. `available: false`
+// (resto en null) significa "sin plaza libre esa fecha" (no es error, es 200).
+export interface SuggestedParkingSpace {
+  available: boolean;
+  parkingSpaceId: number | null;
+  number: number | null;
+  floor: number | null;
+}

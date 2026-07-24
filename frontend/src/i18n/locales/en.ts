@@ -1432,8 +1432,10 @@ export const en = {
       lead: 'What type of resource do you want to book?',
       parking: 'Parking space',
       parkingDesc: 'A space for the employee’s vehicle.',
+      parkingTag: 'Mobility',
       desk: 'Office desk',
       deskDesc: 'A workstation marked on the floor plan.',
+      deskTag: 'Workspace',
     },
     dates: {
       modeLabel: 'Date selection mode',
@@ -1464,13 +1466,14 @@ export const en = {
     },
     location: {
       leadDesk: 'Pick a desk that is free on every selected date.',
-      leadParking: 'Pick a space free on every date, or let it be assigned automatically.',
+      leadParking: 'Pick a space free on every date, or let it be assigned automatically by category.',
       checking: 'Checking availability…',
       error: 'Availability could not be checked.',
       eligibleCount_one: '{{count}} resource available on every date',
       eligibleCount_other: '{{count}} resources available on every date',
-      anyFree: 'Any free space',
-      anyFreeDesc: 'The first free space for each date will be assigned automatically.',
+      anyFree: 'Automatic assignment',
+      anyFreeDesc:
+        'The space is assigned by the employee’s category (senior roles get upper floors). You will see the exact space in the summary before confirming.',
       orPick: 'or pick a specific space',
       noneParking: 'No space is free on every selected date.',
       noneDesk: 'No desk is free on every selected date.',
@@ -1478,12 +1481,19 @@ export const en = {
     summary: {
       resourceType: 'Resource type',
       employee: 'Employee',
+      category: 'Category',
       location: 'Location',
       dates_one: '{{count}} date',
       dates_other: '{{count}} dates',
       emailNotice:
         'On confirmation, {{name}} will be notified by email and the reservation will be confirmed.',
       unknownEmployee: 'Employee',
+      autoAssignTitle: 'Automatically assigned space',
+      autoAssignHint: 'By the employee’s category, per date:',
+      autoResolving: 'Calculating the space…',
+      autoError: 'The space could not be calculated.',
+      autoSpace: 'Space {{number}} · Floor {{floor}}',
+      autoNoSpace: 'No free space that date',
     },
     result: {
       successTitle: 'Reservations created!',

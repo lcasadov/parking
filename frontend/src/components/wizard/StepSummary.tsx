@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useSelectableReleaseEmployeesQuery } from '../../hooks/useReleaseSelection';
+import { useSuggestedSpaces } from '../../hooks/useSuggestedSpaces';
 import { longDate } from '../../utils/calendar';
 import { PARKING_AUTO, RESOURCE_DESK } from './wizardTypes';
 import type { WizardState } from './wizardTypes';
@@ -9,9 +10,11 @@ interface StepSummaryProps {
   dates: string[];
 }
 
-// Paso 5 — Resumen y confirmación: recap (tipo · empleado · recurso · fechas) y aviso
-// destacado de que al confirmar se notifica por email al empleado. El botón Confirmar
-// vive en el pie del asistente.
+// Paso 5 — Resumen y confirmación: recap (tipo · empleado · categoría · recurso ·
+// fechas) y aviso destacado de que al confirmar se notifica por email al empleado.
+// En auto-asignación de plaza, resuelve y muestra la plaza EXACTA que se asignaría
+// por cada fecha (según la categoría del empleado) ANTES de confirmar. El botón
+// Confirmar vive en el pie del asistente.
 export function StepSummary({ state, dates }: StepSummaryProps) {
   const { t, i18n } = useTranslation();
   const employeesQuery = useSelectableReleaseEmployeesQuery();
@@ -21,13 +24,28 @@ export function StepSummary({ state, dates }: StepSummaryProps) {
   const isDesk = state.resourceType === RESOURCE_DESK;
   const resourceTypeLabel = t(isDesk ? 'wizard.resource.desk' : 'wizard.resource.parking');
   const isAuto = !isDesk && state.parkingChoice === PARKING_AUTO;
-  const locationLabel = isAuto ? t('wizard.location.anyFree') : (state.chosenLabel ?? '—');
+
+  // Preview de auto-asignación por categoría (solo cuando aplica): plaza por fecha.
+  const suggested = useSuggestedSpaces(state.employeeId, dates, isAuto);
 
   const rows = [
     { icon: isDesk ? 'armchair' : 'car', label: t('wizard.summary.resourceType'), value: resourceTypeLabel },
     { icon: 'user', label: t('wizard.summary.employee'), value: employeeName },
-    { icon: 'map-pin', label: t('wizard.summary.location'), value: locationLabel },
   ];
+  if (employee?.category) {
+    rows.push({
+      icon: 'stairs-up',
+      label: t('wizard.summary.category'),
+      value: t(`employees.category.${employee.category}`),
+    });
+  }
+  if (!isAuto) {
+    rows.push({
+      icon: 'map-pin',
+      label: t('wizard.summary.location'),
+      value: state.chosenLabel ?? '—',
+    });
+  }
 
   return (
     <div className="rzw-step-body">
@@ -57,6 +75,48 @@ export function StepSummary({ state, dates }: StepSummaryProps) {
           </dd>
         </div>
       </dl>
+
+      {isAuto ? (
+        <div className="rzw-auto-preview">
+          <p className="rzw-auto-preview-head">
+            <i className="ti ti-wand" aria-hidden="true" />
+            <span>
+              <strong>{t('wizard.summary.autoAssignTitle')}</strong>
+              <br />
+              {t('wizard.summary.autoAssignHint')}
+            </span>
+          </p>
+          <ul className="rzw-auto-preview-list">
+            {suggested.byDate.map((entry) => {
+              const space = entry.space;
+              let value: string;
+              let tone = '';
+              if (entry.isLoading) {
+                value = t('wizard.summary.autoResolving');
+              } else if (entry.isError) {
+                value = t('wizard.summary.autoError');
+                tone = ' is-error';
+              } else if (space?.available) {
+                value = t('wizard.summary.autoSpace', {
+                  number: space.number,
+                  floor: space.floor,
+                });
+              } else {
+                value = t('wizard.summary.autoNoSpace');
+                tone = ' is-warn';
+              }
+              return (
+                <li key={entry.date} className={`rzw-auto-preview-row${tone}`}>
+                  <span className="rzw-auto-preview-date mono">
+                    {longDate(entry.date, i18n.language)}
+                  </span>
+                  <span className="rzw-auto-preview-space">{value}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       <p className="rzw-notice" role="note">
         <i className="ti ti-mail" aria-hidden="true" />

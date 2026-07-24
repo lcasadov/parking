@@ -80,7 +80,15 @@ export function StepEmployee({ employeeId, onChange }: StepEmployeeProps) {
                       size="sm"
                       seed={employee.fullName}
                     />
-                    <span className="rzw-person-name">{employee.fullName}</span>
+                    <span className="rzw-person-main">
+                      <span className="rzw-person-name">{employee.fullName}</span>
+                      {employee.category ? (
+                        <span className="rzw-person-cat">
+                          <i className="ti ti-stairs-up" aria-hidden="true" />
+                          {t(`employees.category.${employee.category}`)}
+                        </span>
+                      ) : null}
+                    </span>
                     <span className="rzw-person-check" aria-hidden="true">
                       <i className="ti ti-check" />
                     </span>
