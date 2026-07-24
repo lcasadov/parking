@@ -11,6 +11,21 @@ export type DateMode = 'SINGLE' | 'RANGE' | 'SCATTER';
 export const PARKING_AUTO = 'AUTO' as const;
 export type ParkingChoice = number | typeof PARKING_AUTO;
 
+// Modo de asignación de ubicación cuando hay varias fechas:
+//  · ALL     — la misma plaza/puesto para todos los días (flujo simple).
+//  · PER_DAY — una elección independiente por cada día.
+export type LocationMode = 'ALL' | 'PER_DAY';
+
+// Elección de ubicación de UN día concreto (modo PER_DAY). `auto` (solo parking)
+// = auto-asignación por categoría ese día (resourceId viaja null). Un recurso
+// concreto lleva `resourceId` + `label` y `auto=false`. Sin elegir = ausencia de
+// entrada en el mapa `perDay`.
+export interface DayChoice {
+  resourceId: number | null;
+  label: string | null;
+  auto: boolean;
+}
+
 // Índice de cada paso del asistente (modo admin, con paso de empleado).
 export const STEP_RESOURCE = 0;
 export const STEP_DATES = 1;
@@ -32,12 +47,18 @@ export interface WizardState {
   // SCATTER
   scatterDates: string[];
   employeeId: number | null;
+  // Modo de asignación de ubicación (relevante con varias fechas).
+  locationMode: LocationMode;
+  // --- Modo ALL (misma ubicación para todos los días) ---
   // Ubicación: puesto elegido (deskId) o plaza elegida / auto.
   deskId: number | null;
   parkingChoice: ParkingChoice | null;
   // Etiqueta humana del recurso elegido (p. ej. "D-08"), para el resumen. null en
   // auto-asignación de plaza (aún sin recurso concreto).
   chosenLabel: string | null;
+  // --- Modo PER_DAY (una elección por día) ---
+  // Mapa fecha ISO → elección de ese día. Ausencia de clave = día sin asignar.
+  perDay: Record<string, DayChoice>;
 }
 
 // Resultado por fecha de la confirmación (loop de POST /requests/admin).

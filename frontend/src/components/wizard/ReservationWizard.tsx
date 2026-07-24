@@ -13,10 +13,10 @@ import { StepResult } from './StepResult';
 import { useReservationBooking } from '../../hooks/useReservationBooking';
 import { useSelectableReleaseEmployeesQuery } from '../../hooks/useReleaseSelection';
 import { emitApiErrorToast } from '../../api/events';
-import { resolveWizardDates, isSpecificParking } from '../../utils/wizardDates';
+import { resolveWizardDates } from '../../utils/wizardDates';
+import { isLocationComplete, resolveBookingEntries } from '../../utils/wizardBooking';
 import { DUR, EASE } from '../../theme/motion';
 import {
-  RESOURCE_DESK,
   STEP_DATES,
   STEP_EMPLOYEE,
   STEP_LOCATION,
@@ -38,9 +38,11 @@ const INITIAL_STATE: WizardState = {
   rangeEnd: '',
   scatterDates: [],
   employeeId: null,
+  locationMode: 'ALL',
   deskId: null,
   parkingChoice: null,
   chosenLabel: null,
+  perDay: {},
 };
 
 const STEP_KEYS = [
@@ -65,9 +67,7 @@ function isStepValid(step: number, state: WizardState, dates: string[]): boolean
     return state.employeeId !== null;
   }
   if (step === STEP_LOCATION) {
-    return state.resourceType === RESOURCE_DESK
-      ? state.deskId !== null
-      : state.parkingChoice !== null;
+    return isLocationComplete(state, dates);
   }
   return true;
 }
@@ -111,7 +111,8 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
     setState((prev) => ({ ...prev, ...partial }));
   }
 
-  // Cambiar el tipo de recurso invalida la ubicación elegida (plaza/puesto distintos).
+  // Cambiar el tipo de recurso invalida la ubicación elegida (plaza/puesto distintos),
+  // incluidas las elecciones por día.
   function setResourceType(resourceType: ResourceType): void {
     setState((prev) => ({
       ...prev,
@@ -119,6 +120,7 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
       deskId: null,
       parkingChoice: null,
       chosenLabel: null,
+      perDay: {},
     }));
   }
 
@@ -146,18 +148,11 @@ export function ReservationWizard({ onClose }: ReservationWizardProps) {
     if (state.resourceType === null || state.employeeId === null) {
       return;
     }
-    const resourceId =
-      state.resourceType === RESOURCE_DESK
-        ? (state.deskId ?? undefined)
-        : isSpecificParking(state.parkingChoice)
-          ? state.parkingChoice
-          : undefined;
     try {
       const result = await booking.mutateAsync({
         employeeId: state.employeeId,
         resourceType: state.resourceType,
-        dates,
-        resourceId,
+        entries: resolveBookingEntries(state, dates),
       });
       setOutcomes(result);
     } catch {

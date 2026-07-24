@@ -21,12 +21,17 @@ function reasonKeyForError(error: unknown): string {
   return 'wizard.result.reasonGeneric';
 }
 
+// Una fecha a reservar con su recurso concreto opcional (omitido = auto-asignación
+// de plaza por categoría). Permite recurso distinto por día (modo PER_DAY).
+export interface BookingEntry {
+  date: string;
+  resourceId?: number;
+}
+
 export interface ReservationBookingVars {
   employeeId: number;
   resourceType: ResourceType;
-  dates: string[];
-  // Recurso concreto (deskId o parkingSpaceId); omitido = auto-asignación de plaza.
-  resourceId?: number;
+  entries: BookingEntry[];
 }
 
 // Reserva ADMIN por lote: recorre las fechas creando un Request APPROVED por cada
@@ -42,17 +47,17 @@ export function useReservationBooking(): UseMutationResult<
   return useMutation({
     mutationFn: async (vars: ReservationBookingVars): Promise<BookingOutcome[]> => {
       const settled = await Promise.allSettled(
-        vars.dates.map((date) =>
+        vars.entries.map((entry) =>
           adminAssignRequest({
             employeeId: vars.employeeId,
-            requestedDate: date,
+            requestedDate: entry.date,
             resourceType: vars.resourceType,
-            resourceId: vars.resourceId,
+            resourceId: entry.resourceId,
           }),
         ),
       );
       return settled.map((outcome, index) => {
-        const date = vars.dates[index];
+        const date = vars.entries[index].date;
         if (outcome.status === 'fulfilled') {
           return { date, ok: true };
         }

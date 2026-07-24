@@ -1503,6 +1503,18 @@ export const es = {
       autoError: 'No se ha podido calcular la plaza.',
       autoSpace: 'Plaza {{number}} · Planta {{floor}}',
       autoNoSpace: 'Sin plaza libre esa fecha',
+      perDayTitle: 'Asignación por día',
+    },
+    perday: {
+      modeLabel: 'Modo de asignación',
+      modeAll: 'Misma para todos',
+      modePerDay: 'Distinta por día',
+      listLabel: 'Días seleccionados',
+      unset: 'Sin asignar',
+      auto: 'Automática',
+      applyToAll: 'Aplicar a todos los días',
+      autoEmpties: 'Auto en los días vacíos',
+      editing: 'Editando: {{date}}',
     },
     result: {
       successTitle: '¡Reservas creadas!',

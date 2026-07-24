@@ -6969,6 +6969,109 @@ button.rzw-step-btn:hover .rzw-step-label {
   font-size: 14px;
   color: var(--accent);
 }
+
+/* ---- Paso 4 · Asignación por día (timeline) ---- */
+.rzw-mode-toggle {
+  margin-bottom: var(--space-4);
+}
+.rzw-perday {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.rzw-perday-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rzw-perday-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: inset 0 0 0 1px var(--border);
+  cursor: pointer;
+  transition:
+    box-shadow var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-out);
+}
+.rzw-perday-row:hover {
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.rzw-perday-row.is-active {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.rzw-perday-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.rzw-perday-date {
+  font-size: var(--text-sm);
+  font-weight: 540;
+  color: var(--text);
+}
+.rzw-perday-choice {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 560;
+  color: var(--accent);
+}
+.rzw-perday-choice i {
+  font-size: 14px;
+}
+.rzw-perday-choice.is-unset {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.rzw-perday-choice.is-auto {
+  color: var(--text-soft);
+}
+.rzw-perday-edit {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+.rzw-perday-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.rzw-linkbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  background: transparent;
+  border: none;
+  font-size: var(--text-sm);
+  font-weight: 560;
+  color: var(--accent);
+  cursor: pointer;
+}
+.rzw-linkbtn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.rzw-linkbtn:not(:disabled):hover {
+  text-decoration: underline;
+}
+.rzw-linkbtn i {
+  font-size: 15px;
+}
+.rzw-perday-editor {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
 /* Plano del asistente (paso Ubicación · puesto): acota el lienzo para que el mapa
    se vea ENTERO sin scroll dentro del modal. Alto máx ~42vh (tope 420px) y ancho
    derivado del ratio real del plano (1291×750) para conservar la geometría de los

@@ -1498,6 +1498,18 @@ export const en = {
       autoError: 'The space could not be calculated.',
       autoSpace: 'Space {{number}} · Floor {{floor}}',
       autoNoSpace: 'No free space that date',
+      perDayTitle: 'Per-day assignment',
+    },
+    perday: {
+      modeLabel: 'Assignment mode',
+      modeAll: 'Same for all',
+      modePerDay: 'Per day',
+      listLabel: 'Selected days',
+      unset: 'Not set',
+      auto: 'Automatic',
+      applyToAll: 'Apply to all days',
+      autoEmpties: 'Auto for empty days',
+      editing: 'Editing: {{date}}',
     },
     result: {
       successTitle: 'Reservations created!',
