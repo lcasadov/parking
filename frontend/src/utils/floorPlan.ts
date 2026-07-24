@@ -77,6 +77,24 @@ export function occupancyCounts(desks: FloorPlanDesk[]): OccupancyCounts {
   };
 }
 
+// ¿Está el puesto ocupado por un titular activo (ajeno o propio)? Determina si
+// se pinta el pin de ocupante sobre el marcador (presentación).
+export function isOccupiedState(state: DeskState): boolean {
+  return state === 'ASSIGNED' || state === 'MINE';
+}
+
+// Iniciales (1-2 letras) del nombre del ocupante para el pin/avatar. Vacío si el
+// nombre no está disponible (el contrato base aún no incluye titular).
+export function deskInitials(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return '';
+  }
+  const first = parts[0].charAt(0);
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+  return (first + last).toUpperCase();
+}
+
 // ¿Coincide el puesto con el filtro activo? `EXECUTIVE` filtra por categoría; el
 // resto por estado. `null` = sin filtro (coincide todo).
 export function matchesFilter(

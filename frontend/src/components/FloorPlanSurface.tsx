@@ -58,21 +58,6 @@ export function FloorPlanSurface({
 
   return (
     <div className="floor-plan-surface-wrap">
-      <ul className="floor-plan-legend" aria-label={t('floorPlan.legendLabel')}>
-        {LEGEND_STATES.map((state) => (
-          <li key={state} className="floor-plan-legend-item">
-            <span className={`floor-legend-swatch ${markerStateClass(state)}`} aria-hidden="true" />
-            {t(`floorPlan.states.${state}`)}
-          </li>
-        ))}
-        <li className="floor-plan-legend-item">
-          <span className="floor-legend-swatch floor-marker-executive" aria-hidden="true">
-            {EXECUTIVE_SYMBOL}
-          </span>
-          {t('floorPlan.legendExecutive')}
-        </li>
-      </ul>
-
       <div
         ref={surfaceRef}
         data-testid="floor-plan-surface"
@@ -82,6 +67,10 @@ export function FloorPlanSurface({
         onPointerUp={viewport.onPointerUp}
         onPointerCancel={viewport.onPointerUp}
       >
+        <span className="floor-plan-canvas-label" aria-hidden="true">
+          {t('floorPlan.canvasLabel')}
+        </span>
+
         <div className="plano-world" style={worldStyle}>
           <img src={floorPlanImage} alt={t('floorPlan.imageAlt')} className="floor-plan-image" />
           {placed.map((desk) => {
@@ -103,6 +92,24 @@ export function FloorPlanSurface({
             );
           })}
         </div>
+
+        <ul className="floor-plan-legend" aria-label={t('floorPlan.legendLabel')}>
+          {LEGEND_STATES.map((state) => (
+            <li key={state} className="floor-plan-legend-item">
+              <span
+                className={`floor-legend-swatch ${markerStateClass(state)}`}
+                aria-hidden="true"
+              />
+              {t(`floorPlan.states.${state}`)}
+            </li>
+          ))}
+          <li className="floor-plan-legend-item">
+            <span className="floor-legend-swatch floor-marker-executive" aria-hidden="true">
+              {EXECUTIVE_SYMBOL}
+            </span>
+            {t('floorPlan.legendExecutive')}
+          </li>
+        </ul>
       </div>
 
       {unplaced.length > 0 ? (

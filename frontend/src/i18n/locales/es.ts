@@ -1073,6 +1073,20 @@ export const es = {
     markerLabelSelected: 'Puesto {{number}} — {{state}} (seleccionado)',
     legendLabel: 'Leyenda de estados',
     legendExecutive: 'Dirección',
+    canvasLabel: 'Planta de oficina',
+    tooltip: {
+      free: 'Disponible · toca para reservar',
+      released: 'Liberado hoy · disponible',
+      mine: 'Tu puesto',
+      requested: 'Solicitud pendiente',
+      occupied: 'Ocupado',
+      occupiedBy: 'Ocupado por {{name}}',
+    },
+    pin: {
+      label: 'Ocupado por {{name}}',
+      labelUnknown: 'Puesto ocupado',
+      mine: 'Tu puesto',
+    },
     states: {
       FREE: 'Libre',
       ASSIGNED: 'Ocupado',

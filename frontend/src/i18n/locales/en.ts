@@ -1072,6 +1072,20 @@ export const en = {
     markerLabelSelected: 'Desk {{number}} — {{state}} (selected)',
     legendLabel: 'State legend',
     legendExecutive: 'Executive',
+    canvasLabel: 'Office floor',
+    tooltip: {
+      free: 'Available · tap to book',
+      released: 'Released today · available',
+      mine: 'Your desk',
+      requested: 'Request pending',
+      occupied: 'Occupied',
+      occupiedBy: 'Occupied by {{name}}',
+    },
+    pin: {
+      label: 'Occupied by {{name}}',
+      labelUnknown: 'Occupied desk',
+      mine: 'Your desk',
+    },
     states: {
       FREE: 'Free',
       ASSIGNED: 'Occupied',

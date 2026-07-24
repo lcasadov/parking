@@ -87,13 +87,15 @@ export function FloorPlanSidePanel({ desks }: FloorPlanSidePanelProps) {
             <li key={desk.deskId} className="plano-side-row">
               <button
                 type="button"
-                className="plano-side-row-btn"
+                className="plano-side-row-btn plano-card"
                 aria-label={t('floorPlan.side.rowAction', { number: desk.deskNumber })}
               >
-                <span
-                  className={`plano-side-dot ${markerStateClass(desk.state)}`}
-                  aria-hidden="true"
-                />
+                <span className="plano-card-ico" aria-hidden="true">
+                  <i
+                    className={`ti ${desk.category === 'EXECUTIVE' ? 'ti-armchair' : 'ti-device-desktop'}`}
+                  />
+                  <span className={`plano-side-dot ${markerStateClass(desk.state)}`} />
+                </span>
                 <span className="side-meta">
                   <span className="plano-side-desk">
                     {t('floorPlan.deskNumber', { number: desk.deskNumber })}
