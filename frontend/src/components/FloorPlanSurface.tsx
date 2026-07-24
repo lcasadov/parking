@@ -93,6 +93,7 @@ export function FloorPlanSurface({
   const wrapRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<TipState | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [marquee, setMarquee] = useState<MarqueeState | null>(null);
   const marqueeStart = useRef<{ x: number; y: number } | null>(null);
   const placed = desks.filter(isPlaced);
@@ -167,6 +168,26 @@ export function FloorPlanSurface({
     surface.addEventListener('wheel', onWheel, { passive: false });
     return () => surface.removeEventListener('wheel', onWheel);
   }, [surfaceRef, zoomAtPoint]);
+
+  // Pantalla completa del lienzo (Fullscreen API nativa sobre el wrap): sincroniza
+  // el estado con los cambios reales (incluida la salida con Escape del navegador).
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(document.fullscreenElement === wrapRef.current);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) {
+      return;
+    }
+    if (document.fullscreenElement === wrap) {
+      void document.exitFullscreen();
+    } else {
+      void wrap.requestFullscreen?.();
+    }
+  }, []);
 
   // Escape (modo explorar): vuelve al encuadre completo.
   useEffect(() => {
@@ -339,6 +360,17 @@ export function FloorPlanSurface({
         </div>
 
         {marqueeStyle ? <div className="floor-marquee" style={marqueeStyle} aria-hidden="true" /> : null}
+
+        <button
+          type="button"
+          className="floor-fullscreen-btn"
+          aria-label={t(isFullscreen ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter')}
+          title={t(isFullscreen ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter')}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={toggleFullscreen}
+        >
+          <i className={`ti ti-${isFullscreen ? 'arrows-minimize' : 'arrows-maximize'}`} aria-hidden="true" />
+        </button>
       </div>
 
       {exploring ? <FloorPlanMinimap viewport={viewport} box={box} /> : null}

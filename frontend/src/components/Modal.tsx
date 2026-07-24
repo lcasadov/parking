@@ -51,19 +51,12 @@ export function Modal({
   const overlayInitial = reduceMotion ? { opacity: 1 } : { opacity: 0 };
   const panelInitial = reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 };
 
+  // Los modales NO se cierran con Escape (decisión de producto): evita cierres
+  // accidentales. Se cierran con la (x), el footer o clic en el overlay. Solo se
+  // gestiona el enfoque inicial del panel.
   useEffect(() => {
     dialogRef.current?.focus();
-    if (!closeable || !onClose) {
-      return;
-    }
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose?.();
-      }
-    }
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose, closeable]);
+  }, []);
 
   return (
     <motion.div

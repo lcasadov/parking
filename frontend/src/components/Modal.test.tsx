@@ -25,7 +25,7 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('should_close_on_escape', async () => {
+  it('should_not_close_on_escape', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     renderWithProviders(
@@ -36,7 +36,8 @@ describe('Modal', () => {
 
     await user.keyboard('{Escape}');
 
-    expect(onClose).toHaveBeenCalledTimes(1);
+    // Decisión de producto: los modales no se cierran con Escape.
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('should_render_tabs_and_report_tab_changes', async () => {

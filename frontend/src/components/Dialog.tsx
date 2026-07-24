@@ -60,7 +60,13 @@ export function Dialog({
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="rx-overlay" />
-        <RadixDialog.Content className={`rx-dialog${widthClass}`}>
+        <RadixDialog.Content
+          className={`rx-dialog${widthClass}`}
+          // Los modales NO se cierran con Escape (decisión de producto): evita
+          // cierres accidentales, sobre todo en flujos largos como el asistente de
+          // reserva. Se cierran con la (x), el footer o clic fuera.
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <div className={`rx-dialog-header ${tone}`}>
             <RadixDialog.Title className="rx-dialog-title">
               {icon ? <i className={`ti ti-${icon}`} aria-hidden="true" /> : null}

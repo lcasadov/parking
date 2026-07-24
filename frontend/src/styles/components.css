@@ -1836,6 +1836,58 @@ body.theme-dark .floor-mini-img {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent);
   pointer-events: none;
 }
+/* Botón de pantalla completa: superpuesto en la esquina superior derecha del lienzo. */
+.floor-fullscreen-btn {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 9px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    var(--shadow-1, 0 4px 12px rgba(0, 0, 0, 0.2));
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.floor-fullscreen-btn:hover {
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.floor-fullscreen-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.floor-fullscreen-btn i {
+  font-size: 18px;
+  color: var(--accent);
+}
+/* En pantalla completa el lienzo llena la pantalla conservando el ratio del plano
+   (1291×750) para no deformar la geometría de los marcadores; se centra con fondo. */
+.floor-plan-surface-wrap:fullscreen,
+.floor-plan-surface-wrap:-webkit-full-screen {
+  display: grid;
+  place-items: center;
+  width: 100vw;
+  height: 100vh;
+  padding: 2vmin;
+  background: var(--bg);
+}
+.floor-plan-surface-wrap:fullscreen .floor-plan-surface {
+  width: min(96vw, calc(92vh * 1291 / 750));
+  height: auto;
+  max-height: 96vh;
+  aspect-ratio: 1291 / 750;
+}
 /* Etiqueta discreta del lienzo (mono, esquina superior izquierda). */
 .floor-plan-canvas-label {
   position: absolute;

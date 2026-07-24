@@ -1117,6 +1117,7 @@ export const en = {
     requestConflict: 'The desk is no longer available for that date.',
     imageAlt: 'Office floor plan',
     minimap: { label: 'Minimap: drag the box to move around the plan' },
+    fullscreen: { enter: 'View the plan fullscreen', exit: 'Exit fullscreen' },
     unplacedTitle: 'Desks without a position',
     unplacedHint: 'These desks are not placed on the plan yet.',
     deskNumber: 'Desk {{number}}',

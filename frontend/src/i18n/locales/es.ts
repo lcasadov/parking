@@ -1118,6 +1118,7 @@ export const es = {
     requestConflict: 'El puesto ya no está disponible para esa fecha.',
     imageAlt: 'Plano de la planta de oficina',
     minimap: { label: 'Minimapa: arrastra el recuadro para moverte por el plano' },
+    fullscreen: { enter: 'Ver el plano a pantalla completa', exit: 'Salir de pantalla completa' },
     unplacedTitle: 'Puestos sin posición',
     unplacedHint: 'Estos puestos aún no están colocados en el plano.',
     deskNumber: 'Puesto {{number}}',

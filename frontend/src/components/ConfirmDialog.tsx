@@ -41,7 +41,11 @@ export function ConfirmDialog({
     <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="rx-overlay" />
-        <AlertDialog.Content className="rx-dialog rx-dialog-narrow">
+        <AlertDialog.Content
+          className="rx-dialog rx-dialog-narrow"
+          // Los modales no se cierran con Escape (decisión de producto).
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <div className={`rx-dialog-header ${tone}`}>
             <AlertDialog.Title className="rx-dialog-title">
               {icon ? <i className={`ti ti-${icon}`} aria-hidden="true" /> : null}
