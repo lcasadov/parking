@@ -2,21 +2,22 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoBanner } from '../components/InfoBanner';
 import { PageHeader } from '../components/PageHeader';
-import { Tabs, type TabItem } from '../components/Tabs';
+import { SectionSwitch, type SectionSwitchItem } from '../components/SectionSwitch';
 import { VisitorReservationsPanel } from '../components/VisitorReservationsPanel';
 import { VisitorsPanel } from '../components/VisitorsPanel';
 
 type Tab = 'visitors' | 'reservations';
 
-// Vista ADMIN de visitantes: pestañas "Fichas de visitante" / "Reservas futuras"
-// (docs/ui-screens.md §17). El guard de rol vive en ProtectedRoute (ADMIN).
+// Vista ADMIN de visitantes: sub-vistas "Fichas de visitante" / "Reservas futuras"
+// (docs/ui-screens.md §17) con el mismo conmutador GRANDE que el resto de secciones.
+// El guard de rol vive en ProtectedRoute (ADMIN).
 export function VisitorsPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('visitors');
 
-  const tabs: TabItem[] = [
-    { id: 'visitors', label: t('visitors.tabs.visitors') },
-    { id: 'reservations', label: t('visitors.tabs.reservations') },
+  const items: SectionSwitchItem[] = [
+    { id: 'visitors', label: t('visitors.tabs.visitors'), icon: 'user' },
+    { id: 'reservations', label: t('visitors.tabs.reservations'), icon: 'calendar-event' },
   ];
 
   return (
@@ -31,12 +32,7 @@ export function VisitorsPage() {
         {t('visitors.emailNote')}
       </InfoBanner>
 
-      <Tabs
-        tabs={tabs}
-        active={tab}
-        onChange={(id) => setTab(id as Tab)}
-        ariaLabel={t('visitors.title')}
-      />
+      <SectionSwitch items={items} active={tab} onChange={(id) => setTab(id as Tab)} ariaLabel={t('visitors.title')} />
 
       <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
         {tab === 'visitors' ? <VisitorsPanel /> : <VisitorReservationsPanel />}

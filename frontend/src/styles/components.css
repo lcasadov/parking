@@ -1084,6 +1084,12 @@ body.theme-dark .segmented button.active {
   flex: 1 1 220px;
 }
 
+/* Acción primaria de la barra ("Nuevo…"): siempre pegada al extremo DERECHO, con
+   el buscador a la izquierda. Consistente entre sub-vistas (p. ej. Visitantes). */
+.toolbar-end {
+  margin-left: auto;
+}
+
 /* Tabs + búsqueda en una misma barra (mockup 02): la búsqueda se alinea a la
    derecha y las pestañas pierden su margen inferior dentro del toolbar. */
 .toolbar .tabs {

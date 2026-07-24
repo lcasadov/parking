@@ -60,9 +60,11 @@ export function VisitorsPanel() {
           value={q}
           onValueChange={handleSearch}
         />
-        <Button variant="green" icon="plus" onClick={openCreate}>
-          {t('visitors.newVisitor')}
-        </Button>
+        <div className="toolbar-end">
+          <Button variant="green" icon="plus" onClick={openCreate}>
+            {t('visitors.newVisitor')}
+          </Button>
+        </div>
       </Toolbar>
 
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={6} /> : null}

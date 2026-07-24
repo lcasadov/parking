@@ -34,9 +34,11 @@ export function VisitorReservationsPanel() {
   return (
     <div className="visitor-reservations-panel">
       <Toolbar ariaLabel={t('visitors.tabs.reservations')}>
-        <Button variant="green" icon="calendar-plus" onClick={() => setIsCreateOpen(true)}>
-          {t('visitors.newReservation')}
-        </Button>
+        <div className="toolbar-end">
+          <Button variant="green" icon="calendar-plus" onClick={() => setIsCreateOpen(true)}>
+            {t('visitors.newReservation')}
+          </Button>
+        </div>
       </Toolbar>
 
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={5} /> : null}
