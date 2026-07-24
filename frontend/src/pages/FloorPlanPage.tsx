@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { InfoBanner } from '../components/InfoBanner';
@@ -22,7 +22,12 @@ import {
 } from '../hooks/useFloorPlan';
 import { isValidIsoDate } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
-import type { FloorPlanDesk } from '../types/floorPlan';
+import type { DeskPositionUpdate, FloorPlanDesk } from '../types/floorPlan';
+
+// Buffer local de posiciones editadas por el ADMIN durante el modo edición: id del
+// puesto → coordenadas pendientes (aún sin persistir). Solo contiene los puestos
+// que se han arrastrado respecto al snapshot que devuelve el backend.
+type PositionOverrides = Map<number, DeskPositionUpdate>;
 
 // Vista del plano interactivo de puestos (floor-plan). Ver plano = autenticado;
 // arrastrar marcadores = solo ADMIN. Empleado pincha (o usa la lista móvil) un
@@ -34,6 +39,11 @@ export function FloorPlanPage() {
 
   const [date, setDate] = useState<string>(todayIso());
   const [editMode, setEditMode] = useState(false);
+  // Posiciones arrastradas pero aún NO guardadas (buffer local). El snapshot es la
+  // posición del backend: al Cancelar se vacía este buffer y los marcadores vuelven
+  // al snapshot; al Guardar se persiste cada entrada.
+  const [overrides, setOverrides] = useState<PositionOverrides>(new Map());
+  const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<FloorPlanFeedbackKind>(null);
   const [filter, setFilter] = useState<FloorPlanFilterValue | null>(null);
   // Puesto pendiente de confirmar antes de crear la solicitud (marcador o lista
@@ -48,8 +58,13 @@ export function FloorPlanPage() {
   const positionMutation = useUpdateDeskPosition();
   const viewport = useFloorPlanViewport(!editMode);
 
+  // En edición, soltar un marcador NO auto-guarda: solo actualiza el buffer local.
   const { dragPos, startDrag } = useDeskDrag(surfaceRef, (deskId, coordX, coordY) =>
-    positionMutation.mutate({ deskId, body: { coordX, coordY } }),
+    setOverrides((previous) => {
+      const next = new Map(previous);
+      next.set(deskId, { coordX, coordY });
+      return next;
+    }),
   );
 
   function handleDateChange(value: string): void {
@@ -57,15 +72,45 @@ export function FloorPlanPage() {
     setFeedback(null);
   }
 
-  function handleToggleEdit(): void {
-    setEditMode((previous) => !previous);
+  // Entra en edición partiendo de un buffer vacío (snapshot = datos del backend).
+  function handleEnterEdit(): void {
+    setOverrides(new Map());
+    setEditMode(true);
     setFeedback(null);
   }
 
-  // Confirmación explícita del editor: las posiciones se auto-guardan al soltar
-  // cada marcador, pero el botón da un feedback claro de que todo está guardado.
+  // Cancelar: descarta el buffer y revierte los marcadores al snapshot sin guardar.
+  function handleCancelEdit(): void {
+    setOverrides(new Map());
+    setEditMode(false);
+    setFeedback(null);
+  }
+
+  // Guardar: persiste cada posición modificada (secuencial, abortando al primer
+  // error), refresca vía invalidación de la mutación y sale del modo edición.
+  async function persistOverrides(): Promise<void> {
+    if (overrides.size === 0) {
+      setEditMode(false);
+      return;
+    }
+    setIsSaving(true);
+    setFeedback(null);
+    try {
+      for (const [deskId, body] of overrides) {
+        await positionMutation.mutateAsync({ deskId, body });
+      }
+      setOverrides(new Map());
+      setEditMode(false);
+      setFeedback('saved');
+    } catch {
+      setFeedback('saveError');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function handleSavePositions(): void {
-    setFeedback('saved');
+    void persistOverrides();
   }
 
   function toggleFilter(value: FloorPlanFilterValue): void {
@@ -95,7 +140,43 @@ export function FloorPlanPage() {
   }
 
   const desks = query.data?.desks ?? [];
+  // Posiciones efectivas para pintar: override local si el puesto se ha arrastrado,
+  // si no las del backend. Los estados/estilo del puesto no cambian, solo coord.
+  const effectiveDesks =
+    overrides.size === 0
+      ? desks
+      : desks.map((desk) => {
+          const override = overrides.get(desk.deskId);
+          return override ? { ...desk, coordX: override.coordX, coordY: override.coordY } : desk;
+        });
   const showPlan = isDateValid && !query.isLoading && !query.isError;
+
+  // Modo vista: un botón "Editar posiciones". Modo edición: "Cancelar" (secundario)
+  // + "Guardar cambios" (primario verde). `.page-actions` ya los separa con gap.
+  function renderEditActions(): ReactElement {
+    if (!editMode) {
+      return (
+        <Button variant="white" icon="drag-drop" onClick={handleEnterEdit}>
+          {t('floorPlan.editPositions')}
+        </Button>
+      );
+    }
+    return (
+      <>
+        <Button variant="white" icon="x" onClick={handleCancelEdit} disabled={isSaving}>
+          {t('common.cancel')}
+        </Button>
+        <Button
+          variant="green"
+          icon="device-floppy"
+          onClick={handleSavePositions}
+          disabled={isSaving}
+        >
+          {t('floorPlan.saveChanges')}
+        </Button>
+      </>
+    );
+  }
 
   return (
     <section className="floor-plan-page" aria-label={t('floorPlan.title')}>
@@ -104,16 +185,7 @@ export function FloorPlanPage() {
         title={t('floorPlan.title')}
         description={t('floorPlan.description')}
         actions={
-          canEdit ? (
-            <Button
-              variant={editMode ? 'blue' : 'white'}
-              icon="drag-drop"
-              aria-pressed={editMode}
-              onClick={handleToggleEdit}
-            >
-              {t('floorPlan.editPositions')}
-            </Button>
-          ) : undefined
+          canEdit ? renderEditActions() : undefined
         }
       />
 
@@ -126,9 +198,6 @@ export function FloorPlanPage() {
           <InfoBanner variant="blue" icon="drag-drop">
             {t('floorPlan.editHint')}
           </InfoBanner>
-          <Button variant="green" icon="device-floppy" onClick={handleSavePositions}>
-            {t('floorPlan.savePositions')}
-          </Button>
         </div>
       ) : null}
 
@@ -155,7 +224,7 @@ export function FloorPlanPage() {
 
           <div className="floor-plan-layout">
             <FloorPlanSurface
-              desks={desks}
+              desks={effectiveDesks}
               editMode={editMode}
               dragPos={dragPos}
               filter={filter}
