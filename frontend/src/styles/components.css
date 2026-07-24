@@ -6195,6 +6195,21 @@ button.rzw-step-btn:hover .rzw-step-label {
   color: var(--text-muted);
   margin-bottom: var(--space-3);
 }
+.rzw-eyebrow-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+}
+.rzw-eyebrow-accent i {
+  font-size: 14px;
+}
+/* Paso 4 · plazas manuales agrupadas por prioridad de categoría */
+.rzw-loc-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
 .rzw-empty {
   margin: 0;
   padding: var(--space-4);

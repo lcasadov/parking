@@ -1,20 +1,27 @@
 import { useTranslation } from 'react-i18next';
 import { Spinner } from '../Spinner';
 import { useWizardAvailability } from '../../hooks/useWizardAvailability';
+import { useSelectableReleaseEmployeesQuery } from '../../hooks/useReleaseSelection';
+import { groupEligibleByPriority, type RankedResource } from '../../utils/parkingPriority';
 import { PARKING_AUTO, RESOURCE_PARKING } from './wizardTypes';
 import type { ParkingChoice } from './wizardTypes';
 
 interface LocationParkingProps {
   dates: string[];
+  employeeId: number | null;
   choice: ParkingChoice | null;
   onChange: (choice: ParkingChoice, label: string) => void;
 }
 
 // Ubicación PARKING: elegir una plaza concreta (libre en TODAS las fechas) o
-// "cualquier plaza libre" (auto-asignación por fecha, omitiendo resourceId).
-export function LocationParking({ dates, choice, onChange }: LocationParkingProps) {
+// "asignación automática" por categoría. Las plazas manuales se ordenan por la
+// prioridad de la categoría del empleado y se dividen en "sugeridas" (planta
+// preferente, las que elegiría el auto) y "otras".
+export function LocationParking({ dates, employeeId, choice, onChange }: LocationParkingProps) {
   const { t } = useTranslation();
   const availability = useWizardAvailability(dates, RESOURCE_PARKING, true);
+  const employeesQuery = useSelectableReleaseEmployeesQuery();
+  const category = employeesQuery.data?.find((candidate) => candidate.id === employeeId)?.category;
 
   if (availability.isLoading) {
     return (
@@ -34,6 +41,34 @@ export function LocationParking({ dates, choice, onChange }: LocationParkingProp
   }
 
   const autoSelected = choice === PARKING_AUTO;
+  const { suggested, others, preferredFloor } = groupEligibleByPriority(
+    availability.eligible,
+    category,
+  );
+
+  // Rejilla de chips de plaza reutilizada por cada apartado.
+  function renderGrid(resources: RankedResource[]) {
+    return (
+      <ul className="rzw-res-grid">
+        {resources.map((resource) => {
+          const selected = choice === resource.resourceId;
+          return (
+            <li key={resource.resourceId}>
+              <button
+                type="button"
+                className={`rzw-res-chip${selected ? ' is-selected' : ''}`}
+                aria-pressed={selected}
+                onClick={() => onChange(resource.resourceId, resource.label)}
+              >
+                <i className="ti ti-car" aria-hidden="true" />
+                <span className="mono">{resource.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
 
   return (
     <div className="rzw-loc">
@@ -60,30 +95,34 @@ export function LocationParking({ dates, choice, onChange }: LocationParkingProp
         <span>{t('wizard.location.orPick')}</span>
       </div>
 
-      <span className="rzw-eyebrow">
-        {t('wizard.location.eligibleCount', { count: availability.eligible.length })}
-      </span>
       {availability.eligible.length === 0 ? (
         <p className="rzw-empty">{t('wizard.location.noneParking')}</p>
       ) : (
-        <ul className="rzw-res-grid">
-          {availability.eligible.map((resource) => {
-            const selected = choice === resource.resourceId;
-            return (
-              <li key={resource.resourceId}>
-                <button
-                  type="button"
-                  className={`rzw-res-chip${selected ? ' is-selected' : ''}`}
-                  aria-pressed={selected}
-                  onClick={() => onChange(resource.resourceId, resource.label)}
-                >
-                  <i className="ti ti-car" aria-hidden="true" />
-                  <span className="mono">{resource.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="rzw-loc-groups">
+          {suggested.length > 0 && preferredFloor !== null ? (
+            <section className="rzw-loc-group">
+              <span className="rzw-eyebrow rzw-eyebrow-accent">
+                <i className="ti ti-sparkles" aria-hidden="true" />
+                {t('wizard.location.suggestedForCategory', {
+                  category: category ? t(`employees.category.${category}`) : '',
+                  floor: -preferredFloor,
+                })}
+              </span>
+              {renderGrid(suggested)}
+            </section>
+          ) : null}
+
+          {others.length > 0 ? (
+            <section className="rzw-loc-group">
+              <span className="rzw-eyebrow">
+                {suggested.length > 0
+                  ? t('wizard.location.otherSpaces')
+                  : t('wizard.location.eligibleCount', { count: others.length })}
+              </span>
+              {renderGrid(others)}
+            </section>
+          ) : null}
+        </div>
       )}
     </div>
   );

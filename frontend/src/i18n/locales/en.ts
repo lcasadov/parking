@@ -1475,6 +1475,8 @@ export const en = {
       anyFreeDesc:
         'The space is assigned by the employee’s category (senior roles get upper floors). You will see the exact space in the summary before confirming.',
       orPick: 'or pick a specific space',
+      suggestedForCategory: 'Suggested for {{category}} · floor {{floor}}',
+      otherSpaces: 'Other spaces',
       noneParking: 'No space is free on every selected date.',
       noneDesk: 'No desk is free on every selected date.',
     },
