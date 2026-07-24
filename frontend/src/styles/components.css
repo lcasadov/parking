@@ -150,21 +150,21 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
-  padding: var(--space-5) var(--space-5) var(--space-4);
-  border-bottom: 1px solid var(--line-soft);
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  /* Sin divisor (mockup): la cabecera fluye hacia la navegación sin línea. */
 }
 .sidebar-logo {
-  width: 132px;
+  width: 94px;
   height: auto;
   display: block;
 }
 .sidebar-tagline {
   display: block;
-  margin-top: 12px;
-  font-size: 10px;
+  margin-top: 7px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.2em;
   color: var(--ink-faint);
 }
 
@@ -203,7 +203,7 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  color: var(--ink-soft);
+  color: var(--ink-2);
   font-size: 13.5px;
   font-weight: 520;
   cursor: pointer;
@@ -743,6 +743,17 @@ body.theme-dark .segmented button {
 body.theme-dark .segmented button.active {
   background: var(--green-soft);
   color: var(--green-darker);
+}
+/* Variante de icono (sol/luna) del selector de tema — botones con glifo. */
+.segmented-icon button {
+  padding: 6px 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.segmented-icon button .ti {
+  font-size: 15px;
+  line-height: 1;
 }
 
 /* Modal */
