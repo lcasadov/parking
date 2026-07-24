@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { DayBadges } from '../components/DayBadges';
+import { DayResourceBadges } from '../components/DayResourceBadges';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { ExportMenu } from '../components/ExportMenu';
-import { Legend } from '../components/Legend';
 import { PageHeader } from '../components/PageHeader';
 import { ResetPasswordModal } from '../components/ResetPasswordModal';
 import { SearchBox } from '../components/SearchBox';
@@ -24,9 +24,10 @@ import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
 import { buildDeskLabels } from '../utils/desks';
 import { initialsOf } from '../utils/initials';
 import {
-  indexFixedResourcesByEmployee,
-  type EmployeeFixedResources,
-  type FixedAssignmentGroup,
+  assignedWeekDays,
+  distinctWeekResources,
+  indexDayResourceMapsByEmployee,
+  type DayResourceMap,
 } from '../utils/fixedAssignments';
 import type { Employee } from '../types/employee';
 import type { ParkingSpace } from '../types/parkingSpace';
@@ -43,25 +44,34 @@ function buildSpaceLabels(spaces: ParkingSpace[]): Map<number, string> {
   return map;
 }
 
-// Celda de recurso fijo: etiqueta (verde) + chips de dias, o "—" si no tiene.
+const EMPTY_MAP: DayResourceMap = {};
+
+// Celda de recurso fijo. Tres formas segun el dato (mockup 03):
+//  · sin recurso -> "—".
+//  · mismo recurso todos sus dias -> etiqueta (verde) + chips de dia (L-V).
+//  · recursos distintos por dia -> chips por dia con la etiqueta del recurso de
+//    ESE dia (p.ej. D-03 lunes, D-07 miercoles), respetando el dato real.
 function ResourceCell({
-  group,
+  map,
   labels,
 }: {
-  group: FixedAssignmentGroup | null;
+  map: DayResourceMap;
   labels: Map<number, string>;
 }) {
-  if (!group) {
+  const resourceIds = distinctWeekResources(map);
+  if (resourceIds.length === 0) {
     return <span className="text-muted">{NONE}</span>;
   }
-  return (
-    <div className="fixed-cell">
-      <span className="fixed-cell-label">
-        {labels.get(group.parkingSpaceId) ?? `#${group.parkingSpaceId}`}
-      </span>
-      <DayBadges days={group.days} />
-    </div>
-  );
+  if (resourceIds.length === 1) {
+    const resourceId = resourceIds[0];
+    return (
+      <div className="fixed-cell">
+        <span className="fixed-cell-label">{labels.get(resourceId) ?? `#${resourceId}`}</span>
+        <DayBadges days={assignedWeekDays(map)} />
+      </div>
+    );
+  }
+  return <DayResourceBadges map={map} labels={labels} />;
 }
 
 // Vista de gestion de empleados (ADMIN): tabla paginada + busqueda + acciones,
@@ -90,7 +100,7 @@ export function EmployeesPage() {
     [desksQuery.data],
   );
   const resourcesByEmployee = useMemo(
-    () => indexFixedResourcesByEmployee(assignmentsQuery.data?.content ?? []),
+    () => indexDayResourceMapsByEmployee(assignmentsQuery.data?.content ?? []),
     [assignmentsQuery.data],
   );
 
@@ -122,8 +132,8 @@ export function EmployeesPage() {
     }
   }
 
-  function resourcesFor(employeeId: number): EmployeeFixedResources {
-    return resourcesByEmployee.get(employeeId) ?? { parking: null, desk: null };
+  function resourcesFor(employeeId: number): { parking: DayResourceMap; desk: DayResourceMap } {
+    return resourcesByEmployee.get(employeeId) ?? { parking: EMPTY_MAP, desk: EMPTY_MAP };
   }
 
   const employees = query.data?.content ?? [];
@@ -131,11 +141,6 @@ export function EmployeesPage() {
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
-
-  const legendItems = [
-    { color: 'var(--green)', label: t('employees.legend.assigned') },
-    { color: 'var(--border)', label: t('employees.legend.none') },
-  ];
 
   return (
     <section className="employees-page" aria-label={t('employees.title')}>
@@ -165,6 +170,13 @@ export function EmployeesPage() {
           onValueChange={handleSearch}
         />
       </Toolbar>
+
+      {/* Nota-leyenda (mockup 03): explica el chip de dia y que el recurso puede
+          variar por dia. El chip de muestra es decorativo (aria-hidden). */}
+      <p className="table-note">
+        <span className="day-chip on table-note-swatch" aria-hidden="true" />
+        {t('employees.note')}
+      </p>
 
       {query.isLoading ? <TableSkeleton label={t('employees.loading')} columns={8} /> : null}
 
@@ -227,10 +239,10 @@ export function EmployeesPage() {
                       {employee.department ?? NONE}
                     </td>
                     <td data-label={t('employees.columns.parkingFixed')}>
-                      <ResourceCell group={resources.parking} labels={spaceLabels} />
+                      <ResourceCell map={resources.parking} labels={spaceLabels} />
                     </td>
                     <td data-label={t('employees.columns.deskFixed')}>
-                      <ResourceCell group={resources.desk} labels={deskLabels} />
+                      <ResourceCell map={resources.desk} labels={deskLabels} />
                     </td>
                     <td data-label={t('employees.columns.role')}>
                       {t(`employees.role.${employee.role}`)}
@@ -273,7 +285,6 @@ export function EmployeesPage() {
               })}
             </tbody>
           </table>
-          <Legend items={legendItems} />
         </div>
       ) : null}
 

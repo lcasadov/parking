@@ -4,6 +4,9 @@ import type { ResourceType } from '../types/request';
 // Dias ISO validos: 1 (lunes) .. 7 (domingo).
 export const WEEK_DAYS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
 
+// Dias laborables L-V (los que se pintan en la tabla de empleados / chips de dia).
+export const WEEK_LV: readonly number[] = [1, 2, 3, 4, 5];
+
 // Grupo de asignaciones fijas de un empleado sobre un mismo recurso, con sus dias.
 // `parkingSpaceId` transporta el resource_id generico; `resourceType` lo discrimina.
 export interface FixedAssignmentGroup {
@@ -209,6 +212,47 @@ export function setResourceDays(
     next[day] = resourceId;
   }
   return next;
+}
+
+// Indexa TODAS las asignaciones fijas por empleado como mapas día→recurso (uno por
+// tipo). A diferencia de indexFixedResourcesByEmployee, conserva QUÉ recurso concreto
+// tiene cada día, de modo que la tabla de empleados puede pintar recursos distintos
+// por día (p.ej. puesto D-03 el lunes y D-07 el miércoles) tal como el mockup.
+export function indexDayResourceMapsByEmployee(
+  rows: FixedAssignment[],
+): Map<number, { parking: DayResourceMap; desk: DayResourceMap }> {
+  const byEmployee = new Map<number, FixedAssignment[]>();
+  for (const row of rows) {
+    const bucket = byEmployee.get(row.employeeId);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      byEmployee.set(row.employeeId, [row]);
+    }
+  }
+  const result = new Map<number, { parking: DayResourceMap; desk: DayResourceMap }>();
+  for (const [employeeId, employeeRows] of byEmployee) {
+    result.set(employeeId, toEmployeeDayResourceMaps(employeeRows));
+  }
+  return result;
+}
+
+// Recursos distintos (resource_id) presentes en un mapa día→recurso, restringido a
+// los días laborables L-V (que son los que pinta la tabla).
+export function distinctWeekResources(map: DayResourceMap): number[] {
+  const ids = new Set<number>();
+  for (const day of WEEK_LV) {
+    const id = map[day];
+    if (id !== undefined) {
+      ids.add(id);
+    }
+  }
+  return Array.from(ids);
+}
+
+// Días laborables (L-V) que tienen recurso asignado en el mapa, en orden.
+export function assignedWeekDays(map: DayResourceMap): number[] {
+  return WEEK_LV.filter((day) => map[day] !== undefined);
 }
 
 // Indexa TODAS las asignaciones fijas por empleado, separando plaza y puesto.

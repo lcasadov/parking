@@ -23,6 +23,7 @@ export function CalendarCellView({
 }) {
   const { t } = useTranslation();
   const stateLabel = t(calendarStateKey(cell.state));
+  const isFree = cell.state === 'FREE';
   const classes = ['calendar-cell', 'state', calendarStateClass(cell.state)];
   if (isToday) {
     classes.push('is-today');
@@ -31,7 +32,17 @@ export function CalendarCellView({
     classes.push('is-dimmed');
   }
 
-  const content = (
+  // Celda libre: afordancia "+" (mockup) — invita a asignar en contexto. El texto
+  // del estado se conserva en sr-only para lectores de pantalla. El resto de
+  // estados muestran su etiqueta + titular (cuando el contrato lo aporta).
+  const content = isFree ? (
+    <>
+      <span className="calendar-cell-plus" aria-hidden="true">
+        +
+      </span>
+      <span className="sr-only">{stateLabel}</span>
+    </>
+  ) : (
     <>
       <span className="calendar-cell-state">{stateLabel}</span>
       {cell.employeeName ? (

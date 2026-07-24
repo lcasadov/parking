@@ -258,6 +258,7 @@ export const es = {
       status: 'Estado',
       actions: 'Acciones',
     },
+    note: 'Día con recurso fijo asignado · un empleado puede tener recursos distintos por día',
     legend: {
       assigned: 'Día con recurso fijo asignado (todo el año)',
       none: 'Sin recurso fijo (debe solicitar)',

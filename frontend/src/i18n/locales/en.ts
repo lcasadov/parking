@@ -258,6 +258,7 @@ export const en = {
       status: 'Status',
       actions: 'Actions',
     },
+    note: 'Day with an assigned fixed resource · an employee may have different resources per day',
     legend: {
       assigned: 'Day with a fixed resource (all year)',
       none: 'No fixed resource (must request)',
