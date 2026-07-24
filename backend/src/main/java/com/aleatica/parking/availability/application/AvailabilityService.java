@@ -242,10 +242,12 @@ public class AvailabilityService {
                 requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
                         RequestStatus.APPROVED, resourceType, date, date),
                 RequestEntity::getResourceId);
-        Set<Long> reserved = resourceType == ResourceType.PARKING
-                ? spaceIds(visitorReservationRepository.findByReservationDateBetween(date, date),
-                        VisitorReservation::getParkingSpaceId)
-                : Set.of();
+        // Las reservas de visitante ocupan el recurso (plaza O puesto) su fecha: se descuentan
+        // en ambos tipos (data-model genérico, migración V25).
+        Set<Long> reserved = spaceIds(
+                visitorReservationRepository.findByResourceTypeAndReservationDateBetween(
+                        resourceType, date, date),
+                VisitorReservation::getResourceId);
 
         List<AvailabilityItemResponse> items = resources.stream()
                 .filter(ref -> isAvailable(ref.id(), fixedAssigned, released, approved, reserved))
@@ -285,8 +287,9 @@ public class AvailabilityService {
                         RequestStatus.APPROVED, ResourceType.PARKING, date, date),
                 RequestEntity::getResourceId);
         Set<Long> reserved = spaceIds(
-                visitorReservationRepository.findByReservationDateBetween(date, date),
-                VisitorReservation::getParkingSpaceId);
+                visitorReservationRepository.findByResourceTypeAndReservationDateBetween(
+                        ResourceType.PARKING, date, date),
+                VisitorReservation::getResourceId);
 
         return spaces.stream()
                 .filter(space -> isAvailable(space.getId(), fixedAssigned, released, approved, reserved))
@@ -359,8 +362,8 @@ public class AvailabilityService {
         boolean approvedTaken = requestRepository
                 .existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                         spaceId, resourceType, date, RequestStatus.APPROVED);
-        boolean reservedTaken = resourceType == ResourceType.PARKING
-                && visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(spaceId, date);
+        boolean reservedTaken = visitorReservationRepository
+                .existsByResourceTypeAndResourceIdAndReservationDate(resourceType, spaceId, date);
         return fixedTaken || approvedTaken || reservedTaken;
     }
 

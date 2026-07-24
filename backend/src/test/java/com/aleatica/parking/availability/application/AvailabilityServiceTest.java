@@ -227,7 +227,7 @@ class AvailabilityServiceTest {
                 .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(false);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
-        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+        given(visitorReservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, DATE))
                 .willReturn(true);
 
         // Act / Assert
@@ -242,7 +242,7 @@ class AvailabilityServiceTest {
         given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, DATE)).willReturn(true);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
-        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+        given(visitorReservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, DATE))
                 .willReturn(false);
 
         // Act / Assert
@@ -279,7 +279,7 @@ class AvailabilityServiceTest {
                 .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(false);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
-        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+        given(visitorReservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, DATE))
                 .willReturn(false);
 
         // Act / Assert
@@ -763,7 +763,7 @@ class AvailabilityServiceTest {
     }
 
     private void givenReservationsOnDate(VisitorReservation... reservations) {
-        given(visitorReservationRepository.findByReservationDateBetween(DATE, DATE))
+        given(visitorReservationRepository.findByResourceTypeAndReservationDateBetween(ResourceType.PARKING, DATE, DATE))
                 .willReturn(List.of(reservations));
     }
 
@@ -835,7 +835,7 @@ class AvailabilityServiceTest {
     }
 
     private static VisitorReservation reservation(Long spaceId, LocalDate date) {
-        return VisitorReservation.create(1L, spaceId, date, null, 1L, NOW);
+        return VisitorReservation.create(1L, ResourceType.PARKING, spaceId, date, null, 1L, NOW);
     }
 
     private static Employee employee(Long id, String first, String last) {

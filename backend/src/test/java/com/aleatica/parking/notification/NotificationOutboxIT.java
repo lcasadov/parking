@@ -264,7 +264,7 @@ class NotificationOutboxIT extends BaseIntegrationTest {
         long visitorId = insertVisitor("87654321X");
 
         // Act: el admin crea una reserva de visitante (plaza disponible ese dia)
-        String body = "{\"visitorId\":" + visitorId + ",\"parkingSpaceId\":" + spaceId
+        String body = "{\"visitorId\":" + visitorId + ",\"resourceType\":\"PARKING\",\"resourceId\":" + spaceId
                 + ",\"reservationDate\":\"" + WITHIN + "\"}";
         mockMvc.perform(post("/api/v1/visitor-reservations").cookie(adminSession)
                         .contentType(MediaType.APPLICATION_JSON).content(body))

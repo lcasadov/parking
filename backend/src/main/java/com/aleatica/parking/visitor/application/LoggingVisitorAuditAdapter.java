@@ -59,18 +59,18 @@ public class LoggingVisitorAuditAdapter implements VisitorAuditPort {
 
     @Override
     public void auditReservationCreated(VisitorReservationResponse reservation) {
-        LOG.info("Reserva de visitante creada id={} visitante={} recurso={} fecha={} por admin={}",
-                reservation.id(), reservation.visitorId(), reservation.parkingSpaceId(),
-                reservation.reservationDate(), reservation.createdById());
+        LOG.info("Reserva de visitante creada id={} visitante={} tipo={} recurso={} fecha={} por admin={}",
+                reservation.id(), reservation.visitorId(), reservation.resourceType(),
+                reservation.resourceId(), reservation.reservationDate(), reservation.createdById());
         persist(ACTION_RESERVATION_CREATED, ENTITY_RESERVATION, reservation.id(),
                 reservation.createdById(), reservation);
     }
 
     @Override
     public void auditReservationCancelled(VisitorReservationResponse reservation) {
-        LOG.info("Reserva de visitante anulada id={} visitante={} recurso={} fecha={} por admin={}",
-                reservation.id(), reservation.visitorId(), reservation.parkingSpaceId(),
-                reservation.reservationDate(), reservation.createdById());
+        LOG.info("Reserva de visitante anulada id={} visitante={} tipo={} recurso={} fecha={} por admin={}",
+                reservation.id(), reservation.visitorId(), reservation.resourceType(),
+                reservation.resourceId(), reservation.reservationDate(), reservation.createdById());
         persist(ACTION_RESERVATION_CANCELLED, ENTITY_RESERVATION, reservation.id(),
                 reservation.createdById(), reservation);
     }

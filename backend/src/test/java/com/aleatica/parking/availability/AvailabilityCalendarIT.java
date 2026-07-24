@@ -318,8 +318,8 @@ class AvailabilityCalendarIT extends BaseIntegrationTest {
 
     private void insertReservation(long visitor, long space, LocalDate date) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.visitor_reservations (visitor_id, parking_space_id, reservation_date, "
-                        + "created_by_id, created_at) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO dbo.visitor_reservations (visitor_id, resource_type, resource_id, reservation_date, "
+                        + "created_by_id, created_at) VALUES (?, 'PARKING', ?, ?, ?, ?)",
                 visitor, space, Date.valueOf(date), idOfEmployee(ADMIN_LOGIN),
                 Timestamp.from(Instant.now()));
     }

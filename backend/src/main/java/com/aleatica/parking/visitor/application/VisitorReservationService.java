@@ -1,6 +1,8 @@
 package com.aleatica.parking.visitor.application;
 
 import com.aleatica.parking.auth.domain.ClockPort;
+import com.aleatica.parking.desk.Desk;
+import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
@@ -49,16 +51,17 @@ public class VisitorReservationService {
 
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
     private static final String MSG_VISITOR_NOT_FOUND = "Visitante no encontrado: ";
-    private static final String MSG_SPACE_NOT_FOUND = "Plaza no encontrada: ";
+    private static final String MSG_RESOURCE_NOT_FOUND = "Recurso no encontrado: ";
     private static final String MSG_RESERVATION_NOT_FOUND = "Reserva de visitante no encontrada: ";
-    private static final String MSG_SPACE_UNAVAILABLE =
-            "La plaza no esta disponible para la fecha de la reserva";
+    private static final String MSG_RESOURCE_UNAVAILABLE =
+            "El recurso no esta disponible para la fecha de la reserva";
     private static final String MSG_PAST_CANCELLATION =
             "Solo se pueden anular reservas de visitante con fecha futura";
 
     private final VisitorReservationRepository reservationRepository;
     private final VisitorRepository visitorRepository;
     private final ParkingSpaceRepository parkingSpaceRepository;
+    private final DeskRepository deskRepository;
     private final FixedAssignmentJpaRepository fixedAssignmentRepository;
     private final RequestJpaRepository requestRepository;
     private final ReleaseJpaRepository releaseRepository;
@@ -81,6 +84,7 @@ public class VisitorReservationService {
             VisitorReservationRepository reservationRepository,
             VisitorRepository visitorRepository,
             ParkingSpaceRepository parkingSpaceRepository,
+            DeskRepository deskRepository,
             FixedAssignmentJpaRepository fixedAssignmentRepository,
             RequestJpaRepository requestRepository,
             ReleaseJpaRepository releaseRepository,
@@ -90,6 +94,7 @@ public class VisitorReservationService {
         this.reservationRepository = reservationRepository;
         this.visitorRepository = visitorRepository;
         this.parkingSpaceRepository = parkingSpaceRepository;
+        this.deskRepository = deskRepository;
         this.fixedAssignmentRepository = fixedAssignmentRepository;
         this.requestRepository = requestRepository;
         this.releaseRepository = releaseRepository;
@@ -112,11 +117,10 @@ public class VisitorReservationService {
     public VisitorReservationResponse create(String adminLogin, VisitorReservationCreateRequest request) {
         Long adminId = resolveEmployeeId(adminLogin);
         requireVisitorExists(request.visitorId());
-        ParkingSpace space = loadSpace(request.parkingSpaceId());
-        requireSpaceAvailable(space, request.reservationDate());
+        requireResourceAvailable(request.resourceType(), request.resourceId(), request.reservationDate());
         VisitorReservation saved = reservationRepository.saveAndFlush(VisitorReservation.create(
-                request.visitorId(), request.parkingSpaceId(), request.reservationDate(),
-                request.notes(), adminId, clock.now()));
+                request.visitorId(), request.resourceType(), request.resourceId(),
+                request.reservationDate(), request.notes(), adminId, clock.now()));
         VisitorReservationResponse response = VisitorReservationResponse.from(saved);
         eventPublisher.publishEvent(
                 new VisitorReservationAuditEvent(VisitorReservationAuditEvent.Kind.CREATED, response));
@@ -134,9 +138,9 @@ public class VisitorReservationService {
      */
     @Transactional(readOnly = true)
     public PageResponse<VisitorReservationResponse> list(
-            LocalDate date, Long parkingSpaceId, Pageable pageable) {
+            LocalDate date, Long resourceId, Pageable pageable) {
         return PageResponse.from(
-                reservationRepository.search(date, parkingSpaceId, pageable),
+                reservationRepository.search(date, resourceId, pageable),
                 VisitorReservationResponse::from);
     }
 
@@ -160,45 +164,55 @@ public class VisitorReservationService {
                 new VisitorReservationAuditEvent(VisitorReservationAuditEvent.Kind.CANCELLED, snapshot));
     }
 
-    private void requireSpaceAvailable(ParkingSpace space, LocalDate date) {
-        if (!space.isActive() || isSpaceTaken(space.getId(), date)) {
-            throw new SpaceNotAvailableForReservationException(MSG_SPACE_UNAVAILABLE);
+    // Disponibilidad del recurso (plaza o puesto) para la fecha: el recurso debe existir
+    // (si no, 404), estar activo y no estar ocupado (fija vigente no liberada, solicitud
+    // APPROVED, u otra reserva de visitante); en caso contrario, 409. Una sola carga por
+    // findById (existencia + estado) para el tipo de recurso concreto.
+    private void requireResourceAvailable(ResourceType resourceType, Long resourceId, LocalDate date) {
+        boolean active = loadResourceActive(resourceType, resourceId);
+        if (!active || isResourceTaken(resourceType, resourceId, date)) {
+            throw new SpaceNotAvailableForReservationException(MSG_RESOURCE_UNAVAILABLE);
         }
     }
 
-    private boolean isSpaceTaken(Long spaceId, LocalDate date) {
-        return fixedAssignmentTaken(spaceId, date)
-                || approvedRequestTaken(spaceId, date)
-                || visitorReservationTaken(spaceId, date);
+    private boolean loadResourceActive(ResourceType resourceType, Long resourceId) {
+        if (resourceType == ResourceType.DESK) {
+            return deskRepository.findById(resourceId).map(Desk::isActive)
+                    .orElseThrow(() -> new EntityNotFoundException(MSG_RESOURCE_NOT_FOUND + resourceId));
+        }
+        return parkingSpaceRepository.findById(resourceId).map(ParkingSpace::isActive)
+                .orElseThrow(() -> new EntityNotFoundException(MSG_RESOURCE_NOT_FOUND + resourceId));
     }
 
-    private boolean fixedAssignmentTaken(Long spaceId, LocalDate date) {
+    private boolean isResourceTaken(ResourceType resourceType, Long resourceId, LocalDate date) {
+        return fixedAssignmentTaken(resourceType, resourceId, date)
+                || approvedRequestTaken(resourceType, resourceId, date)
+                || visitorReservationTaken(resourceType, resourceId, date);
+    }
+
+    private boolean fixedAssignmentTaken(ResourceType resourceType, Long resourceId, LocalDate date) {
         int dayOfWeek = date.getDayOfWeek().getValue();
         boolean assigned = fixedAssignmentRepository
                 .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(
-                        spaceId, ResourceType.PARKING, dayOfWeek);
+                        resourceId, resourceType, dayOfWeek);
         return assigned && !releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(
-                spaceId, ResourceType.PARKING, date);
+                resourceId, resourceType, date);
     }
 
-    private boolean approvedRequestTaken(Long spaceId, LocalDate date) {
+    private boolean approvedRequestTaken(ResourceType resourceType, Long resourceId, LocalDate date) {
         return requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
-                spaceId, ResourceType.PARKING, date, RequestStatus.APPROVED);
+                resourceId, resourceType, date, RequestStatus.APPROVED);
     }
 
-    private boolean visitorReservationTaken(Long spaceId, LocalDate date) {
-        return reservationRepository.existsByParkingSpaceIdAndReservationDate(spaceId, date);
+    private boolean visitorReservationTaken(ResourceType resourceType, Long resourceId, LocalDate date) {
+        return reservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(
+                resourceType, resourceId, date);
     }
 
     private void requireVisitorExists(Long visitorId) {
         if (!visitorRepository.existsById(visitorId)) {
             throw new EntityNotFoundException(MSG_VISITOR_NOT_FOUND + visitorId);
         }
-    }
-
-    private ParkingSpace loadSpace(Long spaceId) {
-        return parkingSpaceRepository.findById(spaceId)
-                .orElseThrow(() -> new EntityNotFoundException(MSG_SPACE_NOT_FOUND + spaceId));
     }
 
     private VisitorReservation loadReservation(Long id) {

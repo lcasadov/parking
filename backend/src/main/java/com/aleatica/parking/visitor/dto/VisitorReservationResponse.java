@@ -1,5 +1,6 @@
 package com.aleatica.parking.visitor.dto;
 
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.VisitorReservation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,7 +18,8 @@ import java.time.LocalDate;
  *
  * @param id             identificador
  * @param visitorId      visitante reservado
- * @param parkingSpaceId plaza ocupada
+ * @param resourceType   tipo de recurso ocupado ({@code PARKING}/{@code DESK})
+ * @param resourceId     identificador del recurso ocupado
  * @param reservationDate fecha reservada (ISO-8601 date)
  * @param notes          anotaciones; {@code null} si no aplica
  * @param createdById    {@code ADMIN} que creo la reserva
@@ -31,8 +33,11 @@ public record VisitorReservationResponse(
         @Schema(description = "Visitante reservado", example = "42")
         @JsonProperty("visitorId") Long visitorId,
 
-        @Schema(description = "Plaza ocupada", example = "8")
-        @JsonProperty("parkingSpaceId") Long parkingSpaceId,
+        @Schema(description = "Tipo de recurso ocupado", example = "PARKING")
+        @JsonProperty("resourceType") ResourceType resourceType,
+
+        @Schema(description = "Identificador del recurso ocupado (plaza o puesto)", example = "8")
+        @JsonProperty("resourceId") Long resourceId,
 
         @Schema(description = "Fecha reservada (ISO-8601)", example = "2026-07-10")
         @JsonProperty("reservationDate") LocalDate reservationDate,
@@ -56,7 +61,8 @@ public record VisitorReservationResponse(
         return new VisitorReservationResponse(
                 reservation.getId(),
                 reservation.getVisitorId(),
-                reservation.getParkingSpaceId(),
+                reservation.getResourceType(),
+                reservation.getResourceId(),
                 reservation.getReservationDate(),
                 reservation.getNotes(),
                 reservation.getCreatedById(),

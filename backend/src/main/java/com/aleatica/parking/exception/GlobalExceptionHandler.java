@@ -104,7 +104,7 @@ public class GlobalExceptionHandler {
     private static final String INDEX_RELEASE_SPACE_DATE = "ux_releases_space_date";
     private static final String INDEX_VISITOR_NATIONAL_ID = "ux_visitors_national_id";
     private static final String INDEX_VISITOR_RESERVATION_SPACE_DATE =
-            "ux_visitor_reservations_space_date";
+            "ux_visitor_reservations_resource_date";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_PARAM_MISSING = "El parametro es obligatorio";
@@ -165,7 +165,7 @@ public class GlobalExceptionHandler {
                     CODE_RESOURCE_RELEASED),
             new IndexRule(INDEX_VISITOR_NATIONAL_ID, FIELD_NATIONAL_ID, MSG_NATIONAL_ID_TAKEN,
                     CODE_CONFLICT),
-            new IndexRule(INDEX_VISITOR_RESERVATION_SPACE_DATE, FIELD_PARKING_SPACE_ID,
+            new IndexRule(INDEX_VISITOR_RESERVATION_SPACE_DATE, FIELD_RESOURCE_ID,
                     MSG_RESERVATION_SPACE_TAKEN, CODE_SPACE_UNAVAILABLE));
 
     /**
@@ -577,7 +577,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SpaceNotAvailableForReservationException.class)
     public ResponseEntity<ApiError> handleReservationSpaceUnavailable(
             SpaceNotAvailableForReservationException ex) {
-        Map<String, String> fields = Map.of(FIELD_PARKING_SPACE_ID, ex.getMessage());
+        Map<String, String> fields = Map.of(FIELD_RESOURCE_ID, ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_SPACE_UNAVAILABLE, ex.getMessage(), fields));
     }

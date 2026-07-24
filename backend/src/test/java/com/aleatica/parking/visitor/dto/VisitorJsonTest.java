@@ -1,4 +1,5 @@
 package com.aleatica.parking.visitor.dto;
+import com.aleatica.parking.resource.ResourceType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,7 +51,7 @@ class VisitorJsonTest {
     void shouldSerializeContractKeys_whenSerializingReservation() throws Exception {
         // Arrange
         VisitorReservationResponse response = new VisitorReservationResponse(
-                7L, 42L, 8L, LocalDate.of(2026, 7, 10), "Puerta norte", 1L,
+                 7L, 42L, ResourceType.PARKING, 8L, LocalDate.of(2026, 7, 10), "Puerta norte", 1L,
                 Instant.parse("2026-07-04T10:00:00Z"));
 
         // Act
@@ -60,7 +61,7 @@ class VisitorJsonTest {
         assertThat(json)
                 .contains("\"id\":7")
                 .contains("\"visitorId\":42")
-                .contains("\"parkingSpaceId\":8")
+                .contains("\"resourceType\":\"PARKING\",\"resourceId\":8")
                 .contains("\"reservationDate\":\"2026-07-10\"")
                 .contains("\"notes\":\"Puerta norte\"")
                 .contains("\"createdById\":1")
@@ -88,7 +89,7 @@ class VisitorJsonTest {
     @Test
     void shouldDeserializeCreateBody_whenReadingReservationRequest() throws Exception {
         // Arrange
-        String body = "{\"visitorId\":42,\"parkingSpaceId\":8,\"reservationDate\":\"2026-07-10\","
+        String body = "{\"visitorId\":42,\"resourceType\":\"PARKING\",\"resourceId\":8,\"reservationDate\":\"2026-07-10\","
                 + "\"notes\":\"Puerta norte\"}";
 
         // Act
@@ -97,7 +98,8 @@ class VisitorJsonTest {
 
         // Assert
         assertThat(parsed.visitorId()).isEqualTo(42L);
-        assertThat(parsed.parkingSpaceId()).isEqualTo(8L);
+        assertThat(parsed.resourceType()).isEqualTo(ResourceType.PARKING);
+        assertThat(parsed.resourceId()).isEqualTo(8L);
         assertThat(parsed.reservationDate()).isEqualTo(LocalDate.of(2026, 7, 10));
         assertThat(parsed.notes()).isEqualTo("Puerta norte");
     }

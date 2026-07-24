@@ -21,6 +21,7 @@ import com.aleatica.parking.employee.dto.PageResponse;
 import com.aleatica.parking.visitor.application.PastVisitorReservationCancellationException;
 import com.aleatica.parking.visitor.application.SpaceNotAvailableForReservationException;
 import com.aleatica.parking.visitor.application.VisitorReservationService;
+import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.visitor.dto.VisitorReservationResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -53,7 +54,7 @@ class VisitorReservationControllerTest {
     private static final String ROLE_EMPLOYEE = "EMPLOYEE";
 
     private static final String CREATE_BODY =
-            "{\"visitorId\":42,\"parkingSpaceId\":8,\"reservationDate\":\"2026-07-10\"}";
+            "{\"visitorId\":42,\"resourceType\":\"PARKING\",\"resourceId\":8,\"reservationDate\":\"2026-07-10\"}";
     private static final String ERROR_PATH = "$.error";
 
     @Autowired
@@ -109,7 +110,7 @@ class VisitorReservationControllerTest {
         mockMvc.perform(post(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.parkingSpaceId").value(8));
+                .andExpect(jsonPath("$.resourceId").value(8));
     }
 
     @Test
@@ -145,7 +146,7 @@ class VisitorReservationControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath(ERROR_PATH).value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.fields.visitorId").exists())
-                .andExpect(jsonPath("$.fields.parkingSpaceId").exists())
+                .andExpect(jsonPath("$.fields.resourceId").exists())
                 .andExpect(jsonPath("$.fields.reservationDate").exists());
         verify(reservationService, never()).create(anyString(), any());
     }
@@ -161,7 +162,7 @@ class VisitorReservationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath(ERROR_PATH).value("SPACE_NOT_AVAILABLE"))
-                .andExpect(jsonPath("$.fields.parkingSpaceId").exists());
+                .andExpect(jsonPath("$.fields.resourceId").exists());
     }
 
     @Test
@@ -201,7 +202,7 @@ class VisitorReservationControllerTest {
     }
 
     private VisitorReservationResponse sample() {
-        return new VisitorReservationResponse(7L, 42L, 8L, LocalDate.of(2026, 7, 10),
+        return new VisitorReservationResponse(7L, 42L, ResourceType.PARKING, 8L, LocalDate.of(2026, 7, 10),
                 "Puerta norte", 1L, Instant.parse("2026-07-04T10:00:00Z"));
     }
 }

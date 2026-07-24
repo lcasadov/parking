@@ -82,7 +82,7 @@ class VisitorReservationIT extends BaseIntegrationTest {
         // Act / Assert: 201 y la plaza pasa a estar ocupada esa fecha
         createReservation(adminSession, visitorId, spaceId, FUTURE)
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.parkingSpaceId").value((int) spaceId))
+                .andExpect(jsonPath("$.resourceId").value((int) spaceId))
                 .andExpect(jsonPath("$.visitorId").value((int) visitorId));
         assertThat(reservationsForSpaceDate(spaceId, FUTURE)).isEqualTo(1);
     }
@@ -156,7 +156,7 @@ class VisitorReservationIT extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.fields.parkingSpaceId").exists());
+                .andExpect(jsonPath("$.fields.resourceId").exists());
     }
 
     @Test
@@ -260,7 +260,7 @@ class VisitorReservationIT extends BaseIntegrationTest {
 
     private ResultActions createReservation(Cookie session, long visitor, long space, LocalDate date)
             throws Exception {
-        String body = "{\"visitorId\":" + visitor + ",\"parkingSpaceId\":" + space
+        String body = "{\"visitorId\":" + visitor + ",\"resourceType\":\"PARKING\",\"resourceId\":" + space
                 + ",\"reservationDate\":\"" + date + "\"}";
         var request = post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(body);
         if (session != null) {
@@ -291,12 +291,12 @@ class VisitorReservationIT extends BaseIntegrationTest {
 
     private long insertReservation(long visitor, long space, LocalDate date) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.visitor_reservations (visitor_id, parking_space_id, reservation_date, "
-                        + "created_by_id, created_at) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO dbo.visitor_reservations (visitor_id, resource_type, resource_id, reservation_date, "
+                        + "created_by_id, created_at) VALUES (?, 'PARKING', ?, ?, ?, ?)",
                 visitor, space, Date.valueOf(date), idOfEmployee(ADMIN_LOGIN),
                 Timestamp.from(Instant.now()));
         Long id = jdbcTemplate.queryForObject(
-                "SELECT id FROM dbo.visitor_reservations WHERE parking_space_id = ? AND reservation_date = ?",
+                "SELECT id FROM dbo.visitor_reservations WHERE resource_id = ? AND reservation_date = ?",
                 Long.class, space, Date.valueOf(date));
         return id == null ? 0L : id;
     }
@@ -356,7 +356,7 @@ class VisitorReservationIT extends BaseIntegrationTest {
 
     private int reservationsForSpaceDate(long space, LocalDate date) {
         Integer value = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM dbo.visitor_reservations WHERE parking_space_id = ? "
+                "SELECT COUNT(*) FROM dbo.visitor_reservations WHERE resource_id = ? "
                         + "AND reservation_date = ?",
                 Integer.class, space, Date.valueOf(date));
         return value == null ? 0 : value;
