@@ -103,6 +103,7 @@ export const en = {
       open: 'Open navigation menu',
       close: 'Close navigation menu',
       menuLabel: 'Main navigation',
+      newReservation: 'New booking',
     },
   },
   dashboard: {

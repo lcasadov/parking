@@ -103,6 +103,7 @@ export const es = {
       open: 'Abrir menú de navegación',
       close: 'Cerrar menú de navegación',
       menuLabel: 'Navegación principal',
+      newReservation: 'Nueva reserva',
     },
   },
   dashboard: {
