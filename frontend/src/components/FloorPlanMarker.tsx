@@ -1,6 +1,5 @@
-import { useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { type PointerEvent as ReactPointerEvent } from 'react';
 import { FloorPlanOccupantPin } from './FloorPlanOccupantPin';
-import { FloorPlanTooltip } from './FloorPlanTooltip';
 import type { FloorPlanDesk } from '../types/floorPlan';
 import { EXECUTIVE_SYMBOL, isOccupiedState, markerColorClass } from '../utils/floorPlan';
 
@@ -17,6 +16,9 @@ interface FloorPlanMarkerProps {
   selected?: boolean;
   onRequest: (desk: FloorPlanDesk) => void;
   onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
+  // Notifica al plano el hover/focus para renderizar el tooltip en una capa no
+  // clipada: el botón (para medir su posición real) o null al salir.
+  onHover: (desk: FloorPlanDesk, button: HTMLButtonElement | null) => void;
 }
 
 // Un marcador de puesto sobre el plano: botón accesible posicionado por %.
@@ -33,9 +35,8 @@ export function FloorPlanMarker({
   selected = false,
   onRequest,
   onDragStart,
+  onHover,
 }: FloorPlanMarkerProps) {
-  const [active, setActive] = useState(false);
-
   const isExecutive = desk.category === 'EXECUTIVE';
   // En modo edición los marcadores se pintan neutros (gris uniforme) para
   // enfocar el reposicionamiento; fuera de él, el color semántico de estado, o el
@@ -79,10 +80,10 @@ export function FloorPlanMarker({
         disabled={!editMode && desk.state !== 'FREE'}
         onClick={handleClick}
         onPointerDown={handlePointerDown}
-        onPointerEnter={() => setActive(true)}
-        onPointerLeave={() => setActive(false)}
-        onFocus={() => setActive(true)}
-        onBlur={() => setActive(false)}
+        onPointerEnter={(event) => onHover(desk, event.currentTarget)}
+        onPointerLeave={() => onHover(desk, null)}
+        onFocus={(event) => onHover(desk, event.currentTarget)}
+        onBlur={() => onHover(desk, null)}
       >
         <span aria-hidden="true" className="floor-marker-number">
           {desk.deskNumber}
@@ -95,7 +96,6 @@ export function FloorPlanMarker({
       </button>
 
       {showPin ? <FloorPlanOccupantPin desk={desk} style={pos} /> : null}
-      <FloorPlanTooltip desk={desk} show={!editMode && active} style={pos} below={top < 18} />
     </>
   );
 }

@@ -1756,41 +1756,11 @@ body.theme-dark .segmented button.active {
   gap: var(--space-5);
 }
 
-/* Leyenda FLOTANTE sobre el lienzo (esquina inferior derecha), material con blur. */
-.floor-plan-legend {
-  position: absolute;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  z-index: 6;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  max-width: calc(100% - var(--space-6));
-  list-style: none;
-  margin: 0;
-  padding: 9px 13px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--panel) 72%, transparent);
-  backdrop-filter: saturate(160%) blur(10px);
-  box-shadow: var(--shadow-2);
-  font-size: var(--text-xs);
-  color: var(--text-soft);
-}
-.floor-plan-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.floor-legend-swatch {
-  display: inline-grid;
-  place-items: center;
-  width: 11px;
-  height: 11px;
-  border-radius: 3px;
-  border: 1px solid transparent;
-  font-size: 8px;
-  line-height: 1;
+/* Envoltorio del lienzo: capa de anclaje (relative, SIN overflow) para el tooltip
+   flotante, que se saca del `.floor-plan-surface` (overflow:hidden) para no
+   recortarse ni escalar con el zoom. */
+.floor-plan-surface-wrap {
+  position: relative;
 }
 
 /* Superficie del plano: lienzo oscuro premium que recorta el "mundo" transformado.
@@ -2069,11 +2039,13 @@ body.theme-dark .floor-plan-image {
   box-shadow: var(--shadow-4);
   padding: 11px 13px;
 }
-/* Puntita del tooltip apuntando al marcador (abajo por defecto, arriba si flip). */
+/* Puntita del tooltip apuntando al marcador (abajo por defecto, arriba si flip).
+   `--tip-arrow-x` la reubica cuando el tooltip se clampa contra un borde lateral,
+   para que siga señalando al marcador. */
 .floor-tip-inner::after {
   content: '';
   position: absolute;
-  left: 50%;
+  left: calc(50% + var(--tip-arrow-x, 0px));
   bottom: -6px;
   width: 11px;
   height: 11px;
@@ -2582,12 +2554,6 @@ body.theme-dark .floor-plan-image {
   .floor-plan-toolbar {
     flex-direction: column;
     align-items: stretch;
-  }
-  .floor-plan-legend {
-    right: var(--space-3);
-    bottom: var(--space-3);
-    padding: 7px 10px;
-    gap: 6px var(--space-3);
   }
 }
 

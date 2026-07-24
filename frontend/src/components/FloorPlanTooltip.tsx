@@ -1,3 +1,4 @@
+import { type CSSProperties } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { deskInitials, deskStatePillClass, isOccupiedState } from '../utils/floorPlan';
@@ -6,11 +7,15 @@ import type { DeskState, FloorPlanDesk } from '../types/floorPlan';
 
 interface FloorPlanTooltipProps {
   desk: FloorPlanDesk;
-  show: boolean;
-  // Posición (en %) heredada del marcador para anclar el tooltip sobre él.
-  style: { left: string; top: string };
+  // Posición en píxeles (centro horizontal / ancla vertical) relativa a la capa
+  // NO clipada `.floor-plan-surface-wrap`, ya resuelta contra el pan/zoom del plano.
+  left: number;
+  top: number;
   // Voltea el tooltip debajo del marcador cuando está pegado al borde superior.
   below: boolean;
+  // Desfase horizontal de la puntita respecto al centro del tooltip (px), para que
+  // siga apuntando al marcador aunque el tooltip se haya clampado contra un borde.
+  arrow: number;
 }
 
 // Línea de contexto del tooltip (icono Tabler + clave i18n) por estado. El estado
@@ -25,19 +30,22 @@ const STATUS_LINE: Record<DeskState, { icon: string; key: string }> = {
 
 // Tooltip que aparece al pasar/enfocar un marcador: nº de puesto + pill de estado,
 // etiquetas (categoría) y una línea de contexto (disponibilidad o quién lo ocupa).
-// Un wrapper posicionado por CSS ancla el tooltip; el motion.div interno anima solo
-// la ENTRADA (opacity/escala) sin pisar el transform de posicionamiento.
-export function FloorPlanTooltip({ desk, show, style, below }: FloorPlanTooltipProps) {
+// Vive en la capa `.floor-plan-surface-wrap` (fuera del overflow y del transform del
+// plano) para no recortarse ni escalar con el zoom; se posiciona en píxeles. El
+// motion.div interno anima solo la ENTRADA (opacity/escala) sin pisar el transform.
+export function FloorPlanTooltip({ desk, left, top, below, arrow }: FloorPlanTooltipProps) {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
-  if (!show) {
-    return null;
-  }
 
   const line = STATUS_LINE[desk.state];
   const name = desk.occupantName ?? '';
   const withName = isOccupiedState(desk.state) && name !== '';
   const rise = below ? -4 : 4;
+  const style = {
+    left: `${left}px`,
+    top: `${top}px`,
+    '--tip-arrow-x': `${arrow}px`,
+  } as CSSProperties;
 
   return (
     <div className={`floor-tip${below ? ' floor-tip-below' : ''}`} style={style} role="tooltip">
