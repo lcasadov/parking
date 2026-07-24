@@ -1263,6 +1263,7 @@ export const es = {
       RELEASED: 'Liberada',
       REQUEST_PENDING: 'Solicitud pendiente',
       REQUEST_APPROVED: 'Solicitud aprobada',
+      VISITOR_RESERVATION: 'Visitante',
       FREE: 'Libre',
     },
     weekdaysShort: {

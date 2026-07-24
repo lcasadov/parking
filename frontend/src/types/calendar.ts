@@ -6,6 +6,7 @@ export type CalendarCellState =
   | 'RELEASED'
   | 'REQUEST_PENDING'
   | 'REQUEST_APPROVED'
+  | 'VISITOR_RESERVATION'
   | 'FREE';
 
 // MyWeekDayState: schema #/components/schemas/MyWeekDayState (mi-semana).

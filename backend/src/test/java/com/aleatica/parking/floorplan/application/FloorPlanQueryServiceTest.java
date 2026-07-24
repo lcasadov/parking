@@ -23,6 +23,7 @@ import com.aleatica.parking.release.infrastructure.ReleaseEntity;
 import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
 import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
+import com.aleatica.parking.visitor.VisitorReservationRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.resource.ResourceType;
@@ -63,6 +64,7 @@ class FloorPlanQueryServiceTest {
     private ReleaseJpaRepository releaseRepository;
     private RequestJpaRepository requestRepository;
     private EmployeeRepository employeeRepository;
+    private VisitorReservationRepository visitorReservationRepository;
     private ClockPort clock;
 
     private FloorPlanQueryService service;
@@ -74,10 +76,11 @@ class FloorPlanQueryServiceTest {
         releaseRepository = mock(ReleaseJpaRepository.class);
         requestRepository = mock(RequestJpaRepository.class);
         employeeRepository = mock(EmployeeRepository.class);
+        visitorReservationRepository = mock(VisitorReservationRepository.class);
         clock = mock(ClockPort.class);
         given(clock.now()).willReturn(NOW);
         service = new FloorPlanQueryService(deskRepository, fixedAssignmentRepository,
-                releaseRepository, requestRepository, employeeRepository, clock);
+                releaseRepository, requestRepository, employeeRepository, visitorReservationRepository, clock);
     }
 
     @Test

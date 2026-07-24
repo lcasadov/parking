@@ -39,7 +39,7 @@ export function summarizeDay(rows: CalendarRow[], date: string): DaySnapshot {
     if (!cell) {
       continue;
     }
-    if (cell.state === 'ASSIGNED' || cell.state === 'REQUEST_APPROVED') {
+    if (cell.state === 'ASSIGNED' || cell.state === 'REQUEST_APPROVED' || cell.state === 'VISITOR_RESERVATION') {
       occupied += 1;
     } else if (cell.state === 'FREE') {
       free += 1;
@@ -59,7 +59,7 @@ export function summarizeAdminCalendar(rows: CalendarRow[]): AdminCalendarSummar
   let requests = 0;
   for (const row of rows) {
     for (const cell of row.cells) {
-      if (cell.state === 'ASSIGNED' || cell.state === 'REQUEST_APPROVED') {
+      if (cell.state === 'ASSIGNED' || cell.state === 'REQUEST_APPROVED' || cell.state === 'VISITOR_RESERVATION') {
         assignments += 1;
       } else if (cell.state === 'RELEASED') {
         releases += 1;

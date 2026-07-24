@@ -23,6 +23,9 @@ public enum CalendarCellState {
     /** La plaza esta ocupada por una solicitud aprobada para esa fecha. */
     REQUEST_APPROVED,
 
+    /** El recurso esta ocupado por una reserva de visitante para esa fecha (plaza o puesto). */
+    VISITOR_RESERVATION,
+
     /** La plaza esta libre esa fecha (ni asignada vigente, ni ocupada por solicitud aprobada). */
     FREE
 }

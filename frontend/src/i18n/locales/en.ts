@@ -1262,6 +1262,7 @@ export const en = {
       RELEASED: 'Released',
       REQUEST_PENDING: 'Request pending',
       REQUEST_APPROVED: 'Request approved',
+      VISITOR_RESERVATION: 'Visitor',
       FREE: 'Free',
     },
     weekdaysShort: {

@@ -10,6 +10,7 @@ const STATE_COLOR: Record<CalendarCellState, string> = {
   RELEASED: 'var(--state-released-bg)',
   REQUEST_PENDING: 'var(--state-pending-bg)',
   REQUEST_APPROVED: 'var(--state-request-bg)',
+  VISITOR_RESERVATION: 'var(--state-occupied-bg)',
   FREE: 'var(--state-free-bg)',
 };
 

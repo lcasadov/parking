@@ -52,6 +52,7 @@ const CALENDAR_STATE_CLASS: Record<CalendarCellState, string> = {
   RELEASED: 'state-released',
   REQUEST_PENDING: 'state-pending',
   REQUEST_APPROVED: 'state-request',
+  VISITOR_RESERVATION: 'state-occupied',
   FREE: 'state-free',
 };
 

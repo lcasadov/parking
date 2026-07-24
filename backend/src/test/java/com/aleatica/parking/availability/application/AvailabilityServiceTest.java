@@ -37,6 +37,7 @@ import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.support.EmployeeTestFactory;
 import com.aleatica.parking.visitor.VisitorReservation;
 import com.aleatica.parking.visitor.VisitorReservationRepository;
+import com.aleatica.parking.visitor.VisitorRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -93,14 +94,16 @@ class AvailabilityServiceTest {
     @Mock
     private VisitorReservationRepository visitorReservationRepository;
     @Mock
+    private VisitorRepository visitorRepository;
+    @Mock
     private EmployeeRepository employeeRepository;
     @Mock
     private ClockPort clock;
 
     private AvailabilityService service() {
         return new AvailabilityService(parkingSpaceRepository, deskRepository, fixedAssignmentRepository,
-                releaseRepository, requestRepository, visitorReservationRepository, employeeRepository,
-                clock);
+                releaseRepository, requestRepository, visitorReservationRepository, visitorRepository,
+                employeeRepository, clock);
     }
 
     // ---- Tabla de verdad de disponibilidad puntual ----

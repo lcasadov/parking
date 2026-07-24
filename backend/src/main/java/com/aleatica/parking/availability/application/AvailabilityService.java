@@ -29,6 +29,8 @@ import com.aleatica.parking.request.infrastructure.RequestEntity;
 import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.resource.ResourceType;
+import com.aleatica.parking.visitor.Visitor;
+import com.aleatica.parking.visitor.VisitorRepository;
 import com.aleatica.parking.visitor.VisitorReservation;
 import com.aleatica.parking.visitor.VisitorReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -86,6 +88,7 @@ public class AvailabilityService {
     private final ReleaseJpaRepository releaseRepository;
     private final RequestJpaRepository requestRepository;
     private final VisitorReservationRepository visitorReservationRepository;
+    private final VisitorRepository visitorRepository;
     private final EmployeeRepository employeeRepository;
     private final ClockPort clock;
 
@@ -106,6 +109,7 @@ public class AvailabilityService {
             ReleaseJpaRepository releaseRepository,
             RequestJpaRepository requestRepository,
             VisitorReservationRepository visitorReservationRepository,
+            VisitorRepository visitorRepository,
             EmployeeRepository employeeRepository,
             ClockPort clock) {
         this.parkingSpaceRepository = parkingSpaceRepository;
@@ -114,6 +118,7 @@ public class AvailabilityService {
         this.releaseRepository = releaseRepository;
         this.requestRepository = requestRepository;
         this.visitorReservationRepository = visitorReservationRepository;
+        this.visitorRepository = visitorRepository;
         this.employeeRepository = employeeRepository;
         this.clock = clock;
     }
@@ -421,8 +426,19 @@ public class AvailabilityService {
                         Function.identity(), (a, b) -> a));
         Map<Long, String> names = employeeNames(fixed, approvedBySpaceDate.values());
 
+        // Reservas de visitante de la semana (por tipo): ocupan (recurso, fecha) con el
+        // visitante como ocupante (estado VISITOR_RESERVATION), reflejadas en la rejilla.
+        List<VisitorReservation> visitorWeek = visitorReservationRepository
+                .findByResourceTypeAndReservationDateBetween(resourceType, weekStart, weekEnd);
+        Map<SpaceDate, VisitorReservation> visitorBySpaceDate = visitorWeek.stream()
+                .collect(Collectors.toMap(
+                        r -> new SpaceDate(r.getResourceId(), r.getReservationDate()),
+                        Function.identity(), (a, b) -> a));
+        Map<Long, String> visitorNames = visitorNames(visitorWeek);
+
         List<CalendarRowResponse> rows = resources.stream()
-                .map(resource -> row(resource, days, fixedBySpaceDow, releasedKeys, approvedBySpaceDate, names))
+                .map(resource -> row(resource, days, fixedBySpaceDow, releasedKeys, approvedBySpaceDate,
+                        names, visitorBySpaceDate, visitorNames))
                 .toList();
         return new AdminWeeklyCalendarResponse(weekStart, days, rows);
     }
@@ -430,10 +446,12 @@ public class AvailabilityService {
     private CalendarRowResponse row(
             BookableResource resource, List<LocalDate> days, Map<SpaceDow, FixedAssignmentEntity> fixedBySpaceDow,
             Set<SpaceDate> releasedKeys, Map<SpaceDate, RequestEntity> approvedBySpaceDate,
-            Map<Long, String> names) {
+            Map<Long, String> names, Map<SpaceDate, VisitorReservation> visitorBySpaceDate,
+            Map<Long, String> visitorNames) {
         Long resourceId = resource.getResourceId();
         List<CalendarCellResponse> cells = days.stream()
-                .map(day -> cell(resourceId, day, fixedBySpaceDow, releasedKeys, approvedBySpaceDate, names))
+                .map(day -> cell(resourceId, day, fixedBySpaceDow, releasedKeys, approvedBySpaceDate,
+                        names, visitorBySpaceDate, visitorNames))
                 .toList();
         return new CalendarRowResponse(resourceId, resource.getLabel(), cells);
     }
@@ -441,7 +459,8 @@ public class AvailabilityService {
     private CalendarCellResponse cell(
             Long spaceId, LocalDate day, Map<SpaceDow, FixedAssignmentEntity> fixedBySpaceDow,
             Set<SpaceDate> releasedKeys, Map<SpaceDate, RequestEntity> approvedBySpaceDate,
-            Map<Long, String> names) {
+            Map<Long, String> names, Map<SpaceDate, VisitorReservation> visitorBySpaceDate,
+            Map<Long, String> visitorNames) {
         SpaceDate spaceDate = new SpaceDate(spaceId, day);
         RequestEntity approved = approvedBySpaceDate.get(spaceDate);
         if (approved != null) {
@@ -454,6 +473,12 @@ public class AvailabilityService {
                     ? CalendarCellState.RELEASED : CalendarCellState.ASSIGNED;
             return new CalendarCellResponse(day, state, assignment.getEmployeeId(),
                     names.get(assignment.getEmployeeId()), null);
+        }
+        VisitorReservation reservation = visitorBySpaceDate.get(spaceDate);
+        if (reservation != null) {
+            // Ocupante visitante: employeeId null; el nombre viaja en employeeName (ocupante).
+            return new CalendarCellResponse(day, CalendarCellState.VISITOR_RESERVATION,
+                    null, visitorNames.get(reservation.getVisitorId()), null);
         }
         return new CalendarCellResponse(day, CalendarCellState.FREE, null, null, null);
     }
@@ -511,16 +536,27 @@ public class AvailabilityService {
                         RequestEntity::getResourceId, Function.identity(), (a, b) -> a));
         Map<Long, String> names = employeeNames(fixedForDay, approved);
 
+        // Reservas de visitante que ocupan un recurso del tipo esa fecha, con el nombre del
+        // visitante como ocupante (origen VISITOR_RESERVATION).
+        List<VisitorReservation> visitorReservations = visitorReservationRepository
+                .findByResourceTypeAndReservationDateBetween(resourceType, date, date);
+        Map<Long, VisitorReservation> visitorByResource = visitorReservations.stream()
+                .collect(Collectors.toMap(
+                        VisitorReservation::getResourceId, Function.identity(), (a, b) -> a));
+        Map<Long, String> visitorNames = visitorNames(visitorReservations);
+
         return resources.stream()
                 .map(resource -> occupancyItem(
-                        resource, fixedByResource, released, approvedByResource, names))
+                        resource, fixedByResource, released, approvedByResource, names,
+                        visitorByResource, visitorNames))
                 .filter(Objects::nonNull)
                 .toList();
     }
 
     private OccupancyItemResponse occupancyItem(
             BookableResource resource, Map<Long, FixedAssignmentEntity> fixedByResource,
-            Set<Long> released, Map<Long, RequestEntity> approvedByResource, Map<Long, String> names) {
+            Set<Long> released, Map<Long, RequestEntity> approvedByResource, Map<Long, String> names,
+            Map<Long, VisitorReservation> visitorByResource, Map<Long, String> visitorNames) {
         Long resourceId = resource.getResourceId();
         RequestEntity approved = approvedByResource.get(resourceId);
         if (approved != null) {
@@ -532,7 +568,28 @@ public class AvailabilityService {
             return occupancyItemOf(resource, OccupancyOrigin.FIXED_ASSIGNMENT,
                     assignment.getEmployeeId(), names, null);
         }
+        VisitorReservation reservation = visitorByResource.get(resourceId);
+        if (reservation != null) {
+            // Ocupante = visitante (no un empleado): employeeId null, el nombre viaja en
+            // employeeName (nombre de ocupante mostrado por el frontend).
+            return new OccupancyItemResponse(
+                    resource.getResourceType(), resource.getResourceId(), resource.getNumber(),
+                    resource.getFloor(), null, visitorNames.get(reservation.getVisitorId()),
+                    OccupancyOrigin.VISITOR_RESERVATION, null);
+        }
         return null;
+    }
+
+    private Map<Long, String> visitorNames(List<VisitorReservation> reservations) {
+        Set<Long> ids = reservations.stream()
+                .map(VisitorReservation::getVisitorId)
+                .collect(Collectors.toCollection(HashSet::new));
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return visitorRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(
+                        Visitor::getId, v -> (v.getFirstName() + " " + v.getLastName()).trim()));
     }
 
     private static OccupancyItemResponse occupancyItemOf(

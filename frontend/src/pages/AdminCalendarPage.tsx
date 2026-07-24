@@ -53,7 +53,7 @@ const QUICK_FILTERS: QuickFilter[] = ['all', 'free', 'occupied', 'released', 're
 const QUICK_FILTER_STATES: Record<QuickFilter, CalendarCellState[] | null> = {
   all: null,
   free: ['FREE'],
-  occupied: ['ASSIGNED', 'REQUEST_APPROVED'],
+  occupied: ['ASSIGNED', 'REQUEST_APPROVED', 'VISITOR_RESERVATION'],
   released: ['RELEASED'],
   requests: ['REQUEST_PENDING', 'REQUEST_APPROVED'],
 };
