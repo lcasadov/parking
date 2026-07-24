@@ -18,6 +18,9 @@ interface FloorPlanMarkerProps {
   // acento persistente (`focused`) + animación de pulso temporal (`pulsing`, ~3-4s).
   focused?: boolean;
   pulsing?: boolean;
+  // Énfasis de disponibilidad (modo explorar): 'free' hace latir suave los puestos
+  // libres/elegibles; 'muted' atenúa los no disponibles para que el ojo vaya a lo libre.
+  emphasis?: 'free' | 'muted' | null;
   onRequest: (desk: FloorPlanDesk) => void;
   onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
   // Notifica al plano el hover/focus para renderizar el tooltip en una capa no
@@ -39,6 +42,7 @@ export function FloorPlanMarker({
   selected = false,
   focused = false,
   pulsing = false,
+  emphasis = null,
   onRequest,
   onDragStart,
   onHover,
@@ -56,6 +60,8 @@ export function FloorPlanMarker({
     dimmed ? 'floor-marker-dimmed' : '',
     focused ? 'floor-marker-focused' : '',
     pulsing ? 'floor-marker-pulse' : '',
+    emphasis === 'free' ? 'floor-marker-free-pulse' : '',
+    emphasis === 'muted' ? 'floor-marker-muted' : '',
   ]
     .filter(Boolean)
     .join(' ');

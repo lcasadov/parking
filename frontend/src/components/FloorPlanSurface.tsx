@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FloorPlanMarker } from './FloorPlanMarker';
+import { FloorPlanMinimap } from './FloorPlanMinimap';
 import { FloorPlanTooltip } from './FloorPlanTooltip';
 import type { FloorPlanDesk } from '../types/floorPlan';
 import { isPlaced, matchesFilter } from '../utils/floorPlan';
@@ -34,6 +35,18 @@ interface TipState {
   arrow: number;
 }
 
+// Rectángulo de selección (marquee) en px del lienzo mientras se dibuja.
+interface MarqueeState {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 interface FloorPlanSurfaceProps {
   desks: FloorPlanDesk[];
   editMode: boolean;
@@ -47,6 +60,13 @@ interface FloorPlanSurfaceProps {
   // (`focusDeskId`) + pulso temporal mientras `focusPulsing` esté activo.
   focusDeskId?: number | null;
   focusPulsing?: boolean;
+  // Modo EXPLORAR (vista, no edición): el grande NO se arrastra; se navega con
+  // zoom por rectángulo (marquee) + minimapa (panea) + Escape (encuadre). Requiere
+  // que el viewport se cree con panEnabled=false. En edición se conserva el paneo.
+  explore?: boolean;
+  // Énfasis de disponibilidad: los puestos libres/elegibles laten y el resto se
+  // atenúa, para que el ojo vaya directo a lo reservable (solo en modo vista).
+  emphasizeFree?: boolean;
   onRequest: (desk: FloorPlanDesk) => void;
   onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
@@ -64,14 +84,21 @@ export function FloorPlanSurface({
   selectedDeskId = null,
   focusDeskId = null,
   focusPulsing = false,
+  explore = false,
+  emphasizeFree = false,
   onRequest,
   onDragStart,
 }: FloorPlanSurfaceProps) {
   const { t } = useTranslation();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<TipState | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const [marquee, setMarquee] = useState<MarqueeState | null>(null);
+  const marqueeStart = useRef<{ x: number; y: number } | null>(null);
   const placed = desks.filter(isPlaced);
   const unplaced = desks.filter((desk) => !isPlaced(desk));
+  // Explorar sólo tiene sentido fuera de edición (en edición se arrastran marcadores).
+  const exploring = explore && !editMode;
 
   // Al pasar/enfocar un marcador medimos su rectángulo REAL en pantalla (ya refleja
   // el pan/zoom del plano) y colocamos el tooltip en `.floor-plan-surface-wrap`, una
@@ -107,10 +134,25 @@ export function FloorPlanSurface({
     [editMode, surfaceRef],
   );
 
+  const { zoomAtPoint, zoomToRect, scale, reset } = viewport;
+
+  // Mide el lienzo (tamaño natural del "mundo" a escala 1): lo necesita el minimapa
+  // para convertir sus coordenadas al mundo.
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const measure = () => setBox({ w: surface.clientWidth, h: surface.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(surface);
+    return () => observer.disconnect();
+  }, [surfaceRef]);
+
   // Zoom con rueda/trackpad hacia el cursor: listener NATIVO no pasivo (React
   // registra onWheel como pasivo y preventDefault no surtiría efecto) para evitar
   // que la página haga scroll mientras se hace zoom sobre el plano.
-  const { zoomAtPoint, scale, reset } = viewport;
   useEffect(() => {
     const surface = surfaceRef.current;
     if (!surface) {
@@ -119,13 +161,26 @@ export function FloorPlanSurface({
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       const rect = surface.getBoundingClientRect();
-      // Factor exponencial suave: acerca al empujar hacia arriba (deltaY<0).
       const factor = Math.exp(-event.deltaY * 0.0015);
       zoomAtPoint(factor, event.clientX - rect.left, event.clientY - rect.top);
     };
     surface.addEventListener('wheel', onWheel, { passive: false });
     return () => surface.removeEventListener('wheel', onWheel);
   }, [surfaceRef, zoomAtPoint]);
+
+  // Escape (modo explorar): vuelve al encuadre completo.
+  useEffect(() => {
+    if (!exploring) {
+      return undefined;
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        reset();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [exploring, reset]);
 
   // Doble clic: acerca hacia el punto; si ya está ampliado, vuelve al encuadre.
   const handleDoubleClick = useCallback(
@@ -144,6 +199,72 @@ export function FloorPlanSurface({
       }
     },
     [editMode, surfaceRef, scale, reset, zoomAtPoint],
+  );
+
+  // --- Pointer: paneo (viewport) en edición/no-explorar; marquee-zoom en explorar ---
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      viewport.onPointerDown(event);
+      if (!exploring) {
+        return;
+      }
+      // Sobre un marcador no se dibuja rectángulo (el marcador gestiona su clic).
+      if ((event.target as HTMLElement).closest('[data-testid="floor-marker"]')) {
+        return;
+      }
+      // Segundo puntero ⇒ pinch: cancela cualquier marquee en curso.
+      if (marqueeStart.current) {
+        marqueeStart.current = null;
+        setMarquee(null);
+        return;
+      }
+      const rect = surfaceRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      marqueeStart.current = { x, y };
+      setMarquee({ x0: x, y0: y, x1: x, y1: y });
+    },
+    [viewport, exploring, surfaceRef],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      viewport.onPointerMove(event);
+      if (!exploring || !marqueeStart.current) {
+        return;
+      }
+      const rect = surfaceRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+      const x = clamp(event.clientX - rect.left, 0, rect.width);
+      const y = clamp(event.clientY - rect.top, 0, rect.height);
+      setMarquee((prev) => (prev ? { ...prev, x1: x, y1: y } : null));
+    },
+    [viewport, exploring, surfaceRef],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      viewport.onPointerUp(event);
+      if (!exploring || !marqueeStart.current) {
+        return;
+      }
+      marqueeStart.current = null;
+      const rect = surfaceRef.current?.getBoundingClientRect();
+      setMarquee((prev) => {
+        if (prev && rect) {
+          const rx = Math.min(prev.x0, prev.x1);
+          const ry = Math.min(prev.y0, prev.y1);
+          zoomToRect(rx, ry, Math.abs(prev.x1 - prev.x0), Math.abs(prev.y1 - prev.y0), rect.width, rect.height);
+        }
+        return null;
+      });
+    },
+    [viewport, exploring, surfaceRef, zoomToRect],
   );
 
   const tipDesk = tip ? placed.find((desk) => desk.deskId === tip.deskId) : undefined;
@@ -165,16 +286,25 @@ export function FloorPlanSurface({
     transform: `translate(${viewport.offsetX}px, ${viewport.offsetY}px) scale(${viewport.scale})`,
   };
 
+  const marqueeStyle = marquee
+    ? {
+        left: `${Math.min(marquee.x0, marquee.x1)}px`,
+        top: `${Math.min(marquee.y0, marquee.y1)}px`,
+        width: `${Math.abs(marquee.x1 - marquee.x0)}px`,
+        height: `${Math.abs(marquee.y1 - marquee.y0)}px`,
+      }
+    : null;
+
   return (
     <div className="floor-plan-surface-wrap" ref={wrapRef}>
       <div
         ref={surfaceRef}
         data-testid="floor-plan-surface"
-        className={`floor-plan-surface${editMode ? ' is-editing' : ''}`}
-        onPointerDown={viewport.onPointerDown}
-        onPointerMove={viewport.onPointerMove}
-        onPointerUp={viewport.onPointerUp}
-        onPointerCancel={viewport.onPointerUp}
+        className={`floor-plan-surface${editMode ? ' is-editing' : ''}${exploring ? ' is-explore' : ''}`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onDoubleClick={handleDoubleClick}
       >
         <div className="plano-world" style={worldStyle}>
@@ -183,6 +313,10 @@ export function FloorPlanSurface({
             const dragging = dragPos !== null && dragPos.deskId === desk.deskId;
             const selected = desk.deskId === selectedDeskId;
             const focused = focusDeskId !== null && desk.deskId === focusDeskId;
+            let emphasis: 'free' | 'muted' | null = null;
+            if (emphasizeFree && !editMode && !selected && !focused) {
+              emphasis = desk.state === 'FREE' ? 'free' : 'muted';
+            }
             return (
               <FloorPlanMarker
                 key={desk.deskId}
@@ -193,6 +327,7 @@ export function FloorPlanSurface({
                 selected={selected}
                 focused={focused}
                 pulsing={focused && focusPulsing}
+                emphasis={emphasis}
                 left={dragging ? dragPos.x : (desk.coordX ?? 0)}
                 top={dragging ? dragPos.y : (desk.coordY ?? 0)}
                 onRequest={onRequest}
@@ -202,7 +337,11 @@ export function FloorPlanSurface({
             );
           })}
         </div>
+
+        {marqueeStyle ? <div className="floor-marquee" style={marqueeStyle} aria-hidden="true" /> : null}
       </div>
+
+      {exploring ? <FloorPlanMinimap viewport={viewport} box={box} /> : null}
 
       {tip && tipDesk ? (
         <FloorPlanTooltip

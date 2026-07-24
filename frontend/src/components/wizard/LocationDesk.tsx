@@ -31,7 +31,9 @@ function projectDesks(desks: FloorPlanDesk[], eligibleIds: Set<number>): FloorPl
 export function LocationDesk({ dates, deskId, onChange }: LocationDeskProps) {
   const { t } = useTranslation();
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const viewport = useFloorPlanViewport(true);
+  // panEnabled=false: en el asistente el plano se navega en modo EXPLORAR (marquee
+  // + minimapa), no por arrastre del lienzo.
+  const viewport = useFloorPlanViewport(false);
 
   // El plano se pide para la primera fecha (coordenadas y catálogo de puestos); la
   // elegibilidad real la aporta la intersección de disponibilidad de todas las fechas.
@@ -94,6 +96,8 @@ export function LocationDesk({ dates, deskId, onChange }: LocationDeskProps) {
         viewport={viewport}
         surfaceRef={surfaceRef}
         selectedDeskId={deskId}
+        explore
+        emphasizeFree
         onRequest={(desk) => pickDesk(desk.deskId)}
         onDragStart={() => undefined}
       />

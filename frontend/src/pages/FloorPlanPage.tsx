@@ -56,7 +56,9 @@ export function FloorPlanPage() {
   const query = useFloorPlanQuery(date, isDateValid);
   const requestMutation = useRequestDeskFromFloorPlan();
   const positionMutation = useUpdateDeskPosition();
-  const viewport = useFloorPlanViewport(!editMode);
+  // panEnabled=false siempre: en vista se navega en modo EXPLORAR (marquee +
+  // minimapa) y en edición se arrastran marcadores (nunca se panea el lienzo).
+  const viewport = useFloorPlanViewport(false);
 
   // En edición, soltar un marcador NO auto-guarda: solo actualiza el buffer local.
   const { dragPos, startDrag } = useDeskDrag(surfaceRef, (deskId, coordX, coordY) =>
@@ -231,6 +233,7 @@ export function FloorPlanPage() {
               filter={filter}
               viewport={viewport}
               surfaceRef={surfaceRef}
+              explore={!editMode}
               onRequest={handleRequestClick}
               onDragStart={startDrag}
             />

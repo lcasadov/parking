@@ -15,6 +15,12 @@ export interface FloorPlanViewport extends ViewportState {
   // coordenadas en píxeles relativas al lienzo. Es el zoom de rueda/trackpad y
   // de doble clic: el sitio señalado no se mueve al acercar/alejar.
   zoomAtPoint: (factor: number, px: number, py: number) => void;
+  // Zoom a un rectángulo dibujado sobre el lienzo (marquee): encaja la región
+  // (rx,ry,rw,rh en px del lienzo de tamaño width×height) al lienzo completo.
+  zoomToRect: (rx: number, ry: number, rw: number, rh: number, width: number, height: number) => void;
+  // Centra la vista (sin cambiar la escala) en un punto del "mundo" en px
+  // naturales (0..width, 0..height). Lo usa el minimapa para panear.
+  centerOnPoint: (worldX: number, worldY: number, width: number, height: number) => void;
   // Centra el viewport en un punto (xPercent/yPercent = coordenadas 0-100 del
   // marcador) con un ligero acercamiento, midiendo el lienzo con width/height (px).
   focusOn: (xPercent: number, yPercent: number, width: number, height: number) => void;
@@ -99,6 +105,40 @@ export function useFloorPlanViewport(panEnabled: boolean): FloorPlanViewport {
     [],
   );
 
+  // Encaja el rectángulo (rx,ry,rw,rh) del lienzo al lienzo completo (width×height),
+  // centrando la región. Ignora rectángulos diminutos (clics accidentales).
+  const zoomToRect = useCallback(
+    (rx: number, ry: number, rw: number, rh: number, width: number, height: number) => {
+      if (rw < 12 || rh < 12) {
+        return;
+      }
+      setState((prev) => {
+        const fit = Math.min(width / rw, height / rh);
+        const nextScale = clampScale(prev.scale * fit);
+        const centerWorldX = (rx + rw / 2 - prev.offsetX) / prev.scale;
+        const centerWorldY = (ry + rh / 2 - prev.offsetY) / prev.scale;
+        return {
+          scale: nextScale,
+          offsetX: width / 2 - nextScale * centerWorldX,
+          offsetY: height / 2 - nextScale * centerWorldY,
+        };
+      });
+    },
+    [],
+  );
+
+  // Centra la vista en un punto del mundo (px naturales) sin tocar la escala.
+  const centerOnPoint = useCallback(
+    (worldX: number, worldY: number, width: number, height: number) => {
+      setState((prev) => ({
+        ...prev,
+        offsetX: width / 2 - prev.scale * worldX,
+        offsetY: height / 2 - prev.scale * worldY,
+      }));
+    },
+    [],
+  );
+
   const beginPan = useCallback(
     (event: ReactPointerEvent) => {
       panStart.current = {
@@ -178,6 +218,8 @@ export function useFloorPlanViewport(panEnabled: boolean): FloorPlanViewport {
     zoomOut,
     reset,
     zoomAtPoint,
+    zoomToRect,
+    centerOnPoint,
     focusOn,
     panEnabled,
     onPointerDown,
