@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BrandCurve, BrandLogo } from './BrandCurve';
+import { BrandLogo } from './BrandCurve';
 import { LanguageToggle } from './LanguageToggle';
 import { ThemeToggle } from './ThemeToggle';
 import { DUR, EASE } from '../theme/motion';
@@ -54,7 +54,6 @@ export function AuthShell({
           transition={{ duration: reduceMotion ? 0 : DUR.slow, ease: EASE.out }}
         >
           <div className="auth-head">
-            <BrandCurve className="curve" variant="auth" />
             <BrandLogo />
             <h1 className="auth-title">{title}</h1>
             {subtitle ? <p className="auth-subtitle">{subtitle}</p> : null}
