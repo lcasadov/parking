@@ -11,6 +11,9 @@ interface DialogProps {
   // 'green' | 'red' | 'amber' — color de la cabecera (paridad con Modal legacy).
   tone?: 'green' | 'red' | 'amber';
   narrow?: boolean;
+  // Panel más ancho (flujos ricos como el asistente de reserva). Aditivo: el
+  // resto de diálogos conservan el ancho base sin cambios.
+  wide?: boolean;
   // Icono Tabler opcional (sin prefijo "ti-").
   icon?: string;
   // Oculta el botón cerrar (x) para diálogos de decisión obligatoria.
@@ -30,15 +33,17 @@ export function Dialog({
   footer,
   tone = 'green',
   narrow = false,
+  wide = false,
   icon,
   closeable = true,
 }: DialogProps) {
   const { t } = useTranslation();
+  const widthClass = narrow ? ' rx-dialog-narrow' : wide ? ' rx-dialog-wide' : '';
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="rx-overlay" />
-        <RadixDialog.Content className={`rx-dialog${narrow ? ' rx-dialog-narrow' : ''}`}>
+        <RadixDialog.Content className={`rx-dialog${widthClass}`}>
           <div className={`rx-dialog-header ${tone}`}>
             <RadixDialog.Title className="rx-dialog-title">
               {icon ? <i className={`ti ti-${icon}`} aria-hidden="true" /> : null}

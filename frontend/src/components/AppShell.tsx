@@ -1,13 +1,12 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import aleaticaLogo from '../assets/aleatica-logo.png';
 import { useAuth } from '../auth/useAuth';
-import { ROUTES } from '../routes/paths';
 import { DUR, EASE, drawerVariants, scrimVariants } from '../theme/motion';
-import { Button } from './Button';
 import { LanguageToggle } from './LanguageToggle';
+import { TopbarReserve } from './TopbarReserve';
 import { Sidebar } from './Sidebar';
 import { SidebarUserCard } from './SidebarUserCard';
 import { ThemeToggle } from './ThemeToggle';
@@ -32,17 +31,13 @@ export function AppShell({ nav }: AppShellProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
 
-  // Superficie de reserva del topbar (CTA "Nueva reserva"), por rol: admin y
-  // empleado reservan en su Plano; AGENCIA (solo liberaciones) no ve el botón.
-  const reservePath =
-    user?.role === 'ADMIN'
-      ? ROUTES.adminFloorPlan
-      : user?.role === 'EMPLOYEE'
-        ? ROUTES.employeeFloorPlan
-        : null;
+  // CTA "Nueva reserva" del topbar. ADMIN abre el asistente de reserva (crear en
+  // nombre de un empleado); EMPLOYEE abre su flujo de solicitud propia; AGENCIA
+  // (solo liberaciones) no ve el botón.
+  const canReserve = user?.role === 'ADMIN' || user?.role === 'EMPLOYEE';
+  const isAdmin = user?.role === 'ADMIN';
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
@@ -173,11 +168,7 @@ export function AppShell({ nav }: AppShellProps) {
         <div className="shell-deskbar">
           <LanguageToggle />
           <ThemeToggle />
-          {reservePath ? (
-            <Button variant="green" icon="plus" onClick={() => navigate(reservePath)}>
-              {t('layout.nav.newReservation')}
-            </Button>
-          ) : null}
+          {canReserve ? <TopbarReserve isAdmin={isAdmin} /> : null}
         </div>
         <Outlet />
       </main>
