@@ -467,9 +467,6 @@ export function AdminCalendarPage() {
                   <tr key={row.parkingSpaceId} className="table-row">
                     <th scope="row" className="calendar-space-cell">
                       <span className="calendar-space-label">{row.label}</span>
-                      <span className="calendar-space-zone" aria-hidden="true">
-                        #{row.parkingSpaceId}
-                      </span>
                       {resourceType === 'DESK' ? (
                         <ViewInPlanTrigger
                           desk={deskForRow(row.label)}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog } from './Dialog';
 import { Button } from './Button';
@@ -9,11 +9,6 @@ import { useFloorPlanViewport } from '../hooks/useFloorPlanViewport';
 import { useFloorPlanQuery } from '../hooks/useFloorPlan';
 import { isValidIsoDate } from '../utils/calendar';
 import type { FloorPlanDesk } from '../types/floorPlan';
-
-// Duración del pulso de resalte al abrir el modal (ms). Después cesa el pulso y
-// queda el anillo de acento estático. El pulso en sí se anula bajo
-// prefers-reduced-motion vía CSS (queda solo el resalte).
-const FOCUS_PULSE_MS = 3500;
 
 interface FloorPlanFocusModalProps {
   // Puesto a resaltar (resuelto por la rejilla desde el plano); se usa su deskId
@@ -30,11 +25,11 @@ interface FloorPlanFocusModalProps {
 // mismas coordenadas, mismo useFloorPlanQuery y el mismo realce focusDeskId/pulso
 // que ya usaba la navegación) dentro de un Dialog. NO permite editar ni arrastrar
 // ni solicitar: onRequest/onDragStart son no-ops. Centra el viewport en el puesto
-// enfocado y lo pulsa unos segundos para captar la atención.
+// enfocado y lo pulsa de forma continua mientras el modal está abierto.
 export function FloorPlanFocusModal({ desk, deskLabel, date, onClose }: FloorPlanFocusModalProps) {
   const { t } = useTranslation();
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const [pulsing, setPulsing] = useState(true);
+  const pulsing = true;
   const focusedRef = useRef(false);
 
   const isDateValid = isValidIsoDate(date);
@@ -62,11 +57,6 @@ export function FloorPlanFocusModal({ desk, deskLabel, date, onClose }: FloorPla
     viewport.focusOn(liveDesk.coordX, liveDesk.coordY, rect.width, rect.height);
   }, [showPlan, liveDesk, viewport]);
 
-  // Detiene el pulso pasados unos segundos (queda el anillo de acento estático).
-  useEffect(() => {
-    const timer = window.setTimeout(() => setPulsing(false), FOCUS_PULSE_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   const footer = (
     <Button variant="white" onClick={onClose}>
