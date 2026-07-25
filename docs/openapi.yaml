@@ -2409,6 +2409,14 @@ components:
             null si nunca se reenvió. El frontend lo usa para decidir cuándo mostrar el botón
             "reenviar" (habilitado quien lo solicita cuando han pasado ≥24h desde `createdAt`
             o desde este campo, lo que sea más reciente).
+        waitlisted:
+          type: boolean
+          default: false
+          description: >
+            En lista de espera (change `waitlist-requests`); relevante solo mientras
+            `status = PENDING`. En modo AUTOMATIC nace `true` cuando el empleado optó por
+            `waitlist: true` sin haber disponibilidad; en modo MANUAL se computa al crear
+            (no había disponibilidad para ese día/tipo).
     RequestCreateRequest:
       type: object
       required: [requestedDate]
@@ -2427,6 +2435,17 @@ components:
             APPROVED con ese puesto (409 si no está disponible). En modo manual se ignora
             (la solicitud nace PENDING sin recurso); para PARKING también se ignora (la plaza
             la elige la auto-asignación por categoría/planta).
+        waitlist:
+          type: boolean
+          default: false
+          description: >
+            Change `waitlist-requests`. Opt-in a la lista de espera: en modo AUTOMATIC +
+            PARKING, si no hay ninguna plaza libre, en vez del 409 NO_AVAILABILITY clásico se
+            crea la solicitud PENDING marcada `waitlisted = true`, candidata a promoción
+            automática cuando se libere una plaza de esa fecha. Sin el opt-in (ausente o
+            `false`) se preserva el 409 NO_AVAILABILITY (compatibilidad). Se ignora en modo
+            MANUAL (siempre nace PENDING; `waitlisted` se computa por disponibilidad, no por
+            este campo).
     RequestAdminAssignRequest:
       type: object
       required: [employeeId, requestedDate]
@@ -2661,6 +2680,16 @@ components:
           format: int64
           nullable: true
           description: Id de la solicitud de puesto propia de ese día; null si no aplica.
+        waitlisted:
+          type: boolean
+          default: false
+          description: >
+            Change `waitlist-requests`. En lista de espera la solicitud de plaza propia de
+            ese día (solo relevante cuando `state = REQUEST_PENDING`).
+        deskWaitlisted:
+          type: boolean
+          default: false
+          description: Igual que `waitlisted`, para la solicitud de puesto propia de ese día.
     MyWeekResponse:
       type: object
       properties:

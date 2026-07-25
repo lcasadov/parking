@@ -8,6 +8,7 @@ import { PageHeader } from '../components/PageHeader';
 import { PendingConfirmationBanner } from '../components/PendingConfirmationBanner';
 import { ResourceTypePill } from '../components/ResourceTypePill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
+import { WaitlistBadge } from '../components/WaitlistBadge';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useMyRequestsQuery } from '../hooks/useRequests';
 import { canCancelRequest } from '../utils/requests';
@@ -121,6 +122,9 @@ export function MyRequestsPage() {
                         <span className={`status-badge status-${request.status.toLowerCase()}`}>
                           {t(`requests.status.${request.status}`)}
                         </span>
+                        {request.status === 'PENDING' && request.waitlisted ? (
+                          <WaitlistBadge />
+                        ) : null}
                       </td>
                       <td data-label={t('requests.mine.columns.resource')}>
                         <ResourceTypePill resourceType={request.resourceType} />

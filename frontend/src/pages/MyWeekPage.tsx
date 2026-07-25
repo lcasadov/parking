@@ -8,6 +8,7 @@ import { Legend } from '../components/Legend';
 import { PageHeader } from '../components/PageHeader';
 import { ReleaseResourceModal } from '../components/ReleaseResourceModal';
 import { Spinner } from '../components/Spinner';
+import { WaitlistBadge } from '../components/WaitlistBadge';
 import { emitApiErrorToast } from '../api/events';
 import { useAuth } from '../auth/useAuth';
 import { useMyWeekQuery } from '../hooks/useCalendar';
@@ -51,6 +52,7 @@ interface ResourceDayView {
   label: string | null;
   requestStatus: RequestStatus | null;
   requestId: number | null;
+  waitlisted: boolean;
 }
 
 // Cómo se libera el recurso de un día: cancelando la solicitud propia (APPROVED
@@ -84,6 +86,7 @@ function resourceViews(day: MyWeekDay): ResourceDayView[] {
       label: day.parkingSpaceLabel ?? null,
       requestStatus: day.requestStatus ?? null,
       requestId: day.requestId ?? null,
+      waitlisted: day.waitlisted ?? false,
     },
     {
       resourceType: 'DESK',
@@ -91,6 +94,7 @@ function resourceViews(day: MyWeekDay): ResourceDayView[] {
       label: day.deskLabel ?? null,
       requestStatus: day.deskRequestStatus ?? null,
       requestId: day.deskRequestId ?? null,
+      waitlisted: day.deskWaitlisted ?? false,
     },
   ];
 }
@@ -317,7 +321,8 @@ export function MyWeekPage() {
             {t(`calendar.myWeek.resourceKind.${view.resourceType}`)}
           </span>
           <span className="mw-res-state">{resourceLine(view)}</span>
-          {isPending ? (
+          {isPending && view.waitlisted ? <WaitlistBadge /> : null}
+          {isPending && !view.waitlisted ? (
             <span className="mw-res-pending" role="status">
               <i className="ti ti-clock" aria-hidden="true" /> {t('requests.pendingBanner.message')}
             </span>

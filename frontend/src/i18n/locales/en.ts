@@ -694,6 +694,10 @@ export const en = {
       cancel: 'Cancel',
       created: 'Request created.',
       createdApproved: 'Request approved: resource assigned instantly.',
+      createdWaitlisted: 'On the waitlist: we will notify you as soon as a resource frees up.',
+      // Badge for a PENDING request born without availability (request-waitlist
+      // capability). Never shows a numeric queue position.
+      waitlisted: 'On the waitlist',
     },
     inbox: {
       title: 'Requests',
@@ -752,6 +756,22 @@ export const en = {
       },
       automaticNotice: 'It will be confirmed instantly.',
       manualNotice: 'It will remain pending approval. Your exact space or desk may change.',
+      // Waitlist (request-waitlist capability): honest notice when availability is
+      // 0 and confirmation after a 409 NO_AVAILABILITY.
+      waitlist: {
+        resourceNoun: {
+          PARKING: 'spaces',
+          DESK: 'desks',
+        },
+        noneHint:
+          'There are no {{resource}} left today. They often free up (absences, holidays, cancellations): join the waitlist and we will notify you as soon as one opens up.',
+        join: 'Join the waitlist',
+        joined: 'Joined: we will notify you if it frees up',
+        retryPrompt:
+          'There is no room for that resource right now. Do you want to join the waitlist? We will notify you as soon as it frees up.',
+        retryConfirm: 'Join the waitlist',
+        retryDismiss: 'No, thanks',
+      },
     },
     pendingBanner: {
       message: 'Pending confirmation · the location could change',

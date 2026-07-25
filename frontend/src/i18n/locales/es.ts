@@ -696,6 +696,10 @@ export const es = {
       cancel: 'Cancelar',
       created: 'Solicitud creada.',
       createdApproved: 'Solicitud aprobada: recurso asignado al instante.',
+      createdWaitlisted: 'En lista de espera: te avisaremos en cuanto se libere un recurso.',
+      // Distintivo de una solicitud PENDING nacida sin hueco (capability
+      // request-waitlist). Nunca muestra posición numérica en la cola.
+      waitlisted: 'En lista de espera',
     },
     inbox: {
       title: 'Solicitudes',
@@ -754,6 +758,22 @@ export const es = {
       },
       automaticNotice: 'Se confirmará al instante.',
       manualNotice: 'Quedará pendiente de aprobación. Tu plaza o puesto exacto puede cambiar.',
+      // Lista de espera (capability request-waitlist): aviso honesto cuando la
+      // disponibilidad del recurso es 0 y confirmación tras el 409 NO_AVAILABILITY.
+      waitlist: {
+        resourceNoun: {
+          PARKING: 'plazas',
+          DESK: 'puestos',
+        },
+        noneHint:
+          'No quedan {{resource}} libres este día. Suelen liberarse (ausencias, vacaciones, cancelaciones): apúntate y te avisaremos en cuanto haya una.',
+        join: 'Apuntarme a la lista de espera',
+        joined: 'Apuntado: te avisaremos si se libera',
+        retryPrompt:
+          'No hay hueco para ese recurso ahora mismo. ¿Quieres apuntarte a la lista de espera? Te avisaremos en cuanto se libere.',
+        retryConfirm: 'Apuntarme a la lista de espera',
+        retryDismiss: 'No, gracias',
+      },
     },
     pendingBanner: {
       message: 'Pendiente de confirmación · la ubicación podría cambiar',

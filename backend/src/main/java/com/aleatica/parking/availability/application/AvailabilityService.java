@@ -744,11 +744,14 @@ public class AvailabilityService {
     }
 
     /**
-     * Estado diario de un unico tipo de recurso en "Mi Semana": estado, etiqueta del recurso y
-     * estado/id de la solicitud propia que lo origina (si aplica).
+     * Estado diario de un unico tipo de recurso en "Mi Semana": estado, etiqueta del recurso,
+     * estado/id de la solicitud propia que lo origina (si aplica) y si esa solicitud esta en
+     * lista de espera (change {@code waitlist-requests}; solo relevante cuando {@code state} es
+     * {@link MyWeekDayState#REQUEST_PENDING}).
      */
     private record MyWeekResourceState(
-            MyWeekDayState state, String label, RequestStatus requestStatus, Long requestId) {
+            MyWeekDayState state, String label, RequestStatus requestStatus, Long requestId,
+            boolean waitlisted) {
     }
 
     /**
@@ -810,27 +813,31 @@ public class AvailabilityService {
                 day, parkingState.state(), parkingState.label(),
                 parkingState.requestStatus(), parkingState.requestId(),
                 deskState.state(), deskState.label(),
-                deskState.requestStatus(), deskState.requestId());
+                deskState.requestStatus(), deskState.requestId(),
+                parkingState.waitlisted(), deskState.waitlisted());
     }
 
     private MyWeekResourceState myWeekResourceState(LocalDate day, MyWeekTypeContext context) {
         RequestEntity approved = context.approvedByDate().get(day);
         if (approved != null) {
             return new MyWeekResourceState(MyWeekDayState.ASSIGNED,
-                    context.labels().get(approved.getResourceId()), RequestStatus.APPROVED, approved.getId());
+                    context.labels().get(approved.getResourceId()), RequestStatus.APPROVED,
+                    approved.getId(), false);
         }
         FixedAssignmentEntity assignment = context.fixedByDow().get(day.getDayOfWeek().getValue());
         if (assignment != null) {
             boolean released = context.releasedKeys().contains(new SpaceDate(assignment.getResourceId(), day));
             MyWeekDayState state = released ? MyWeekDayState.RELEASED : MyWeekDayState.ASSIGNED;
-            return new MyWeekResourceState(state, context.labels().get(assignment.getResourceId()), null, null);
+            return new MyWeekResourceState(
+                    state, context.labels().get(assignment.getResourceId()), null, null, false);
         }
         RequestEntity pending = context.pendingByDate().get(day);
         if (pending != null) {
             return new MyWeekResourceState(
-                    MyWeekDayState.REQUEST_PENDING, null, RequestStatus.PENDING, pending.getId());
+                    MyWeekDayState.REQUEST_PENDING, null, RequestStatus.PENDING, pending.getId(),
+                    pending.isWaitlisted());
         }
-        return new MyWeekResourceState(MyWeekDayState.FREE, null, null, null);
+        return new MyWeekResourceState(MyWeekDayState.FREE, null, null, null, false);
     }
 
     // -------------------------------------------------------------------------

@@ -28,9 +28,19 @@ import java.time.LocalDate;
  * para {@code PARKING} tambien se ignora (la plaza la elige la auto-asignacion por
  * categoria/planta).</p>
  *
+ * <p>{@code waitlist} es un opt-in explicito (change {@code waitlist-requests}, default
+ * {@code false}, retrocompatible): en <strong>modo automatico</strong> sin ningun recurso libre,
+ * en vez del {@code 409 NO_AVAILABILITY} clasico, la solicitud se crea {@code PENDING} marcada
+ * como en <strong>lista de espera</strong> ({@code waitlisted = true}), candidata a
+ * {@code promoteWaitlist} cuando se libere un recurso de esa fecha y tipo. En modo manual se
+ * ignora (la solicitud siempre nace {@code PENDING}; {@code waitlisted} se computa por
+ * disponibilidad, no por este campo).</p>
+ *
  * @param requestedDate fecha solicitada (obligatoria)
  * @param resourceType  tipo de recurso solicitado; {@code null} = {@code PARKING} por defecto
  * @param resourceId    recurso elegido (puesto) para el modo automatico; {@code null} si no aplica
+ * @param waitlist      opt-in a la lista de espera en modo automatico sin disponibilidad;
+ *                      {@code null}/{@code false} preserva el {@code 409} clasico
  */
 @Schema(description = "Peticion de creacion de solicitud para una fecha")
 public record RequestCreateRequest(
@@ -47,18 +57,36 @@ public record RequestCreateRequest(
         @Schema(description = "Puesto elegido (solo modo automatico + DESK); null si no aplica",
                 example = "5")
         @JsonProperty("resourceId")
-        Long resourceId) {
+        Long resourceId,
+
+        @Schema(description = "Opt-in a lista de espera si en modo automatico no hay "
+                + "disponibilidad; por defecto false (409 NO_AVAILABILITY clasico)",
+                example = "false", defaultValue = "false")
+        @JsonProperty("waitlist")
+        Boolean waitlist) {
 
     /**
-     * Constructor de conveniencia sin recurso elegido (equivalente a {@code resourceId = null}):
-     * cubre el alta clasica (modo manual y auto-asignacion de plaza) sin exigir el tercer
-     * componente.
+     * Constructor de conveniencia sin recurso elegido ni opt-in de lista de espera (equivalente a
+     * {@code resourceId = null, waitlist = null}): cubre el alta clasica (modo manual y
+     * auto-asignacion de plaza) sin exigir los componentes nuevos.
      *
      * @param requestedDate fecha solicitada (obligatoria)
      * @param resourceType  tipo de recurso solicitado; {@code null} = {@code PARKING}
      */
     public RequestCreateRequest(LocalDate requestedDate, ResourceType resourceType) {
-        this(requestedDate, resourceType, null);
+        this(requestedDate, resourceType, null, null);
+    }
+
+    /**
+     * Constructor de compatibilidad previo al opt-in de lista de espera (change
+     * {@code waitlist-requests}): delega en el canonico fijando {@code waitlist = null}.
+     *
+     * @param requestedDate fecha solicitada (obligatoria)
+     * @param resourceType  tipo de recurso solicitado; {@code null} = {@code PARKING}
+     * @param resourceId    recurso elegido (puesto) para el modo automatico
+     */
+    public RequestCreateRequest(LocalDate requestedDate, ResourceType resourceType, Long resourceId) {
+        this(requestedDate, resourceType, resourceId, null);
     }
 
     /**
@@ -66,5 +94,12 @@ public record RequestCreateRequest(
      */
     public ResourceType resourceTypeOrDefault() {
         return resourceType == null ? ResourceType.PARKING : resourceType;
+    }
+
+    /**
+     * @return {@code true} si el empleado opta explicitamente por la lista de espera
+     */
+    public boolean waitlistRequested() {
+        return Boolean.TRUE.equals(waitlist);
     }
 }

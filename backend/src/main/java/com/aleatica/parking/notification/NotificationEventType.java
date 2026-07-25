@@ -41,5 +41,13 @@ public enum NotificationEventType {
      * notifica al empleado destino con una plantilla propia (distinta de {@code REQUEST_APPROVED},
      * pues el empleado no inicio la peticion).
      */
-    REQUEST_ADMIN_ASSIGNED
+    REQUEST_ADMIN_ASSIGNED,
+
+    /**
+     * Recurso liberado con solicitudes en <strong>lista de espera</strong> en modo
+     * {@code MANUAL} (change {@code waitlist-requests}): el sistema no auto-asigna (a diferencia
+     * del modo {@code AUTOMATIC}, que reutiliza {@code REQUEST_APPROVED}); se notifica a cada
+     * administrador activo para que resuelva desde la bandeja de pendientes.
+     */
+    WAITLIST_AVAILABLE
 }

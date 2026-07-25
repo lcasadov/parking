@@ -63,12 +63,17 @@ export interface MyWeekDay {
   // Id de la solicitud de plaza propia de ese dia; null si el dia no proviene de una
   // solicitud (asignacion fija o libre). Permite "Liberar" cancelando la solicitud.
   requestId?: number | null;
+  // true si la solicitud de plaza propia de ese dia esta en lista de espera
+  // (capability request-waitlist): PENDING sin disponibilidad al crearla.
+  waitlisted?: boolean;
   // Estado del PUESTO ese dia (paralelo a los campos de plaza). Opcional para
   // retrocompatibilidad con respuestas anteriores a la generalizacion DESK.
   deskState?: MyWeekDayState;
   deskLabel?: string | null;
   deskRequestStatus?: RequestStatus | null;
   deskRequestId?: number | null;
+  // Igual que `waitlisted`, para la solicitud de PUESTO propia de ese dia.
+  deskWaitlisted?: boolean;
 }
 
 // MyWeekResponse: schema #/components/schemas/MyWeekResponse.

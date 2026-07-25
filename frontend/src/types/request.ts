@@ -18,6 +18,10 @@ export interface Request {
   status: RequestStatus;
   resourceType?: ResourceType;
   parkingSpaceId?: number | null;
+  // En lista de espera (capability request-waitlist): PENDING nacida sin hueco en
+  // modo AUTOMATICO (opt-in `waitlist`) o en MANUAL sin disponibilidad al crearla.
+  // La UI NUNCA muestra posicion numerica en la cola (fuera de alcance).
+  waitlisted?: boolean;
   // Numero humano del recurso asignado (plaza/puesto). El backend solo lo resuelve
   // para solicitudes APPROVED con recurso; null en el resto -> la UI muestra "—".
   // Es el numero real (p.ej. 3005), NO el `parkingSpaceId` (resource_id interno).
@@ -47,6 +51,10 @@ export interface RequestCreateRequest {
   // auto-aprueba ese puesto; en MANUAL lo ignora. Opcional: sin puesto elegido la
   // solicitud se envia sin `resourceId` (retrocompatibilidad con el flujo actual).
   resourceId?: number;
+  // Opt-in de lista de espera (capability request-waitlist, default false): solo
+  // altera el comportamiento en modo AUTOMATICO sin hueco -> crea PENDING
+  // waitlisted=true en vez de 409 NO_AVAILABILITY. Con hueco disponible se ignora.
+  waitlist?: boolean;
 }
 
 // RequestAdminAssignRequest: schema #/components/schemas/RequestAdminAssignRequest.

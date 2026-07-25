@@ -5,6 +5,7 @@ import com.aleatica.parking.request.domain.RequestRepositoryPort;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -84,5 +85,16 @@ public class RequestPersistenceAdapter implements RequestRepositoryPort {
     @Override
     public Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable) {
         return jpaRepository.findAllByOrderByCreatedAtDesc(pageable).map(RequestMapper::toDomain);
+    }
+
+    @Override
+    public List<Request> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+            RequestStatus status, ResourceType resourceType, LocalDate requestedDate) {
+        return jpaRepository
+                .findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+                        status, resourceType, requestedDate)
+                .stream()
+                .map(RequestMapper::toDomain)
+                .toList();
     }
 }

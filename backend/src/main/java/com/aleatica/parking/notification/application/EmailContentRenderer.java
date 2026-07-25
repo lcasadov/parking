@@ -31,6 +31,7 @@ public class EmailContentRenderer {
     private static final String TEMPLATE_ASSIGNMENT_REVOKED = "email/assignment-revoked";
     private static final String TEMPLATE_PASSWORD_RESET = "email/password-reset";
     private static final String TEMPLATE_REQUEST_ADMIN_ASSIGNED = "email/request-admin-assigned";
+    private static final String TEMPLATE_WAITLIST_AVAILABLE = "email/waitlist-available";
 
     /**
      * Plantillas de asunto parametrizadas por la palabra del recurso ({@code %s} = "plaza"/"puesto",
@@ -47,6 +48,8 @@ public class EmailContentRenderer {
     private static final String SUBJECT_PASSWORD_RESET = "Tu contrasena temporal de parking";
     private static final String SUBJECT_REQUEST_ADMIN_ASSIGNED_FMT =
             "Un administrador te ha asignado una %s";
+    private static final String SUBJECT_WAITLIST_AVAILABLE_FMT =
+            "Se ha liberado una %s con solicitudes en lista de espera";
 
     /** Palabra humana del recurso segun su tipo, para componer los asuntos (evita literales sueltos). */
     private static final String RESOURCE_WORD_PARKING = "plaza";
@@ -215,6 +218,24 @@ public class EmailContentRenderer {
         return render(
                 employee, subjectFor(SUBJECT_REQUEST_ADMIN_ASSIGNED_FMT, request),
                 TEMPLATE_REQUEST_ADMIN_ASSIGNED, ctx);
+    }
+
+    /**
+     * Renderiza el aviso de "recurso liberado con lista de espera" dirigido a un administrador,
+     * en modo {@code MANUAL} (change {@code waitlist-requests}): el sistema no auto-asigna, por
+     * lo que el admin debe resolver desde la bandeja de pendientes. No nombra a ningun empleado
+     * concreto (el destinatario de la promocion lo decide el admin al aprobar), solo la fecha y
+     * el tipo de recurso liberado.
+     *
+     * @param admin              administrador destinatario
+     * @param topWaitlistedRequest solicitud en cabeza de la cola (referencia de fecha/tipo)
+     * @return el mensaje renderizado
+     */
+    public EmailMessage renderWaitlistAvailable(Employee admin, RequestResponse topWaitlistedRequest) {
+        Context ctx = baseContext(admin);
+        ctx.setVariable(VAR_REQUESTED_DATE, topWaitlistedRequest.requestedDate());
+        return render(admin, subjectFor(SUBJECT_WAITLIST_AVAILABLE_FMT, topWaitlistedRequest),
+                TEMPLATE_WAITLIST_AVAILABLE, ctx);
     }
 
     /**

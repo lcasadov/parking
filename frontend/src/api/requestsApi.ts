@@ -39,7 +39,9 @@ export async function listMyRequests(params: RequestListParams = {}): Promise<Pa
 
 // Serializa el cuerpo de creacion omitiendo los campos indefinidos: la solicitud
 // de PUESTO con puesto elegido incluye `resourceId`; la de PLAZA (o de PUESTO sin
-// elegir) no lo incluye (retrocompatibilidad, tasks §3.1).
+// elegir) no lo incluye (retrocompatibilidad, tasks §3.1). `waitlist` solo se
+// envia cuando el empleado opta por la lista de espera (capability
+// request-waitlist, tasks §6.1); omitido conserva el 409 NO_AVAILABILITY previo.
 function buildCreateBody(body: RequestCreateRequest): RequestCreateRequest {
   const payload: RequestCreateRequest = { requestedDate: body.requestedDate };
   if (body.resourceType !== undefined) {
@@ -47,6 +49,9 @@ function buildCreateBody(body: RequestCreateRequest): RequestCreateRequest {
   }
   if (body.resourceId !== undefined) {
     payload.resourceId = body.resourceId;
+  }
+  if (body.waitlist !== undefined) {
+    payload.waitlist = body.waitlist;
   }
   return payload;
 }

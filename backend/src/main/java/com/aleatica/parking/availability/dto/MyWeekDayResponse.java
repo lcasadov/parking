@@ -35,6 +35,10 @@ import java.time.LocalDate;
  * @param deskRequestStatus estado de la solicitud de puesto propia ese dia; {@code null} si no aplica
  * @param deskRequestId     id de la solicitud de puesto propia ese dia; {@code null} si el dia no
  *                          proviene de una solicitud
+ * @param waitlisted        {@code true} si la solicitud de plaza propia ese dia esta en lista de
+ *                          espera (change {@code waitlist-requests}); {@code false} si el dia no
+ *                          proviene de una solicitud en espera
+ * @param deskWaitlisted    igual que {@code waitlisted}, para la solicitud de puesto propia
  */
 @Schema(description = "Dia de la vista personal 'Mi Semana' (plaza y puesto)")
 public record MyWeekDayResponse(
@@ -67,5 +71,13 @@ public record MyWeekDayResponse(
 
         @Schema(description = "Id de la solicitud de puesto propia ese dia; null si no proviene de "
                 + "una solicitud", example = "43")
-        @JsonProperty("deskRequestId") Long deskRequestId) {
+        @JsonProperty("deskRequestId") Long deskRequestId,
+
+        @Schema(description = "En lista de espera la solicitud de plaza propia ese dia",
+                example = "false")
+        @JsonProperty("waitlisted") boolean waitlisted,
+
+        @Schema(description = "En lista de espera la solicitud de puesto propia ese dia",
+                example = "false")
+        @JsonProperty("deskWaitlisted") boolean deskWaitlisted) {
 }

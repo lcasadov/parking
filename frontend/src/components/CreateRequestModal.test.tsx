@@ -4,8 +4,9 @@ import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { CreateRequestModal } from './CreateRequestModal';
 import { server } from '../mocks/server';
-import { MSW_BASE } from '../mocks/handlers';
+import { MSW_BASE, waitlistConflictThenSuccessHandler } from '../mocks/handlers';
 import { requestApproved, requestPending1 } from '../mocks/requestFixtures';
+import { emptyAvailability } from '../mocks/calendarFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { addDaysIso } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
@@ -15,6 +16,27 @@ import type { FloorPlanDesk } from '../types/floorPlan';
 
 const REQUESTS_URL = `${MSW_BASE}/requests`;
 const FLOOR_PLAN_URL = `${MSW_BASE}/floor-plan`;
+const AVAILABILITY_URL = `${MSW_BASE}/availability`;
+const APPROVAL_MODE_URL = `${MSW_BASE}/settings/approval-mode`;
+
+// Fuerza disponibilidad 0 para PARKING (deja DESK con la disponibilidad por
+// defecto), para probar el aviso honesto de lista de espera.
+function zeroParkingAvailability(): void {
+  server.use(
+    http.get(AVAILABILITY_URL, ({ request }) => {
+      const url = new URL(request.url);
+      const date = url.searchParams.get('date') ?? todayIso();
+      if (url.searchParams.get('resourceType') === 'PARKING') {
+        return HttpResponse.json({ ...emptyAvailability, date });
+      }
+      return HttpResponse.json({ ...emptyAvailability, date, availableResources: [{ parkingSpaceId: 1, label: 'D-01' }] });
+    }),
+  );
+}
+
+function useAutomaticApprovalMode(): void {
+  server.use(http.get(APPROVAL_MODE_URL, () => HttpResponse.json({ approvalMode: 'AUTOMATIC' })));
+}
 
 // Puesto con id (55) distinto del número (12): permite verificar que el modal
 // muestra el NÚMERO y nunca el identificador interno (tasks §4.1).
@@ -36,12 +58,22 @@ function captureToasts(): { messages: string[] } {
   return captured;
 }
 
-// Captura los cuerpos de cada POST /requests para comprobar resourceType/resourceId.
+// Captura los cuerpos de cada POST /requests para comprobar resourceType/resourceId/waitlist.
 function captureRequestBodies(): {
-  bodies: Array<{ requestedDate?: string; resourceType?: string; resourceId?: number }>;
+  bodies: Array<{
+    requestedDate?: string;
+    resourceType?: string;
+    resourceId?: number;
+    waitlist?: boolean;
+  }>;
 } {
   const captured = {
-    bodies: [] as Array<{ requestedDate?: string; resourceType?: string; resourceId?: number }>,
+    bodies: [] as Array<{
+      requestedDate?: string;
+      resourceType?: string;
+      resourceId?: number;
+      waitlist?: boolean;
+    }>,
   };
   server.use(
     http.post(REQUESTS_URL, async ({ request }) => {
@@ -49,10 +81,16 @@ function captureRequestBodies(): {
         requestedDate: string;
         resourceType?: string;
         resourceId?: number;
+        waitlist?: boolean;
       };
       captured.bodies.push(body);
       return HttpResponse.json(
-        { ...requestPending1, id: 999, requestedDate: body.requestedDate },
+        {
+          ...requestPending1,
+          id: 999,
+          requestedDate: body.requestedDate,
+          waitlisted: body.waitlist === true,
+        },
         { status: 201 },
       );
     }),
@@ -242,5 +280,68 @@ describe('CreateRequestModal (unified request)', () => {
     expect(captured.bodies).toHaveLength(1);
     expect(captured.bodies[0].resourceType).toBe('DESK');
     expect(captured.bodies[0].resourceId).toBe(55);
+  });
+
+  describe('waitlist (capability request-waitlist)', () => {
+    it('should_offer_join_waitlist_when_availability_is_zero_without_blocking_submit', async () => {
+      zeroParkingAvailability();
+      renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
+
+      await fillDate();
+
+      expect(
+        await screen.findByText(/no quedan plazas libres este día|there are no spaces left today/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /apuntarme a la lista de espera|join the waitlist/i }),
+      ).toBeInTheDocument();
+      // El aviso no bloquea el envío: el botón de enviar solicitud sigue habilitado.
+      const dialog = within(screen.getByRole('dialog'));
+      expect(dialog.getByRole('button', { name: /enviar solicitud|submit request/i })).toBeEnabled();
+    });
+
+    it('should_send_waitlist_true_when_employee_joins_before_submitting', async () => {
+      zeroParkingAvailability();
+      const captured = captureRequestBodies();
+      const onCreated = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+      await fillDate();
+      await user.click(
+        await screen.findByRole('button', { name: /apuntarme a la lista de espera|join the waitlist/i }),
+      );
+      // Tras apuntarse, el banner confirma sin mostrar posición numérica.
+      expect(
+        await screen.findByText(/apuntado: te avisaremos|joined: we will notify you/i),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/posición|position/i)).not.toBeInTheDocument();
+
+      await submit();
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(captured.bodies).toHaveLength(1);
+      expect(captured.bodies[0].waitlist).toBe(true);
+    });
+
+    it('should_offer_waitlist_retry_after_409_no_availability_in_automatic_mode', async () => {
+      useAutomaticApprovalMode();
+      server.use(waitlistConflictThenSuccessHandler());
+      const onCreated = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+      await fillDate();
+      await submit();
+
+      const retryButton = await screen.findByRole('button', {
+        name: /apuntarme a la lista de espera|join the waitlist/i,
+      });
+      expect(onCreated).not.toHaveBeenCalled();
+
+      await user.click(retryButton);
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    });
   });
 });

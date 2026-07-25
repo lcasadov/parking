@@ -4,6 +4,7 @@ import com.aleatica.parking.audit.AuditEntry;
 import com.aleatica.parking.audit.AuditRecorder;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
+import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
@@ -13,6 +14,7 @@ import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
+import com.aleatica.parking.notification.event.WaitlistAvailableEvent;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.request.domain.RejectionReasonCode;
 import com.aleatica.parking.request.domain.Request;
@@ -40,7 +42,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -188,18 +192,28 @@ public class RequestService {
      *       clasico) y la resuelve el ADMIN.</li>
      *   <li>{@code AUTOMATIC} + {@code PARKING}: se auto-asigna una plaza libre por
      *       categoria/planta y la solicitud nace {@code APPROVED} en la misma transaccion; si no
-     *       hay ninguna plaza libre se responde 409 {@code NO_AVAILABILITY} sin crear la
-     *       solicitud.</li>
+     *       hay ninguna plaza libre y el empleado <strong>no</strong> opta por la lista de espera
+     *       ({@code waitlist} ausente o {@code false}, change {@code waitlist-requests}) se
+     *       responde 409 {@code NO_AVAILABILITY} sin crear la solicitud; con el opt-in, en vez del
+     *       409 se crea {@code PENDING} marcada {@code waitlisted = true}.</li>
      *   <li>{@code AUTOMATIC} + {@code DESK} con puesto elegido: la solicitud nace
      *       {@code APPROVED} con ese puesto (409 si no esta disponible).</li>
      * </ul>
      *
+     * <p>En modo {@code MANUAL} (y en el fallback {@code AUTOMATIC + DESK} sin puesto elegido,
+     * que tambien nace {@code PENDING}), {@code waitlisted} se computa automaticamente = "no
+     * habia ningun recurso libre de ese dia/tipo en el momento de la creacion" (design
+     * {@code waitlist-requests} §Decisions); no requiere el opt-in {@code waitlist} porque el
+     * modo ya crea {@code PENDING} sin comprobar disponibilidad.</p>
+     *
      * @param requesterLogin login del empleado solicitante (principal de la sesion)
-     * @param request        fecha solicitada, tipo de recurso y (opcional) puesto elegido
+     * @param request        fecha solicitada, tipo de recurso, (opcional) puesto elegido y
+     *                       (opcional) opt-in a la lista de espera
      * @return la solicitud creada (DTO)
      * @throws OutsideRequestWindowException    si la fecha es anterior a hoy (fecha pasada)
      * @throws DuplicatePendingRequestException si ya hay una solicitud pendiente esa fecha
-     * @throws NoAvailabilityException          si en modo automatico no hay ninguna plaza libre
+     * @throws NoAvailabilityException          si en modo automatico no hay ninguna plaza libre y
+     *                                          el empleado no opto por la lista de espera
      * @throws SpaceUnavailableException        si en modo automatico el puesto elegido no esta libre
      */
     @Transactional
@@ -219,8 +233,26 @@ public class RequestService {
 
     private RequestResponse createManual(
             Long employeeId, ResourceType resourceType, LocalDate requestedDate, Instant now) {
+        boolean waitlisted = noResourceAvailable(resourceType, requestedDate);
+        return createPending(employeeId, resourceType, requestedDate, now, waitlisted);
+    }
+
+    /**
+     * Indica si no hay <strong>ningun</strong> recurso del tipo dado libre para la fecha,
+     * reutilizando la definicion consolidada de disponibilidad ({@link AvailabilityService}, la
+     * misma que sirve el calendario y "Mi Semana"). Base del calculo automatico de
+     * {@code waitlisted} en el alta {@code MANUAL} (change {@code waitlist-requests}).
+     */
+    private boolean noResourceAvailable(ResourceType resourceType, LocalDate requestedDate) {
+        return availabilityService.availabilityForDate(requestedDate, resourceType)
+                .availableResources().isEmpty();
+    }
+
+    private RequestResponse createPending(
+            Long employeeId, ResourceType resourceType, LocalDate requestedDate, Instant now,
+            boolean waitlisted) {
         Request saved = requestRepository.saveAndFlush(
-                Request.create(employeeId, resourceType, requestedDate, now));
+                Request.create(employeeId, resourceType, requestedDate, now, waitlisted));
         RequestResponse response = RequestResponse.from(saved);
         eventPublisher.publishEvent(new RequestCreatedEvent(response));
         return response;
@@ -234,10 +266,31 @@ public class RequestService {
         if (resourceType == ResourceType.DESK && request.resourceId() == null) {
             return createManual(employee.getId(), resourceType, requestedDate, now);
         }
-        Long resourceId = resourceType == ResourceType.DESK
-                ? chosenDesk(request.resourceId(), requestedDate)
-                : autoAssignedSpaceId(employee.getCategory(), requestedDate);
-        return autoApprove(employee.getId(), resourceType, resourceId, requestedDate, now);
+        if (resourceType == ResourceType.DESK) {
+            Long resourceId = chosenDesk(request.resourceId(), requestedDate);
+            return autoApprove(employee.getId(), resourceType, resourceId, requestedDate, now);
+        }
+        return createAutomaticParking(employee, request, requestedDate, now);
+    }
+
+    /**
+     * Alta {@code AUTOMATIC + PARKING}: auto-asigna una plaza libre por categoria/planta; si no
+     * hay ninguna y el empleado opto por la lista de espera ({@code waitlist = true}, change
+     * {@code waitlist-requests}) crea la solicitud {@code PENDING waitlisted = true} en vez del
+     * 409 clasico ({@link NoAvailabilityException}), que se preserva sin el opt-in
+     * (retrocompatibilidad).
+     */
+    private RequestResponse createAutomaticParking(
+            Employee employee, RequestCreateRequest request, LocalDate requestedDate, Instant now) {
+        Optional<ParkingSpace> space = autoAssignParkingSpace(employee.getCategory(), requestedDate);
+        if (space.isPresent()) {
+            return autoApprove(
+                    employee.getId(), ResourceType.PARKING, space.get().getId(), requestedDate, now);
+        }
+        if (request.waitlistRequested()) {
+            return createPending(employee.getId(), ResourceType.PARKING, requestedDate, now, true);
+        }
+        throw new NoAvailabilityException(MSG_NO_AVAILABILITY);
     }
 
     private Long chosenDesk(Long deskId, LocalDate requestedDate) {
@@ -441,6 +494,146 @@ public class RequestService {
     private static int floorPreferenceKey(ParkingSpace space, boolean high) {
         int floor = space.floor() == null ? 0 : space.floor();
         return high ? floor : -floor;
+    }
+
+    // -------------------------------------------------------------------------
+    // Lista de espera: promocion al liberarse un recurso (change waitlist-requests)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Atiende la <strong>lista de espera</strong> de un dia y tipo de recurso cuando un recurso
+     * (plaza o puesto) queda libre para esa fecha (change {@code waitlist-requests}): cancelacion
+     * de una solicitud {@code APPROVED}, o liberacion (voluntaria o administrativa) de una
+     * asignacion fija. Invocado {@code AFTER_COMMIT} desde cada origen de liberacion (ver
+     * {@link WaitlistPromotionListener}), nunca dentro de la transaccion que libero el recurso.
+     *
+     * <p>Sin candidatas en espera para ese dia/tipo, no hace nada. Con candidatas, el
+     * comportamiento se ramifica por el <strong>modo de aprobacion global</strong>
+     * ({@link ApprovalMode}), igual que la creacion:</p>
+     * <ul>
+     *   <li>{@code AUTOMATIC}: ordena las candidatas por categoria del empleado descendente y, a
+     *       igualdad, por orden de solicitud ascendente (FIFO), y promueve <strong>una unica</strong>
+     *       solicitud por recurso liberado: auto-asigna el recurso a la primera candidata viable
+     *       y la aprueba (reutiliza {@link Request#AUTO_APPROVAL_NOTE} y
+     *       {@link RequestApprovedEvent}, igual que la auto-aprobacion en la creacion). Ante una
+     *       colision de concurrencia en el indice unico {@code (resource, date)} (otro proceso se
+     *       adelanto), reintenta con la siguiente candidata de la cola (design §Risks).</li>
+     *   <li>{@code MANUAL}: el sistema no auto-asigna (coherente con que en este modo decide el
+     *       ADMIN); publica {@link WaitlistAvailableEvent} para avisar a los administradores
+     *       activos, que resuelven desde la bandeja de pendientes ya existente.</li>
+     * </ul>
+     *
+     * @param date         fecha del dia liberado
+     * @param resourceType tipo de recurso liberado ({@code PARKING}/{@code DESK})
+     */
+    @Transactional
+    public void promoteWaitlist(LocalDate date, ResourceType resourceType) {
+        List<Request> candidates = requestRepository
+                .findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+                        RequestStatus.PENDING, resourceType, date);
+        if (candidates.isEmpty()) {
+            return;
+        }
+        if (systemSettingsService.approvalMode() == ApprovalMode.AUTOMATIC) {
+            promoteAutomatically(byPriority(candidates), resourceType, date);
+        } else {
+            eventPublisher.publishEvent(new WaitlistAvailableEvent(RequestResponse.from(candidates.get(0))));
+        }
+    }
+
+    /**
+     * Candidata a promocion junto con la categoria de su empleado, ya resuelta en lote (sin N+1):
+     * evita volver a consultar {@code EmployeeRepository} por candidata al resolver el recurso de
+     * auto-asignacion (PARKING).
+     */
+    private record WaitlistCandidate(Request request, EmployeeCategory category) {
+    }
+
+    /**
+     * Ordena las candidatas por categoria del empleado descendente (mayor rango primero) y, a
+     * igualdad, por {@code createdAt} ascendente (FIFO); la lista de entrada ya llega ordenada
+     * por {@code createdAt} desde el repositorio, y {@link java.util.stream.Stream#sorted} es
+     * estable, por lo que el desempate FIFO se conserva sin repetir el criterio. Resuelve las
+     * categorias en una unica consulta en lote (sin N+1).
+     */
+    private List<WaitlistCandidate> byPriority(List<Request> candidates) {
+        Map<Long, EmployeeCategory> categories = employeeCategories(candidates);
+        return candidates.stream()
+                .map(candidate -> new WaitlistCandidate(candidate, categories.get(candidate.getEmployeeId())))
+                .sorted(Comparator.comparingInt(c -> categoryPriority(c.category())))
+                .toList();
+    }
+
+    private Map<Long, EmployeeCategory> employeeCategories(List<Request> candidates) {
+        List<Long> employeeIds = candidates.stream().map(Request::getEmployeeId).distinct().toList();
+        return employeeRepository.findAllById(employeeIds).stream()
+                .collect(Collectors.toMap(Employee::getId, Employee::getCategory));
+    }
+
+    /**
+     * Clave de orden por categoria (menor = mas prioritaria, el ordinal jerarquico de
+     * {@link EmployeeCategory} ya va de mayor a menor rango). Degrada a la menor prioridad si el
+     * empleado ya no existe (borrado), en vez de romper la promocion (S2259).
+     */
+    private static int categoryPriority(EmployeeCategory category) {
+        return category == null ? EmployeeCategory.values().length : category.ordinal();
+    }
+
+    private void promoteAutomatically(
+            List<WaitlistCandidate> ordered, ResourceType resourceType, LocalDate date) {
+        for (WaitlistCandidate candidate : ordered) {
+            if (tryPromote(candidate, resourceType, date)) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Intenta promover una unica candidata: resuelve un recurso libre para (fecha, tipo) y la
+     * aprueba. Devuelve {@code false} (sin promover) si no hay recurso libre o si la aprobacion
+     * colisiona por concurrencia con el indice unico {@code (resource, date)} (otro proceso se
+     * adelanto), de modo que el llamante reintente con la siguiente candidata de la cola.
+     */
+    private boolean tryPromote(WaitlistCandidate candidate, ResourceType resourceType, LocalDate date) {
+        Optional<Long> resourceId = resolvePromotionResource(candidate, resourceType, date);
+        if (resourceId.isEmpty()) {
+            return false;
+        }
+        try {
+            approveWaitlistedCandidate(candidate.request(), resourceId.get());
+            return true;
+        } catch (DataIntegrityViolationException ex) {
+            return false;
+        }
+    }
+
+    /**
+     * Resuelve el recurso a promover: para {@code PARKING} reutiliza la MISMA auto-asignacion por
+     * categoria/planta que la creacion automatica (categoria ya resuelta en lote, sin N+1); para
+     * {@code DESK} (sin auto-asignacion dedicada, design non-goal en la creacion) toma el primero
+     * de la disponibilidad consolidada (orden estable por numero de puesto).
+     */
+    private Optional<Long> resolvePromotionResource(
+            WaitlistCandidate candidate, ResourceType resourceType, LocalDate date) {
+        if (resourceType == ResourceType.DESK) {
+            return availabilityService.availabilityForDate(date, ResourceType.DESK)
+                    .availableResources().stream()
+                    .findFirst()
+                    .map(AvailabilityItemResponse::parkingSpaceId);
+        }
+        return autoAssignParkingSpace(candidate.category(), date).map(ParkingSpace::getId);
+    }
+
+    /**
+     * Aprueba la candidata promovida con el recurso resuelto, igual que la auto-aprobacion de la
+     * creacion (actor sistema, {@link Request#AUTO_APPROVAL_NOTE}), y notifica al empleado
+     * reutilizando {@link RequestApprovedEvent} (misma plantilla que cualquier aprobacion).
+     */
+    private void approveWaitlistedCandidate(Request candidate, Long resourceId) {
+        candidate.approve(resourceId, null, Request.AUTO_APPROVAL_NOTE, clock.now());
+        Request saved = requestRepository.saveAndFlush(candidate);
+        RequestResponse response = RequestResponse.from(saved);
+        eventPublisher.publishEvent(new RequestApprovedEvent(response));
     }
 
     /**

@@ -13,6 +13,7 @@ import {
   requestPending1,
   requestPendingDesk,
   requestRejected,
+  requestWaitlisted,
 } from '../mocks/requestFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { todayIso } from '../utils/requests';
@@ -344,5 +345,30 @@ describe('MyRequestsPage (EMPLOYEE)', () => {
       .getAllByText(/^plaza$|^space$/i)
       .filter((node) => node.classList.contains('pill'));
     expect(parkingPills).toHaveLength(1);
+  });
+
+  it('should_show_waitlist_badge_when_pending_request_is_waitlisted', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () =>
+        HttpResponse.json(pageOfRequests([requestWaitlisted, requestPending1])),
+      ),
+    );
+    renderWithProviders(<MyRequestsPage />);
+
+    const waitlistedRow = (await screen.findByText(requestWaitlisted.requestedDate)).closest(
+      'tr',
+    ) as HTMLElement;
+    expect(
+      within(waitlistedRow).getByText(/en lista de espera|on the waitlist/i),
+    ).toBeInTheDocument();
+
+    // La solicitud PENDING normal (sin waitlisted) no muestra el distintivo.
+    const pendingRow = screen.getByText(requestPending1.requestedDate).closest('tr') as HTMLElement;
+    expect(
+      within(pendingRow).queryByText(/en lista de espera|on the waitlist/i),
+    ).not.toBeInTheDocument();
+
+    // Nunca se muestra una posición numérica en la cola (fuera de alcance).
+    expect(screen.queryByText(/posición|position/i)).not.toBeInTheDocument();
   });
 });

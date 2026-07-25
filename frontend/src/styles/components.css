@@ -2751,6 +2751,33 @@ body.theme-dark .floor-plan-image {
   font-size: var(--text-xs);
 }
 
+/* Oferta de lista de espera dentro del banner de disponibilidad (0 libres):
+   reutiliza el layout de .pending-confirmation-banner (texto + acción a los
+   extremos, con ajuste de línea en pantallas estrechas). */
+.waitlist-offer-joined {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--green-darker);
+  white-space: nowrap;
+}
+
+/* Distintivo "En lista de espera" (Mis solicitudes / Mi Semana). */
+.waitlist-badge {
+  gap: 6px;
+  margin-left: var(--space-2);
+}
+
+/* Aviso de confirmación tras un 409 NO_AVAILABILITY en modo automático:
+   ofrece apuntarse a la lista de espera en vez de bloquear el envío. */
+.waitlist-retry-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* Banner de confirmacion pendiente (PendingConfirmationBanner): texto + accion
    de reenvio en los extremos, con ajuste de linea en pantallas estrechas. */
 .pending-confirmation-banner {

@@ -167,4 +167,17 @@ public interface RequestJpaRepository extends JpaRepository<RequestEntity, Long>
      */
     List<RequestEntity> findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
             Long employeeId, ResourceType resourceType, LocalDate start, LocalDate end);
+
+    /**
+     * Candidatas a la lista de espera (change {@code waitlist-requests}) de un dia y tipo de
+     * recurso: solicitudes en un estado marcadas {@code waitlisted}, en orden FIFO
+     * ({@code created_at ASC}).
+     *
+     * @param status        estado a comprobar (siempre {@code PENDING})
+     * @param resourceType  tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha del dia liberado
+     * @return las solicitudes en espera de ese dia/tipo en orden FIFO (posiblemente vacia)
+     */
+    List<RequestEntity> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+            RequestStatus status, ResourceType resourceType, LocalDate requestedDate);
 }

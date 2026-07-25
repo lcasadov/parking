@@ -57,6 +57,7 @@ public class Request {
     private Instant resolvedAt;
     private Instant createdAt;
     private Instant lastRemindedAt;
+    private boolean waitlisted;
 
     /** Constructor privado; las instancias se obtienen por las factorias estaticas. */
     private Request() {
@@ -65,7 +66,7 @@ public class Request {
 
     /**
      * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin plaza,
-     * de tipo {@code PARKING} por defecto.
+     * de tipo {@code PARKING} por defecto, no en lista de espera.
      *
      * @param employeeId    empleado solicitante
      * @param requestedDate fecha solicitada
@@ -78,7 +79,8 @@ public class Request {
 
     /**
      * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin recurso,
-     * para un tipo de recurso concreto ({@code PARKING} plaza / {@code DESK} puesto).
+     * para un tipo de recurso concreto ({@code PARKING} plaza / {@code DESK} puesto), no en
+     * lista de espera.
      *
      * <p>Nace con {@code resourceId = null}; el recurso concreto se asigna al aprobar. El
      * {@code resourceType} se fija desde la creacion para que la unicidad {@code PENDING}
@@ -92,6 +94,26 @@ public class Request {
      */
     public static Request create(
             Long employeeId, ResourceType resourceType, LocalDate requestedDate, Instant now) {
+        return create(employeeId, resourceType, requestedDate, now, false);
+    }
+
+    /**
+     * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin recurso, para
+     * un tipo de recurso concreto, marcando explicitamente si nace en <strong>lista de
+     * espera</strong> (change {@code waitlist-requests}): en modo {@code AUTOMATIC} sin
+     * disponibilidad y opt-in del empleado, o en modo {@code MANUAL} cuando no habia
+     * disponibilidad para ese dia/tipo en el momento de la creacion.
+     *
+     * @param employeeId    empleado solicitante
+     * @param resourceType  tipo del recurso solicitado ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha solicitada
+     * @param now           instante de creacion (UTC)
+     * @param waitlisted    {@code true} si la solicitud nace en lista de espera
+     * @return la solicitud nueva, aun no persistida
+     */
+    public static Request create(
+            Long employeeId, ResourceType resourceType, LocalDate requestedDate, Instant now,
+            boolean waitlisted) {
         Request request = new Request();
         request.employeeId = employeeId;
         request.requestedDate = requestedDate;
@@ -99,6 +121,7 @@ public class Request {
         request.resourceId = null;
         request.resourceType = resourceType;
         request.createdAt = now;
+        request.waitlisted = waitlisted;
         return request;
     }
 
@@ -152,8 +175,11 @@ public class Request {
 
     /**
      * Reconstituye una solicitud a partir de su estado persistido, incluyendo el instante del
-     * ultimo reenvio de aviso (change {@code request-resend-notice}; uso exclusivo del mapper de
-     * infraestructura {@code RequestMapper}; no aplica reglas de transicion).
+     * ultimo reenvio de aviso, sin marca de lista de espera ({@code waitlisted = false}; uso
+     * exclusivo del mapper de infraestructura {@code RequestMapper}; no aplica reglas de
+     * transicion). Delega en el canonico {@link #restore(Long, Long, LocalDate, RequestStatus,
+     * Long, ResourceType, String, RejectionReasonCode, String, Long, Instant, Instant, Instant,
+     * boolean)} para no romper los llamantes previos al change {@code waitlist-requests}.
      *
      * @param id                  identificador
      * @param employeeId          empleado solicitante
@@ -168,13 +194,46 @@ public class Request {
      * @param resolvedAt          instante de resolucion (UTC)
      * @param createdAt           instante de creacion (UTC)
      * @param lastRemindedAt      instante del ultimo reenvio de aviso; {@code null} si nunca
-     * @return la solicitud reconstituida
+     * @return la solicitud reconstituida, con {@code waitlisted = false}
      */
     public static Request restore(
             Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
             Long resourceId, ResourceType resourceType, String approvalNote,
             RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
             Instant resolvedAt, Instant createdAt, Instant lastRemindedAt) {
+        return restore(id, employeeId, requestedDate, status, resourceId, resourceType,
+                approvalNote, rejectionReasonCode, rejectionReason, resolvedById, resolvedAt,
+                createdAt, lastRemindedAt, false);
+    }
+
+    /**
+     * Reconstituye una solicitud a partir de su estado persistido, incluyendo el instante del
+     * ultimo reenvio de aviso y la marca de lista de espera (change {@code waitlist-requests};
+     * uso exclusivo del mapper de infraestructura {@code RequestMapper}; no aplica reglas de
+     * transicion). Es la factoria canonica de reconstitucion: el resto de sobrecargas de
+     * {@code restore} delegan aqui con los valores por defecto retrocompatibles.
+     *
+     * @param id                  identificador
+     * @param employeeId          empleado solicitante
+     * @param requestedDate       fecha solicitada
+     * @param status              estado del ciclo de vida
+     * @param resourceId          recurso asignado; {@code null} mientras {@code PENDING}
+     * @param resourceType        tipo de recurso solicitado
+     * @param approvalNote        nota del administrador al aprobar
+     * @param rejectionReasonCode codigo del catalogo de rechazo
+     * @param rejectionReason     texto libre del rechazo
+     * @param resolvedById        empleado (ADMIN) que resolvio
+     * @param resolvedAt          instante de resolucion (UTC)
+     * @param createdAt           instante de creacion (UTC)
+     * @param lastRemindedAt      instante del ultimo reenvio de aviso; {@code null} si nunca
+     * @param waitlisted          {@code true} si la solicitud esta en lista de espera
+     * @return la solicitud reconstituida
+     */
+    public static Request restore(
+            Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
+            Long resourceId, ResourceType resourceType, String approvalNote,
+            RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
+            Instant resolvedAt, Instant createdAt, Instant lastRemindedAt, boolean waitlisted) {
         Request request = new Request();
         request.id = id;
         request.employeeId = employeeId;
@@ -189,6 +248,7 @@ public class Request {
         request.resolvedAt = resolvedAt;
         request.createdAt = createdAt;
         request.lastRemindedAt = lastRemindedAt;
+        request.waitlisted = waitlisted;
         return request;
     }
 
@@ -407,6 +467,15 @@ public class Request {
 
     public Instant getLastRemindedAt() {
         return lastRemindedAt;
+    }
+
+    /**
+     * @return {@code true} si la solicitud esta marcada en <strong>lista de espera</strong>
+     *         (change {@code waitlist-requests}): una {@code PENDING} para un dia/tipo sin
+     *         disponibilidad, candidata a promocion cuando se libere un recurso.
+     */
+    public boolean isWaitlisted() {
+        return waitlisted;
     }
 
     @Override

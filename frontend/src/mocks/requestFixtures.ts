@@ -85,6 +85,23 @@ export const requestApprovedDesk: Request = {
   createdAt: '2026-03-01T07:30:00Z',
 };
 
+// Solicitud PENDING nacida sin hueco (capability request-waitlist): usada para
+// verificar el distintivo "En lista de espera" en Mis solicitudes.
+export const requestWaitlisted: Request = {
+  id: 507,
+  employeeId: 2,
+  requestedDate: addDaysIso(todayIso(), 2),
+  status: 'PENDING',
+  waitlisted: true,
+  parkingSpaceId: null,
+  approvalNote: null,
+  rejectionReasonCode: null,
+  rejectionReason: null,
+  resolvedById: null,
+  resolvedAt: null,
+  createdAt: '2026-03-01T08:30:00Z',
+};
+
 export const requestRejected: Request = {
   id: 504,
   employeeId: 2,

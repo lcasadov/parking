@@ -212,13 +212,18 @@ export const handlers = [
   http.get(`${BASE}/requests/mine`, () => HttpResponse.json(defaultMyRequestsPage)),
 
   http.post(`${BASE}/requests`, async ({ request }) => {
-    const body = (await request.json()) as { requestedDate: string; resourceType?: string };
+    const body = (await request.json()) as {
+      requestedDate: string;
+      resourceType?: string;
+      waitlist?: boolean;
+    };
     return HttpResponse.json(
       {
         ...requestPending1,
         id: 999,
         requestedDate: body.requestedDate,
         resourceType: body.resourceType ?? 'PARKING',
+        waitlisted: body.waitlist === true,
       },
       { status: 201 },
     );
@@ -491,5 +496,36 @@ export const handlers = [
     });
   }),
 ];
+
+// Handler reutilizable (capability request-waitlist): simula el modo AUTOMATICO
+// sin hueco -> 409 NO_AVAILABILITY, salvo que el body incluya `waitlist: true`,
+// en cuyo caso crea la solicitud PENDING con `waitlisted: true`. Los tests lo
+// activan con `server.use(waitlistConflictThenSuccessHandler())` para cubrir el
+// flujo "sin hueco -> apuntarse -> en espera" (tasks §6.5).
+export function waitlistConflictThenSuccessHandler() {
+  return http.post(`${BASE}/requests`, async ({ request }) => {
+    const body = (await request.json()) as {
+      requestedDate: string;
+      resourceType?: string;
+      waitlist?: boolean;
+    };
+    if (body.waitlist !== true) {
+      return HttpResponse.json(
+        { error: 'NO_AVAILABILITY', message: 'no free space', timestamp: '2026-03-02T10:00:00Z' },
+        { status: 409 },
+      );
+    }
+    return HttpResponse.json(
+      {
+        ...requestPending1,
+        id: 999,
+        requestedDate: body.requestedDate,
+        resourceType: body.resourceType ?? 'PARKING',
+        waitlisted: true,
+      },
+      { status: 201 },
+    );
+  });
+}
 
 export { BASE as MSW_BASE };

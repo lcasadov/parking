@@ -500,7 +500,10 @@ public class GlobalExceptionHandler {
     /**
      * Traduce la ausencia de plaza libre en el alta automatica (modo {@code AUTOMATIC}) a
      * {@code 409} con {@code error = NO_AVAILABILITY}: no hay ninguna plaza libre para la fecha
-     * y la solicitud no se crea (design §D4).
+     * y la solicitud no se crea (design §D4). Condicionado al opt-in de lista de espera (change
+     * {@code waitlist-requests}): {@code RequestService} solo lanza esta excepcion cuando el
+     * empleado NO opto por {@code waitlist: true} en el cuerpo; con el opt-in, en su lugar se
+     * crea la solicitud {@code PENDING waitlisted = true} sin llegar a este manejador.
      *
      * @param ex excepcion de falta de disponibilidad en auto-asignacion
      * @return {@link ApiError} con estado 409

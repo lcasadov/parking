@@ -15,12 +15,17 @@ import com.aleatica.parking.audit.AuditEntry;
 import com.aleatica.parking.audit.AuditRecorder;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
+import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
+import com.aleatica.parking.availability.dto.AvailabilityResponse;
 import com.aleatica.parking.employee.Employee;
+import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
+import com.aleatica.parking.notification.event.WaitlistAvailableEvent;
+import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.request.domain.RejectionReasonCode;
 import com.aleatica.parking.request.domain.Request;
 import com.aleatica.parking.request.domain.RequestRepositoryPort;
@@ -50,6 +55,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -118,6 +124,19 @@ class RequestServiceTest {
 
     private void givenManualMode() {
         given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
+        // waitlisted se computa por disponibilidad al crear (change waitlist-requests); por
+        // defecto "hay hueco" para no alterar el comportamiento de los tests de creacion clasica
+        // que no versan sobre la lista de espera. lenient(): no todos los tests que llaman a este
+        // helper llegan a evaluarlo (p. ej. si fallan antes por BOLA/estado).
+        lenient().when(availabilityService.availabilityForDate(any(), any())).thenReturn(available());
+    }
+
+    private static AvailabilityResponse available() {
+        return new AvailabilityResponse(WITHIN, List.of(new AvailabilityItemResponse(SPACE_ID, "P-01")));
+    }
+
+    private static AvailabilityResponse unavailable() {
+        return new AvailabilityResponse(WITHIN, List.of());
     }
 
     // ---- Creacion: ventana + unicidad ----
@@ -193,6 +212,170 @@ class RequestServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null)))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    // ---- Lista de espera: creacion (change waitlist-requests) ----
+
+    @Test
+    void shouldMarkWaitlisted_whenManualCreationHasNoAvailability() {
+        // Arrange: modo MANUAL y ningun recurso libre ese dia/tipo
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
+        given(availabilityService.availabilityForDate(WITHIN, ResourceType.PARKING)).willReturn(unavailable());
+
+        // Act
+        RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null));
+
+        // Assert: PENDING sin recurso, marcada en lista de espera sin necesidad de opt-in
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.waitlisted()).isTrue();
+        verifyEventPublished(RequestCreatedEvent.class);
+    }
+
+    @Test
+    void shouldNotMarkWaitlisted_whenManualCreationHasAvailability() {
+        // Arrange: modo MANUAL con algun recurso libre ese dia/tipo
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
+        given(availabilityService.availabilityForDate(WITHIN, ResourceType.PARKING)).willReturn(available());
+
+        // Act
+        RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.waitlisted()).isFalse();
+    }
+
+    @Test
+    void shouldCreateWaitlistedPending_whenAutomaticParkingNoSpaceAndOptIn() {
+        // Arrange: modo AUTOMATIC, ninguna plaza libre, empleado opta por la lista de espera
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        given(availabilityService.freeParkingSpacesForDate(WITHIN)).willReturn(List.of());
+
+        // Act
+        RequestResponse result = newService().create(
+                EMP_LOGIN, new RequestCreateRequest(WITHIN, null, null, true));
+
+        // Assert: PENDING waitlisted, NO 409 y NO se auto-aprueba
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.waitlisted()).isTrue();
+        assertThat(result.parkingSpaceId()).isNull();
+        verifyEventPublished(RequestCreatedEvent.class);
+    }
+
+    @Test
+    void shouldThrowNoAvailability_whenAutomaticParkingNoSpaceWithoutOptIn() {
+        // Arrange: mismo escenario, pero SIN el opt-in -> se preserva el 409 clasico
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        given(availabilityService.freeParkingSpacesForDate(WITHIN)).willReturn(List.of());
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null)))
+                .isInstanceOf(NoAvailabilityException.class);
+        assertThat(requestRepository.saves()).isZero();
+    }
+
+    // ---- Lista de espera: promocion (change waitlist-requests) ----
+
+    @Test
+    void shouldPromoteHighestCategory_whenAutomaticPromotionWithMultipleWaitlisted() {
+        // Arrange: reqLow (EMPLEADO, mas antigua) y reqHigh (GERENTE, mas reciente) en espera
+        Request reqLow = waitlistedPending(701L, EMP_ID, NOW.minusSeconds(10));
+        Request reqHigh = waitlistedPending(702L, OTHER_ID, NOW);
+        requestRepository.seed(reqLow);
+        requestRepository.seed(reqHigh);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        givenEmployeeCategories(EMP_ID, EmployeeCategory.EMPLEADO, OTHER_ID, EmployeeCategory.GERENTE);
+        ParkingSpace freedSpace = mockSpace(SPACE_ID);
+        given(availabilityService.freeParkingSpacesForDate(WITHIN)).willReturn(List.of(freedSpace));
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.PARKING);
+
+        // Assert: se promueve la de MAYOR categoria (GERENTE) aunque sea la mas reciente (FIFO
+        // solo desempata a igualdad de categoria)
+        assertThat(requestRepository.byId(702L).getStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(requestRepository.byId(702L).getResourceId()).isEqualTo(SPACE_ID);
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.PENDING);
+        verifyEventPublished(RequestApprovedEvent.class);
+    }
+
+    @Test
+    void shouldPromoteFifo_whenSameCategoryAndMultipleWaitlisted() {
+        // Arrange: misma categoria; la mas antigua (FIFO) debe promoverse primero
+        Request older = waitlistedPending(701L, EMP_ID, NOW.minusSeconds(10));
+        Request newer = waitlistedPending(702L, OTHER_ID, NOW);
+        requestRepository.seed(older);
+        requestRepository.seed(newer);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        givenEmployeeCategories(EMP_ID, EmployeeCategory.EMPLEADO, OTHER_ID, EmployeeCategory.EMPLEADO);
+        ParkingSpace freedSpace = mockSpace(SPACE_ID);
+        given(availabilityService.freeParkingSpacesForDate(WITHIN)).willReturn(List.of(freedSpace));
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.PARKING);
+
+        // Assert
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(requestRepository.byId(702L).getStatus()).isEqualTo(RequestStatus.PENDING);
+    }
+
+    @Test
+    void shouldNotAutoAssign_whenManualPromotion() {
+        // Arrange: modo MANUAL -> el sistema no decide, solo avisa a los admins
+        Request waiting = waitlistedPending(701L, EMP_ID, NOW);
+        requestRepository.seed(waiting);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.PARKING);
+
+        // Assert: sigue PENDING (sin auto-asignar) y se avisa a los admins con esta referencia
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.PENDING);
+        assertThat(requestRepository.saves()).isZero();
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue()).isInstanceOfSatisfying(WaitlistAvailableEvent.class,
+                event -> assertThat(event.topWaitlistedRequest().id()).isEqualTo(701L));
+    }
+
+    @Test
+    void shouldDoNothing_whenNoWaitlistedCandidates() {
+        // Arrange (store vacio de waitlisted para esa fecha/tipo)
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.PARKING);
+
+        // Assert: sin candidatas no se consulta el modo ni se publica nada
+        verifyNoInteractions(eventPublisher);
+        assertThat(requestRepository.saves()).isZero();
+    }
+
+    private Request waitlistedPending(Long id, Long employeeId, Instant createdAt) {
+        return Request.restore(
+                id, employeeId, WITHIN, RequestStatus.PENDING, null, ResourceType.PARKING,
+                null, null, null, null, null, createdAt, null, true);
+    }
+
+    private void givenEmployeeCategories(
+            Long empIdA, EmployeeCategory categoryA, Long empIdB, EmployeeCategory categoryB) {
+        Employee employeeA = mock(Employee.class);
+        given(employeeA.getId()).willReturn(empIdA);
+        given(employeeA.getCategory()).willReturn(categoryA);
+        Employee employeeB = mock(Employee.class);
+        given(employeeB.getId()).willReturn(empIdB);
+        given(employeeB.getCategory()).willReturn(categoryB);
+        given(employeeRepository.findAllById(any())).willReturn(List.of(employeeA, employeeB));
+    }
+
+    private static ParkingSpace mockSpace(Long id) {
+        ParkingSpace space = mock(ParkingSpace.class);
+        lenient().when(space.getId()).thenReturn(id);
+        lenient().when(space.floor()).thenReturn(1);
+        lenient().when(space.getNumber()).thenReturn(1001);
+        return space;
     }
 
     // ---- Cancelacion: BOLA + estado ----
@@ -899,6 +1082,10 @@ class RequestServiceTest {
             return saves;
         }
 
+        Request byId(Long id) {
+            return store.get(id);
+        }
+
         @Override
         public Optional<Request> findById(Long id) {
             return Optional.ofNullable(store.get(id));
@@ -922,7 +1109,7 @@ class RequestServiceTest {
                     request.getResourceId(), request.getResourceType(), request.getApprovalNote(),
                     request.getRejectionReasonCode(), request.getRejectionReason(),
                     request.getResolvedById(), request.getResolvedAt(), request.getCreatedAt(),
-                    request.getLastRemindedAt());
+                    request.getLastRemindedAt(), request.isWaitlisted());
             store.put(id, stored);
             return stored;
         }
@@ -973,6 +1160,17 @@ class RequestServiceTest {
             return new PageImpl<>(store.values().stream()
                     .sorted(Comparator.comparing(Request::getCreatedAt).reversed())
                     .collect(java.util.stream.Collectors.toList()));
+        }
+
+        @Override
+        public List<Request> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+                RequestStatus status, ResourceType resourceType, LocalDate requestedDate) {
+            return store.values().stream()
+                    .filter(r -> status == r.getStatus() && r.isWaitlisted()
+                            && resourceType == r.getResourceType()
+                            && requestedDate.equals(r.getRequestedDate()))
+                    .sorted(Comparator.comparing(Request::getCreatedAt))
+                    .toList();
         }
     }
 }

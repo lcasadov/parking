@@ -315,7 +315,8 @@ class RequestAutoAssignmentServiceTest {
                     id, request.getEmployeeId(), request.getRequestedDate(), request.getStatus(),
                     request.getResourceId(), request.getResourceType(), request.getApprovalNote(),
                     request.getRejectionReasonCode(), request.getRejectionReason(),
-                    request.getResolvedById(), request.getResolvedAt(), request.getCreatedAt());
+                    request.getResolvedById(), request.getResolvedAt(), request.getCreatedAt(),
+                    request.getLastRemindedAt(), request.isWaitlisted());
             store.put(id, stored);
             return stored;
         }
@@ -354,6 +355,12 @@ class RequestAutoAssignmentServiceTest {
         @Override
         public Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable) {
             return new PageImpl<>(List.copyOf(store.values()));
+        }
+
+        @Override
+        public List<Request> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+                RequestStatus status, ResourceType resourceType, LocalDate requestedDate) {
+            return List.of();
         }
     }
 }

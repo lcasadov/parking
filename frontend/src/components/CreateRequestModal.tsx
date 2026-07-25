@@ -26,15 +26,20 @@ const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
 const NO_AVAILABILITY = 'NO_AVAILABILITY';
 
+// Un envio 409 es NO_AVAILABILITY (modo automatico sin hueco): distinto de la
+// solicitud duplicada. Se reutiliza para clasificar candidatos a lista de
+// espera (capability request-waitlist) y para el toast de error generico.
+function isNoAvailabilityConflict(error: unknown): boolean {
+  return getStatus(error) === HTTP_CONFLICT && getApiError(error)?.error === NO_AVAILABILITY;
+}
+
 // Traduce el error del servidor a la clave i18n del toast (tasks §4.4 y §6.4).
 // El 409 distingue entre solicitud duplicada y NO_AVAILABILITY (modo automatico sin
 // plaza libre para la fecha).
 function toastKeyForError(error: unknown): string {
   const status = getStatus(error);
   if (status === HTTP_CONFLICT) {
-    return getApiError(error)?.error === NO_AVAILABILITY
-      ? 'requests.errors.noAvailability'
-      : 'requests.errors.duplicate';
+    return isNoAvailabilityConflict(error) ? 'requests.errors.noAvailability' : 'requests.errors.duplicate';
   }
   if (status === HTTP_BAD_REQUEST) {
     return 'requests.errors.window';
@@ -42,12 +47,59 @@ function toastKeyForError(error: unknown): string {
   return 'requests.errors.generic';
 }
 
-// Clave i18n del toast de exito: en modo automatico la solicitud nace APPROVED
-// (asignacion inmediata); en modo manual queda PENDING (tasks §6.4).
+// Clave i18n del toast de exito: una solicitud nacida en lista de espera
+// (capability request-waitlist) tiene prioridad sobre el aviso de aprobacion
+// instantanea; en modo automatico sin espera nace APPROVED; en manual PENDING
+// (tasks §6.4).
 function successToastKey(created: Request[]): string {
+  if (created.some((request) => request.waitlisted)) {
+    return 'requests.mine.createdWaitlisted';
+  }
   return created.some((request) => request.status === 'APPROVED')
     ? 'requests.mine.createdApproved'
     : 'requests.mine.created';
+}
+
+// Resultado de un intento de envio (posiblemente varios recursos a la vez):
+// separa lo creado con exito de los candidatos a lista de espera (409
+// NO_AVAILABILITY en modo automatico, aun sin optar por `waitlist`) y de
+// cualquier otro error a mostrar tal cual.
+interface SubmitOutcome {
+  createdRequests: Request[];
+  waitlistCandidates: ResourceType[];
+  otherError: unknown | null;
+}
+
+// Envia una solicitud por cada recurso seleccionado (Promise.allSettled: un 409
+// NO_AVAILABILITY de un recurso no debe ocultar el exito de otro). Extraida a
+// nivel de modulo para mantener la complejidad cognitiva del componente baja
+// (S3776) y para poder reutilizarla tanto en el envio inicial como en el
+// reintento tras confirmar la lista de espera.
+async function submitResources(
+  resources: ResourceType[],
+  isAutomaticMode: boolean,
+  waitlistJoined: Set<ResourceType>,
+  buildBody: (resourceType: ResourceType, waitlistJoined: Set<ResourceType>) => RequestCreateRequest,
+  mutateAsync: (body: RequestCreateRequest) => Promise<Request>,
+): Promise<SubmitOutcome> {
+  const settled = await Promise.allSettled(
+    resources.map((resourceType) => mutateAsync(buildBody(resourceType, waitlistJoined))),
+  );
+  const outcome: SubmitOutcome = { createdRequests: [], waitlistCandidates: [], otherError: null };
+  settled.forEach((result, index) => {
+    const resourceType = resources[index];
+    if (result.status === 'fulfilled') {
+      outcome.createdRequests.push(result.value);
+      return;
+    }
+    const alreadyOptedIn = waitlistJoined.has(resourceType);
+    if (isAutomaticMode && !alreadyOptedIn && isNoAvailabilityConflict(result.reason)) {
+      outcome.waitlistCandidates.push(resourceType);
+    } else if (outcome.otherError === null) {
+      outcome.otherError = result.reason;
+    }
+  });
+  return outcome;
 }
 
 // Estado inicial del formulario según la preselección opcional del héroe. Se
@@ -67,6 +119,113 @@ function initialSelection(presetDate?: string, presetResource?: ResourceType): I
   };
 }
 
+interface DeskPickSectionProps {
+  deskSelected: boolean;
+  selectedDesk: PickedDesk | null;
+  isManualMode: boolean;
+  canPickDesk: boolean;
+  onOpenPicker: () => void;
+  onRemoveDesk: () => void;
+}
+
+// Bloque de elección de puesto (visible solo con PUESTO marcado): número
+// elegido, aviso de preferencia en modo manual y acciones de elegir/quitar.
+// Extraído a módulo para mantener la complejidad cognitiva del componente
+// padre por debajo del umbral (S3776).
+function DeskPickSection({
+  deskSelected,
+  selectedDesk,
+  isManualMode,
+  canPickDesk,
+  onOpenPicker,
+  onRemoveDesk,
+}: DeskPickSectionProps) {
+  const { t } = useTranslation();
+  if (!deskSelected) {
+    return null;
+  }
+  return (
+    <div className="desk-pick">
+      {selectedDesk ? (
+        <p className="desk-pick-chosen">
+          {t('requests.create.chosenDesk', { number: selectedDesk.deskNumber })}
+        </p>
+      ) : null}
+      {selectedDesk && isManualMode ? (
+        <p className="hint" role="status">
+          {t('requests.create.chosenDeskPreferenceNote')}
+        </p>
+      ) : null}
+      <div className="desk-pick-actions">
+        <Button variant="white" icon="map-pin" disabled={!canPickDesk} onClick={onOpenPicker}>
+          {selectedDesk ? t('requests.create.changeDesk') : t('requests.create.chooseDesk')}
+        </Button>
+        {selectedDesk ? (
+          <Button variant="white" icon="x" onClick={onRemoveDesk}>
+            {t('requests.create.removeDesk')}
+          </Button>
+        ) : null}
+      </div>
+      {canPickDesk ? null : <p className="hint">{t('requests.create.chooseDeskDateHint')}</p>}
+    </div>
+  );
+}
+
+interface ApprovalModeNoticeProps {
+  isAutomaticMode: boolean;
+  isManualMode: boolean;
+}
+
+// Aviso de modo de aprobación vigente (automático confirma al instante; manual
+// queda pendiente). Extraído junto al resto de bloques informativos para
+// mantener la complejidad del componente padre bajo control (S3776).
+function ApprovalModeNotice({ isAutomaticMode, isManualMode }: ApprovalModeNoticeProps) {
+  const { t } = useTranslation();
+  if (isAutomaticMode) {
+    return (
+      <InfoBanner variant="green" icon="circle-check">
+        {t('requests.create.automaticNotice')}
+      </InfoBanner>
+    );
+  }
+  if (isManualMode) {
+    return (
+      <InfoBanner variant="amber" icon="clock">
+        {t('requests.create.manualNotice')}
+      </InfoBanner>
+    );
+  }
+  return null;
+}
+
+interface WaitlistRetryBannerProps {
+  resourceTypes: ResourceType[] | null;
+  onConfirm: () => void;
+  onDismiss: () => void;
+}
+
+// Confirmación tras un 409 NO_AVAILABILITY en modo automático (capability
+// request-waitlist): ofrece apuntarse en vez de bloquear la solicitud.
+function WaitlistRetryBanner({ resourceTypes, onConfirm, onDismiss }: WaitlistRetryBannerProps) {
+  const { t } = useTranslation();
+  if (!resourceTypes) {
+    return null;
+  }
+  return (
+    <InfoBanner variant="amber" icon="clock">
+      <p>{t('requests.create.waitlist.retryPrompt')}</p>
+      <div className="waitlist-retry-actions">
+        <Button variant="green" onClick={onConfirm}>
+          {t('requests.create.waitlist.retryConfirm')}
+        </Button>
+        <Button variant="white" onClick={onDismiss}>
+          {t('requests.create.waitlist.retryDismiss')}
+        </Button>
+      </div>
+    </InfoBanner>
+  );
+}
+
 // Modal EMPLOYEE: solicitud unificada. Para una misma fecha (hoy o cualquier
 // fecha futura) el empleado puede pedir plaza y/o puesto. Cada recurso genera un
 // Request independiente vía POST /requests con su `resourceType` (init-desks §4.2).
@@ -84,6 +243,14 @@ export function CreateRequestModal({
   const [selectedDesk, setSelectedDesk] = useState<PickedDesk | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Recursos por los que el empleado ha optado explicitamente por la lista de
+  // espera (banner de disponibilidad en 0, o confirmacion tras un 409). Se
+  // incluyen como `waitlist: true` en el siguiente envio de ese recurso.
+  const [waitlistJoined, setWaitlistJoined] = useState<Set<ResourceType>>(new Set());
+  // Recursos que acaban de recibir 409 NO_AVAILABILITY en modo automatico sin
+  // haber optado aun: se ofrece confirmar el apunte a la lista de espera en vez
+  // de bloquear la solicitud (employee-portal spec §1, escenario "Reintento").
+  const [waitlistPrompt, setWaitlistPrompt] = useState<ResourceType[] | null>(null);
   const createMutation = useCreateRequest();
   const toast = useToast();
   // Modo de aprobacion vigente (null si no se puede resolver, p.ej. AGENCIA):
@@ -137,12 +304,36 @@ export function CreateRequestModal({
 
   // Cuerpo del POST /requests por recurso: la solicitud de PUESTO con puesto
   // elegido incluye `resourceId`; la de PLAZA (o de puesto sin elegir) no.
-  function buildBody(resourceType: ResourceType): RequestCreateRequest {
+  // `waitlist: true` cuando el empleado ya optó por la lista de espera para ese
+  // recurso (capability request-waitlist).
+  function buildBody(resourceType: ResourceType, waitlistSet: Set<ResourceType>): RequestCreateRequest {
     const body: RequestCreateRequest = { requestedDate: date, resourceType };
     if (resourceType === 'DESK' && selectedDesk) {
       body.resourceId = selectedDesk.deskId;
     }
+    if (waitlistSet.has(resourceType)) {
+      body.waitlist = true;
+    }
     return body;
+  }
+
+  // Aplica el resultado de un envio (inicial o de reintento): si algun recurso
+  // quedo pendiente de confirmar la lista de espera se ofrece el aviso y NO se
+  // cierra el modal; si hay otro error se muestra el toast correspondiente;
+  // solo se notifica el exito y se cierra cuando no queda nada pendiente.
+  function applyOutcome(outcome: SubmitOutcome): void {
+    if (outcome.waitlistCandidates.length > 0) {
+      setWaitlistPrompt(outcome.waitlistCandidates);
+      return;
+    }
+    if (outcome.otherError) {
+      emitApiErrorToast(toastKeyForError(outcome.otherError));
+      return;
+    }
+    if (outcome.createdRequests.length > 0) {
+      toast.success(successToastKey(outcome.createdRequests));
+      onCreated();
+    }
   }
 
   async function handleSubmit(event: FormEvent): Promise<void> {
@@ -154,15 +345,48 @@ export function CreateRequestModal({
       return;
     }
     setError(null);
-    try {
-      const created = await Promise.all(
-        resources.map((resourceType) => createMutation.mutateAsync(buildBody(resourceType))),
-      );
-      toast.success(successToastKey(created));
-      onCreated();
-    } catch (mutationError) {
-      emitApiErrorToast(toastKeyForError(mutationError));
+    setWaitlistPrompt(null);
+    const outcome = await submitResources(
+      resources,
+      isAutomaticMode,
+      waitlistJoined,
+      buildBody,
+      createMutation.mutateAsync,
+    );
+    applyOutcome(outcome);
+  }
+
+  // Confirmacion tras el 409 NO_AVAILABILITY (escenario "Reintento" de
+  // employee-portal spec §1): reenvia SOLO los recursos ofrecidos con
+  // `waitlist: true` y marca el opt-in para el resto de la sesion del modal.
+  async function confirmWaitlistJoin(): Promise<void> {
+    if (!waitlistPrompt) {
+      return;
     }
+    const resources = waitlistPrompt;
+    const nextWaitlistJoined = new Set(waitlistJoined);
+    resources.forEach((resourceType) => nextWaitlistJoined.add(resourceType));
+    setWaitlistJoined(nextWaitlistJoined);
+    setWaitlistPrompt(null);
+    const outcome = await submitResources(
+      resources,
+      isAutomaticMode,
+      nextWaitlistJoined,
+      buildBody,
+      createMutation.mutateAsync,
+    );
+    applyOutcome(outcome);
+  }
+
+  function dismissWaitlistPrompt(): void {
+    setWaitlistPrompt(null);
+  }
+
+  // Opt-in proactivo desde el banner de disponibilidad (0 libres): no envia
+  // nada por si mismo, solo marca el recurso para que el siguiente envio
+  // incluya `waitlist: true` (employee-portal spec §1, escenario "no bloquea").
+  function handleJoinWaitlist(resourceType: ResourceType): void {
+    setWaitlistJoined((previous) => new Set(previous).add(resourceType));
   }
 
   const footer = (
@@ -218,7 +442,13 @@ export function CreateRequestModal({
               </span>
               <span className="resource-option-label">{t('requests.create.resourceParking')}</span>
             </label>
-            <ResourceAvailabilityBanner date={date} resourceType="PARKING" />
+            <ResourceAvailabilityBanner
+              date={date}
+              resourceType="PARKING"
+              selected={parkingSelected}
+              waitlistJoined={waitlistJoined.has('PARKING')}
+              onJoinWaitlist={handleJoinWaitlist}
+            />
             <label
               className={`checkbox-field resource-option${deskSelected ? ' is-selected' : ''}`}
             >
@@ -232,54 +462,31 @@ export function CreateRequestModal({
               </span>
               <span className="resource-option-label">{t('requests.create.resourceDesk')}</span>
             </label>
-            <ResourceAvailabilityBanner date={date} resourceType="DESK" />
+            <ResourceAvailabilityBanner
+              date={date}
+              resourceType="DESK"
+              selected={deskSelected}
+              waitlistJoined={waitlistJoined.has('DESK')}
+              onJoinWaitlist={handleJoinWaitlist}
+            />
 
-            {deskSelected ? (
-              <div className="desk-pick">
-                {selectedDesk ? (
-                  <p className="desk-pick-chosen">
-                    {t('requests.create.chosenDesk', { number: selectedDesk.deskNumber })}
-                  </p>
-                ) : null}
-                {selectedDesk && isManualMode ? (
-                  <p className="hint" role="status">
-                    {t('requests.create.chosenDeskPreferenceNote')}
-                  </p>
-                ) : null}
-                <div className="desk-pick-actions">
-                  <Button
-                    variant="white"
-                    icon="map-pin"
-                    disabled={!canPickDesk}
-                    onClick={() => setPickerOpen(true)}
-                  >
-                    {selectedDesk
-                      ? t('requests.create.changeDesk')
-                      : t('requests.create.chooseDesk')}
-                  </Button>
-                  {selectedDesk ? (
-                    <Button variant="white" icon="x" onClick={() => setSelectedDesk(null)}>
-                      {t('requests.create.removeDesk')}
-                    </Button>
-                  ) : null}
-                </div>
-                {canPickDesk ? null : (
-                  <p className="hint">{t('requests.create.chooseDeskDateHint')}</p>
-                )}
-              </div>
-            ) : null}
+            <DeskPickSection
+              deskSelected={deskSelected}
+              selectedDesk={selectedDesk}
+              isManualMode={isManualMode}
+              canPickDesk={canPickDesk}
+              onOpenPicker={() => setPickerOpen(true)}
+              onRemoveDesk={() => setSelectedDesk(null)}
+            />
           </fieldset>
 
-          {isAutomaticMode ? (
-            <InfoBanner variant="green" icon="circle-check">
-              {t('requests.create.automaticNotice')}
-            </InfoBanner>
-          ) : null}
-          {isManualMode ? (
-            <InfoBanner variant="amber" icon="clock">
-              {t('requests.create.manualNotice')}
-            </InfoBanner>
-          ) : null}
+          <ApprovalModeNotice isAutomaticMode={isAutomaticMode} isManualMode={isManualMode} />
+
+          <WaitlistRetryBanner
+            resourceTypes={waitlistPrompt}
+            onConfirm={() => void confirmWaitlistJoin()}
+            onDismiss={dismissWaitlistPrompt}
+          />
 
           {error ? (
             <p className="form-error" role="alert">

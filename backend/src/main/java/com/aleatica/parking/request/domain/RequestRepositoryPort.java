@@ -2,6 +2,7 @@ package com.aleatica.parking.request.domain;
 
 import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -110,4 +111,19 @@ public interface RequestRepositoryPort {
      * @return pagina de solicitudes de dominio ordenadas por {@code created_at DESC}
      */
     Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    /**
+     * Candidatas a la <strong>lista de espera</strong> (change {@code waitlist-requests}) de un
+     * dia y tipo de recurso: solicitudes {@code PENDING} marcadas {@code waitlisted}, en orden
+     * FIFO ({@code created_at ASC}). El motor de promocion ({@code RequestService#promoteWaitlist})
+     * reordena en memoria por categoria del empleado antes de FIFO (la categoria no vive en este
+     * agregado).
+     *
+     * @param status        estado a comprobar (siempre {@code PENDING})
+     * @param resourceType  tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha del dia liberado
+     * @return las solicitudes en espera de ese dia/tipo en orden FIFO (posiblemente vacia)
+     */
+    List<Request> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+            RequestStatus status, ResourceType resourceType, LocalDate requestedDate);
 }
