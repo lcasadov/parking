@@ -7581,3 +7581,112 @@ button.rzw-step-btn:hover .rzw-step-label {
     display: none;
   }
 }
+
+/* ============================================================================
+   AUTH · Login rediseñado (.auth2) — composición centrada, fondo de marca,
+   spotlight que sigue al cursor, logo flotante y formulario compacto. Tema por
+   body.theme-dark (claro por defecto). Colores de marca Aleatica (logo).
+   ============================================================================ */
+.auth2{
+  --a-lime:#8cc63f; --a-blue:#35a3dd; --a-yellow:#f5c542; --a-orange:#f08a24;
+  --a-acc:#2bd08a; --a-acc2:#17a86d;
+  --a-ink:#0f2318; --a-soft:#415b4d; --a-faint:#7a9488;
+  --a-cardbg:rgba(255,255,255,0.9); --a-brd:rgba(20,60,40,0.12);
+  --a-field:rgba(15,30,22,0.04); --a-fieldbrd:rgba(15,30,22,0.14); --a-autofill:#eef2ef;
+  position:relative; min-height:100vh; min-height:100dvh; color:var(--a-ink);
+  overflow-x:hidden;
+}
+body.theme-dark .auth2{
+  --a-ink:#eaf6ef; --a-soft:#a9c6b8; --a-faint:#6f8d7f;
+  --a-cardbg:rgba(11,24,17,0.74); --a-brd:rgba(140,198,63,0.16);
+  --a-field:rgba(255,255,255,0.06); --a-fieldbrd:rgba(255,255,255,0.16); --a-autofill:#152219;
+}
+.auth2-bg{position:fixed;inset:0;z-index:0;overflow:hidden;animation:a2-bloom 1.2s ease-out both;
+  background:radial-gradient(120% 90% at 78% 8%,rgba(53,163,221,0.16),transparent 55%),linear-gradient(165deg,#f3f8f2,#e6efe6 78%);}
+body.theme-dark .auth2-bg{background:radial-gradient(120% 90% at 78% 10%,rgba(53,163,221,0.18),transparent 55%),linear-gradient(165deg,#0a2c1a,#04170d 72%);}
+@keyframes a2-bloom{from{opacity:0;transform:scale(1.14)}to{opacity:1;transform:scale(1)}}
+.auth2-orb{position:absolute;border-radius:50%;filter:blur(64px);opacity:.32;mix-blend-mode:multiply;will-change:transform;}
+body.theme-dark .auth2-orb{opacity:.5;mix-blend-mode:screen;}
+.auth2-orb.o1{width:52vmax;height:52vmax;background:radial-gradient(circle at 40% 40%,var(--a-lime),transparent 62%);top:-16%;left:-12%;animation:a2o1 24s ease-in-out infinite;}
+.auth2-orb.o2{width:44vmax;height:44vmax;background:radial-gradient(circle at 50% 40%,var(--a-blue),transparent 62%);top:6%;right:-14%;animation:a2o2 28s ease-in-out infinite;}
+.auth2-orb.o3{width:40vmax;height:40vmax;background:radial-gradient(circle at 50% 55%,var(--a-orange),transparent 60%);bottom:-20%;left:24%;animation:a2o3 32s ease-in-out infinite;}
+@keyframes a2o1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(6%,7%) scale(1.12)}}
+@keyframes a2o2{0%,100%{transform:translate(0,0) scale(1.05)}50%{transform:translate(-6%,5%) scale(.9)}}
+@keyframes a2o3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(5%,-6%) scale(1.14)}}
+.auth2-spot{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity .5s;
+  background:radial-gradient(560px circle at var(--mx,50%) var(--my,40%),rgba(90,168,50,0.14),rgba(53,163,221,0.08) 34%,transparent 62%);}
+body.theme-dark .auth2-spot{background:radial-gradient(560px circle at var(--mx,50%) var(--my,40%),rgba(140,198,63,0.16),rgba(53,163,221,0.08) 34%,transparent 62%);}
+.auth2.is-live .auth2-spot{opacity:1;}
+
+.auth2-controls{position:fixed;top:16px;right:16px;z-index:10;display:flex;gap:10px;}
+.auth2-wrap{position:relative;z-index:2;min-height:100dvh;display:flex;align-items:center;justify-content:center;
+  padding:40px 22px;}
+.auth2-stack{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;width:100%;max-width:420px;}
+.auth2-stack>*{opacity:0;transform:translateY(16px);animation:a2rise .8s cubic-bezier(.2,.8,.2,1) forwards;}
+@keyframes a2rise{to{opacity:1;transform:translateY(0)}}
+.auth2-badge{display:inline-grid;place-items:center;width:76px;height:76px;border-radius:22px;background:#fff;
+  box-shadow:0 18px 46px -16px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.05);
+  animation-delay:.05s;will-change:transform;transition:transform .28s cubic-bezier(.2,.8,.2,1);}
+.auth2-badge img{height:46px;width:auto;display:block;}
+.auth2-title{margin:0;font-family:var(--font-display,inherit);font-size:clamp(28px,7.2vw,46px);line-height:1.06;
+  font-weight:850;letter-spacing:-0.035em;white-space:nowrap;animation-delay:.2s;color:var(--a-ink);}
+.auth2-title .g{display:block;background:linear-gradient(100deg,var(--a-lime),var(--a-blue) 42%,var(--a-yellow) 70%,var(--a-orange),var(--a-lime));
+  background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:a2flow 9s linear infinite;}
+@keyframes a2flow{to{background-position:220% center}}
+.auth2-sub{margin:0;max-width:40ch;font-size:15px;line-height:1.55;color:var(--a-soft);animation-delay:.3s;}
+
+.auth2-cardwrap{position:relative;width:100%;max-width:380px;margin-top:8px;animation-delay:.42s;}
+.auth2-card{position:relative;width:100%;padding:18px;border-radius:22px;background:var(--a-cardbg);
+  border:1px solid var(--a-brd);backdrop-filter:blur(18px);
+  box-shadow:0 30px 70px -28px rgba(0,0,0,0.55), 0 0 44px -14px rgba(43,208,138,0.18);text-align:left;}
+.auth2-cardhead{margin:0 2px 12px;font-size:15px;font-weight:750;color:var(--a-ink);}
+
+.auth2-inp{position:relative;display:block;margin-bottom:10px;}
+.auth2-inp .field-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--a-faint);pointer-events:none;}
+.auth2-inp input{width:100%;height:48px;padding:0 44px 0 42px;border-radius:13px;border:1.5px solid var(--a-fieldbrd);
+  background:var(--a-field);color:var(--a-ink);font-size:15px;outline:none;
+  transition:border-color .18s,box-shadow .18s,background .18s;}
+.auth2-inp input::placeholder{color:var(--a-faint);}
+.auth2-inp:focus-within .field-icon{color:var(--a-acc);}
+.auth2-inp input:focus{border-color:var(--a-acc);box-shadow:0 0 0 4px rgba(43,208,138,0.16);
+  background:color-mix(in srgb,var(--a-acc) 5%,var(--a-field));}
+/* Autofill de Chrome: mantener el campo en el tema (evita el fondo blanco en oscuro). */
+.auth2-inp input:-webkit-autofill,
+.auth2-inp input:-webkit-autofill:hover,
+.auth2-inp input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--a-ink);caret-color:var(--a-ink);
+  -webkit-box-shadow:0 0 0 100px var(--a-autofill) inset;transition:background-color 9999s ease-out;}
+.auth2-inp .pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;
+  background:none;color:var(--a-faint);border-radius:9px;cursor:pointer;display:grid;place-items:center;font-size:18px;}
+.auth2-inp .pw-toggle:hover{color:var(--a-ink);background:var(--a-field);}
+
+.auth2 .auth2-cta{position:relative;width:100%;height:52px;margin-top:4px;border:none;border-radius:14px;cursor:pointer;overflow:hidden;
+  background:linear-gradient(180deg,var(--a-acc),var(--a-acc2));color:#04170e;
+  font-size:14.5px;font-weight:850;letter-spacing:0.16em;text-transform:uppercase;
+  display:inline-flex;align-items:center;justify-content:center;gap:11px;
+  box-shadow:0 16px 34px -12px rgba(43,208,138,0.6),inset 0 1px 0 rgba(255,255,255,0.4);
+  transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .2s,filter .2s;}
+.auth2 .auth2-cta::before{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);transform:skewX(-18deg);animation:a2shine 3.6s ease-in-out infinite;}
+@keyframes a2shine{0%,62%,100%{left:-60%}80%{left:130%}}
+.auth2 .auth2-cta:hover::before{animation:a2shineH .85s ease-out;}
+@keyframes a2shineH{from{left:-60%}to{left:130%}}
+.auth2 .auth2-cta:hover{filter:brightness(1.06);box-shadow:0 22px 44px -12px rgba(43,208,138,0.8);}
+.auth2 .auth2-cta:active{transform:translateY(2px) scale(.995);}
+.auth2 .auth2-cta:disabled{opacity:.7;cursor:progress;}
+.auth2 .auth2-cta .arrow{font-weight:700;transition:transform .2s;}
+.auth2 .auth2-cta:hover .arrow{transform:translateX(5px);}
+
+.auth2-help{margin:14px 2px 0;font-size:13px;color:var(--a-soft);text-align:center;}
+.auth2-lockout{margin:8px 2px 0;font-size:12px;color:var(--a-faint);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;}
+.auth2-foot{font-size:12px;color:var(--a-faint);animation:a2rise .8s .6s cubic-bezier(.2,.8,.2,1) forwards;opacity:0;}
+.auth2-foot b{color:var(--a-soft);font-weight:700;}
+/* Los banners de error del login conservan su estilo dentro de la card. */
+.auth2-card .auth2-error{margin-bottom:12px;}
+
+@media (min-width:820px){ .auth2-title{font-size:clamp(40px,4vw,48px);} }
+@media (prefers-reduced-motion: reduce){
+  .auth2-orb,.auth2-title .g,.auth2 .auth2-cta::before{animation:none;}
+  .auth2-bg{animation:none;opacity:1;transform:none;}
+  .auth2-stack>*,.auth2-foot{animation-duration:.01ms;opacity:1;transform:none;}
+}

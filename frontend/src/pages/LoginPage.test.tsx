@@ -27,12 +27,13 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
   });
 
-  it('should_render_brand_subtitle_and_description', () => {
+  it('should_render_brand_title_and_subtitle', () => {
     renderLogin();
-    // Subtitulo de marca (task 1.1) y descripcion bajo el titulo (task 1.2).
-    expect(screen.getByText(/gestión de parking|parking management/i)).toBeInTheDocument();
+    // Rediseno login: titular de marca ("... plazas y puestos") + subtitulo
+    // ("Reserva tu plaza de parking o puesto de trabajo en segundos").
+    expect(screen.getByText(/plazas y puestos|spaces and desks/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/usuario corporativo|corporate account/i),
+      screen.getByText(/reserva tu plaza de parking|book your parking space/i),
     ).toBeInTheDocument();
   });
 
