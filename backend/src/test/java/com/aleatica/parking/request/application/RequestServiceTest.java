@@ -35,6 +35,7 @@ import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import com.aleatica.parking.systemsettings.domain.ApprovalMode;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -324,6 +325,99 @@ class RequestServiceTest {
 
         // Act / Assert
         assertThatThrownBy(() -> newService().cancel(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    // ---- Reenvio de aviso: BOLA + estado + tiempo minimo (request-resend-notice) ----
+
+    @Test
+    void shouldResendNotice_whenPendingAndCooldownElapsed() {
+        // Arrange: PENDING creada hace >=24h (sin reenvio previo)
+        Request created24hAgo = pendingCreatedAt(NOW.minus(Duration.ofHours(24)));
+        requestRepository.seed(created24hAgo);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        RequestResponse result = newService().resend(REQUEST_ID, EMP_LOGIN);
+
+        // Assert: sigue PENDING, lastRemindedAt actualizado a NOW, y se reutiliza el evento de creacion
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.lastRemindedAt()).isEqualTo(NOW);
+        verifyEventPublished(RequestCreatedEvent.class);
+    }
+
+    @Test
+    void shouldThrowForbidden_whenResendingOtherEmployeeRequest() {
+        // Arrange: la solicitud es del empleado 15; el solicitante resuelve a 99 (BOLA)
+        requestRepository.seed(pendingCreatedAt(NOW.minus(Duration.ofHours(24))));
+        givenActor(OTHER_LOGIN, OTHER_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, OTHER_LOGIN))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void shouldThrowRequestNotPending_whenResendingApprovedRequest() {
+        // Arrange: la solicitud ya fue resuelta (APPROVED); no admite reenvio
+        Request approved = pendingCreatedAt(NOW.minus(Duration.ofHours(24)));
+        approved.approve(SPACE_ID, ADMIN_ID, "auto", NOW);
+        requestRepository.seed(approved);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(RequestNotPendingException.class);
+        assertThat(requestRepository.saves()).isZero();
+    }
+
+    @Test
+    void shouldThrowResendTooSoon_whenLessThan24hSinceCreation() {
+        // Arrange: PENDING creada hace solo 1h (sin reenvio previo)
+        requestRepository.seed(pendingCreatedAt(NOW.minus(Duration.ofHours(1))));
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(ResendTooSoonException.class);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void shouldThrowResendTooSoon_whenLessThan24hSinceLastReminder() {
+        // Arrange: creada hace 48h, pero reenviada hace solo 2h (la referencia es el ultimo reenvio)
+        Request request = pendingCreatedAt(NOW.minus(Duration.ofHours(48)));
+        request.markReminded(NOW.minus(Duration.ofHours(2)));
+        requestRepository.seed(request);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(ResendTooSoonException.class);
+        assertThat(requestRepository.saves()).isZero();
+    }
+
+    @Test
+    void shouldResendNotice_whenExactly24hSinceLastReminder() {
+        // Arrange: frontera inferior inclusive (>=24h desde el ultimo reenvio)
+        Request request = pendingCreatedAt(NOW.minus(Duration.ofHours(48)));
+        request.markReminded(NOW.minus(Duration.ofHours(24)));
+        requestRepository.seed(request);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThat(newService().resend(REQUEST_ID, EMP_LOGIN).status()).isEqualTo(RequestStatus.PENDING);
+    }
+
+    @Test
+    void shouldThrowNotFound_whenResendingUnknownRequest() {
+        // Arrange (store vacio); loadRequest falla antes de resolver el actor
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, EMP_LOGIN))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -768,6 +862,12 @@ class RequestServiceTest {
                 null, null, null, null, null, NOW);
     }
 
+    private static Request pendingCreatedAt(Instant createdAt) {
+        return Request.restore(
+                REQUEST_ID, EMP_ID, WITHIN, RequestStatus.PENDING, null, ResourceType.PARKING,
+                null, null, null, null, null, createdAt);
+    }
+
     private void givenActor(String login, Long id) {
         Employee actor = mock(Employee.class);
         given(actor.getId()).willReturn(id);
@@ -821,7 +921,8 @@ class RequestServiceTest {
                     id, request.getEmployeeId(), request.getRequestedDate(), request.getStatus(),
                     request.getResourceId(), request.getResourceType(), request.getApprovalNote(),
                     request.getRejectionReasonCode(), request.getRejectionReason(),
-                    request.getResolvedById(), request.getResolvedAt(), request.getCreatedAt());
+                    request.getResolvedById(), request.getResolvedAt(), request.getCreatedAt(),
+                    request.getLastRemindedAt());
             store.put(id, stored);
             return stored;
         }

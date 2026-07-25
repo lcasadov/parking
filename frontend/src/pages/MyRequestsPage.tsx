@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CancelRequestModal } from '../components/CancelRequestModal';
 import { CreateRequestModal } from '../components/CreateRequestModal';
 import { ExportMenu } from '../components/ExportMenu';
 import { PageHeader } from '../components/PageHeader';
+import { PendingConfirmationBanner } from '../components/PendingConfirmationBanner';
 import { ResourceTypePill } from '../components/ResourceTypePill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { EXPORT_PATHS } from '../api/exportApi';
@@ -13,6 +14,9 @@ import { canCancelRequest } from '../utils/requests';
 import type { Request } from '../types/request';
 
 const PAGE_SIZE = 20;
+// Numero de columnas de la tabla (fecha/estado/recurso/plaza-puesto/acciones):
+// usado como colSpan de la fila del PendingConfirmationBanner.
+const TABLE_COLUMNS = 5;
 
 interface CancelTarget {
   id: number;
@@ -110,34 +114,47 @@ export function MyRequestsPage() {
               </thead>
               <tbody>
                 {requests.map((request) => (
-                  <tr key={request.id} className="table-row">
-                    <td data-label={t('requests.mine.columns.date')}>{request.requestedDate}</td>
-                    <td data-label={t('requests.mine.columns.status')}>
-                      <span className={`status-badge status-${request.status.toLowerCase()}`}>
-                        {t(`requests.status.${request.status}`)}
-                      </span>
-                    </td>
-                    <td data-label={t('requests.mine.columns.resource')}>
-                      <ResourceTypePill resourceType={request.resourceType} />
-                    </td>
-                    <td data-label={t('requests.mine.columns.space')}>{spaceLabel(request)}</td>
-                    <td className="table-actions" data-label={t('requests.mine.columns.actions')}>
-                      {canCancelRequest(request) ? (
-                        <Button
-                          variant="red"
-                          icon="x"
-                          onClick={() =>
-                            setCancelTarget({
-                              id: request.id,
-                              requestedDate: request.requestedDate,
-                            })
-                          }
-                        >
-                          {t('requests.mine.cancel')}
-                        </Button>
-                      ) : null}
-                    </td>
-                  </tr>
+                  <Fragment key={request.id}>
+                    <tr className="table-row">
+                      <td data-label={t('requests.mine.columns.date')}>{request.requestedDate}</td>
+                      <td data-label={t('requests.mine.columns.status')}>
+                        <span className={`status-badge status-${request.status.toLowerCase()}`}>
+                          {t(`requests.status.${request.status}`)}
+                        </span>
+                      </td>
+                      <td data-label={t('requests.mine.columns.resource')}>
+                        <ResourceTypePill resourceType={request.resourceType} />
+                      </td>
+                      <td data-label={t('requests.mine.columns.space')}>{spaceLabel(request)}</td>
+                      <td className="table-actions" data-label={t('requests.mine.columns.actions')}>
+                        {canCancelRequest(request) ? (
+                          <Button
+                            variant="red"
+                            icon="x"
+                            onClick={() =>
+                              setCancelTarget({
+                                id: request.id,
+                                requestedDate: request.requestedDate,
+                              })
+                            }
+                          >
+                            {t('requests.mine.cancel')}
+                          </Button>
+                        ) : null}
+                      </td>
+                    </tr>
+                    {request.status === 'PENDING' ? (
+                      <tr className="table-row-banner">
+                        <td colSpan={TABLE_COLUMNS}>
+                          <PendingConfirmationBanner
+                            requestId={request.id}
+                            createdAt={request.createdAt}
+                            lastRemindedAt={request.lastRemindedAt}
+                          />
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

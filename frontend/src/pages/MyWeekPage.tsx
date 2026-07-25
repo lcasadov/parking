@@ -65,6 +65,14 @@ type ReleaseAction =
       date: string;
     };
 
+// Preselección al abrir el modal de reserva desde una tarjeta concreta del héroe:
+// fecha (HOY/MAÑANA) y recurso libre (plaza o puesto). Sin preselección desde la
+// acción principal fija.
+interface ReservePreset {
+  date?: string;
+  resource?: ResourceType;
+}
+
 // Deriva las dos vistas de recurso (plaza y puesto) de un día de "Mi Semana".
 // Los campos `desk*` describen el puesto; los base describen la plaza. Un recurso
 // sin datos de puesto se trata como FREE (retrocompatible con backend anterior).
@@ -135,10 +143,16 @@ function resolveReleaseAction(
   return null;
 }
 
-// Vista EMPLOYEE "Mi Semana" (consume GET /calendar/my-week). Multi-recurso
-// (employee-portal spec, restructure-admin-workflows): cada día muestra el estado
-// de la PLAZA y del PUESTO de forma independiente, y ofrece liberar/cancelar por
-// recurso. Ya no rotula "sin plaza" cuando el empleado tiene puesto ese día.
+// Un recurso está "libre" (reservable en 1 toque) cuando no tiene reserva ni
+// asignación: estado FREE y sin etiqueta de recurso.
+function isFreeResource(view: ResourceDayView): boolean {
+  return view.state === 'FREE' && !view.label;
+}
+
+// Vista EMPLOYEE "Mi Semana" (consume GET /calendar/my-week). Rediseño empleado:
+// arriba un HÉROE con HOY y MAÑANA (plaza + puesto de un vistazo, con reserva o
+// liberación en un toque) y, debajo, la tira semanal navegable. Multi-recurso:
+// cada día muestra el estado de la PLAZA y del PUESTO de forma independiente.
 export function MyWeekPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -146,10 +160,28 @@ export function MyWeekPage() {
   const reduceMotion = useReducedMotion();
   const [weekStart, setWeekStart] = useState<string>(mondayOfWeek());
   const [isRequestOpen, setIsRequestOpen] = useState(false);
+  const [reservePreset, setReservePreset] = useState<ReservePreset | null>(null);
   const [releaseAction, setReleaseAction] = useState<ReleaseAction | null>(null);
 
+  // Tira semanal navegable (semana seleccionada por el usuario).
   const query = useMyWeekQuery(weekStart);
   const days = query.data?.days ?? [];
+
+  // Héroe HOY/MAÑANA: independiente de la semana navegable. Se consultan la semana
+  // actual y la siguiente para cubrir el borde domingo→lunes (mañana cae en la
+  // semana siguiente). react-query deduplica si coincide con la semana navegable.
+  const heroWeekStart = mondayOfWeek();
+  const heroQuery = useMyWeekQuery(heroWeekStart);
+  const heroNextQuery = useMyWeekQuery(addDaysIso(heroWeekStart, WEEK_LENGTH));
+  const heroDays = useMemo(
+    () => [...(heroQuery.data?.days ?? []), ...(heroNextQuery.data?.days ?? [])],
+    [heroQuery.data, heroNextQuery.data],
+  );
+  const todayDate = todayIso();
+  const tomorrowDate = addDaysIso(todayDate, 1);
+  const todayDay = heroDays.find((day) => day.date === todayDate);
+  const tomorrowDay = heroDays.find((day) => day.date === tomorrowDate);
+  const heroLoading = heroQuery.isLoading || heroNextQuery.isLoading;
 
   const fixedQuery = useEmployeeFixedAssignmentsQuery(user?.employeeId ?? null);
   const fixedResources = useMemo(
@@ -174,9 +206,25 @@ export function MyWeekPage() {
     return t(myWeekStateKey(view.state));
   }
 
-  function handleRequested(): void {
+  function openReserve(preset: ReservePreset | null = null): void {
+    setReservePreset(preset);
+    setIsRequestOpen(true);
+  }
+
+  function closeReserve(): void {
     setIsRequestOpen(false);
+    setReservePreset(null);
+  }
+
+  function refetchAll(): void {
     void query.refetch();
+    void heroQuery.refetch();
+    void heroNextQuery.refetch();
+  }
+
+  function handleRequested(): void {
+    closeReserve();
+    refetchAll();
     emitApiErrorToast('requests.mine.created');
   }
 
@@ -186,13 +234,13 @@ export function MyWeekPage() {
 
   function handleReleased(): void {
     setReleaseAction(null);
-    void query.refetch();
+    refetchAll();
     toast.success('releases.release.created');
   }
 
   function handleCancelled(): void {
     setReleaseAction(null);
-    void query.refetch();
+    refetchAll();
     emitApiErrorToast('requests.cancel.done');
   }
 
@@ -251,6 +299,76 @@ export function MyWeekPage() {
     );
   }
 
+  // Fila de recurso del HÉROE: como renderResource pero más grande y con dos
+  // añadidos clave para el empleado — aviso "pendiente · la ubicación puede
+  // cambiar" cuando la solicitud está PENDING, y botón "Reservar" en un toque
+  // cuando el recurso está libre (preselecciona fecha y recurso en el modal).
+  function renderHeroResource(view: ResourceDayView, date: string): ReactElement {
+    const action = resolveReleaseAction(view, date, fixedGroupFor(view.resourceType));
+    const isCancel = action?.kind === 'CANCEL_REQUEST';
+    const isPending = view.requestStatus === 'PENDING';
+    return (
+      <li key={view.resourceType} className={`mw-res ${RESOURCE_STATE_VARIANT[view.state]}`}>
+        <span className="mw-res-icon" aria-hidden="true">
+          <i className={`ti ti-${RESOURCE_ICON[view.resourceType]}`} />
+        </span>
+        <span className="mw-res-info">
+          <span className="mw-res-kind">
+            {t(`calendar.myWeek.resourceKind.${view.resourceType}`)}
+          </span>
+          <span className="mw-res-state">{resourceLine(view)}</span>
+          {isPending ? (
+            <span className="mw-res-pending" role="status">
+              <i className="ti ti-clock" aria-hidden="true" /> {t('requests.pendingBanner.message')}
+            </span>
+          ) : null}
+        </span>
+        {action ? (
+          <Button
+            variant="white"
+            icon="arrow-back-up"
+            className="mw-res-action"
+            onClick={() => setReleaseAction(action)}
+          >
+            {isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction')}
+          </Button>
+        ) : null}
+        {!action && isFreeResource(view) ? (
+          <Button
+            variant="green"
+            icon="plus"
+            className="mw-res-action"
+            onClick={() => openReserve({ date, resource: view.resourceType })}
+          >
+            {t('calendar.myWeek.hero.reserve')}
+          </Button>
+        ) : null}
+      </li>
+    );
+  }
+
+  function renderHeroCard(when: 'today' | 'tomorrow', date: string, day?: MyWeekDay): ReactElement {
+    return (
+      <article className={`mw-hero-card${when === 'today' ? ' is-today' : ''}`}>
+        <header className="mw-hero-head">
+          <span className="mw-hero-when">{t(`calendar.myWeek.hero.${when}`)}</span>
+          <span className="mw-hero-date">
+            {dayAbbr(date)} · {dayMonth(date)}
+          </span>
+        </header>
+        {day ? (
+          <ul className="mw-hero-resources">
+            {resourceViews(day).map((view) => renderHeroResource(view, date))}
+          </ul>
+        ) : (
+          <p className="mw-hero-empty">
+            {heroLoading ? t('common.loading') : t('calendar.myWeek.hero.noData')}
+          </p>
+        )}
+      </article>
+    );
+  }
+
   // Entrada escalonada de las tarjetas de día (mockup 07): cada tarjeta aparece
   // con un ligero desplazamiento vertical + fade, con un pequeño desfase por
   // índice para dar sensación de "lista viva" sin ser ruidoso. Se anula bajo
@@ -287,62 +405,75 @@ export function MyWeekPage() {
         description={t('calendar.myWeek.description')}
       />
 
-      <nav className="calendar-toolbar" aria-label={t('calendar.myWeek.title')}>
-        <Button
-          variant="white"
-          className="btn-icon-only"
-          icon="chevron-left"
-          aria-label={t('calendar.toolbar.previous')}
-          onClick={() => setWeekStart((current) => addDaysIso(current, -WEEK_LENGTH))}
-        />
-        <span className="calendar-week-label" aria-live="polite">
-          {t('calendar.toolbar.weekOf', { date: weekStart })}
-        </span>
-        <Button
-          variant="white"
-          className="btn-icon-only"
-          icon="chevron-right"
-          aria-label={t('calendar.toolbar.next')}
-          onClick={() => setWeekStart((current) => addDaysIso(current, WEEK_LENGTH))}
-        />
-        <Button variant="white" onClick={() => setWeekStart(mondayOfWeek())}>
-          {t('calendar.toolbar.today')}
-        </Button>
-      </nav>
+      {/* HÉROE: lo que tengo HOY y MAÑANA, de un vistazo. */}
+      <div className="mw-hero" aria-label={t('calendar.myWeek.hero.sectionLabel')}>
+        {renderHeroCard('today', todayDate, todayDay)}
+        {renderHeroCard('tomorrow', tomorrowDate, tomorrowDay)}
+      </div>
 
-      {query.isLoading ? <Spinner /> : null}
+      {/* SEMANA: tira navegable. */}
+      <section className="mw-week" aria-label={t('calendar.myWeek.weekTitle')}>
+        <div className="mw-week-head">
+          <h2 className="mw-week-title">{t('calendar.myWeek.weekTitle')}</h2>
+          <nav className="calendar-toolbar" aria-label={t('calendar.myWeek.title')}>
+            <Button
+              variant="white"
+              className="btn-icon-only"
+              icon="chevron-left"
+              aria-label={t('calendar.toolbar.previous')}
+              onClick={() => setWeekStart((current) => addDaysIso(current, -WEEK_LENGTH))}
+            />
+            <span className="calendar-week-label" aria-live="polite">
+              {t('calendar.toolbar.weekOf', { date: weekStart })}
+            </span>
+            <Button
+              variant="white"
+              className="btn-icon-only"
+              icon="chevron-right"
+              aria-label={t('calendar.toolbar.next')}
+              onClick={() => setWeekStart((current) => addDaysIso(current, WEEK_LENGTH))}
+            />
+            <Button variant="white" onClick={() => setWeekStart(mondayOfWeek())}>
+              {t('calendar.toolbar.today')}
+            </Button>
+          </nav>
+        </div>
 
-      {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('calendar.myWeek.loadError')}
-        </p>
-      ) : null}
+        {query.isLoading ? <Spinner /> : null}
 
-      {showContent ? (
-        <ul className="my-week-list">
-          {days.length === 0 ? (
-            <li className="my-week-empty">{t('calendar.myWeek.empty')}</li>
-          ) : (
-            days.map((day, index) => renderDay(day, index))
-          )}
-        </ul>
-      ) : null}
+        {query.isError ? (
+          <p className="form-error" role="alert">
+            {t('calendar.myWeek.loadError')}
+          </p>
+        ) : null}
 
-      {showContent ? <Legend items={myWeekLegend(t)} /> : null}
+        {showContent ? (
+          <ul className="my-week-list">
+            {days.length === 0 ? (
+              <li className="my-week-empty">{t('calendar.myWeek.empty')}</li>
+            ) : (
+              days.map((day, index) => renderDay(day, index))
+            )}
+          </ul>
+        ) : null}
 
-      <div className="week-actions">
-        <Button
-          variant="green"
-          icon="plus"
-          className="week-action-btn"
-          onClick={() => setIsRequestOpen(true)}
-        >
+        {showContent ? <Legend items={myWeekLegend(t)} /> : null}
+      </section>
+
+      {/* Acción principal SIEMPRE visible (sticky en móvil). */}
+      <div className="mw-cta">
+        <Button variant="green" icon="plus" className="mw-cta-btn" onClick={() => openReserve()}>
           {t('calendar.myWeek.requestAction')}
         </Button>
       </div>
 
       {isRequestOpen ? (
-        <CreateRequestModal onClose={() => setIsRequestOpen(false)} onCreated={handleRequested} />
+        <CreateRequestModal
+          presetDate={reservePreset?.date}
+          presetResource={reservePreset?.resource}
+          onClose={closeReserve}
+          onCreated={handleRequested}
+        />
       ) : null}
 
       {renderReleaseModal()}

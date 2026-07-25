@@ -30,6 +30,7 @@ import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import com.aleatica.parking.systemsettings.domain.ApprovalMode;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -69,6 +70,12 @@ public class RequestService {
     private static final int MIN_OTHER_REASON_LENGTH = 5;
 
     /**
+     * Periodo minimo exigido entre la creacion (o el ultimo reenvio) de una solicitud
+     * {@code PENDING} y su siguiente reenvio de aviso (change {@code request-resend-notice}).
+     */
+    private static final Duration RESEND_COOLDOWN = Duration.ofHours(24);
+
+    /**
      * Categorias de rango ALTO (hasta Director N2): en un garaje SUBTERRANEO prefieren las plantas
      * fisicas MAS ALTAS en la auto-asignacion (planta {@code -1}, plazas {@code 1xxx}; design §D3).
      * El resto (Gerente, Mando intermedio, Empleado) prefiere las mas bajas (planta {@code -5},
@@ -106,6 +113,11 @@ public class RequestService {
     private static final String MSG_DESK_RESOURCE_REQUIRED =
             "Debe indicar el puesto a asignar (resourceId); la asignacion puntual no auto-asigna "
                     + "puestos";
+    private static final String MSG_RESEND_NOT_PENDING =
+            "Solo se puede reenviar el aviso de una solicitud pendiente";
+    private static final String MSG_RESEND_TOO_SOON =
+            "Debe esperar al menos 24 horas desde la creacion o el ultimo reenvio para volver a "
+                    + "avisar al administrador";
 
     /** Accion de auditoria: el empleado cancela una solicitud APPROVED y libera el recurso. */
     private static final String AUDIT_ACTION_RELEASE = "CANCEL_APPROVED_REQUEST";
@@ -594,6 +606,48 @@ public class RequestService {
     private void recordRelease(Long employeeId, RequestResponse response) {
         auditRecorder.record(new AuditEntry(
                 employeeId, AUDIT_ACTION_RELEASE, AUDIT_ENTITY_REQUEST, response.id(), null));
+    }
+
+    /**
+     * Reenvia el aviso de una solicitud {@code PENDING} propia estancada al {@code ADMIN}, a
+     * peticion del empleado solicitante (change {@code request-resend-notice}). Reutiliza el
+     * mismo evento de notificacion que la creacion ({@link RequestCreatedEvent}, tipo
+     * {@code REQUEST_CREATED}): re-notifica {@code AFTER_COMMIT} a todos los administradores
+     * activos, exactamente igual que si la solicitud se acabara de crear.
+     *
+     * <p>Solo el dueno de la solicitud puede reenviarla (verificacion de pertenencia, BOLA); solo
+     * si sigue {@code PENDING} (una ya resuelta no admite reenvio); y solo si ha transcurrido el
+     * periodo minimo ({@link #RESEND_COOLDOWN}) desde la referencia mas reciente entre su
+     * creacion y su ultimo reenvio ({@link Request#canBeResent(Instant, Duration)}). Actualiza
+     * {@code lastRemindedAt} al instante actual para que el siguiente reenvio respete de nuevo el
+     * periodo minimo.</p>
+     *
+     * @param id             identificador de la solicitud
+     * @param requesterLogin login del empleado solicitante (principal de la sesion)
+     * @return la solicitud con {@code lastRemindedAt} actualizado (DTO)
+     * @throws EntityNotFoundException  si la solicitud no existe
+     * @throws AccessDeniedException    si el solicitante no es el propietario (BOLA)
+     * @throws RequestNotPendingException si la solicitud no esta {@code PENDING}
+     * @throws ResendTooSoonException    si aun no ha transcurrido el periodo minimo
+     */
+    @Transactional
+    public RequestResponse resend(Long id, String requesterLogin) {
+        Request request = loadRequest(id);
+        Long employeeId = resolveEmployeeId(requesterLogin);
+        if (!request.getEmployeeId().equals(employeeId)) {
+            throw new AccessDeniedException(MSG_NOT_OWNER);
+        }
+        if (!request.isPending()) {
+            throw new RequestNotPendingException(MSG_RESEND_NOT_PENDING);
+        }
+        Instant now = clock.now();
+        if (!request.canBeResent(now, RESEND_COOLDOWN)) {
+            throw new ResendTooSoonException(MSG_RESEND_TOO_SOON);
+        }
+        request.markReminded(now);
+        RequestResponse response = RequestResponse.from(requestRepository.save(request));
+        eventPublisher.publishEvent(new RequestCreatedEvent(response));
+        return response;
     }
 
     /**

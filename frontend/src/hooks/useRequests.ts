@@ -15,6 +15,7 @@ import {
   listPendingRequests,
   listRequestsByStatus,
   rejectRequest,
+  resendRequest,
 } from '../api/requestsApi';
 import type {
   PageRequest,
@@ -167,5 +168,19 @@ export function useRejectRequest(): UseMutationResult<Request, unknown, RejectRe
   return useMutation({
     mutationFn: ({ id, body }: RejectRequestVars) => rejectRequest(id, body),
     onSuccess: invalidate,
+  });
+}
+
+// Reenvio de aviso a los admins (PendingConfirmationBanner, EMPLOYEE dueño de la
+// solicitud PENDING). Invalida "mis solicitudes" y el calendario ("Mi Semana"
+// consume CALENDAR_KEY) para reflejar el nuevo lastRemindedAt.
+export function useResendRequest(): UseMutationResult<Request, unknown, number> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => resendRequest(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [REQUESTS_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [CALENDAR_KEY] });
+    },
   });
 }

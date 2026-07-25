@@ -1,6 +1,7 @@
 package com.aleatica.parking.request.domain;
 
 import com.aleatica.parking.resource.ResourceType;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -55,6 +56,7 @@ public class Request {
     private Long resolvedById;
     private Instant resolvedAt;
     private Instant createdAt;
+    private Instant lastRemindedAt;
 
     /** Constructor privado; las instancias se obtienen por las factorias estaticas. */
     private Request() {
@@ -136,13 +138,43 @@ public class Request {
      * @param resolvedById        empleado (ADMIN) que resolvio
      * @param resolvedAt          instante de resolucion (UTC)
      * @param createdAt           instante de creacion (UTC)
-     * @return la solicitud reconstituida
+     * @return la solicitud reconstituida, con {@code lastRemindedAt = null}
      */
     public static Request restore(
             Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
             Long resourceId, ResourceType resourceType, String approvalNote,
             RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
             Instant resolvedAt, Instant createdAt) {
+        return restore(id, employeeId, requestedDate, status, resourceId, resourceType,
+                approvalNote, rejectionReasonCode, rejectionReason, resolvedById, resolvedAt,
+                createdAt, null);
+    }
+
+    /**
+     * Reconstituye una solicitud a partir de su estado persistido, incluyendo el instante del
+     * ultimo reenvio de aviso (change {@code request-resend-notice}; uso exclusivo del mapper de
+     * infraestructura {@code RequestMapper}; no aplica reglas de transicion).
+     *
+     * @param id                  identificador
+     * @param employeeId          empleado solicitante
+     * @param requestedDate       fecha solicitada
+     * @param status              estado del ciclo de vida
+     * @param resourceId          recurso asignado; {@code null} mientras {@code PENDING}
+     * @param resourceType        tipo de recurso solicitado
+     * @param approvalNote        nota del administrador al aprobar
+     * @param rejectionReasonCode codigo del catalogo de rechazo
+     * @param rejectionReason     texto libre del rechazo
+     * @param resolvedById        empleado (ADMIN) que resolvio
+     * @param resolvedAt          instante de resolucion (UTC)
+     * @param createdAt           instante de creacion (UTC)
+     * @param lastRemindedAt      instante del ultimo reenvio de aviso; {@code null} si nunca
+     * @return la solicitud reconstituida
+     */
+    public static Request restore(
+            Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
+            Long resourceId, ResourceType resourceType, String approvalNote,
+            RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
+            Instant resolvedAt, Instant createdAt, Instant lastRemindedAt) {
         Request request = new Request();
         request.id = id;
         request.employeeId = employeeId;
@@ -156,6 +188,7 @@ public class Request {
         request.resolvedById = resolvedById;
         request.resolvedAt = resolvedAt;
         request.createdAt = createdAt;
+        request.lastRemindedAt = lastRemindedAt;
         return request;
     }
 
@@ -224,6 +257,38 @@ public class Request {
      */
     public boolean canBeAdminCancelledBy(LocalDate today) {
         return status == RequestStatus.APPROVED && !requestedDate.isBefore(today);
+    }
+
+    /**
+     * Indica si el propio empleado puede reenviar el aviso de esta solicitud al {@code ADMIN}
+     * en el instante {@code now} (change {@code request-resend-notice}): solo tiene sentido
+     * reavisar de una solicitud aun {@link RequestStatus#PENDING}, y solo si ha transcurrido al
+     * menos {@code cooldown} desde la referencia mas reciente entre su creacion y su ultimo
+     * reenvio (un reenvio previo siempre es posterior a la creacion, por lo que basta con
+     * preferir {@code lastRemindedAt} cuando existe).
+     *
+     * @param now      instante de referencia ("ahora"), del mismo reloj inyectable que el resto
+     *                 del caso de uso
+     * @param cooldown periodo minimo exigido desde la referencia mas reciente
+     * @return {@code true} si el estado es {@code PENDING} y ha transcurrido el periodo minimo
+     */
+    public boolean canBeResent(Instant now, Duration cooldown) {
+        if (status != RequestStatus.PENDING) {
+            return false;
+        }
+        Instant reference = lastRemindedAt != null ? lastRemindedAt : createdAt;
+        return !now.isBefore(reference.plus(cooldown));
+    }
+
+    /**
+     * Registra el instante del reenvio de aviso, avanzando la referencia que usara la proxima
+     * comprobacion de {@link #canBeResent(Instant, Duration)} (change
+     * {@code request-resend-notice}). No cambia el estado ni ningun otro campo de la solicitud.
+     *
+     * @param now instante del reenvio (UTC)
+     */
+    public void markReminded(Instant now) {
+        this.lastRemindedAt = now;
     }
 
     /**
@@ -338,6 +403,10 @@ public class Request {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getLastRemindedAt() {
+        return lastRemindedAt;
     }
 
     @Override

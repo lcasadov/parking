@@ -19,8 +19,10 @@ import com.aleatica.parking.request.application.DuplicatePendingRequestException
 import com.aleatica.parking.request.application.NoAvailabilityException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.RejectionReasonRequiredException;
+import com.aleatica.parking.request.application.RequestNotPendingException;
 import com.aleatica.parking.request.application.RequestService;
 import com.aleatica.parking.request.application.RequestStateException;
+import com.aleatica.parking.request.application.ResendTooSoonException;
 import com.aleatica.parking.request.application.ResourceSelectionRequiredException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.request.domain.RequestStatus;
@@ -60,6 +62,7 @@ class RequestControllerTest {
     private static final String CANCEL_URL = ID_URL + "/cancel";
     private static final String APPROVE_URL = ID_URL + "/approve";
     private static final String REJECT_URL = ID_URL + "/reject";
+    private static final String RESEND_URL = ID_URL + "/resend";
 
     private static final String ADMIN = "admin";
     private static final String EMP = "empleado";
@@ -101,6 +104,11 @@ class RequestControllerTest {
     @Test
     void shouldReturn401_whenListingByStatusWithoutSession() throws Exception {
         mockMvc.perform(get(BASE_URL)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn401_whenResendingWithoutSession() throws Exception {
+        mockMvc.perform(post(RESEND_URL)).andExpect(status().isUnauthorized());
     }
 
     // ---- 403 por rol ----
@@ -149,6 +157,13 @@ class RequestControllerTest {
     @Test
     void shouldReturn403_whenAdminCancelsRequest() throws Exception {
         mockMvc.perform(post(CANCEL_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldReturn403_whenAdminResendsRequest() throws Exception {
+        // RBAC: el reenvio es exclusivo de EMPLOYEE (el dueno), no de ADMIN
+        mockMvc.perform(post(RESEND_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isForbidden());
     }
 
@@ -268,6 +283,63 @@ class RequestControllerTest {
         mockMvc.perform(post(CANCEL_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath(ERROR_PATH).value("CONFLICT"));
+    }
+
+    @Test
+    void shouldReturn200_whenEmployeeResendsOwnPendingRequest() throws Exception {
+        // Arrange
+        given(requestService.resend(eq(42L), anyString())).willReturn(sample(RequestStatus.PENDING));
+
+        // Act / Assert
+        mockMvc.perform(post(RESEND_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
+    void shouldReturn403_whenResendingOtherEmployeeRequest() throws Exception {
+        // Arrange: el servicio aplica BOLA y lanza AccessDenied
+        willThrow(new AccessDeniedException("ajena")).given(requestService).resend(eq(42L), anyString());
+
+        // Act / Assert
+        mockMvc.perform(post(RESEND_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath(ERROR_PATH).value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldReturn404_whenResendingUnknownRequest() throws Exception {
+        // Arrange
+        willThrow(new EntityNotFoundException("no")).given(requestService).resend(eq(42L), anyString());
+
+        // Act / Assert
+        mockMvc.perform(post(RESEND_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath(ERROR_PATH).value("NOT_FOUND"));
+    }
+
+    @Test
+    void shouldReturn409_whenResendingNonPendingRequest() throws Exception {
+        // Arrange
+        willThrow(new RequestNotPendingException("no pendiente"))
+                .given(requestService).resend(eq(42L), anyString());
+
+        // Act / Assert
+        mockMvc.perform(post(RESEND_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath(ERROR_PATH).value("REQUEST_NOT_PENDING"));
+    }
+
+    @Test
+    void shouldReturn409_whenResendingTooSoon() throws Exception {
+        // Arrange
+        willThrow(new ResendTooSoonException("demasiado pronto"))
+                .given(requestService).resend(eq(42L), anyString());
+
+        // Act / Assert
+        mockMvc.perform(post(RESEND_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath(ERROR_PATH).value("RESEND_TOO_SOON"));
     }
 
     @Test

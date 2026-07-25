@@ -1229,6 +1229,40 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '500': { $ref: '#/components/responses/ServerError' }
 
+  /requests/{id}/resend:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Requests]
+      operationId: resendRequest
+      summary: Reenvía el aviso de la propia solicitud PENDING estancada (EMPLOYEE)
+      description: >
+        Change `request-resend-notice`. Re-notifica por email a todos los administradores
+        activos, reutilizando el mismo evento que la creación de la solicitud
+        (`REQUEST_CREATED`), y actualiza `lastRemindedAt` al instante actual. Solo el empleado
+        dueño de la solicitud puede reenviarla (403 si es ajena); solo si sigue `PENDING` (409
+        `REQUEST_NOT_PENDING` en otro caso); y solo si han pasado al menos 24h desde su
+        `createdAt` o desde su `lastRemindedAt` (lo que sea más reciente); si no, 409
+        `RESEND_TOO_SOON`.
+      responses:
+        '200':
+          description: Aviso reenviado; solicitud con lastRemindedAt actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            La solicitud no está PENDING (`error = REQUEST_NOT_PENDING`), o aún no ha pasado el
+            tiempo mínimo desde la creación/último reenvío (`error = RESEND_TOO_SOON`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
   /requests/{id}/admin-cancel:
     parameters:
       - $ref: '#/components/parameters/IdPath'
@@ -1759,6 +1793,27 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /settings/approval-mode:
+    get:
+      tags: [SystemSettings]
+      operationId: getApprovalMode
+      summary: Lee el modo de aprobación global (cualquier autenticado)
+      description: >
+        A diferencia de `GET /admin/settings` (reservado a ADMIN), este endpoint es accesible a
+        cualquier empleado autenticado (EMPLOYEE/AGENCIA/ADMIN) y expone SOLO el modo vigente
+        (`MANUAL`/`AUTOMATIC`), sin la trazabilidad del último cambio (`updatedById`/`updatedAt`).
+        Permite a un EMPLOYEE saber si su próxima solicitud nacerá `PENDING` o `APPROVED` antes
+        de enviarla.
+      responses:
+        '200':
+          description: Modo de aprobación vigente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalModeResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '500': { $ref: '#/components/responses/ServerError' }
 
 # =============================================================================
@@ -2345,6 +2400,15 @@ components:
         resolvedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
         resourceType: { $ref: '#/components/schemas/ResourceType' }
+        lastRemindedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            Instante del último reenvío de aviso al admin (change `request-resend-notice`);
+            null si nunca se reenvió. El frontend lo usa para decidir cuándo mostrar el botón
+            "reenviar" (habilitado quien lo solicita cuando han pasado ≥24h desde `createdAt`
+            o desde este campo, lo que sea más reciente).
     RequestCreateRequest:
       type: object
       required: [requestedDate]
@@ -2442,6 +2506,14 @@ components:
         approvalMode: { $ref: '#/components/schemas/ApprovalMode' }
         updatedById: { type: integer, format: int64, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
+    ApprovalModeResponse:
+      type: object
+      description: >
+        Modo de aprobación global vigente, sin trazabilidad (schema de `GET /settings/approval-mode`,
+        legible por cualquier empleado autenticado; a diferencia de `SystemSettings`, reservado a
+        ADMIN, no expone `updatedById`/`updatedAt`).
+      properties:
+        approvalMode: { $ref: '#/components/schemas/ApprovalMode' }
     UpdateApprovalModeRequest:
       type: object
       required: [approvalMode]

@@ -35,7 +35,8 @@ public final class RequestMapper {
                 entity.getRejectionReason(),
                 entity.getResolvedById(),
                 entity.getResolvedAt(),
-                entity.getCreatedAt());
+                entity.getCreatedAt(),
+                entity.getLastRemindedAt());
     }
 
     /**
@@ -58,6 +59,7 @@ public final class RequestMapper {
                 request.getRejectionReason(),
                 request.getResolvedById(),
                 request.getResolvedAt(),
-                request.getCreatedAt());
+                request.getCreatedAt(),
+                request.getLastRemindedAt());
     }
 }

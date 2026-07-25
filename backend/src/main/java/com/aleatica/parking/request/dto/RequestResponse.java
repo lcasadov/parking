@@ -34,6 +34,8 @@ import java.time.LocalDate;
  * @param resourceNumber      numero humano del recurso asignado (plaza/puesto); {@code null}
  *                            salvo que la solicitud este {@code APPROVED} y el recurso se resuelva
  * @param floor               planta del recurso (solo {@code PARKING}); {@code null} si no aplica
+ * @param lastRemindedAt      instante del ultimo reenvio de aviso al admin (change
+ *                            {@code request-resend-notice}); {@code null} si nunca se reenvio
  */
 @Schema(description = "Datos de una solicitud puntual de plaza")
 public record RequestResponse(
@@ -78,7 +80,41 @@ public record RequestResponse(
         @JsonProperty("resourceNumber") Integer resourceNumber,
 
         @Schema(description = "Planta del recurso (solo PARKING); null si no aplica", example = "3")
-        @JsonProperty("floor") Integer floor) {
+        @JsonProperty("floor") Integer floor,
+
+        @Schema(description = "Instante del ultimo reenvio de aviso al admin; null si nunca se "
+                + "reenvio")
+        @JsonProperty("lastRemindedAt") Instant lastRemindedAt) {
+
+    /**
+     * Constructor de compatibilidad previo a {@code lastRemindedAt} (change
+     * {@code request-resend-notice}): delega en el canonico fijando {@code lastRemindedAt = null}.
+     * Evita romper los llamantes existentes que aun construyen el DTO con la aridad anterior.
+     *
+     * @param id                  identificador
+     * @param employeeId          empleado solicitante
+     * @param requestedDate       fecha solicitada
+     * @param status              estado del ciclo de vida
+     * @param parkingSpaceId      plaza asignada
+     * @param approvalNote        nota del administrador al aprobar
+     * @param rejectionReasonCode codigo del catalogo de rechazo
+     * @param rejectionReason     texto libre del rechazo
+     * @param resolvedById        empleado (ADMIN) que resolvio
+     * @param resolvedAt          instante de resolucion
+     * @param createdAt           instante de creacion
+     * @param resourceType        tipo del recurso solicitado
+     * @param resourceNumber      numero humano del recurso asignado
+     * @param floor               planta del recurso
+     */
+    public RequestResponse(
+            Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
+            Long parkingSpaceId, String approvalNote, RejectionReasonCode rejectionReasonCode,
+            String rejectionReason, Long resolvedById, Instant resolvedAt, Instant createdAt,
+            ResourceType resourceType, Integer resourceNumber, Integer floor) {
+        this(id, employeeId, requestedDate, status, parkingSpaceId, approvalNote,
+                rejectionReasonCode, rejectionReason, resolvedById, resolvedAt, createdAt,
+                resourceType, resourceNumber, floor, null);
+    }
 
     /**
      * Mapea el modelo de dominio a su DTO de salida (mapeo dominio&rarr;DTO en la capa web,
@@ -102,7 +138,8 @@ public record RequestResponse(
                 request.getCreatedAt(),
                 request.getResourceType(),
                 null,
-                null);
+                null,
+                request.getLastRemindedAt());
     }
 
     /**
@@ -118,6 +155,6 @@ public record RequestResponse(
         return new RequestResponse(
                 id, employeeId, requestedDate, status, parkingSpaceId, approvalNote,
                 rejectionReasonCode, rejectionReason, resolvedById, resolvedAt, createdAt,
-                resourceType, resourceNumber, floor);
+                resourceType, resourceNumber, floor, lastRemindedAt);
     }
 }

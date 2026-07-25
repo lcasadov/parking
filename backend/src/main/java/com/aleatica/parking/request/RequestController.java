@@ -366,6 +366,43 @@ public class RequestController {
     }
 
     /**
+     * Reenvia el aviso de la propia solicitud {@code PENDING} estancada a todos los
+     * administradores activos (solo {@code EMPLOYEE}; verificacion de pertenencia en el
+     * servicio). Exige que hayan transcurrido al menos 24h desde la creacion o el ultimo
+     * reenvio.
+     *
+     * @param id             identificador de la solicitud
+     * @param authentication autenticacion resuelta de la sesion (propietario)
+     * @return {@code 200} con la solicitud y {@code lastRemindedAt} actualizado
+     */
+    @Operation(summary = "Reenvia el aviso de la propia solicitud PENDING estancada (EMPLOYEE)",
+            description = "Re-notifica a todos los administradores activos reutilizando el mismo "
+                    + "evento que la creacion de la solicitud. Solo admite reenviar una solicitud "
+                    + "PENDING propia, y solo si han pasado al menos 24h desde su creacion o su "
+                    + "ultimo reenvio.",
+            security = @SecurityRequirement(name = SESSION_COOKIE))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Aviso reenviado; lastRemindedAt actualizado"),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Sin permisos o solicitud ajena",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Solicitud no encontrada",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409",
+                    description = "La solicitud no esta PENDING (REQUEST_NOT_PENDING), o aun no ha "
+                            + "pasado el tiempo minimo (RESEND_TOO_SOON)",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @PostMapping("/{id}/resend")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<RequestResponse> resendRequest(
+            @Parameter(description = "Id de la solicitud") @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(requestService.resend(id, authentication.getName()));
+    }
+
+    /**
      * Aprueba una solicitud {@code PENDING} asignando una plaza disponible (solo
      * {@code ADMIN}). Si la plaza no esta disponible o colisiona por concurrencia,
      * devuelve {@code 409}.

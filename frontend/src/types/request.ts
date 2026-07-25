@@ -31,6 +31,9 @@ export interface Request {
   resolvedById?: number | null;
   resolvedAt?: string | null;
   createdAt: string;
+  // Ultimo reenvio de aviso a los admins (POST /requests/{id}/resend). null/undefined
+  // si nunca se ha reenviado; alimenta la ventana de 24h de canResendRequest.
+  lastRemindedAt?: string | null;
 }
 
 // RequestCreateRequest: schema #/components/schemas/RequestCreateRequest.

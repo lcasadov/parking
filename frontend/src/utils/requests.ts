@@ -47,3 +47,37 @@ export function canCancelRequest(request: Request, now: Date = new Date()): bool
   }
   return false;
 }
+
+// Ventana minima entre reenvios de aviso a los admins (PendingConfirmationBanner,
+// POST /requests/{id}/resend): 24h desde la creacion o desde el ultimo reenvio,
+// lo que sea mas reciente.
+const RESEND_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+// Instante base (mas reciente entre creacion y ultimo reenvio) a partir del cual
+// se cuenta la ventana de 24h.
+function resendBaselineMs(createdAt: string, lastRemindedAt?: string | null): number {
+  const createdMs = new Date(createdAt).getTime();
+  const remindedMs = lastRemindedAt ? new Date(lastRemindedAt).getTime() : createdMs;
+  return Math.max(createdMs, remindedMs);
+}
+
+// Elegible para reenviar la solicitud (POST /requests/{id}/resend) cuando han
+// pasado >= 24h desde max(createdAt, lastRemindedAt).
+export function canResendRequest(
+  createdAt: string,
+  lastRemindedAt: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  return now.getTime() - resendBaselineMs(createdAt, lastRemindedAt) >= RESEND_COOLDOWN_MS;
+}
+
+// Milisegundos restantes hasta que el reenvio sea elegible (0 si ya lo es). Usado
+// para el texto "podrás reavisar en Xh" cuando aun no se puede reenviar.
+export function resendCooldownRemainingMs(
+  createdAt: string,
+  lastRemindedAt: string | null | undefined,
+  now: Date = new Date(),
+): number {
+  const elapsed = now.getTime() - resendBaselineMs(createdAt, lastRemindedAt);
+  return Math.max(0, RESEND_COOLDOWN_MS - elapsed);
+}

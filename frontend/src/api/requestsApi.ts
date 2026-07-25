@@ -147,3 +147,10 @@ export async function rejectRequest(id: number, body: RequestRejectRequest): Pro
   const { data } = await apiClient.post<Request>(`${REQUESTS}/${id}/reject`, body);
   return data;
 }
+
+// POST /requests/{id}/resend (EMPLOYEE, dueño de la solicitud PENDING): re-notifica
+// a los admins. 403 si no es tuya; 409 REQUEST_NOT_PENDING / RESEND_TOO_SOON.
+export async function resendRequest(id: number): Promise<Request> {
+  const { data } = await apiClient.post<Request>(`${REQUESTS}/${id}/resend`);
+  return data;
+}

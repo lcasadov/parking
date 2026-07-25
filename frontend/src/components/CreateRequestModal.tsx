@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Dialog } from './Dialog';
 import { DeskPickerModal, type PickedDesk } from './DeskPickerModal';
+import { InfoBanner } from './InfoBanner';
 import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getApiError, getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
@@ -15,6 +16,10 @@ import type { Request, RequestCreateRequest, ResourceType } from '../types/reque
 interface CreateRequestModalProps {
   onClose: () => void;
   onCreated: () => void;
+  // Preselección opcional al abrir desde una tarjeta del héroe de "Mi Semana":
+  // fecha (HOY/MAÑANA) y recurso libre concreto (plaza o puesto).
+  presetDate?: string;
+  presetResource?: ResourceType;
 }
 
 const HTTP_BAD_REQUEST = 400;
@@ -45,14 +50,37 @@ function successToastKey(created: Request[]): string {
     : 'requests.mine.created';
 }
 
+// Estado inicial del formulario según la preselección opcional del héroe. Se
+// extrae a nivel de módulo para no cargar la complejidad cognitiva del componente
+// (S3776): con preselección de recurso solo se marca ese recurso; sin ella, plaza.
+interface InitialSelection {
+  date: string;
+  parking: boolean;
+  desk: boolean;
+}
+
+function initialSelection(presetDate?: string, presetResource?: ResourceType): InitialSelection {
+  return {
+    date: presetDate ?? '',
+    parking: presetResource === undefined || presetResource === 'PARKING',
+    desk: presetResource === 'DESK',
+  };
+}
+
 // Modal EMPLOYEE: solicitud unificada. Para una misma fecha (hoy o cualquier
 // fecha futura) el empleado puede pedir plaza y/o puesto. Cada recurso genera un
 // Request independiente vía POST /requests con su `resourceType` (init-desks §4.2).
-export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalProps) {
+export function CreateRequestModal({
+  onClose,
+  onCreated,
+  presetDate,
+  presetResource,
+}: CreateRequestModalProps) {
   const { t } = useTranslation();
-  const [date, setDate] = useState('');
-  const [parkingSelected, setParkingSelected] = useState(true);
-  const [deskSelected, setDeskSelected] = useState(false);
+  const initial = initialSelection(presetDate, presetResource);
+  const [date, setDate] = useState(initial.date);
+  const [parkingSelected, setParkingSelected] = useState(initial.parking);
+  const [deskSelected, setDeskSelected] = useState(initial.desk);
   const [selectedDesk, setSelectedDesk] = useState<PickedDesk | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +91,7 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
   // el modal debe avisar de que la eleccion es una preferencia (requests spec).
   const approvalModeQuery = useApprovalModeQuery();
   const isManualMode = approvalModeQuery.data === 'MANUAL';
+  const isAutomaticMode = approvalModeQuery.data === 'AUTOMATIC';
 
   // El selector solo tiene sentido con una fecha valida (hoy o futura): usa esa
   // fecha para colorear la disponibilidad de los puestos.
@@ -240,6 +269,17 @@ export function CreateRequestModal({ onClose, onCreated }: CreateRequestModalPro
               </div>
             ) : null}
           </fieldset>
+
+          {isAutomaticMode ? (
+            <InfoBanner variant="green" icon="circle-check">
+              {t('requests.create.automaticNotice')}
+            </InfoBanner>
+          ) : null}
+          {isManualMode ? (
+            <InfoBanner variant="amber" icon="clock">
+              {t('requests.create.manualNotice')}
+            </InfoBanner>
+          ) : null}
 
           {error ? (
             <p className="form-error" role="alert">

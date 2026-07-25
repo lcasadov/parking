@@ -303,6 +303,15 @@ export const handlers = [
     });
   }),
 
+  // POST /requests/:id/resend (EMPLOYEE, dueño, PENDING): re-notifica a los admins.
+  http.post(`${BASE}/requests/:id/resend`, ({ params }) =>
+    HttpResponse.json({
+      ...requestPending1,
+      id: Number(params.id),
+      lastRemindedAt: new Date().toISOString(),
+    }),
+  ),
+
   // ---- Releases (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/releases/mine`, () => HttpResponse.json(defaultMyReleasesPage)),
 
@@ -466,6 +475,11 @@ export const handlers = [
   // ---- System settings (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/admin/settings`, () =>
     HttpResponse.json({ approvalMode: 'MANUAL', updatedById: null, updatedAt: null }),
+  ),
+
+  // GET /settings/approval-mode (cualquier autenticado): modo vigente, sin 403 para EMPLOYEE.
+  http.get(`${BASE}/settings/approval-mode`, () =>
+    HttpResponse.json({ approvalMode: 'MANUAL' }),
   ),
 
   http.put(`${BASE}/admin/settings`, async ({ request }) => {

@@ -15,7 +15,9 @@ import com.aleatica.parking.request.application.DuplicatePendingRequestException
 import com.aleatica.parking.request.application.NoAvailabilityException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.RejectionReasonRequiredException;
+import com.aleatica.parking.request.application.RequestNotPendingException;
 import com.aleatica.parking.request.application.RequestStateException;
+import com.aleatica.parking.request.application.ResendTooSoonException;
 import com.aleatica.parking.request.application.ResourceSelectionRequiredException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.visitor.application.PastVisitorReservationCancellationException;
@@ -72,6 +74,8 @@ public class GlobalExceptionHandler {
     private static final String CODE_RELEASE_NOT_CANCELLABLE = "RELEASE_NOT_CANCELLABLE";
     private static final String CODE_RESERVATION_NOT_CANCELLABLE = "VISITOR_RESERVATION_NOT_CANCELLABLE";
     private static final String CODE_RATE_LIMITED = "RATE_LIMIT_EXCEEDED";
+    private static final String CODE_REQUEST_NOT_PENDING = "REQUEST_NOT_PENDING";
+    private static final String CODE_RESEND_TOO_SOON = "RESEND_TOO_SOON";
     private static final String FIELD_FORMAT = "format";
     private static final String MSG_UNSUPPORTED_FORMAT =
             "Formato de exportacion no soportado; use csv o xlsx";
@@ -450,6 +454,34 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleRequestState(RequestStateException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_CONFLICT, ex.getMessage()));
+    }
+
+    /**
+     * Traduce el reenvio de aviso de una solicitud que ya no esta {@code PENDING} a
+     * {@code 409} con {@code error = REQUEST_NOT_PENDING} (change
+     * {@code request-resend-notice}).
+     *
+     * @param ex excepcion de solicitud no pendiente
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(RequestNotPendingException.class)
+    public ResponseEntity<ApiError> handleRequestNotPending(RequestNotPendingException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_REQUEST_NOT_PENDING, ex.getMessage()));
+    }
+
+    /**
+     * Traduce el reenvio de aviso antes del periodo minimo (24h desde la creacion o el
+     * ultimo reenvio) a {@code 409} con {@code error = RESEND_TOO_SOON} (change
+     * {@code request-resend-notice}).
+     *
+     * @param ex excepcion de reenvio demasiado pronto
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(ResendTooSoonException.class)
+    public ResponseEntity<ApiError> handleResendTooSoon(ResendTooSoonException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_RESEND_TOO_SOON, ex.getMessage()));
     }
 
     /**

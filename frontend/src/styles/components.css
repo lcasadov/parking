@@ -1311,6 +1311,16 @@ body.theme-dark .segmented button.active {
   background: var(--highlight);
 }
 
+/* Fila del PendingConfirmationBanner bajo una solicitud PENDING (MyRequestsPage):
+   sin fondo/hover propio, el banner ya aporta su color. */
+.table-row-banner {
+  border-bottom: 1px solid var(--line-soft);
+}
+.table-row-banner td {
+  padding-top: 0;
+  padding-bottom: var(--space-3);
+}
+
 .table-empty {
   text-align: center;
   color: var(--text-muted);
@@ -2739,6 +2749,24 @@ body.theme-dark .floor-plan-image {
 .availability-banner {
   margin: var(--space-1) 0 var(--space-3);
   font-size: var(--text-xs);
+}
+
+/* Banner de confirmacion pendiente (PendingConfirmationBanner): texto + accion
+   de reenvio en los extremos, con ajuste de linea en pantallas estrechas. */
+.pending-confirmation-banner {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.pending-confirmation-banner-text {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pending-confirmation-banner-hint {
+  font-size: var(--text-xs);
+  opacity: 0.85;
+  white-space: nowrap;
 }
 
 /* Resumen de confirmación de liberación (mockup 14): recurso · día · tipo. */
@@ -4875,6 +4903,16 @@ button.pop-row.pop-danger:disabled {
     width: 100%;
     height: 44px;
     justify-content: center;
+  }
+  .my-requests-table .table-row-banner {
+    border: none;
+  }
+  .my-requests-table .table-row-banner td {
+    display: block;
+    padding: 0;
+  }
+  .my-requests-table .table-row-banner td::before {
+    content: '';
   }
 }
 
@@ -7689,4 +7727,51 @@ body.theme-dark .auth2-spot{background:radial-gradient(560px circle at var(--mx,
   .auth2-orb,.auth2-title .g,.auth2 .auth2-cta::before{animation:none;}
   .auth2-bg{animation:none;opacity:1;transform:none;}
   .auth2-stack>*,.auth2-foot{animation-duration:.01ms;opacity:1;transform:none;}
+}
+
+/* ============================================================================
+   MI SEMANA — Rediseño empleado: HÉROE HOY/MAÑANA (lo que tengo de un vistazo)
+   + acción principal fija. Reutiliza los colores de estado de .week-resource.
+   ============================================================================ */
+.mw-hero{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin:var(--space-4) 0 var(--space-6);}
+@media (max-width:640px){ .mw-hero{grid-template-columns:1fr;} }
+.mw-hero-card{position:relative;display:flex;flex-direction:column;gap:var(--space-4);
+  border:1px solid var(--line-soft);border-radius:var(--radius-panel);background:var(--panel);
+  box-shadow:var(--shadow-1);padding:var(--space-5);}
+.mw-hero-card.is-today{border-color:var(--brand-green);box-shadow:var(--shadow-2),0 0 0 1px var(--brand-green-soft);}
+.mw-hero-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-2);}
+.mw-hero-when{font-family:var(--font-serif);font-weight:700;font-size:var(--text-2xl);color:var(--ink);}
+.mw-hero-card.is-today .mw-hero-when{color:var(--brand-green-deep);}
+.mw-hero-date{font-size:var(--text-sm);color:var(--ink-faint);text-transform:capitalize;}
+.mw-hero-resources{display:flex;flex-direction:column;gap:var(--space-3);list-style:none;margin:0;padding:0;}
+.mw-hero-empty{margin:0;padding:var(--space-5) var(--space-4);color:var(--ink-faint);font-size:var(--text-sm);text-align:center;
+  border:1px dashed var(--line-soft);border-radius:var(--radius-md);}
+
+.mw-res{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);
+  border-radius:var(--radius-md);border:1px solid transparent;}
+.mw-res.assigned{background:var(--state-occupied-bg);border-color:var(--state-occupied-border);color:var(--state-occupied-ink);}
+.mw-res.released{background:var(--pink-soft);border-color:var(--pink-border);color:var(--pink-text);}
+.mw-res.request{background:var(--state-request-bg);border-color:var(--state-request-border);color:var(--state-request-ink);}
+.mw-res.free{background:var(--state-free-bg);border-color:var(--state-free-border);color:var(--state-free-ink);}
+.mw-res-icon{display:inline-grid;place-items:center;flex-shrink:0;width:40px;height:40px;border-radius:50%;
+  background:var(--bg-card);color:inherit;font-size:19px;box-shadow:0 0 0 1px currentColor inset;opacity:.92;}
+.mw-res-info{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.mw-res-kind{font-weight:700;font-size:var(--text-sm);}
+.mw-res-state{font-size:var(--text-base);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mw-res-pending{display:inline-flex;align-items:center;gap:6px;margin-top:2px;
+  font-size:var(--text-xs);font-weight:600;color:var(--state-pending-ink);white-space:normal;}
+.mw-res-action{flex-shrink:0;height:44px;padding:0 var(--space-3);}
+
+.mw-week{margin-top:var(--space-6);}
+.mw-week-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);
+  flex-wrap:wrap;margin-bottom:var(--space-4);}
+.mw-week-title{margin:0;font-family:var(--font-serif);font-size:var(--text-xl);font-weight:600;color:var(--ink);}
+
+.mw-cta{position:sticky;bottom:0;z-index:5;margin-top:var(--space-6);padding:var(--space-3) 0;
+  background:linear-gradient(to top,var(--bg) 62%,transparent);}
+.mw-cta-btn{width:100%;height:52px;justify-content:center;font-size:var(--text-base);
+  border-radius:var(--radius-panel);box-shadow:var(--shadow-2);}
+@media (min-width:641px){
+  .mw-cta{position:static;background:none;padding:0;}
+  .mw-cta-btn{width:auto;min-width:220px;margin-left:auto;}
 }

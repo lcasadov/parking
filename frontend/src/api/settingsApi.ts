@@ -4,7 +4,7 @@ import type { ApprovalMode, SystemSettings } from '../types/settings';
 // Endpoints de SystemSettings segun docs/openapi.yaml. baseURL relativo del apiClient.
 
 const SETTINGS = '/admin/settings';
-const HTTP_FORBIDDEN = 403;
+const APPROVAL_MODE = '/settings/approval-mode';
 
 // GET /admin/settings (ADMIN): modo de aprobacion global vigente + trazabilidad.
 export async function getSettings(): Promise<SystemSettings> {
@@ -12,17 +12,15 @@ export async function getSettings(): Promise<SystemSettings> {
   return data;
 }
 
-// GET /admin/settings tolerante a 403. El endpoint esta restringido a ADMIN
-// (@PreAuthorize hasRole('ADMIN') en el backend); un EMPLOYEE recibe 403. Lo usa
-// la solicitud unificada (EMPLOYEE) solo para saber si el modo es MANUAL y avisar
-// de que el puesto elegido es una "preferencia" (requests spec). `validateStatus`
-// acepta el 403 como respuesta valida para no lanzar ni disparar el toast global
-// de "sin permisos" del interceptor Axios; se resuelve `null` (modo desconocido).
-export async function getApprovalModeIfAllowed(): Promise<ApprovalMode | null> {
-  const { data, status } = await apiClient.get<SystemSettings>(SETTINGS, {
-    validateStatus: (value) => value === 200 || value === HTTP_FORBIDDEN,
-  });
-  return status === HTTP_FORBIDDEN ? null : data.approvalMode;
+// GET /settings/approval-mode (cualquier autenticado): modo de aprobacion vigente
+// sin exigir rol ADMIN. Lo usa la solicitud unificada (EMPLOYEE) para saber si el
+// modo es MANUAL y avisar de que el puesto elegido es una "preferencia" (requests
+// spec). Sustituye al antiguo getApprovalModeIfAllowed (tolerante a 403 sobre el
+// endpoint ADMIN-only), ya innecesario porque este endpoint es de lectura publica
+// para autenticados.
+export async function getApprovalMode(): Promise<ApprovalMode> {
+  const { data } = await apiClient.get<{ approvalMode: ApprovalMode }>(APPROVAL_MODE);
+  return data.approvalMode;
 }
 
 // PUT /admin/settings (ADMIN): conmuta el modo de aprobacion global.
