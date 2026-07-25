@@ -49,6 +49,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -526,7 +527,7 @@ public class RequestService {
      * @param date         fecha del dia liberado
      * @param resourceType tipo de recurso liberado ({@code PARKING}/{@code DESK})
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void promoteWaitlist(LocalDate date, ResourceType resourceType) {
         List<Request> candidates = requestRepository
                 .findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
