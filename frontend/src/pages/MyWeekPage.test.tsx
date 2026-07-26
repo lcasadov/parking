@@ -202,9 +202,10 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
       </>,
     );
 
-    // El puesto APPROVED ofrece "Cancelar" en su propia fila.
+    // El puesto APPROVED ya lo tienes: la fila ofrece "Liberar" (por debajo cancela
+    // la solicitud propia para liberar el recurso). "Cancelar" queda solo para PENDING.
     const deskRow = await resourceRow(/puesto D-03|desk D-03/i);
-    await user.click(deskRow.getByRole('button', { name: /^cancelar$|^cancel$/i }));
+    await user.click(deskRow.getByRole('button', { name: /^liberar$|^release$/i }));
 
     const dialog = within(await screen.findByRole('dialog'));
     await user.click(dialog.getByRole('button', { name: /cancelar solicitud|cancel request/i }));

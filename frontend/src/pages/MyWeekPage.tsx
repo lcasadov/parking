@@ -162,38 +162,50 @@ export function MyWeekPage() {
   const { user } = useAuth();
   const toast = useToast();
   const reduceMotion = useReducedMotion();
-  const [weekStart, setWeekStart] = useState<string>(mondayOfWeek());
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [reservePreset, setReservePreset] = useState<ReservePreset | null>(null);
   const [releaseAction, setReleaseAction] = useState<ReleaseAction | null>(null);
 
-  // Tira semanal navegable (semana seleccionada por el usuario).
-  const query = useMyWeekQuery(weekStart);
-  const days = query.data?.days ?? [];
-
-  // Héroe HOY/MAÑANA: independiente de la semana navegable. Se consultan la semana
-  // actual y la siguiente para cubrir el borde domingo→lunes (mañana cae en la
-  // semana siguiente). react-query deduplica si coincide con la semana navegable.
+  // El héroe (HOY/MAÑANA) y la tira "próximos días" comparten UNA sola fuente de
+  // datos: la semana actual + la siguiente. Así un mismo día no puede mostrar
+  // estados distintos en el héroe y en la tira, y la tira nunca enseña días
+  // pasados. Se consultan dos semanas para cubrir el borde domingo→lunes (mañana
+  // cae en la semana siguiente).
   const heroWeekStart = mondayOfWeek();
   const heroQuery = useMyWeekQuery(heroWeekStart);
   const heroNextQuery = useMyWeekQuery(addDaysIso(heroWeekStart, WEEK_LENGTH));
-  const heroDays = useMemo(
-    () => [...(heroQuery.data?.days ?? []), ...(heroNextQuery.data?.days ?? [])],
-    [heroQuery.data, heroNextQuery.data],
-  );
+  const heroDays = useMemo(() => {
+    // Une semana actual + siguiente y DEDUPLICA por fecha (defensivo: un día nunca
+    // debe aparecer dos veces aunque ambas consultas se solapen). Prevalece la
+    // primera aparición (semana actual).
+    const merged = [...(heroQuery.data?.days ?? []), ...(heroNextQuery.data?.days ?? [])];
+    const byDate = new Map<string, MyWeekDay>();
+    for (const day of merged) {
+      if (!byDate.has(day.date)) {
+        byDate.set(day.date, day);
+      }
+    }
+    return [...byDate.values()];
+  }, [heroQuery.data, heroNextQuery.data]);
   const todayDate = todayIso();
   const tomorrowDate = addDaysIso(todayDate, 1);
   const todayDay = heroDays.find((day) => day.date === todayDate);
   const tomorrowDay = heroDays.find((day) => day.date === tomorrowDate);
   const heroLoading = heroQuery.isLoading || heroNextQuery.isLoading;
+  const heroReady = !heroLoading && !heroQuery.isError && !heroNextQuery.isError;
+
+  // "Próximos días": desde PASADO MAÑANA (el héroe ya cubre HOY y MAÑANA) hasta 7
+  // días vista, tomados de heroDays → sin días pasados y sin discrepancias con el héroe.
+  const upcomingEnd = addDaysIso(todayDate, 7);
+  const upcomingDays = heroDays.filter(
+    (day) => day.date > tomorrowDate && day.date <= upcomingEnd,
+  );
 
   const fixedQuery = useEmployeeFixedAssignmentsQuery(user?.employeeId ?? null);
   const fixedResources = useMemo(
     () => toEmployeeFixedResources(fixedQuery.data ?? []),
     [fixedQuery.data],
   );
-
-  const showContent = !query.isLoading && !query.isError;
 
   function fixedGroupFor(resourceType: ResourceType): FixedAssignmentGroup | null {
     return resourceType === 'DESK' ? fixedResources.desk : fixedResources.parking;
@@ -221,7 +233,6 @@ export function MyWeekPage() {
   }
 
   function refetchAll(): void {
-    void query.refetch();
     void heroQuery.refetch();
     void heroNextQuery.refetch();
   }
@@ -277,7 +288,9 @@ export function MyWeekPage() {
 
   function renderResource(view: ResourceDayView, date: string): ReactElement {
     const action = resolveReleaseAction(view, date, fixedGroupFor(view.resourceType));
-    const isCancel = action?.kind === 'CANCEL_REQUEST';
+    // "Cancelar" SOLO cuando es una solicitud aún PENDIENTE (no tienes el recurso);
+    // si ya lo tienes (aprobada o asignación fija) la acción es "Liberar".
+    const isCancel = action?.kind === 'CANCEL_REQUEST' && view.requestStatus === 'PENDING';
     return (
       <li key={view.resourceType} className={`week-resource ${RESOURCE_STATE_VARIANT[view.state]}`}>
         <span className="week-resource-icon" aria-hidden="true">
@@ -309,7 +322,9 @@ export function MyWeekPage() {
   // cuando el recurso está libre (preselecciona fecha y recurso en el modal).
   function renderHeroResource(view: ResourceDayView, date: string): ReactElement {
     const action = resolveReleaseAction(view, date, fixedGroupFor(view.resourceType));
-    const isCancel = action?.kind === 'CANCEL_REQUEST';
+    // "Cancelar" SOLO cuando es una solicitud aún PENDIENTE (no tienes el recurso);
+    // si ya lo tienes (aprobada o asignación fija) la acción es "Liberar".
+    const isCancel = action?.kind === 'CANCEL_REQUEST' && view.requestStatus === 'PENDING';
     const isPending = view.requestStatus === 'PENDING';
     return (
       <li key={view.resourceType} className={`mw-res ${RESOURCE_STATE_VARIANT[view.state]}`}>
@@ -416,53 +431,31 @@ export function MyWeekPage() {
         {renderHeroCard('tomorrow', tomorrowDate, tomorrowDay)}
       </div>
 
-      {/* SEMANA: tira navegable. */}
+      {/* PRÓXIMOS DÍAS: continuación del héroe (desde pasado mañana), misma fuente. */}
       <section className="mw-week" aria-label={t('calendar.myWeek.weekTitle')}>
         <div className="mw-week-head">
           <h2 className="mw-week-title">{t('calendar.myWeek.weekTitle')}</h2>
-          <nav className="calendar-toolbar" aria-label={t('calendar.myWeek.title')}>
-            <Button
-              variant="white"
-              className="btn-icon-only"
-              icon="chevron-left"
-              aria-label={t('calendar.toolbar.previous')}
-              onClick={() => setWeekStart((current) => addDaysIso(current, -WEEK_LENGTH))}
-            />
-            <span className="calendar-week-label" aria-live="polite">
-              {t('calendar.toolbar.weekOf', { date: weekStart })}
-            </span>
-            <Button
-              variant="white"
-              className="btn-icon-only"
-              icon="chevron-right"
-              aria-label={t('calendar.toolbar.next')}
-              onClick={() => setWeekStart((current) => addDaysIso(current, WEEK_LENGTH))}
-            />
-            <Button variant="white" onClick={() => setWeekStart(mondayOfWeek())}>
-              {t('calendar.toolbar.today')}
-            </Button>
-          </nav>
         </div>
 
-        {query.isLoading ? <Spinner /> : null}
+        {heroLoading ? <Spinner /> : null}
 
-        {query.isError ? (
+        {heroQuery.isError || heroNextQuery.isError ? (
           <p className="form-error" role="alert">
             {t('calendar.myWeek.loadError')}
           </p>
         ) : null}
 
-        {showContent ? (
+        {heroReady ? (
           <ul className="my-week-list">
-            {days.length === 0 ? (
+            {upcomingDays.length === 0 ? (
               <li className="my-week-empty">{t('calendar.myWeek.empty')}</li>
             ) : (
-              days.map((day, index) => renderDay(day, index))
+              upcomingDays.map((day, index) => renderDay(day, index))
             )}
           </ul>
         ) : null}
 
-        {showContent ? <Legend items={myWeekLegend(t)} /> : null}
+        {heroReady ? <Legend items={myWeekLegend(t)} /> : null}
       </section>
 
       {/* Acción principal SIEMPRE visible (sticky en móvil). */}
