@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: Sidebar como único chrome de marca, navegación y controles globales
+### Requirement: Sidebar con nav-items del design-system
 El sidebar (escritorio) y el drawer off-canvas (móvil) DEBEN (MUST) ser el **único** chrome de la aplicación: alojan el lockup de marca (símbolo ALEATICA + "parking" + "ALEATICA"), la navegación (`nav-item`s agrupados por sección), el CTA destacado "Nueva reserva", los controles globales (idioma, tema) y la tarjeta de usuario. La aplicación NO DEBE (MUST NOT) presentar una barra superior (header/topbar) de escritorio con marca, curva decorativa o controles: el área de contenido queda libre para el título de la pantalla.
 
 #### Scenario: Sidebar de escritorio con todos los slots

@@ -37,5 +37,5 @@
 - [x] 6.5 API/hooks + MSW handlers; i18n es/en; tests (vitest); `lint` + `build`.
 
 ## 7. Gate final
-- [ ] 7.1 `JAVA_HOME=<jdk21> mvn -f backend/pom.xml clean verify` (BUILD SUCCESS + cobertura).
-- [ ] 7.2 Frontend `lint` + `test` + `build` verdes.
+- [x] 7.1 `JAVA_HOME=<jdk21> mvn -f backend/pom.xml clean verify` (BUILD SUCCESS + cobertura).
+- [x] 7.2 Frontend `lint` + `test` + `build` verdes.

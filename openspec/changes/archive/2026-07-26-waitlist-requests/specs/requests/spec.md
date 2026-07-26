@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Creación de solicitud con opt-in de lista de espera
 El endpoint `POST /requests` DEBE (MUST) aceptar un campo opcional `waitlist` (booleano, por defecto `false`). Su presencia solo altera el comportamiento cuando **no hay disponibilidad** en modo AUTOMÁTICO: con `waitlist: true` la solicitud se crea `PENDING` (`waitlisted = true`) en lugar de responder `409 NO_AVAILABILITY`. Con hueco disponible, el campo se ignora (la solicitud se auto-asigna). El contrato previo se mantiene para todo lo demás (ventana de fecha, duplicados, selección de recurso).
