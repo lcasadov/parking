@@ -58,7 +58,7 @@ interface ResourceDayView {
 // Cómo se libera el recurso de un día: cancelando la solicitud propia (APPROVED
 // futura / PENDING) o creando un Release sobre la asignación fija.
 type ReleaseAction =
-  | { kind: 'CANCEL_REQUEST'; requestId: number; date: string }
+  | { kind: 'CANCEL_REQUEST'; requestId: number; date: string; pending: boolean }
   | {
       kind: 'FIXED_RELEASE';
       parkingSpaceId: number;
@@ -133,7 +133,12 @@ function resolveReleaseAction(
 ): ReleaseAction | null {
   const kind = releaseKindForView(view, date);
   if (kind === 'CANCEL_REQUEST' && typeof view.requestId === 'number') {
-    return { kind: 'CANCEL_REQUEST', requestId: view.requestId, date };
+    return {
+      kind: 'CANCEL_REQUEST',
+      requestId: view.requestId,
+      date,
+      pending: view.requestStatus === 'PENDING',
+    };
   }
   if (kind === 'FIXED_RELEASE' && fixedGroup !== null) {
     return {
@@ -283,6 +288,7 @@ export function MyWeekPage() {
         <CancelRequestModal
           requestId={releaseAction.requestId}
           requestedDate={releaseAction.date}
+          mode={releaseAction.pending ? 'cancel' : 'release'}
           onClose={closeReleaseAction}
           onCancelled={handleCancelled}
         />

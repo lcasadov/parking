@@ -208,7 +208,9 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     await user.click(deskRow.getByRole('button', { name: /^liberar$|^release$/i }));
 
     const dialog = within(await screen.findByRole('dialog'));
-    await user.click(dialog.getByRole('button', { name: /cancelar solicitud|cancel request/i }));
+    // Reserva aprobada: el modal está en modo "liberar" (confirma con "Liberar",
+    // no "Cancelar solicitud"), aunque por debajo cancela la solicitud 55.
+    await user.click(dialog.getByRole('button', { name: /^liberar$|^release$/i }));
 
     await waitFor(() => expect(cancelledId).toBe('55'));
   });

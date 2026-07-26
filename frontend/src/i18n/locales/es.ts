@@ -788,6 +788,12 @@ export const es = {
       keep: 'No cancelar',
       done: 'Solicitud cancelada. El recurso queda libre ese día.',
     },
+    releaseRequest: {
+      title: 'Liberar reserva',
+      body: '¿Liberar tu reserva del {{date}}? Quedará disponible para otra persona ese día.',
+      confirm: 'Liberar',
+      keep: 'No liberar',
+    },
     adminCancel: {
       title: 'Liberar cancelando la solicitud',
       summary: 'Resumen de la liberación',

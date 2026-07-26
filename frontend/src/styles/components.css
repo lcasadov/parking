@@ -4552,6 +4552,9 @@ button.pop-row.pop-danger:disabled {
   align-items: center;
   gap: var(--space-2);
   margin: 0;
+  /* Hereda el color de la cabecera coloreada (blanco sobre rojo/verde, tinta
+     ámbar sobre ámbar); si no, el color base de <h2> deja el título ilegible. */
+  color: inherit;
 }
 .rx-dialog-close {
   appearance: none;

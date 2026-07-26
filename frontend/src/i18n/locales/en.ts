@@ -786,6 +786,12 @@ export const en = {
       keep: 'Keep request',
       done: 'Request cancelled. The resource is free that day.',
     },
+    releaseRequest: {
+      title: 'Release booking',
+      body: 'Release your booking for {{date}}? It will become available to someone else that day.',
+      confirm: 'Release',
+      keep: "Don't release",
+    },
     adminCancel: {
       title: 'Release by cancelling the request',
       summary: 'Release summary',
