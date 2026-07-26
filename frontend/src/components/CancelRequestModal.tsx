@@ -52,7 +52,7 @@ export function CancelRequestModal({
       <Button variant="white" onClick={onClose}>
         {t(`${keys}.keep`)}
       </Button>
-      <Button variant="red" onClick={handleConfirm} disabled={cancelMutation.isPending}>
+      <Button variant="red" onClick={handleConfirm} loading={cancelMutation.isPending}>
         {t(`${keys}.confirm`)}
       </Button>
     </>

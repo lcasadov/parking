@@ -7811,3 +7811,8 @@ body.theme-dark .auth2-spot{background:radial-gradient(560px circle at var(--mx,
 @media (min-width:641px){
   .mw-cta{display:none;}
 }
+
+/* Spinner del Button en estado loading (feedback de mutación en curso). */
+.btn-spin { animation: btn-spin 0.7s linear infinite; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn-spin { animation: none; } }

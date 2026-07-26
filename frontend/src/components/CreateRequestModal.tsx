@@ -184,7 +184,8 @@ export function CreateRequestModal({
   presetResource,
 }: CreateRequestModalProps) {
   const { t } = useTranslation();
-  // En móvil, "atrás" cierra este modal (no cambia de ruta).
+  // En móvil, "atrás" cierra este modal (no cambia de ruta). El hook ya no llama a
+  // history.back() en el cleanup (rompía la apertura en StrictMode).
   useBackClose(onClose);
   const initial = initialSelection(presetDate, presetResource);
   const [date, setDate] = useState(initial.date);
@@ -321,7 +322,7 @@ export function CreateRequestModal({
       <Button variant="white" onClick={onClose}>
         {t('requests.create.cancel')}
       </Button>
-      <Button variant="green" submit form="create-request-form" disabled={createMutation.isPending}>
+      <Button variant="green" submit form="create-request-form" loading={createMutation.isPending}>
         {t('requests.create.submit')}
       </Button>
     </>

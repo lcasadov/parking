@@ -16,14 +16,14 @@ export function useBackClose(onClose: () => void): void {
     const handlePop = (): void => onCloseRef.current();
     window.addEventListener('popstate', handlePop);
 
+    // Cleanup: SOLO quitamos el listener. NO llamamos a history.back() aquí: en
+    // React StrictMode (dev) el efecto se monta→desmonta→monta, y un back() en el
+    // desmontaje intermedio dispara un popstate que cerraría el modal recién
+    // remontado (bug "no abre / se cierra al instante"). El coste de no revertir
+    // la entrada señuelo es dejar una entra de historial de más al cerrar por UI
+    // (un "atrás" extra inofensivo), muy preferible a romper la apertura del modal.
     return () => {
       window.removeEventListener('popstate', handlePop);
-      // Si la entrada señuelo sigue presente, el cierre vino de la UI (no del
-      // "atrás"): la retiramos para que el siguiente "atrás" del usuario funcione
-      // con normalidad. Si vino del "atrás", el popstate ya la consumió.
-      if (window.history.state?.modalOpen) {
-        window.history.back();
-      }
     };
   }, []);
 }

@@ -26,6 +26,9 @@ interface ButtonProps extends NativeButtonProps {
   variant?: Variant;
   icon?: string;
   submit?: boolean;
+  // Estado de carga: deshabilita, marca aria-busy y muestra un spinner en lugar
+  // del icono, para dar feedback durante una mutación (liberar, enviar, etc.).
+  loading?: boolean;
 }
 
 // Botón del design system ALEATICA con EFECTO DE PULSADO TÁCTIL (Ola A):
@@ -38,25 +41,32 @@ export function Button({
   variant = 'white',
   icon,
   submit = false,
+  loading = false,
   children,
   className,
   disabled,
   ...rest
 }: ButtonProps) {
   const reduceMotion = useReducedMotion();
+  const isDisabled = disabled || loading;
   const classes = ['btn', `btn-${variant}`, className].filter(Boolean).join(' ');
-  const tap = reduceMotion || disabled ? undefined : { scale: PRESS_SCALE };
+  const tap = reduceMotion || isDisabled ? undefined : { scale: PRESS_SCALE };
 
   return (
     <motion.button
       type={submit ? 'submit' : 'button'}
       className={classes}
-      disabled={disabled}
+      disabled={isDisabled}
+      aria-busy={loading || undefined}
       whileTap={tap}
       transition={SPRING_PRESS}
       {...rest}
     >
-      {icon ? <i className={`ti ti-${icon}`} aria-hidden="true" /> : null}
+      {loading ? (
+        <i className="ti ti-loader-2 btn-spin" aria-hidden="true" />
+      ) : icon ? (
+        <i className={`ti ti-${icon}`} aria-hidden="true" />
+      ) : null}
       {children}
     </motion.button>
   );

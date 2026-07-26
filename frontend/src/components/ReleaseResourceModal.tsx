@@ -88,7 +88,7 @@ export function ReleaseResourceModal({
         variant="green"
         submit
         form="release-resource-form"
-        disabled={releaseMutation.isPending}
+        loading={releaseMutation.isPending}
       >
         {t('releases.release.submit')}
       </Button>
