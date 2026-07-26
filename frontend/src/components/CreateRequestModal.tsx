@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Dialog } from './Dialog';
-import { DeskPickerModal, type PickedDesk } from './DeskPickerModal';
 import { InfoBanner } from './InfoBanner';
 import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getApiError, getStatus } from '../api/apiError';
@@ -120,58 +119,6 @@ function initialSelection(presetDate?: string, presetResource?: ResourceType): I
   };
 }
 
-interface DeskPickSectionProps {
-  deskSelected: boolean;
-  selectedDesk: PickedDesk | null;
-  isManualMode: boolean;
-  canPickDesk: boolean;
-  onOpenPicker: () => void;
-  onRemoveDesk: () => void;
-}
-
-// Bloque de elección de puesto (visible solo con PUESTO marcado): número
-// elegido, aviso de preferencia en modo manual y acciones de elegir/quitar.
-// Extraído a módulo para mantener la complejidad cognitiva del componente
-// padre por debajo del umbral (S3776).
-function DeskPickSection({
-  deskSelected,
-  selectedDesk,
-  isManualMode,
-  canPickDesk,
-  onOpenPicker,
-  onRemoveDesk,
-}: DeskPickSectionProps) {
-  const { t } = useTranslation();
-  if (!deskSelected) {
-    return null;
-  }
-  return (
-    <div className="desk-pick">
-      {selectedDesk ? (
-        <p className="desk-pick-chosen">
-          {t('requests.create.chosenDesk', { number: selectedDesk.deskNumber })}
-        </p>
-      ) : null}
-      {selectedDesk && isManualMode ? (
-        <p className="hint" role="status">
-          {t('requests.create.chosenDeskPreferenceNote')}
-        </p>
-      ) : null}
-      <div className="desk-pick-actions">
-        <Button variant="white" icon="map-pin" disabled={!canPickDesk} onClick={onOpenPicker}>
-          {selectedDesk ? t('requests.create.changeDesk') : t('requests.create.chooseDesk')}
-        </Button>
-        {selectedDesk ? (
-          <Button variant="white" icon="x" onClick={onRemoveDesk}>
-            {t('requests.create.removeDesk')}
-          </Button>
-        ) : null}
-      </div>
-      {canPickDesk ? null : <p className="hint">{t('requests.create.chooseDeskDateHint')}</p>}
-    </div>
-  );
-}
-
 interface ApprovalModeNoticeProps {
   isAutomaticMode: boolean;
   isManualMode: boolean;
@@ -243,8 +190,6 @@ export function CreateRequestModal({
   const [date, setDate] = useState(initial.date);
   const [parkingSelected, setParkingSelected] = useState(initial.parking);
   const [deskSelected, setDeskSelected] = useState(initial.desk);
-  const [selectedDesk, setSelectedDesk] = useState<PickedDesk | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Recursos por los que el empleado ha optado explicitamente por la lista de
   // espera (banner de disponibilidad en 0, o confirmacion tras un 409). Se
@@ -262,24 +207,6 @@ export function CreateRequestModal({
   const approvalModeQuery = useApprovalModeQuery();
   const isManualMode = approvalModeQuery.data === 'MANUAL';
   const isAutomaticMode = approvalModeQuery.data === 'AUTOMATIC';
-
-  // El selector solo tiene sentido con una fecha valida (hoy o futura): usa esa
-  // fecha para colorear la disponibilidad de los puestos.
-  const canPickDesk = date !== '' && isTodayOrFuture(date);
-
-  // Al desmarcar PUESTO se descarta el puesto elegido para no enviar un resourceId
-  // obsoleto (el envio de plaza nunca lleva resourceId).
-  function handleDeskToggle(checked: boolean): void {
-    setDeskSelected(checked);
-    if (!checked) {
-      setSelectedDesk(null);
-    }
-  }
-
-  function handleDeskPicked(desk: PickedDesk): void {
-    setSelectedDesk(desk);
-    setPickerOpen(false);
-  }
 
   function selectedResources(): ResourceType[] {
     const resources: ResourceType[] = [];
@@ -305,15 +232,12 @@ export function CreateRequestModal({
     return null;
   }
 
-  // Cuerpo del POST /requests por recurso: la solicitud de PUESTO con puesto
-  // elegido incluye `resourceId`; la de PLAZA (o de puesto sin elegir) no.
-  // `waitlist: true` cuando el empleado ya optó por la lista de espera para ese
-  // recurso (capability request-waitlist).
+  // Cuerpo del POST /requests por recurso. En la reserva rápida el puesto NO lleva
+  // `resourceId`: el backend lo auto-asigna por categoría (capability
+  // desk-auto-assignment). `waitlist: true` cuando el empleado ya optó por la lista
+  // de espera para ese recurso (capability request-waitlist).
   function buildBody(resourceType: ResourceType, waitlistSet: Set<ResourceType>): RequestCreateRequest {
     const body: RequestCreateRequest = { requestedDate: date, resourceType };
-    if (resourceType === 'DESK' && selectedDesk) {
-      body.resourceId = selectedDesk.deskId;
-    }
     if (waitlistSet.has(resourceType)) {
       body.waitlist = true;
     }
@@ -459,7 +383,7 @@ export function CreateRequestModal({
               <input
                 type="checkbox"
                 checked={deskSelected}
-                onChange={(event) => handleDeskToggle(event.target.checked)}
+                onChange={(event) => setDeskSelected(event.target.checked)}
               />
               <span className="resource-option-icon" aria-hidden="true">
                 <i className="ti ti-armchair" />
@@ -472,15 +396,6 @@ export function CreateRequestModal({
               selected={deskSelected}
               waitlistJoined={waitlistJoined.has('DESK')}
               onJoinWaitlist={handleJoinWaitlist}
-            />
-
-            <DeskPickSection
-              deskSelected={deskSelected}
-              selectedDesk={selectedDesk}
-              isManualMode={isManualMode}
-              canPickDesk={canPickDesk}
-              onOpenPicker={() => setPickerOpen(true)}
-              onRemoveDesk={() => setSelectedDesk(null)}
             />
           </fieldset>
 
@@ -499,13 +414,6 @@ export function CreateRequestModal({
           ) : null}
         </form>
       </Dialog>
-      {pickerOpen ? (
-        <DeskPickerModal
-          date={date}
-          onPick={handleDeskPicked}
-          onClose={() => setPickerOpen(false)}
-        />
-      ) : null}
     </>
   );
 }

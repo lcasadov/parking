@@ -9,6 +9,9 @@ import static org.mockito.Mockito.verify;
 import com.aleatica.parking.audit.AuditRecorder;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
+import com.aleatica.parking.availability.dto.AvailabilityResponse;
+import com.aleatica.parking.desk.Desk;
+import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
@@ -25,6 +28,8 @@ import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import com.aleatica.parking.systemsettings.domain.ApprovalMode;
+import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -158,6 +163,80 @@ class RequestAutoAssignmentServiceTest {
         assertThat(newService().autoAssignParkingSpace(EmployeeCategory.GERENTE, DATE)).isEmpty();
     }
 
+    // ---- Algoritmo de auto-asignacion de PUESTO por categoria (change desk-auto-assignment) ----
+
+    @Test
+    void shouldAssignExecutiveDesk_whenCategoryIsHighAndExecutiveFree() {
+        // Arrange: alto con EXECUTIVE y STANDARD libres -> prefiere el EXECUTIVE
+        given(availabilityService.freeDesksForDate(DATE)).willReturn(List.of(
+                desk(1L, 3, DeskCategory.STANDARD), desk(2L, 7, DeskCategory.EXECUTIVE)));
+
+        // Act
+        Optional<Desk> chosen = newService().autoAssignDesk(EmployeeCategory.DIRECTOR_N1, DATE);
+
+        // Assert
+        assertThat(chosen).map(Desk::getNumber).contains(7);
+    }
+
+    @Test
+    void shouldFallBackToStandardDesk_whenCategoryIsHighAndNoExecutiveFree() {
+        // Arrange: alto sin EXECUTIVE libre, pero con STANDARD libre -> cae a STANDARD
+        given(availabilityService.freeDesksForDate(DATE)).willReturn(List.of(
+                desk(1L, 3, DeskCategory.STANDARD)));
+
+        // Act
+        Optional<Desk> chosen = newService().autoAssignDesk(EmployeeCategory.CEO, DATE);
+
+        // Assert
+        assertThat(chosen).map(Desk::getNumber).contains(3);
+    }
+
+    @Test
+    void shouldAssignOnlyStandardDesk_whenCategoryIsNotHigh() {
+        // Arrange: no-alto con STANDARD y EXECUTIVE libres -> solo candidata STANDARD
+        given(availabilityService.freeDesksForDate(DATE)).willReturn(List.of(
+                desk(1L, 3, DeskCategory.EXECUTIVE), desk(2L, 9, DeskCategory.STANDARD)));
+
+        // Act
+        Optional<Desk> chosen = newService().autoAssignDesk(EmployeeCategory.EMPLEADO, DATE);
+
+        // Assert
+        assertThat(chosen).map(Desk::getNumber).contains(9);
+    }
+
+    @Test
+    void shouldReturnEmpty_whenNotHighCategoryAndOnlyExecutiveDeskFree() {
+        // Arrange: no-alto, unico puesto libre es EXECUTIVE -> nunca se le asigna
+        given(availabilityService.freeDesksForDate(DATE)).willReturn(List.of(
+                desk(1L, 3, DeskCategory.EXECUTIVE)));
+
+        // Act / Assert
+        assertThat(newService().autoAssignDesk(EmployeeCategory.MANDO_INTERMEDIO, DATE)).isEmpty();
+    }
+
+    @Test
+    void shouldChooseLowestDeskNumberWithinCategory_deterministically() {
+        // Arrange: varios STANDARD libres para un no-alto
+        given(availabilityService.freeDesksForDate(DATE)).willReturn(List.of(
+                desk(1L, 9, DeskCategory.STANDARD), desk(2L, 4, DeskCategory.STANDARD),
+                desk(3L, 6, DeskCategory.STANDARD)));
+
+        // Act
+        Optional<Desk> chosen = newService().autoAssignDesk(EmployeeCategory.EMPLEADO, DATE);
+
+        // Assert: orden estable -> menor numero (4)
+        assertThat(chosen).map(Desk::getNumber).contains(4);
+    }
+
+    @Test
+    void shouldReturnEmpty_whenNoFreeDesk() {
+        // Arrange
+        given(availabilityService.freeDesksForDate(DATE)).willReturn(List.of());
+
+        // Act / Assert
+        assertThat(newService().autoAssignDesk(EmployeeCategory.GERENTE, DATE)).isEmpty();
+    }
+
     // ---- Alta AUTOMATIC / PLAZA ----
 
     @Test
@@ -227,6 +306,75 @@ class RequestAutoAssignmentServiceTest {
         assertThat(requestRepository.saves()).isZero();
     }
 
+    // ---- Alta AUTOMATIC / PUESTO sin elegir (auto-asignacion por categoria, desk-auto-assignment) ----
+
+    @Test
+    void shouldCreateApprovedExecutiveDesk_whenAutomaticHighCategoryWithoutResourceId() {
+        // Arrange: alto, sin resourceId, EXECUTIVE libre
+        givenAutomaticActor(EmployeeCategory.DIRECTOR_N2);
+        given(availabilityService.freeDesksForDate(DATE))
+                .willReturn(List.of(desk(DESK_ID, 7, DeskCategory.EXECUTIVE)));
+
+        // Act
+        RequestResponse result = newService().create(
+                EMP_LOGIN, new RequestCreateRequest(DATE, ResourceType.DESK));
+
+        // Assert: auto-asigna el EXECUTIVE, nace APPROVED, sin exigir eleccion en el plano
+        assertThat(result.status()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(result.parkingSpaceId()).isEqualTo(DESK_ID);
+        verifyEventPublished(RequestApprovedEvent.class);
+    }
+
+    @Test
+    void shouldCreateApprovedStandardDesk_whenAutomaticNotHighCategoryWithoutResourceId() {
+        // Arrange: no-alto, sin resourceId, solo STANDARD libre
+        givenAutomaticActor(EmployeeCategory.EMPLEADO);
+        given(availabilityService.freeDesksForDate(DATE))
+                .willReturn(List.of(desk(DESK_ID, 3, DeskCategory.STANDARD)));
+
+        // Act
+        RequestResponse result = newService().create(
+                EMP_LOGIN, new RequestCreateRequest(DATE, ResourceType.DESK));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(result.parkingSpaceId()).isEqualTo(DESK_ID);
+    }
+
+    @Test
+    void shouldCreatePendingDesk_whenAutomaticNotHighCategoryOnlyExecutiveFree() {
+        // Arrange: no-alto, sin resourceId, unico puesto libre es EXECUTIVE -> nunca se le asigna
+        givenAutomaticActor(EmployeeCategory.EMPLEADO);
+        given(availabilityService.freeDesksForDate(DATE))
+                .willReturn(List.of(desk(DESK_ID, 7, DeskCategory.EXECUTIVE)));
+        given(availabilityService.availabilityForDate(DATE, ResourceType.DESK))
+                .willReturn(new AvailabilityResponse(DATE, List.of()));
+
+        // Act
+        RequestResponse result = newService().create(
+                EMP_LOGIN, new RequestCreateRequest(DATE, ResourceType.DESK));
+
+        // Assert: cae al flujo manual (PENDING), NO 409 ni RESOURCE_SELECTION_REQUIRED
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.parkingSpaceId()).isNull();
+    }
+
+    @Test
+    void shouldCreatePendingDesk_whenAutomaticAndNoDeskFreeAtAll() {
+        // Arrange: sin resourceId y ningun puesto libre
+        givenAutomaticActor(EmployeeCategory.GERENTE);
+        given(availabilityService.freeDesksForDate(DATE)).willReturn(List.of());
+        given(availabilityService.availabilityForDate(DATE, ResourceType.DESK))
+                .willReturn(new AvailabilityResponse(DATE, List.of()));
+
+        // Act
+        RequestResponse result = newService().create(
+                EMP_LOGIN, new RequestCreateRequest(DATE, ResourceType.DESK));
+
+        // Assert: PENDING (fallback), no lanza excepcion
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+    }
+
     @Test
     void shouldRejectApprovedAndFreeResource_whenAdminRejectsAutoApproved() {
         // Arrange: solicitud auto-aprobada (nace APPROVED, resolutor sistema)
@@ -268,6 +416,22 @@ class RequestAutoAssignmentServiceTest {
 
     private static ParkingSpace space(int number) {
         return ParkingSpace.create(number);
+    }
+
+    private static Desk desk(Long id, int number, DeskCategory category) {
+        Desk desk = Desk.create(number, category, new BigDecimal("10.00"), new BigDecimal("20.00"));
+        setField(desk, "id", id);
+        return desk;
+    }
+
+    private static void setField(Object target, String name, Object value) {
+        try {
+            Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (ReflectiveOperationException ex) {
+            throw new IllegalStateException("No se pudo fijar el campo " + name, ex);
+        }
     }
 
     /**

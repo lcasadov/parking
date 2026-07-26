@@ -15,6 +15,7 @@ import com.aleatica.parking.availability.dto.MyWeekDayResponse;
 import com.aleatica.parking.availability.dto.MyWeekResponse;
 import com.aleatica.parking.availability.dto.OccupancyItemResponse;
 import com.aleatica.parking.availability.dto.OccupancyResponse;
+import com.aleatica.parking.desk.Desk;
 import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.employee.Employee;
@@ -298,6 +299,43 @@ public class AvailabilityService {
 
         return spaces.stream()
                 .filter(space -> isAvailable(space.getId(), fixedAssigned, released, approved, reserved))
+                .toList();
+    }
+
+    /**
+     * Devuelve los puestos de oficina LIBRES para una fecha (misma regla consolidada de
+     * disponibilidad que {@link #availabilityForDate(LocalDate, ResourceType)} con
+     * {@code ResourceType.DESK}: activo, sin asignacion fija vigente/liberada, sin solicitud
+     * {@code APPROVED}; los puestos no tienen reserva de visitante, design §Decisions), como
+     * entidades de dominio para que el consumidor pueda filtrar por {@link com.aleatica.parking.desk.DeskCategory}.
+     *
+     * <p>Uso interno servicio-a-servicio (auto-asignacion de puesto por categoria, change
+     * {@code desk-auto-assignment}): NO se expone en la capa web (S4684). Carga por rango (una
+     * consulta por entidad) para evitar N+1, espejo de {@link #freeParkingSpacesForDate(LocalDate)}.
+     * El orden dentro de la lista lo fija el consumidor de forma determinista.</p>
+     *
+     * @param date fecha a consultar
+     * @return los puestos activos disponibles para la fecha (posiblemente vacia)
+     */
+    @Transactional(readOnly = true)
+    public List<Desk> freeDesksForDate(LocalDate date) {
+        List<Desk> desks = deskRepository.findByActiveTrueOrderByNumberAsc();
+        List<Long> deskIds = desks.stream().map(Desk::getId).toList();
+        int dow = date.getDayOfWeek().getValue();
+
+        Set<Long> fixedAssigned = activeFixedResourceIdsForDay(deskIds, ResourceType.DESK, dow);
+        Set<Long> released = spaceIds(
+                releaseRepository.findByResourceTypeAndReleaseDateBetween(ResourceType.DESK, date, date),
+                ReleaseEntity::getResourceId);
+        Set<Long> approved = spaceIds(
+                requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                        RequestStatus.APPROVED, ResourceType.DESK, date, date),
+                RequestEntity::getResourceId);
+        // Los puestos no tienen reserva de visitante (design §Decisions): conjunto vacio.
+        Set<Long> reserved = Set.of();
+
+        return desks.stream()
+                .filter(desk -> isAvailable(desk.getId(), fixedAssigned, released, approved, reserved))
                 .toList();
     }
 

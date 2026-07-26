@@ -4,7 +4,8 @@ import com.aleatica.parking.audit.AuditEntry;
 import com.aleatica.parking.audit.AuditRecorder;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
-import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
+import com.aleatica.parking.desk.Desk;
+import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
@@ -199,10 +200,15 @@ public class RequestService {
      *       409 se crea {@code PENDING} marcada {@code waitlisted = true}.</li>
      *   <li>{@code AUTOMATIC} + {@code DESK} con puesto elegido: la solicitud nace
      *       {@code APPROVED} con ese puesto (409 si no esta disponible).</li>
+     *   <li>{@code AUTOMATIC} + {@code DESK} sin puesto elegido: se auto-asigna un puesto libre
+     *       segun la categoria del empleado (change {@code desk-auto-assignment}:
+     *       {@link #autoAssignDesk(EmployeeCategory, LocalDate)}) y la solicitud nace
+     *       {@code APPROVED} en la misma transaccion; si no hay ningun puesto valido libre, la
+     *       solicitud nace {@code PENDING} (fallback, no 409 ni exigencia de elegir puesto).</li>
      * </ul>
      *
-     * <p>En modo {@code MANUAL} (y en el fallback {@code AUTOMATIC + DESK} sin puesto elegido,
-     * que tambien nace {@code PENDING}), {@code waitlisted} se computa automaticamente = "no
+     * <p>En modo {@code MANUAL} (y en el fallback {@code AUTOMATIC + DESK} sin puesto valido
+     * libre, que tambien nace {@code PENDING}), {@code waitlisted} se computa automaticamente = "no
      * habia ningun recurso libre de ese dia/tipo en el momento de la creacion" (design
      * {@code waitlist-requests} §Decisions); no requiere el opt-in {@code waitlist} porque el
      * modo ya crea {@code PENDING} sin comprobar disponibilidad.</p>
@@ -262,16 +268,30 @@ public class RequestService {
     private RequestResponse createAutomatic(
             Employee employee, RequestCreateRequest request, ResourceType resourceType,
             LocalDate requestedDate, Instant now) {
-        // Para DESK sin puesto elegido no hay auto-asignacion (design non-goal): se cae al flujo
-        // manual (nace PENDING) para no dejar la creacion sin recurso ni un estado incoherente.
-        if (resourceType == ResourceType.DESK && request.resourceId() == null) {
-            return createManual(employee.getId(), resourceType, requestedDate, now);
-        }
         if (resourceType == ResourceType.DESK) {
-            Long resourceId = chosenDesk(request.resourceId(), requestedDate);
-            return autoApprove(employee.getId(), resourceType, resourceId, requestedDate, now);
+            return createAutomaticDesk(employee, request, requestedDate, now);
         }
         return createAutomaticParking(employee, request, requestedDate, now);
+    }
+
+    /**
+     * Alta {@code AUTOMATIC + DESK}: si el empleado elige un puesto concreto ({@code resourceId}
+     * presente), se comporta igual que hoy ({@link #chosenDesk(Long, LocalDate)}, 409 si no esta
+     * disponible). Sin puesto elegido, auto-asigna uno por categoria (change
+     * {@code desk-auto-assignment}, {@link #autoAssignDesk(EmployeeCategory, LocalDate)}); si no
+     * hay ningun puesto valido libre, cae al flujo manual (nace {@code PENDING}, sin 409 ni
+     * exigencia de elegir puesto en el plano, design §Decisions).
+     */
+    private RequestResponse createAutomaticDesk(
+            Employee employee, RequestCreateRequest request, LocalDate requestedDate, Instant now) {
+        if (request.resourceId() != null) {
+            Long resourceId = chosenDesk(request.resourceId(), requestedDate);
+            return autoApprove(employee.getId(), ResourceType.DESK, resourceId, requestedDate, now);
+        }
+        return autoAssignDesk(employee.getCategory(), requestedDate)
+                .map(desk -> autoApprove(
+                        employee.getId(), ResourceType.DESK, desk.getId(), requestedDate, now))
+                .orElseGet(() -> createManual(employee.getId(), ResourceType.DESK, requestedDate, now));
     }
 
     /**
@@ -480,6 +500,43 @@ public class RequestService {
     }
 
     /**
+     * Auto-asigna un puesto LIBRE para la fecha segun el rango del empleado, con la MISMA
+     * frontera que {@link #autoAssignParkingSpace(EmployeeCategory, LocalDate)}
+     * ({@link #isHighCategory(EmployeeCategory)}), pero con <strong>exclusion</strong> en vez de
+     * preferencia (change {@code desk-auto-assignment}, design §Decisions):
+     * <ul>
+     *   <li>categorias ALTAS: prefieren un puesto {@link DeskCategory#EXECUTIVE} libre; si no hay
+     *       ninguno, caen a un {@link DeskCategory#STANDARD} libre.</li>
+     *   <li>el resto: SOLO candidatan puestos {@link DeskCategory#STANDARD} libres; nunca reciben
+     *       un {@code EXECUTIVE}, aunque sea el unico libre.</li>
+     * </ul>
+     * Dentro del conjunto de candidatos la eleccion es determinista (menor {@code number}).
+     *
+     * @param category      categoria del empleado (determina la preferencia/exclusion)
+     * @param requestedDate fecha para la que se asigna el puesto
+     * @return el puesto elegido, o vacio si no hay ningun puesto valido libre para la categoria
+     */
+    Optional<Desk> autoAssignDesk(EmployeeCategory category, LocalDate requestedDate) {
+        List<Desk> free = availabilityService.freeDesksForDate(requestedDate);
+        boolean high = isHighCategory(category);
+        Optional<Desk> preferred = firstFreeDeskByCategory(
+                free, high ? DeskCategory.EXECUTIVE : DeskCategory.STANDARD);
+        if (preferred.isPresent() || !high) {
+            return preferred;
+        }
+        return firstFreeDeskByCategory(free, DeskCategory.STANDARD);
+    }
+
+    /**
+     * Primer puesto libre de la categoria dada, en orden determinista por numero de puesto.
+     */
+    private static Optional<Desk> firstFreeDeskByCategory(List<Desk> freeDesks, DeskCategory category) {
+        return freeDesks.stream()
+                .filter(desk -> desk.getCategory() == category)
+                .min(Comparator.comparing(Desk::getNumber));
+    }
+
+    /**
      * Clave de orden de planta segun la preferencia, teniendo en cuenta que el aparcamiento es un
      * garaje SUBTERRANEO: {@code space.floor()} devuelve el millar {@code number / 1000} (1..5),
      * que se corresponde con la planta fisica {@code -(number / 1000)} (el millar 1 es la planta
@@ -611,16 +668,14 @@ public class RequestService {
     /**
      * Resuelve el recurso a promover: para {@code PARKING} reutiliza la MISMA auto-asignacion por
      * categoria/planta que la creacion automatica (categoria ya resuelta en lote, sin N+1); para
-     * {@code DESK} (sin auto-asignacion dedicada, design non-goal en la creacion) toma el primero
-     * de la disponibilidad consolidada (orden estable por numero de puesto).
+     * {@code DESK} reutiliza la MISMA regla de categoria que la creacion automatica
+     * ({@link #autoAssignDesk(EmployeeCategory, LocalDate)}, change {@code desk-auto-assignment}),
+     * de modo que un candidato no-alto nunca se promueve a un puesto {@code EXECUTIVE}.
      */
     private Optional<Long> resolvePromotionResource(
             WaitlistCandidate candidate, ResourceType resourceType, LocalDate date) {
         if (resourceType == ResourceType.DESK) {
-            return availabilityService.availabilityForDate(date, ResourceType.DESK)
-                    .availableResources().stream()
-                    .findFirst()
-                    .map(AvailabilityItemResponse::parkingSpaceId);
+            return autoAssignDesk(candidate.category(), date).map(Desk::getId);
         }
         return autoAssignParkingSpace(candidate.category(), date).map(ParkingSpace::getId);
     }

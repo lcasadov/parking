@@ -11,11 +11,8 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import { addDaysIso } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
 import { API_ERROR_TOAST, type ApiErrorToastDetail } from '../api/events';
-import { floorPlanOf } from '../mocks/floorPlanFixtures';
-import type { FloorPlanDesk } from '../types/floorPlan';
 
 const REQUESTS_URL = `${MSW_BASE}/requests`;
-const FLOOR_PLAN_URL = `${MSW_BASE}/floor-plan`;
 const AVAILABILITY_URL = `${MSW_BASE}/availability`;
 const APPROVAL_MODE_URL = `${MSW_BASE}/settings/approval-mode`;
 
@@ -37,17 +34,6 @@ function zeroParkingAvailability(): void {
 function useAutomaticApprovalMode(): void {
   server.use(http.get(APPROVAL_MODE_URL, () => HttpResponse.json({ approvalMode: 'AUTOMATIC' })));
 }
-
-// Puesto con id (55) distinto del número (12): permite verificar que el modal
-// muestra el NÚMERO y nunca el identificador interno (tasks §4.1).
-const pickableDesk: FloorPlanDesk = {
-  deskId: 55,
-  deskNumber: 12,
-  category: 'STANDARD',
-  coordX: 20,
-  coordY: 30,
-  state: 'FREE',
-};
 
 // Captura los mensajes (claves i18n) de los toasts emitidos por el modal.
 function captureToasts(): { messages: string[] } {
@@ -225,46 +211,22 @@ describe('CreateRequestModal (unified request)', () => {
     expect(onCreated).not.toHaveBeenCalled();
   });
 
-  it('should_show_choose_desk_button_only_when_desk_is_selected', async () => {
+  it('should_not_offer_desk_picker_in_quick_reserve', async () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
 
-    // Sin PUESTO seleccionado no hay botón de selección de puesto.
+    await fillDate();
+    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
+
+    // Reserva rápida: el puesto se auto-asigna por categoría (capability
+    // desk-auto-assignment), no se elige en el plano.
     expect(
       screen.queryByRole('button', { name: /seleccionar puesto|select desk/i }),
     ).not.toBeInTheDocument();
-
-    await fillDate();
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
-
-    expect(
-      screen.getByRole('button', { name: /seleccionar puesto|select desk/i }),
-    ).toBeInTheDocument();
   });
 
-  it('should_show_chosen_desk_number_never_the_id_after_picking', async () => {
-    server.use(http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([pickableDesk]))));
-    const user = userEvent.setup();
-    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
-
-    await fillDate();
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
-    await user.click(screen.getByRole('button', { name: /seleccionar puesto|select desk/i }));
-
-    // El plano se abre como selector: pinchar el puesto libre (número 12).
-    const marker = await screen.findByRole('button', { name: /puesto 12|desk 12/i });
-    await user.click(marker);
-
-    // El modal muestra el NÚMERO (12), nunca el identificador interno (55).
-    expect(
-      await screen.findByText(/puesto elegido: 12|chosen desk: 12/i),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/55/)).not.toBeInTheDocument();
-  });
-
-  it('should_post_resourceId_of_chosen_desk_when_submitting_desk_request', async () => {
+  it('should_post_desk_request_without_resourceId_when_desk_selected', async () => {
     const captured = captureRequestBodies();
-    server.use(http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([pickableDesk]))));
     const onCreated = vi.fn();
     const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
@@ -272,14 +234,13 @@ describe('CreateRequestModal (unified request)', () => {
     await fillDate();
     await user.click(screen.getByLabelText(/plaza de parking|parking space/i)); // desmarca PLAZA
     await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
-    await user.click(screen.getByRole('button', { name: /seleccionar puesto|select desk/i }));
-    await user.click(await screen.findByRole('button', { name: /puesto 12|desk 12/i }));
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
     expect(captured.bodies).toHaveLength(1);
     expect(captured.bodies[0].resourceType).toBe('DESK');
-    expect(captured.bodies[0].resourceId).toBe(55);
+    // Sin resourceId: el backend auto-asigna el puesto por categoría.
+    expect(captured.bodies[0].resourceId).toBeUndefined();
   });
 
   describe('waitlist (capability request-waitlist)', () => {

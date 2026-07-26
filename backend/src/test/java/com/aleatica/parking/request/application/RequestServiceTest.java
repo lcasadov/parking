@@ -17,6 +17,8 @@ import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
 import com.aleatica.parking.availability.dto.AvailabilityResponse;
+import com.aleatica.parking.desk.Desk;
+import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
@@ -342,6 +344,45 @@ class RequestServiceTest {
     }
 
     @Test
+    void shouldNotPromoteNonHighToExecutiveDesk_whenOnlyExecutiveDeskFree() {
+        // Arrange (change desk-auto-assignment): candidata no-alto en espera de puesto; el unico
+        // puesto libre es EXECUTIVE -> no debe promoverse nunca a un no-alto
+        Request waiting = waitlistedDeskPending(701L, EMP_ID, NOW);
+        requestRepository.seed(waiting);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        givenEmployeeCategories(EMP_ID, EmployeeCategory.EMPLEADO, OTHER_ID, EmployeeCategory.EMPLEADO);
+        Desk executiveDesk = mockDesk(SPACE_ID, DeskCategory.EXECUTIVE);
+        given(availabilityService.freeDesksForDate(WITHIN)).willReturn(List.of(executiveDesk));
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.DESK);
+
+        // Assert: sigue PENDING, sin promocion ni escritura
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.PENDING);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void shouldPromoteHighToExecutiveDesk_whenAutomaticPromotionOfDeskWaitlist() {
+        // Arrange: candidata alta en espera de puesto; hay un EXECUTIVE libre
+        Request waiting = waitlistedDeskPending(701L, EMP_ID, NOW);
+        requestRepository.seed(waiting);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        givenEmployeeCategories(EMP_ID, EmployeeCategory.DIRECTOR_N1, OTHER_ID, EmployeeCategory.EMPLEADO);
+        Desk executiveDesk = mockDesk(SPACE_ID, DeskCategory.EXECUTIVE);
+        given(availabilityService.freeDesksForDate(WITHIN)).willReturn(List.of(executiveDesk));
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.DESK);
+
+        // Assert: se promueve al EXECUTIVE
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(requestRepository.byId(701L).getResourceId()).isEqualTo(SPACE_ID);
+        verifyEventPublished(RequestApprovedEvent.class);
+    }
+
+    @Test
     void shouldDoNothing_whenNoWaitlistedCandidates() {
         // Arrange (store vacio de waitlisted para esa fecha/tipo)
 
@@ -357,6 +398,20 @@ class RequestServiceTest {
         return Request.restore(
                 id, employeeId, WITHIN, RequestStatus.PENDING, null, ResourceType.PARKING,
                 null, null, null, null, null, createdAt, null, true);
+    }
+
+    private Request waitlistedDeskPending(Long id, Long employeeId, Instant createdAt) {
+        return Request.restore(
+                id, employeeId, WITHIN, RequestStatus.PENDING, null, ResourceType.DESK,
+                null, null, null, null, null, createdAt, null, true);
+    }
+
+    private static Desk mockDesk(Long id, DeskCategory category) {
+        Desk desk = mock(Desk.class);
+        lenient().when(desk.getId()).thenReturn(id);
+        lenient().when(desk.getNumber()).thenReturn(1);
+        lenient().when(desk.getCategory()).thenReturn(category);
+        return desk;
     }
 
     private void givenEmployeeCategories(

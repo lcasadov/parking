@@ -1051,9 +1051,22 @@ paths:
 
         Según el modo de aprobación global (`GET /admin/settings`): en `MANUAL` la
         solicitud nace `PENDING`; en `AUTOMATIC` nace `APPROVED` (auto-asignación de
-        plaza por categoría/planta para PARKING, o el puesto elegido para DESK). En
-        modo `AUTOMATIC` para PARKING, si no hay ninguna plaza libre se responde
-        `409` con `error = NO_AVAILABILITY` y la solicitud no se crea.
+        plaza por categoría/planta para PARKING, o de puesto por categoría para DESK,
+        o el puesto elegido si se indica `resourceId`). En modo `AUTOMATIC` para
+        PARKING, si no hay ninguna plaza libre se responde `409` con
+        `error = NO_AVAILABILITY` y la solicitud no se crea.
+
+
+        Change `desk-auto-assignment`: para `DESK` en modo `AUTOMATIC`, `resourceId`
+        es **opcional**. Si se omite, el sistema auto-asigna un puesto libre según la
+        categoría del empleado, con la MISMA frontera de rango que PARKING
+        (`CEO, CONSEJO, DIRECTOR_N1, DIRECTOR_N2` = categorías altas): una categoría
+        alta recibe un puesto `EXECUTIVE` libre si lo hay, y si no un `STANDARD`; el
+        resto de categorías recibe únicamente un puesto `STANDARD` (nunca un
+        `EXECUTIVE`). Si no hay ningún puesto válido libre para la categoría, la
+        solicitud nace `PENDING` igualmente (NO se responde `409` ni se exige elegir
+        puesto). Si se indica `resourceId` (elección explícita), el comportamiento no
+        cambia: nace `APPROVED` con ese puesto, `409` si no está disponible.
       requestBody:
         required: true
         content:
@@ -2127,7 +2140,13 @@ components:
     DeskCategory:
       type: string
       enum: [STANDARD, EXECUTIVE]
-      description: Categoría del puesto; distinción visual, no altera reglas de reserva.
+      description: >
+        Categoría del puesto. Determina la auto-asignación por rango del empleado (change
+        `desk-auto-assignment`, `POST /requests` DESK + AUTOMATIC sin `resourceId`): EXECUTIVE
+        es exclusivo de las categorías altas (CEO, CONSEJO, DIRECTOR_N1, DIRECTOR_N2), que
+        caen a STANDARD si no hay ninguno libre; el resto de categorías solo candidata
+        STANDARD. Fuera de la auto-asignación (asignación fija, elección explícita), ambas
+        categorías se comportan igual.
     Desk:
       type: object
       properties:
@@ -2431,10 +2450,14 @@ components:
           format: int64
           nullable: true
           description: >
-            Recurso elegido (puesto) para el modo automático + DESK: la solicitud nace
-            APPROVED con ese puesto (409 si no está disponible). En modo manual se ignora
-            (la solicitud nace PENDING sin recurso); para PARKING también se ignora (la plaza
-            la elige la auto-asignación por categoría/planta).
+            OPCIONAL. Puesto elegido para el modo automático + DESK (elección explícita,
+            p. ej. asistente del ADMIN/visitante): la solicitud nace APPROVED con ese puesto
+            (409 si no está disponible). Si se omite en DESK + AUTOMATIC, el sistema
+            auto-asigna un puesto por categoría del empleado (change `desk-auto-assignment`;
+            EXECUTIVE exclusivo de categorías altas con fallback a STANDARD; el resto solo
+            STANDARD), y si no hay ninguno válido libre la solicitud nace PENDING (sin 409).
+            En modo manual se ignora (la solicitud nace PENDING sin recurso); para PARKING
+            también se ignora (la plaza la elige la auto-asignación por categoría/planta).
         waitlist:
           type: boolean
           default: false
