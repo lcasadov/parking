@@ -5,6 +5,7 @@ import { Dialog } from './Dialog';
 import { FloorPlanStatus } from './FloorPlanStatus';
 import { FloorPlanSurface } from './FloorPlanSurface';
 import { FloorPlanZoom } from './FloorPlanZoom';
+import { useBackClose } from '../hooks/useBackClose';
 import { useFloorPlanViewport } from '../hooks/useFloorPlanViewport';
 import { useFloorPlanQuery } from '../hooks/useFloorPlan';
 import { isValidIsoDate } from '../utils/calendar';
@@ -32,6 +33,8 @@ interface DeskPickerModalProps {
 // mensaje role=status) para que la selección sea perceptible (bug de percepción).
 export function DeskPickerModal({ date, onPick, onClose }: DeskPickerModalProps) {
   const { t } = useTranslation();
+  // Anidado sobre el modal de solicitud: "atrás" cierra primero este selector.
+  useBackClose(onClose);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [picked, setPicked] = useState<PickedDesk | null>(null);
 

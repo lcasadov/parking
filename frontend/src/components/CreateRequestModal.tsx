@@ -7,6 +7,7 @@ import { InfoBanner } from './InfoBanner';
 import { ResourceAvailabilityBanner } from './ResourceAvailabilityBanner';
 import { getApiError, getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
+import { useBackClose } from '../hooks/useBackClose';
 import { useCreateRequest } from '../hooks/useRequests';
 import { useToast } from '../hooks/useToast';
 import { useApprovalModeQuery } from '../hooks/useSettings';
@@ -236,6 +237,8 @@ export function CreateRequestModal({
   presetResource,
 }: CreateRequestModalProps) {
   const { t } = useTranslation();
+  // En móvil, "atrás" cierra este modal (no cambia de ruta).
+  useBackClose(onClose);
   const initial = initialSelection(presetDate, presetResource);
   const [date, setDate] = useState(initial.date);
   const [parkingSelected, setParkingSelected] = useState(initial.parking);
@@ -404,6 +407,7 @@ export function CreateRequestModal({
     <>
       <Dialog
         open
+        fullScreen
         onOpenChange={(open) => {
           if (!open) {
             onClose();
