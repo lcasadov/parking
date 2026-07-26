@@ -189,6 +189,11 @@
 .sidebar-cta button {
   width: 100%;
   justify-content: center;
+  height: 52px;
+  font-size: var(--text-base);
+  font-weight: 700;
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-2);
 }
 
 /* Controles globales (idioma + tema) sobre la tarjeta de usuario (antes en la
@@ -3213,14 +3218,14 @@ button.week-card-body {
   color: var(--state-occupied-ink);
 }
 .week-resource.released {
+  background: var(--state-released-bg);
+  border-color: var(--state-released-border);
+  color: var(--state-released-ink);
+}
+.week-resource.request {
   background: var(--pink-soft);
   border-color: var(--pink-border);
   color: var(--pink-text);
-}
-.week-resource.request {
-  background: var(--state-request-bg);
-  border-color: var(--state-request-border);
-  color: var(--state-request-ink);
 }
 .week-resource.free {
   background: var(--state-free-bg);
@@ -7777,8 +7782,8 @@ body.theme-dark .auth2-spot{background:radial-gradient(560px circle at var(--mx,
 .mw-res{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);
   border-radius:var(--radius-md);border:1px solid transparent;}
 .mw-res.assigned{background:var(--state-occupied-bg);border-color:var(--state-occupied-border);color:var(--state-occupied-ink);}
-.mw-res.released{background:var(--pink-soft);border-color:var(--pink-border);color:var(--pink-text);}
-.mw-res.request{background:var(--state-request-bg);border-color:var(--state-request-border);color:var(--state-request-ink);}
+.mw-res.released{background:var(--state-released-bg);border-color:var(--state-released-border);color:var(--state-released-ink);}
+.mw-res.request{background:var(--pink-soft);border-color:var(--pink-border);color:var(--pink-text);}
 .mw-res.free{background:var(--state-free-bg);border-color:var(--state-free-border);color:var(--state-free-ink);}
 .mw-res-icon{display:inline-grid;place-items:center;flex-shrink:0;width:40px;height:40px;border-radius:50%;
   background:var(--bg-card);color:inherit;font-size:19px;box-shadow:0 0 0 1px currentColor inset;opacity:.92;}
@@ -7798,7 +7803,8 @@ body.theme-dark .auth2-spot{background:radial-gradient(560px circle at var(--mx,
   background:linear-gradient(to top,var(--bg) 62%,transparent);}
 .mw-cta-btn{width:100%;height:52px;justify-content:center;font-size:var(--text-base);
   border-radius:var(--radius-panel);box-shadow:var(--shadow-2);}
+/* En escritorio la reserva se hace desde "Nueva reserva" del sidebar; el CTA fijo
+   de abajo solo tiene sentido en móvil (donde el sidebar está en el drawer). */
 @media (min-width:641px){
-  .mw-cta{position:static;background:none;padding:0;}
-  .mw-cta-btn{width:auto;min-width:220px;margin-left:auto;}
+  .mw-cta{display:none;}
 }

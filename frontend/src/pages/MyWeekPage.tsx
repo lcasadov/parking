@@ -217,7 +217,12 @@ export function MyWeekPage() {
 
   function resourceLine(view: ResourceDayView): string {
     if (view.label) {
-      return t(`calendar.myWeek.resourceLabel.${view.resourceType}`, { label: view.label });
+      const label = t(`calendar.myWeek.resourceLabel.${view.resourceType}`, { label: view.label });
+      // Un recurso liberado conserva su etiqueta (es tu fija), pero hay que dejar
+      // CLARO que ese día está liberado (si no, parece asignado y en un color raro).
+      return view.state === 'RELEASED'
+        ? `${label} · ${t('calendar.myWeek.states.RELEASED')}`
+        : label;
     }
     return t(myWeekStateKey(view.state));
   }
@@ -461,7 +466,7 @@ export function MyWeekPage() {
       {/* Acción principal SIEMPRE visible (sticky en móvil). */}
       <div className="mw-cta">
         <Button variant="green" icon="plus" className="mw-cta-btn" onClick={() => openReserve()}>
-          {t('calendar.myWeek.requestAction')}
+          {t('layout.nav.newReservation')}
         </Button>
       </div>
 

@@ -176,7 +176,7 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     renderWithProviders(<MyWeekPage />);
     await screen.findByText(/plaza P-12|space P-12/i);
 
-    await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
+    await user.click(screen.getByRole('button', { name: /nueva reserva|new booking/i }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(
