@@ -957,3 +957,18 @@ body.theme-dark {
   padding: 0;
   justify-content: center;
 }
+
+/* =====================================================================
+   CORRECCIONES DE CONTRASTE (auditoría WCAG) — tema CLARO
+   No pintar texto pequeño con --accent/--info puros (fallan AA sobre claro).
+   ===================================================================== */
+/* "HOY" (label línea de tiempo): ámbar legible en claro; en oscuro sigue --accent. */
+body:not(.theme-dark) .mw-station-hoy { color: var(--brand-green-deep); }
+/* "MAÑANA": azul legible sobre hormigón en claro; en oscuro sigue --info. */
+body:not(.theme-dark) .mw-station-manana { color: #1560ac; }
+/* Badge MAÑANA: texto blanco sobre el azul en claro (dark text falla). */
+body:not(.theme-dark) .week-day-tomorrow-badge { color: #ffffff; }
+/* Badge HOY: tinta oscura sobre el ámbar (el blanco sobre ámbar fallaba en ambos). */
+.portal-way .week-day-today-badge { color: var(--accent-ink); }
+/* Acción del slot en hover: ámbar legible en claro. */
+body:not(.theme-dark) button.mw-slot:hover .mw-slot-act { color: var(--brand-green-deep); }
