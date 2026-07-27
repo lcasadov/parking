@@ -92,6 +92,16 @@ export function MyFixedAssignmentsPage({ embedded = false }: { embedded?: boolea
       : t('common.loading');
   }
 
+  // Marcador tipo señalización del recurso fijo (P·8 / D·2), del número real.
+  function markerFor(group: FixedAssignmentGroup): string {
+    const prefix = group.resourceType === 'PARKING' ? 'P' : 'D';
+    const number =
+      group.resourceType === 'DESK'
+        ? desksById[group.parkingSpaceId]?.number
+        : spacesById[group.parkingSpaceId]?.number;
+    return typeof number === 'number' ? `${prefix}·${number}` : '…';
+  }
+
   // Etiqueta del recurso de una liberación (mismo criterio: número real, nunca id).
   function releaseLabel(release: Release): string {
     if ((release.resourceType ?? 'PARKING') === 'DESK') {
@@ -193,41 +203,33 @@ export function MyFixedAssignmentsPage({ embedded = false }: { embedded?: boolea
         groups.length === 0 ? (
           <TableEmpty icon="calendar-star" message={t('fixedAssignments.mine.empty')} />
         ) : (
-          <div className="table-scroll mfa-table">
-            <table className="table">
-              <thead>
-                <tr className="table-header">
-                  <th scope="col">{t('fixedAssignments.mine.columns.resource')}</th>
-                  <th scope="col">{t('fixedAssignments.mine.columns.days')}</th>
-                  <th scope="col" className="sr-only-head">
-                    {t('releases.mine.columns.actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {groups.map((group) => (
-                  <tr key={group.key} className="table-row">
-                    <td className="mfa-cell-resource">
-                      <span className="mfa-resource">
-                        <span className="mfa-resource-icon" aria-hidden="true">
-                          <ResourceIcon type={group.resourceType} />
-                        </span>
-                        {spaceLabel(group)}
-                      </span>
-                    </td>
-                    <td className="mfa-cell-days">
-                      <DayBadges days={group.days} />
-                    </td>
-                    <td className="table-actions mfa-cell-actions">
-                      {group.resourceType === 'DESK' ? (
-                        <DeskMapButton deskLabel={spaceLabel(group)} date={todayIso()} />
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="mfa-cards" aria-label={t('fixedAssignments.mine.title')}>
+            {groups.map((group) => (
+              <li
+                key={group.key}
+                className={`mfa-card ${group.resourceType === 'PARKING' ? 'is-parking' : 'is-desk'}`}
+              >
+                <div className="mfa-card-marker" aria-hidden="true">
+                  <span className="mfa-card-lamp" />
+                  <span className="mfa-card-num">{markerFor(group)}</span>
+                </div>
+                <div className="mfa-card-body">
+                  <div className="mfa-card-top">
+                    <span className="mfa-card-kind">
+                      {t(`calendar.myWeek.resourceKind.${group.resourceType}`)}
+                    </span>
+                    <span className="mfa-card-tag">{t('calendar.myWeek.heroShield.fixed')}</span>
+                  </div>
+                  <DayBadges days={group.days} />
+                </div>
+                <div className="mfa-card-actions">
+                  {group.resourceType === 'DESK' ? (
+                    <DeskMapButton deskLabel={spaceLabel(group)} date={todayIso()} />
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
         )
       ) : null}
 

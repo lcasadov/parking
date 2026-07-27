@@ -746,3 +746,175 @@ body.theme-dark .portal-way {
     animation: none;
   }
 }
+
+/* =====================================================================
+   MIS SITIOS FIJOS — tarjetas-marcador de señalización
+   ===================================================================== */
+.portal-way .mfa-cards {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-4);
+}
+.portal-way .mfa-card {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.14s var(--ease-out), border-color 0.14s, box-shadow 0.2s;
+}
+.portal-way .mfa-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-card-hover);
+}
+/* Marcador (mini-shield) con filo ámbar. */
+.portal-way .mfa-card-marker {
+  position: relative;
+  min-width: 96px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--accent);
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.portal-way .mfa-card-lamp {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 9px var(--ok);
+}
+.portal-way .mfa-card-num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.6rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.portal-way .mfa-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+.portal-way .mfa-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.portal-way .mfa-card-kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.portal-way .mfa-card-tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--brand-green-deep);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+}
+.portal-way .mfa-card-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+/* Día-chips iluminados (los días que tienes el recurso). */
+.portal-way .mfa-card .day-badges {
+  display: flex;
+  gap: 6px;
+}
+.portal-way .mfa-card .day-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border: 1px solid var(--line-strong);
+}
+.portal-way .mfa-card .day-chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  box-shadow: 0 0 12px -2px var(--accent);
+}
+.portal-way .mfa-card .day-chip.off {
+  color: var(--ink-faint);
+  background: transparent;
+}
+
+/* CTA de ausencia = panel SEÑAL. */
+.portal-way .absence-cta {
+  border: 1px solid var(--accent-line);
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+  transition: transform 0.14s var(--ease-out), box-shadow 0.2s;
+}
+.portal-way .absence-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px var(--accent-line), 0 12px 28px -16px var(--accent);
+}
+.portal-way .absence-cta-icon {
+  color: var(--accent);
+}
+
+/* Panel de liberados = azul (OPEN); fechas en mono. */
+.portal-way .released-panel {
+  border-color: var(--state-released-border);
+}
+.portal-way .released-count {
+  background: var(--state-released-bg);
+  color: var(--state-released-ink);
+}
+.portal-way .released-item-info span {
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+/* =====================================================================
+   MIS SOLICITUDES — tabla con firma (numerales mono + lámpara de estado)
+   ===================================================================== */
+.portal-way .my-requests-table .mr-date-main,
+.portal-way .my-requests-table .mr-cell-space {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+/* Badge de estado con lámpara de señal (color = color del estado). */
+.portal-way .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.portal-way .status-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  flex: 0 0 auto;
+}
