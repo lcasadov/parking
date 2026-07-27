@@ -2033,7 +2033,11 @@ body.theme-dark .segmented button.active {
    superpuesto en la esquina del lienzo. Se renderiza dentro de `.floor-plan-surface-
    wrap`, que apila mapa y minimapa en columna. */
 .floor-mini {
-  position: static;
+  /* relative (no static): queda en el flujo DEBAJO del mapa, pero sigue siendo el
+     contexto de posicionamiento de su viewport interno (.floor-mini-view, absoluto);
+     con static, ese recuadro se anclaba a .floor-plan-surface-wrap y se solapaba
+     en la esquina superior izquierda del mapa. */
+  position: relative;
   align-self: flex-start;
   margin-top: var(--space-3);
   z-index: 6;
@@ -4280,6 +4284,51 @@ button.pop-row.pop-danger:disabled {
   width: 40px;
   text-align: center;
 }
+/* Separa el selector de fecha de la tabla de ocupación (Liberar · Por fecha). */
+.release-by-date-page .filter-bar {
+  margin-bottom: var(--space-4);
+}
+/* Checkbox customizado del design system para la selección en lote (sustituye al
+   nativo azul del navegador): cuadro con marco y check en verde de marca. */
+.col-check input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--bg-card);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+.col-check input[type='checkbox']::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transform-origin: center;
+  transition: transform 120ms ease;
+  margin-top: -1px;
+}
+.col-check input[type='checkbox']:checked {
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+}
+.col-check input[type='checkbox']:checked::after {
+  transform: rotate(45deg) scale(1);
+}
+.col-check input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--brand-green);
+  outline-offset: 2px;
+}
 .release-batch-form {
   display: flex;
   flex-direction: column;
@@ -5548,8 +5597,9 @@ button.pop-row.pop-danger:disabled {
   border-radius: var(--radius-md);
   background: var(--bg-card);
 }
-/* Deja respiración al mensaje de error bajo la lista de días. */
-.day-select-list + .form-error {
+/* Deja respiración al mensaje de error y al aviso (resumen) bajo la lista de días. */
+.day-select-list + .form-error,
+.day-select-list ~ .info-banner {
   margin-top: var(--space-3);
 }
 .day-select-day {

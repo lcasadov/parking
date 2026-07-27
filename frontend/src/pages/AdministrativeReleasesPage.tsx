@@ -1,5 +1,5 @@
 import { RESOURCE_ICON } from '../utils/resourceIcon';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { InfoBanner } from '../components/InfoBanner';
@@ -461,6 +461,14 @@ function ReleaseBatchForm({
   children,
 }: ReleaseBatchFormProps) {
   const { t } = useTranslation();
+  // Al fallar la liberación (motivo vacío / sin selección) el error se pinta encima
+  // de la barra de acción fija: se lleva la vista hasta él para que no pase inadvertido.
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [error]);
   return (
     <form
       className="release-form"
@@ -487,7 +495,7 @@ function ReleaseBatchForm({
           {t('releases.employeeWeek.reasonHint')}
         </p>
         {error ? (
-          <p className="form-error" role="alert">
+          <p className="form-error" role="alert" ref={errorRef}>
             {error}
           </p>
         ) : null}

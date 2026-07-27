@@ -151,23 +151,10 @@ export function FloorPlanSurface({
     return () => observer.disconnect();
   }, [surfaceRef]);
 
-  // Zoom con rueda/trackpad hacia el cursor: listener NATIVO no pasivo (React
-  // registra onWheel como pasivo y preventDefault no surtiría efecto) para evitar
-  // que la página haga scroll mientras se hace zoom sobre el plano.
-  useEffect(() => {
-    const surface = surfaceRef.current;
-    if (!surface) {
-      return undefined;
-    }
-    const onWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const rect = surface.getBoundingClientRect();
-      const factor = Math.exp(-event.deltaY * 0.0015);
-      zoomAtPoint(factor, event.clientX - rect.left, event.clientY - rect.top);
-    };
-    surface.addEventListener('wheel', onWheel, { passive: false });
-    return () => surface.removeEventListener('wheel', onWheel);
-  }, [surfaceRef, zoomAtPoint]);
+  // El zoom con rueda/trackpad está deshabilitado a propósito: capturaba el scroll y
+  // dificultaba desplazarse por la página con el cursor sobre el plano. El zoom se
+  // hace ahora con el rectángulo de selección (marquee), el minimapa y los botones
+  // de zoom; la rueda desplaza la página con normalidad.
 
   // Maximizado IN-APP (no la Fullscreen API nativa, que sube el lienzo al "top
   // layer" del navegador por encima de los diálogos Radix e impide asignar desde el
