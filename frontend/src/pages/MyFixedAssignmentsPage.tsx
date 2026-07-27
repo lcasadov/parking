@@ -209,8 +209,8 @@ export function MyFixedAssignmentsPage({ embedded = false }: { embedded?: boolea
                 key={group.key}
                 className={`mfa-card ${group.resourceType === 'PARKING' ? 'is-parking' : 'is-desk'}`}
               >
-                <div className="mfa-card-marker" aria-hidden="true">
-                  <span className="mfa-card-lamp" />
+                <div className="mfa-card-marker">
+                  <span className="mfa-card-lamp" aria-hidden="true" />
                   <span className="mfa-card-num">{markerFor(group)}</span>
                 </div>
                 <div className="mfa-card-body">

@@ -41,3 +41,35 @@ autónoma y **dudas razonables** que conviene repasar juntos. No bloquean el ava
 - `72ce828` Mi Semana (aprobada)
 - `932a4fd` Mis sitios fijos + Mis solicitudes
 - `b350064` Tema Wayfinding GLOBAL (app + modales)
+
+## Auditorías automáticas (agentes) — resultado
+
+Se lanzaron 2 agentes críticos. Resumen:
+
+### Contraste (WCAG) — CORREGIDO
+3 fallos AA, todos en **tema claro**, por usar `--accent`/`--info` puros como texto pequeño:
+labels HOY/MAÑANA, badge MAÑANA y badge HOY (blanco sobre ámbar). Corregidos en
+`d9675d6` + calibración. Tema oscuro: sin fallos. Numerales grandes: sobra contraste.
+
+### Consistencia/robustez UI — corregido lo crítico, resto diferido
+CORREGIDO ya:
+- Recorte de la línea de tiempo por `overflow-y` (más padding + reposicionado nodos/labels/pulso).
+- Carril/pulso ya no se pintan sobre el esqueleto de carga (scoped a `.mw-week-scroll`).
+- a11y: el número de plaza/puesto (`mfa-card-num`) ya NO está oculto a lectores de pantalla.
+- Foco visible con grosor/estilo explícito (`outline: 2px solid`).
+- Comentario de cabecera del CSS corregido (deja claro que tokens+grid son GLOBALES).
+- Glow calibrado por tema (lámparas planas en día; halo solo de noche).
+
+DIFERIDO (repasar juntos, no bloqueante):
+1. **Semántica de color en admin (Ocupación):** hoy ocupado=verde (como la app actual).
+   ¿Mantener o invertir a semáforo puro (libre=verde/ocupado=rojo)? Decisión de producto.
+2. **Grid de ingeniería sobre tablas densas de admin:** verificar que no sea ruido; si molesta,
+   acotar la rejilla a páginas concretas.
+3. **Código muerto:** `renderHeroResource` + CSS `.mw-res*`/`.mw-hero-resources` ya no se montan
+   (se quitó la tarjeta MAÑANA del héroe). Decidir: reintroducir MAÑANA o borrar el código muerto.
+4. **Bloques `.mfa-card*` duplicados** en el CSS (un override "compacto" pisa al primero): fusionar.
+5. **Sistematizar:** tamaños de lámpara/nodo y radios de glow como tokens (`--lamp-*`); radios/espaciados
+   hardcodeados → escala `--radius-*`/`--space-*`.
+6. **`--rel/--rel-soft` (ámbar) sin uso** (liberado usa azul): eliminar o documentar.
+7. **Acabado:** el carril sobresale ~100px antes del primer nodo y tras el último (cuadrar a los
+   centros de la 1ª/última estación); tracking mono unificar por rol tipográfico.
