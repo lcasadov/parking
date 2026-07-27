@@ -9,9 +9,10 @@ import { FloorPlanStatus } from '../components/FloorPlanStatus';
 import { FloorPlanDatebar } from '../components/FloorPlanDatebar';
 import { FloorPlanFilters, type FloorPlanFilterValue } from '../components/FloorPlanFilters';
 import { FloorPlanZoom } from '../components/FloorPlanZoom';
-import { FloorPlanSidePanel } from '../components/FloorPlanSidePanel';
-import { FloorPlanMobileList } from '../components/FloorPlanMobileList';
+import { FloorPlanCounters } from '../components/FloorPlanCounters';
+import { FloorPlanDeskList } from '../components/FloorPlanDeskList';
 import { RequestDeskConfirmModal } from '../components/RequestDeskConfirmModal';
+import { OccupancyAssignModal } from '../components/OccupancyAssignModal';
 import { useAuth } from '../auth/useAuth';
 import { useDeskDrag } from '../hooks/useDeskDrag';
 import { useFloorPlanViewport } from '../hooks/useFloorPlanViewport';
@@ -49,6 +50,9 @@ export function FloorPlanPage() {
   // Puesto pendiente de confirmar antes de crear la solicitud (marcador o lista
   // movil): evita altas accidentales por toques/zoom en tactil (requests spec).
   const [confirmTarget, setConfirmTarget] = useState<FloorPlanDesk | null>(null);
+  // Puesto LIBRE que el ADMIN va a asignar (empleado o visitante) para el día
+  // seleccionado (rediseño Plano §6.4): reutiliza el modal de asignación de Ocupación.
+  const [assignTarget, setAssignTarget] = useState<FloorPlanDesk | null>(null);
 
   const surfaceRef = useRef<HTMLDivElement>(null);
 
@@ -119,10 +123,26 @@ export function FloorPlanPage() {
     setFilter((previous) => (previous === value ? null : value));
   }
 
-  // Pinchar un marcador libre (o pulsar "Solicitar" en la lista movil) abre la
-  // confirmacion; la solicitud solo se crea si el empleado confirma.
-  function handleRequestClick(desk: FloorPlanDesk): void {
-    setConfirmTarget(desk);
+  // Activar un puesto LIBRE (marcador o fila del listado). El ADMIN abre el modal de
+  // asignación (empleado/visitante); el empleado, la confirmación de solicitud. Los
+  // puestos no libres no son accionables.
+  function handleDeskActivate(desk: FloorPlanDesk): void {
+    if (desk.state !== 'FREE') {
+      return;
+    }
+    if (canEdit) {
+      setAssignTarget(desk);
+    } else {
+      setConfirmTarget(desk);
+    }
+  }
+
+  // Éxito de la asignación admin desde el plano: cierra el modal y refresca el
+  // snapshot del plano (la mutación no invalida la query de floor-plan).
+  function handleAssigned(): void {
+    setAssignTarget(null);
+    setFeedback(null);
+    void query.refetch();
   }
 
   function handleConfirmRequest(): void {
@@ -225,28 +245,32 @@ export function FloorPlanPage() {
             />
           </div>
 
-          <div className="floor-plan-layout">
-            <FloorPlanSurface
-              desks={effectiveDesks}
-              editMode={editMode}
-              dragPos={dragPos}
-              filter={filter}
-              viewport={viewport}
-              surfaceRef={surfaceRef}
-              explore={!editMode}
-              onRequest={handleRequestClick}
-              onDragStart={startDrag}
-            />
-            <FloorPlanSidePanel desks={desks} />
+          {/* Fila principal: mapa (con el minimapa debajo) a la izquierda y los
+              contadores grandes a la derecha (rediseño Plano §6.1–6.2). */}
+          <div className="plano-main">
+            <div className="plano-map-col">
+              <FloorPlanSurface
+                desks={effectiveDesks}
+                editMode={editMode}
+                dragPos={dragPos}
+                filter={filter}
+                viewport={viewport}
+                surfaceRef={surfaceRef}
+                explore={!editMode}
+                onRequest={handleDeskActivate}
+                onDragStart={startDrag}
+              />
+            </div>
+            <FloorPlanCounters desks={desks} />
           </div>
 
-          {canEdit ? null : (
-            <FloorPlanMobileList
-              desks={desks}
-              pending={requestMutation.isPending}
-              onRequest={handleRequestClick}
-            />
-          )}
+          {/* Listado de puestos a todo el ancho bajo el mapa (§6.3). En edición no se
+              asigna: la lista queda de solo lectura para no interferir con el arrastre. */}
+          <FloorPlanDeskList
+            desks={desks}
+            onSelect={editMode ? undefined : handleDeskActivate}
+            actionLabelKey={canEdit ? 'floorPlan.side.assignAction' : 'floorPlan.side.rowAction'}
+          />
         </>
       ) : null}
 
@@ -256,6 +280,17 @@ export function FloorPlanPage() {
           date={date}
           onConfirm={handleConfirmRequest}
           onClose={() => setConfirmTarget(null)}
+        />
+      ) : null}
+
+      {assignTarget ? (
+        <OccupancyAssignModal
+          resourceId={assignTarget.deskId}
+          resourceLabel={t('floorPlan.deskNumber', { number: assignTarget.deskNumber })}
+          resourceType="DESK"
+          date={date}
+          onClose={() => setAssignTarget(null)}
+          onAssigned={handleAssigned}
         />
       ) : null}
     </section>

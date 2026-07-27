@@ -33,6 +33,19 @@ public interface VisitorReservationRepository extends JpaRepository<VisitorReser
             ResourceType resourceType, Long resourceId, LocalDate reservationDate);
 
     /**
+     * Cuenta las reservas de visitante de un recurso para HOY o fechas futuras (soporte del
+     * bloqueo de desactivacion: un recurso con reservas de visitante futuras no debe
+     * desactivarse silenciosamente; change {@code admin-improvements}, tarea 16).
+     *
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param resourceId   recurso a comprobar
+     * @param from         fecha minima inclusive (hoy)
+     * @return numero de reservas de ese recurso con fecha &gt;= {@code from}
+     */
+    long countByResourceTypeAndResourceIdAndReservationDateGreaterThanEqual(
+            ResourceType resourceType, Long resourceId, LocalDate from);
+
+    /**
      * Reservas de visitante cuyo {@code reservation_date} cae dentro del intervalo
      * (extremos inclusive).
      *

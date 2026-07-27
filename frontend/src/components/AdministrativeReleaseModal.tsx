@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Dialog } from './Dialog';
@@ -54,12 +54,16 @@ export function AdministrativeReleaseModal({
   const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
   const createMutation = useCreateAdministrativeRelease();
 
   function handleSubmit(event: FormEvent): void {
     event.preventDefault();
     if (reason.trim() === '') {
       setError(t('releases.admin.requiredReason'));
+      // Sin motivo: lleva la vista y el foco al campo (obligatorio).
+      reasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      reasonRef.current?.focus();
       return;
     }
     setError(null);
@@ -122,6 +126,7 @@ export function AdministrativeReleaseModal({
         </label>
         <textarea
           id="administrative-release-reason"
+          ref={reasonRef}
           className="field-input"
           value={reason}
           onChange={(event) => setReason(event.target.value)}

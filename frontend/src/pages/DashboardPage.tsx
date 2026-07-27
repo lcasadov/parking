@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ApproveRequestModal } from '../components/ApproveRequestModal';
@@ -46,10 +47,23 @@ function formatToday(language: string, now: Date): string {
   }).format(now);
 }
 
-// Nombre humano legible de una accion de auditoria (enum tecnico -> texto).
+// Nombre humano legible de una accion de auditoria (enum tecnico -> texto) como
+// FALLBACK cuando no hay traduccion especifica.
 function humanizeAction(action: string): string {
   const spaced = action.replace(/_/g, ' ').toLowerCase();
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+// Etiqueta traducida de la accion de auditoria; si el codigo no esta mapeado,
+// cae al texto humanizado (nunca muestra el enum crudo salvo desconocido).
+function actionLabel(action: string, t: TFunction): string {
+  return t(`dashboard.activity.action.${action}`, { defaultValue: humanizeAction(action) });
+}
+
+// Etiqueta traducida del tipo de entidad (chip); clave insensible a mayus/minus.
+function entityLabel(entityType: string, t: TFunction): string {
+  const key = entityType.replace(/[^A-Za-z]/g, '').toUpperCase();
+  return t(`dashboard.activity.entity.${key}`, { defaultValue: entityType });
 }
 
 function buildEmployeeMap(employees: Employee[]): Map<number, Employee> {
@@ -179,13 +193,13 @@ function ActivityRow({ entry }: { entry: AuditLogEntry }) {
     <div className="dash-row">
       <div className="dash-row-who">
         <div>
-          <b>{humanizeAction(entry.action)}</b>
+          <b>{actionLabel(entry.action, t)}</b>
           <small>
             {t('dashboard.activity.actor', { actor })} · {formatDateTime(entry.occurredAt)}
           </small>
         </div>
       </div>
-      <span className="dash-chip">{entry.entityType}</span>
+      <span className="dash-chip">{entityLabel(entry.entityType, t)}</span>
     </div>
   );
 }

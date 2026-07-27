@@ -4,7 +4,6 @@ import { Button } from './Button';
 import { SearchBox } from './SearchBox';
 import { TableEmpty, TableError, TableSkeleton } from './TableStates';
 import { Toolbar } from './Toolbar';
-import { VisitorDetailModal } from './VisitorDetailModal';
 import { VisitorFormModal } from './VisitorFormModal';
 import { ReservationWizard } from './wizard/ReservationWizard';
 import { useVisitorsQuery } from '../hooks/useVisitors';
@@ -20,7 +19,6 @@ export function VisitorsPanel() {
   const [page, setPage] = useState(0);
   const [formVisitor, setFormVisitor] = useState<Visitor | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [detailId, setDetailId] = useState<number | null>(null);
   const [reserveVisitor, setReserveVisitor] = useState<Visitor | null>(null);
 
   const query = useVisitorsQuery({ page, size: PAGE_SIZE, q });
@@ -116,9 +114,6 @@ export function VisitorsPanel() {
                       {visitor.usualReason ?? none}
                     </td>
                     <td className="table-actions" data-label={t('visitors.columns.actions')}>
-                      <Button variant="white" icon="eye" onClick={() => setDetailId(visitor.id)}>
-                        {t('visitors.actions.view')}
-                      </Button>
                       <Button variant="white" icon="pencil" onClick={() => openEdit(visitor)}>
                         {t('visitors.actions.edit')}
                       </Button>
@@ -154,10 +149,6 @@ export function VisitorsPanel() {
 
       {isFormOpen ? (
         <VisitorFormModal visitor={formVisitor} onClose={closeForm} onSaved={closeForm} />
-      ) : null}
-
-      {detailId !== null ? (
-        <VisitorDetailModal visitorId={detailId} onClose={() => setDetailId(null)} />
       ) : null}
 
       {reserveVisitor ? (

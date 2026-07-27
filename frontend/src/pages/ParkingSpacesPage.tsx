@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
-import { ConfigureParkingCard } from '../components/ConfigureParkingCard';
 import { Legend } from '../components/Legend';
 import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { ParkingSpaceFormModal } from '../components/ParkingSpaceFormModal';
@@ -11,6 +10,7 @@ import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
 import { emitApiErrorToast } from '../api/events';
+import { deactivationErrorKey } from '../utils/resourceDeactivation';
 import { useParkingSpacesQuery, useUpdateParkingSpace } from '../hooks/useParkingSpaces';
 import type { ParkingSpace } from '../types/parkingSpace';
 
@@ -128,7 +128,10 @@ export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } =
   function toggleActivation(space: ParkingSpace): void {
     updateMutation.mutate(
       { id: space.id, body: { number: space.number, active: !space.active } },
-      { onError: () => emitApiErrorToast('parkingSpaces.errors.toggle') },
+      {
+        onError: (error) =>
+          emitApiErrorToast(deactivationErrorKey(error, 'parkingSpaces')),
+      },
     );
   }
 
@@ -177,8 +180,6 @@ export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } =
       />
 
       <ParkingStats />
-
-      <ConfigureParkingCard />
 
       <div className="filter-card">
         <div className="filter-card-head">

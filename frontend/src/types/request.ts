@@ -68,6 +68,29 @@ export interface RequestAdminAssignRequest {
   resourceId?: number;
 }
 
+// RequestAdminReassignRequest: schema #/components/schemas/RequestAdminReassignRequest.
+// Reasigna el recurso de una solicitud APPROVED de fecha futura a otro recurso libre
+// (capability admin-resource-reassignment). Avisa por email al empleado afectado.
+export interface RequestAdminReassignRequest {
+  requestId: number;
+  newResourceId: number;
+}
+
+// RequestAdminSwapRequest: schema #/components/schemas/RequestAdminSwapRequest.
+// Intercambia los recursos de DOS solicitudes APPROVED de la misma fecha y tipo
+// (capability admin-resource-reassignment). Avisa por email a ambos empleados.
+export interface RequestAdminSwapRequest {
+  requestIdA: number;
+  requestIdB: number;
+}
+
+// RequestSwapResponse: schema #/components/schemas/RequestSwapResponse.
+// Devuelve las DOS solicitudes ya intercambiadas para refrescar ambas filas.
+export interface RequestSwapResponse {
+  requestA: Request;
+  requestB: Request;
+}
+
 // RequestApproveRequest: schema #/components/schemas/RequestApproveRequest.
 export interface RequestApproveRequest {
   parkingSpaceId: number;

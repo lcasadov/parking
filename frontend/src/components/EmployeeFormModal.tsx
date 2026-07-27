@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { DayCards } from './DayCards';
+import { DeskPickerModal, type PickedDesk } from './DeskPickerModal';
 import { Dialog } from './Dialog';
 import { FieldRow } from './FieldRow';
 import { FieldValue } from './FieldValue';
@@ -14,13 +14,15 @@ import { useDesksQuery } from '../hooks/useDesks';
 import { useCreateEmployee, useUpdateEmployee } from '../hooks/useEmployees';
 import {
   useEmployeeFixedAssignmentsQuery,
+  useFixedAssignmentsQuery,
   useRevokeFixedAssignment,
   useSetFixedAssignments,
 } from '../hooks/useFixedAssignments';
 import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
 import { deskLabel } from '../utils/desks';
+import { addDaysIso, isoWeekday } from '../utils/calendar';
+import { todayIso } from '../utils/requests';
 import {
-  daysForResource,
   groupDaysByResource,
   isDayResourceSuperset,
   joinWithAnd,
@@ -71,6 +73,64 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOOKUP_SIZE = 100;
 const WEEKDAYS: readonly number[] = [1, 2, 3, 4, 5];
 const HTTP_CONFLICT = 409;
+
+// Fecha (ISO) de la PRÓXIMA ocurrencia de un día de la semana (hoy incluido). Se usa
+// para consultar la disponibilidad del recurso ese día (las asignaciones fijas se
+// repiten cada semana, así que la próxima ocurrencia refleja quién lo tiene fijo).
+function repDateForWeekday(weekday: number): string {
+  const delta = (weekday - isoWeekday(todayIso()) + 7) % 7;
+  return addDaysIso(todayIso(), delta);
+}
+
+// Recursos de un tipo ya ocupados por OTROS empleados en cada día de la semana
+// (asignación fija activa), para no ofrecerlos en el selector de ese día. Excluye
+// al empleado que se edita (su propia asignación sí puede seguir seleccionada).
+function buildOccupiedByDay(
+  assignments: FixedAssignment[] | undefined,
+  resourceType: ResourceType,
+  excludeEmployeeId: number | null,
+): Record<number, Set<number>> {
+  const byDay: Record<number, Set<number>> = { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set() };
+  for (const a of assignments ?? []) {
+    if (!a.active) continue;
+    if ((a.resourceType ?? 'PARKING') !== resourceType) continue;
+    if (excludeEmployeeId !== null && a.employeeId === excludeEmployeeId) continue;
+    byDay[a.dayOfWeek]?.add(a.parkingSpaceId);
+  }
+  return byDay;
+}
+
+// Mensaje de conflicto DETALLADO (cliente): días en los que el recurso elegido ya
+// lo tiene otro empleado, agrupado por recurso ("D-01: Lunes, Martes"). null si no
+// hay conflicto. Se usa antes de guardar para evitar el 409 genérico.
+function conflictError(
+  map: DayResourceMap,
+  occupied: Record<number, Set<number>>,
+  options: ResourceOption[],
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string | null {
+  const byResource = new Map<number, number[]>();
+  for (const [dayStr, resourceId] of Object.entries(map)) {
+    const day = Number(dayStr);
+    if (occupied[day]?.has(resourceId)) {
+      const days = byResource.get(resourceId) ?? [];
+      days.push(day);
+      byResource.set(resourceId, days);
+    }
+  }
+  if (byResource.size === 0) {
+    return null;
+  }
+  const parts = [...byResource.entries()].map(([resourceId, days]) => {
+    const label = options.find((o) => o.id === resourceId)?.label ?? `#${resourceId}`;
+    const dayNames = joinWithAnd(
+      days.sort((a, b) => a - b).map((d) => t(`common.weekdayName.${d}`)),
+      t('common.listAnd'),
+    );
+    return t('employees.form.resourceConflictDetail', { resource: label, days: dayNames });
+  });
+  return parts.join(' ');
+}
 
 function initialState(employee?: Employee | null): FormState {
   return {
@@ -284,52 +344,8 @@ function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanel
   );
 }
 
-// ---- Detalle día→recurso: qué recurso queda asignado cada día de la semana ----
-interface DayResourceListProps {
-  prefix: ResourcePrefix;
-  map: DayResourceMap;
-  options: ResourceOption[];
-  onClearDay: (day: number) => void;
-}
 
-function DayResourceList({ prefix, map, options, onClearDay }: DayResourceListProps) {
-  const { t } = useTranslation();
-  const labelFor = (id: number): string =>
-    options.find((option) => option.id === id)?.label ?? `#${id}`;
-
-  return (
-    <ul className="day-resource-list" aria-label={t(`employees.form.${prefix}.perDayTitle`)}>
-      {WEEKDAYS.map((day) => {
-        const resourceId = map[day];
-        const assigned = resourceId !== undefined;
-        return (
-          <li key={day} className={`day-resource-row${assigned ? ' assigned' : ''}`}>
-            <span className="day-resource-day">{t(`common.weekdayName.${day}`)}</span>
-            {assigned ? (
-              <>
-                <span className="day-resource-value">{labelFor(resourceId)}</span>
-                <button
-                  type="button"
-                  className="day-resource-clear"
-                  aria-label={t('employees.form.clearDay', {
-                    day: t(`common.weekdayName.${day}`),
-                  })}
-                  onClick={() => onClearDay(day)}
-                >
-                  <i className="ti ti-x" aria-hidden="true" />
-                </button>
-              </>
-            ) : (
-              <span className="day-resource-value muted">{t('employees.form.dayUnassigned')}</span>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-// ---- Panel de recurso fijo (plaza o puesto): mapa día→recurso ----
+// ---- Panel de recurso fijo (plaza o puesto): editor por-día ----
 interface ResourcePanelProps {
   prefix: ResourcePrefix;
   fullName: string;
@@ -338,9 +354,10 @@ interface ResourcePanelProps {
   active: number | '';
   error?: string;
   onActiveChange: (value: number | '') => void;
-  onDaysChange: (days: number[]) => void;
   onApplyAll: () => void;
-  onClearDay: (day: number) => void;
+  onDayResourceChange: (day: number, value: number | '') => void;
+  // Recursos ocupados por otros empleados por día (para excluirlos del selector).
+  occupiedByDay: Record<number, Set<number>>;
 }
 
 function ResourcePanel({
@@ -351,25 +368,39 @@ function ResourcePanel({
   active,
   error,
   onActiveChange,
-  onDaysChange,
   onApplyAll,
-  onClearDay,
+  onDayResourceChange,
+  occupiedByDay,
 }: ResourcePanelProps) {
   const { t } = useTranslation();
   const selectId = useId();
   const base = `employees.form.${prefix}`;
-  const activeDays = active === '' ? [] : daysForResource(map, active);
   const groups = groupDaysByResource(map);
   const hasAssignments = groups.size > 0;
+
+  // Opciones del día: se OCULTAN los recursos que ya tiene otro empleado ese día;
+  // el ya asignado a este empleado sí permanece visible.
+  const optionsForDay = (day: number, currentId: number | ''): ResourceOption[] => {
+    const occupied = occupiedByDay[day];
+    if (!occupied || occupied.size === 0) {
+      return options;
+    }
+    return options.filter((o) => !occupied.has(o.id) || o.id === currentId);
+  };
+
+  // Puesto que el admin está eligiendo desde el plano (día abierto, o null).
+  const [planoDay, setPlanoDay] = useState<number | null>(null);
 
   return (
     <div role="tabpanel" aria-label={t(`${base}.title`)}>
       <p className="section-title-sm">{t(`${base}.title`)}</p>
       <p className="section-hint">{t(`${base}.hint`)}</p>
-      <FieldRow>
-        <div className="auth-field">
+
+      {/* Atajo: aplicar un mismo recurso a toda la semana. */}
+      <div className="day-assign-head">
+        <div className="auth-field apply-all-field">
           <label className="field-label" htmlFor={selectId}>
-            {t(`${base}.${prefix === 'parking' ? 'space' : 'desk'}`)}
+            {t('employees.form.applyAllLabel')}
           </label>
           <select
             id={selectId}
@@ -387,33 +418,57 @@ function ResourcePanel({
             ))}
           </select>
         </div>
-        <div>
-          <span className="field-label">{t('employees.form.validity')}</span>
-          <FieldValue readOnly withIcon>
-            <span>
-              <i className="ti ti-infinity green-icon" aria-hidden="true" />{' '}
-              {t('employees.form.validityIndefinite')}
-            </span>
-          </FieldValue>
-        </div>
-      </FieldRow>
-
-      <div className="day-assign-head">
-        <span className="field-label">{t(`${base}.days`)}</span>
-        <button
-          type="button"
-          className="link-btn"
-          disabled={active === ''}
-          onClick={onApplyAll}
-        >
+        <button type="button" className="link-btn" disabled={active === ''} onClick={onApplyAll}>
           <i className="ti ti-calendar-check" aria-hidden="true" /> {t('employees.form.applyAll')}
         </button>
       </div>
-      <DayCards value={activeDays} onChange={onDaysChange} />
-      <p className="hint">{t('employees.form.dayResourceHint')}</p>
 
+      {/* Editor por día: un selector de recurso por cada día (o "sin recurso"). */}
       <p className="section-title-sm">{t(`${base}.perDayTitle`)}</p>
-      <DayResourceList prefix={prefix} map={map} options={options} onClearDay={onClearDay} />
+      <ul className="day-select-list" aria-label={t(`${base}.perDayTitle`)}>
+        {WEEKDAYS.map((day) => {
+          const resourceId = map[day] as number | undefined;
+          const value: number | '' = resourceId ?? '';
+          return (
+            <li key={day} className={`day-select-row${value !== '' ? ' assigned' : ''}`}>
+              <span className="day-select-day">{t(`common.weekdayName.${day}`)}</span>
+              <select
+                className="field-input"
+                aria-label={t(`common.weekdayName.${day}`)}
+                value={value}
+                onChange={(event) =>
+                  onDayResourceChange(day, event.target.value === '' ? '' : Number(event.target.value))
+                }
+              >
+                <option value="">{t('employees.form.dayNoResource')}</option>
+                {optionsForDay(day, value).map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {prefix === 'desk' ? (
+                <Button
+                  variant="white"
+                  icon="map-pin"
+                  onClick={() => setPlanoDay(day)}
+                  aria-label={t('employees.form.pickInPlan')}
+                >
+                  {t('employees.form.plan')}
+                </Button>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      {planoDay !== null ? (
+        <DeskPickerModal
+          date={repDateForWeekday(planoDay)}
+          onPick={(picked: PickedDesk) => onDayResourceChange(planoDay, picked.deskId)}
+          onClose={() => setPlanoDay(null)}
+        />
+      ) : null}
 
       {error ? (
         <p className="form-error" role="alert">
@@ -540,6 +595,17 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
   const spacesQuery = useParkingSpacesQuery({ page: 0, size: LOOKUP_SIZE, active: true });
   const desksQuery = useDesksQuery({ page: 0, size: LOOKUP_SIZE, active: true });
   const assignmentsQuery = useEmployeeFixedAssignmentsQuery(employee?.id ?? null);
+  // TODAS las asignaciones fijas → recursos ocupados por otros empleados por día.
+  const allAssignmentsQuery = useFixedAssignmentsQuery({ page: 0, size: 500 });
+  const allAssignments = allAssignmentsQuery.data?.content;
+  const occupiedParkingByDay = useMemo(
+    () => buildOccupiedByDay(allAssignments, 'PARKING', employee?.id ?? null),
+    [allAssignments, employee?.id],
+  );
+  const occupiedDeskByDay = useMemo(
+    () => buildOccupiedByDay(allAssignments, 'DESK', employee?.id ?? null),
+    [allAssignments, employee?.id],
+  );
 
   // Incluye los recursos ya precargados aunque estén inactivos (no vendrían en el
   // lookup de activos), para no perder su etiqueta en el selector.
@@ -557,6 +623,18 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
     }));
     return withPrefilledIds(base, prevDeskMap);
   }, [desksQuery.data, prevDeskMap]);
+
+  // Al fallar el guardado (error de recurso o de formulario) lleva la vista hasta
+  // el mensaje de error para que no pase desapercibido.
+  useEffect(() => {
+    if (errors.parking || errors.desk || errors.form) {
+      requestAnimationFrame(() => {
+        document
+          .querySelector('#employee-form .form-error')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [errors, activeTab]);
 
   const mutations = [createMutation, updateMutation, setAssignments, revokeAssignment];
   const isSaving = mutations.some((mutation) => mutation.isPending);
@@ -744,8 +822,19 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
   function handleSubmit(event: FormEvent): void {
     event.preventDefault();
     const validationErrors = validate();
+    // Conflicto de asignación fija (recurso ya de otro empleado ese día): mensaje
+    // detallado en cliente antes de intentar guardar.
+    const parkingConflict = conflictError(parkingMap, occupiedParkingByDay, spaceOptions, t);
+    const deskConflict = conflictError(deskMap, occupiedDeskByDay, deskOptions, t);
+    if (parkingConflict) validationErrors.parking = parkingConflict;
+    if (deskConflict) validationErrors.desk = deskConflict;
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      if (parkingConflict) {
+        setActiveTab('parking');
+      } else if (deskConflict) {
+        setActiveTab('desk');
+      }
       return;
     }
     void persist();
@@ -765,14 +854,16 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
     changeDays(prefix, [...WEEKDAYS]);
   }
 
-  function clearDay(prefix: ResourcePrefix, day: number): void {
+  // Fija (o quita, con '') el recurso de UN día concreto — editor por-día (rediseño).
+  function setDayResource(prefix: ResourcePrefix, day: number, resourceId: number | ''): void {
     const setter = prefix === 'parking' ? setParkingMap : setDeskMap;
     setter((current) => {
-      if (current[day] === undefined) {
-        return current;
-      }
       const next = { ...current };
-      delete next[day];
+      if (resourceId === '') {
+        delete next[day];
+      } else {
+        next[day] = resourceId;
+      }
       return next;
     });
   }
@@ -791,7 +882,7 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       <Button variant="white" onClick={onClose}>
         {t('employees.form.close')}
       </Button>
-      <Button variant="green" submit form="employee-form" icon="device-floppy" disabled={isSaving}>
+      <Button variant="green" submit form="employee-form" icon="device-floppy" loading={isSaving}>
         {t('employees.form.save')}
       </Button>
     </>
@@ -808,6 +899,7 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       title={t(isEdit ? 'employees.form.editTitle' : 'employees.form.createTitle')}
       icon="user"
       tone="green"
+      wide
       footer={footer}
     >
       <TabBar
@@ -835,9 +927,9 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
             active={activeParking}
             error={errors.parking}
             onActiveChange={setActiveParking}
-            onDaysChange={(days) => changeDays('parking', days)}
             onApplyAll={() => applyAll('parking')}
-            onClearDay={(day) => clearDay('parking', day)}
+            onDayResourceChange={(day, value) => setDayResource('parking', day, value)}
+            occupiedByDay={occupiedParkingByDay}
           />
         ) : null}
         {activeTab === 'desk' ? (
@@ -849,9 +941,9 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
             active={activeDesk}
             error={errors.desk}
             onActiveChange={setActiveDesk}
-            onDaysChange={(days) => changeDays('desk', days)}
             onApplyAll={() => applyAll('desk')}
-            onClearDay={(day) => clearDay('desk', day)}
+            onDayResourceChange={(day, value) => setDayResource('desk', day, value)}
+            occupiedByDay={occupiedDeskByDay}
           />
         ) : null}
         {activeTab === 'history' && employee ? (

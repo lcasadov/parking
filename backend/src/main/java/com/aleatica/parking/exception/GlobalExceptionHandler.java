@@ -78,6 +78,10 @@ public class GlobalExceptionHandler {
     private static final String CODE_RATE_LIMITED = "RATE_LIMIT_EXCEEDED";
     private static final String CODE_REQUEST_NOT_PENDING = "REQUEST_NOT_PENDING";
     private static final String CODE_RESEND_TOO_SOON = "RESEND_TOO_SOON";
+    private static final String CODE_RESOURCE_HAS_FUTURE = "RESOURCE_HAS_FUTURE_ASSIGNMENTS";
+    private static final String FIELD_FIXED_ASSIGNMENTS = "fixedAssignments";
+    private static final String FIELD_APPROVED_REQUESTS = "approvedRequests";
+    private static final String FIELD_VISITOR_RESERVATIONS = "visitorReservations";
     private static final String FIELD_FORMAT = "format";
     private static final String MSG_UNSUPPORTED_FORMAT =
             "Formato de exportacion no soportado; use csv o xlsx";
@@ -368,6 +372,27 @@ public class GlobalExceptionHandler {
         Map<String, String> fields = Map.of(ex.getField(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_CONFLICT, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce el bloqueo de desactivacion de un recurso con asignaciones vigentes o futuras a
+     * {@code 409} con el codigo {@code RESOURCE_HAS_FUTURE_ASSIGNMENTS} y el desglose por tipo
+     * (asignaciones fijas / solicitudes aprobadas / reservas de visitante) en {@code fields},
+     * para que el frontend avise indicando a quien/que afecta (change {@code admin-improvements},
+     * tarea 16).
+     *
+     * @param ex excepcion de bloqueo de desactivacion con el desglose de asignaciones
+     * @return {@link ApiError} con estado 409 y el conteo por tipo en {@code fields}
+     */
+    @ExceptionHandler(ResourceDeactivationBlockedException.class)
+    public ResponseEntity<ApiError> handleResourceDeactivationBlocked(
+            ResourceDeactivationBlockedException ex) {
+        Map<String, String> fields = Map.of(
+                FIELD_FIXED_ASSIGNMENTS, Long.toString(ex.getFixedAssignments()),
+                FIELD_APPROVED_REQUESTS, Long.toString(ex.getApprovedRequests()),
+                FIELD_VISITOR_RESERVATIONS, Long.toString(ex.getVisitorReservations()));
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_RESOURCE_HAS_FUTURE, ex.getMessage(), fields));
     }
 
     /**

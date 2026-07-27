@@ -68,10 +68,11 @@
   /* === Tipografia (GEIST Variable, auto-alojada vía @fontsource; sin CDN) ===
      · --font-sans   → cuerpo + UI + titulares (Geist, tracking negativo óptico)
      · --font-display→ titulares grandes (misma Geist)
-     · --font-mono   → numerales/KPI tabulares (Geist Mono) */
+     · --font-mono   → numerales/KPI tabulares (misma Geist, SIN ceros tachados;
+       la alineación la da font-variant-numeric: tabular-nums) */
   --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', 'Menlo', monospace;
+  --font-mono: var(--font-sans);
   /* Alias heredado: componentes que aún piden --font-serif reciben la display. */
   --font-serif: var(--font-display);
   /* Escala tipografica. */

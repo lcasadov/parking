@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { longDate } from '../../utils/calendar';
+import { RESOURCE_DESK } from './wizardTypes';
 import type { BookingOutcome } from './wizardTypes';
 
 interface StepResultProps {
@@ -38,12 +39,20 @@ export function StepResult({ outcomes, employeeName, isVisitor = false }: StepRe
 
       <ul className="rzw-result-list">
         {outcomes.map((outcome) => (
-          <li key={outcome.date} className={`rzw-result-item${outcome.ok ? ' is-ok' : ' is-fail'}`}>
+          <li
+            key={`${outcome.resourceType ?? ''}-${outcome.date}`}
+            className={`rzw-result-item${outcome.ok ? ' is-ok' : ' is-fail'}`}
+          >
             <i
               className={`ti ti-${outcome.ok ? 'check' : 'x'}`}
               aria-hidden="true"
             />
             <span className="mono">{longDate(outcome.date, i18n.language)}</span>
+            {outcome.resourceType ? (
+              <span className="rzw-result-type">
+                {t(outcome.resourceType === RESOURCE_DESK ? 'wizard.resource.desk' : 'wizard.resource.parking')}
+              </span>
+            ) : null}
             <span className="rzw-result-reason">
               {outcome.ok ? t('wizard.result.reasonOk') : t(outcome.reasonKey ?? 'wizard.result.reasonGeneric')}
             </span>

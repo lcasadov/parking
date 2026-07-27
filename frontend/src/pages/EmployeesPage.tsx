@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
-import { DayBadges } from '../components/DayBadges';
-import { DayResourceBadges } from '../components/DayResourceBadges';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Tooltip, TooltipProvider } from '../components/Tooltip';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { ExportMenu } from '../components/ExportMenu';
+import { Menu } from '../components/Menu';
 import { PageHeader } from '../components/PageHeader';
 import { ResetPasswordModal } from '../components/ResetPasswordModal';
 import { SearchBox } from '../components/SearchBox';
@@ -51,27 +52,78 @@ const EMPTY_MAP: DayResourceMap = {};
 //  · mismo recurso todos sus dias -> etiqueta (verde) + chips de dia (L-V).
 //  · recursos distintos por dia -> chips por dia con la etiqueta del recurso de
 //    ESE dia (p.ej. D-03 lunes, D-07 miercoles), respetando el dato real.
-function ResourceCell({
-  map,
-  labels,
-}: {
-  map: DayResourceMap;
-  labels: Map<number, string>;
-}) {
+// Celda de recurso fijo (plaza/puesto): RESUMEN compacto de una línea + tooltip con
+// el detalle por día (para que la fila del empleado no crezca en alto).
+function ResourceCell({ map, labels }: { map: DayResourceMap; labels: Map<number, string> }) {
+  const { t } = useTranslation();
   const resourceIds = distinctWeekResources(map);
   if (resourceIds.length === 0) {
     return <span className="text-muted">{NONE}</span>;
   }
-  if (resourceIds.length === 1) {
-    const resourceId = resourceIds[0];
-    return (
-      <div className="fixed-cell">
-        <span className="fixed-cell-label">{labels.get(resourceId) ?? `#${resourceId}`}</span>
-        <DayBadges days={assignedWeekDays(map)} />
-      </div>
-    );
-  }
-  return <DayResourceBadges map={map} labels={labels} />;
+  const labelFor = (id: number): string => labels.get(id) ?? `#${id}`;
+  const days = assignedWeekDays(map);
+  const summary =
+    resourceIds.length === 1
+      ? `${labelFor(resourceIds[0])} · ${days.map((d) => t(`common.weekdayChip.${d}`)).join(' ')}`
+      : resourceIds.map(labelFor).join(', ');
+  const full = (
+    <ul className="fixed-tip-list">
+      {days.map((d) => (
+        <li key={d}>
+          <span className="fixed-tip-day">{t(`common.weekdayName.${d}`)}</span>
+          <span>{labelFor(map[d] as number)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <TooltipProvider>
+      <Tooltip content={full}>
+        <button type="button" className="fixed-cell-summary">
+          {summary}
+        </button>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+// Diálogo de confirmación de BAJA (acción sensible). Extraído a módulo para no
+// cargar la complejidad cognitiva de la página (S3776); guarda el null aquí.
+function DeactivateConfirm({
+  target,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  target: Employee | null;
+  busy: boolean;
+  onConfirm: (employee: Employee) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ConfirmDialog
+      open={target !== null}
+      onOpenChange={(open) => {
+        if (!open) onCancel();
+      }}
+      tone="red"
+      icon="user-off"
+      title={t('employees.deactivateConfirm.title')}
+      description={
+        target
+          ? t('employees.deactivateConfirm.body', {
+              name: `${target.firstName} ${target.lastName}`.trim(),
+            })
+          : ''
+      }
+      confirmLabel={t('employees.actions.deactivate')}
+      busy={busy}
+      onConfirm={() => {
+        if (target) onConfirm(target);
+      }}
+    />
+  );
 }
 
 // Vista de gestion de empleados (ADMIN): tabla paginada + busqueda + acciones,
@@ -83,6 +135,9 @@ export function EmployeesPage() {
   const [formEmployee, setFormEmployee] = useState<Employee | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [resetEmployee, setResetEmployee] = useState<Employee | null>(null);
+  // Empleado pendiente de confirmar la BAJA (acción sensible). La reactivación no
+  // pide confirmación.
+  const [deactivateTarget, setDeactivateTarget] = useState<Employee | null>(null);
 
   const query = useEmployeesQuery({ page, size: PAGE_SIZE, q });
   const assignmentsQuery = useFixedAssignmentsQuery({ page: 0, size: LOOKUP_SIZE });
@@ -126,7 +181,7 @@ export function EmployeesPage() {
 
   function toggleActive(employee: Employee): void {
     if (employee.active) {
-      deactivateMutation.mutate(employee.id);
+      setDeactivateTarget(employee); // baja → confirmar primero
     } else {
       reactivateMutation.mutate(employee.id);
     }
@@ -171,13 +226,6 @@ export function EmployeesPage() {
         />
       </Toolbar>
 
-      {/* Nota-leyenda (mockup 03): explica el chip de dia y que el recurso puede
-          variar por dia. El chip de muestra es decorativo (aria-hidden). */}
-      <p className="table-note">
-        <span className="day-chip on table-note-swatch" aria-hidden="true" />
-        {t('employees.note')}
-      </p>
-
       {query.isLoading ? <TableSkeleton label={t('employees.loading')} columns={8} /> : null}
 
       {query.isError ? (
@@ -201,7 +249,7 @@ export function EmployeesPage() {
       ) : null}
 
       {ready && employees.length > 0 ? (
-        <div className="table-scroll table-cards-mobile">
+        <div className="table-scroll table-cards-mobile emp-table">
           <table className="table">
             <thead>
               <tr className="table-header">
@@ -266,19 +314,37 @@ export function EmployeesPage() {
                       >
                         {t('employees.actions.edit')}
                       </Button>
-                      <Button
-                        variant={employee.active ? 'red' : 'green'}
-                        onClick={() => toggleActive(employee)}
-                      >
-                        {t(
-                          employee.active
-                            ? 'employees.actions.deactivate'
-                            : 'employees.actions.reactivate',
-                        )}
-                      </Button>
-                      <Button variant="blue" icon="key" onClick={() => setResetEmployee(employee)}>
-                        {t('employees.actions.resetPassword')}
-                      </Button>
+                      <Menu
+                        ariaLabel={t('employees.actions.more')}
+                        trigger={
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label={t('employees.actions.more')}
+                          >
+                            <i className="ti ti-dots-vertical" aria-hidden="true" />
+                          </button>
+                        }
+                        items={[
+                          {
+                            key: 'toggle',
+                            label: t(
+                              employee.active
+                                ? 'employees.actions.deactivate'
+                                : 'employees.actions.reactivate',
+                            ),
+                            icon: employee.active ? 'user-off' : 'user-check',
+                            danger: employee.active,
+                            onSelect: () => toggleActive(employee),
+                          },
+                          {
+                            key: 'reset',
+                            label: t('employees.actions.resetPassword'),
+                            icon: 'key',
+                            onSelect: () => setResetEmployee(employee),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );
@@ -309,6 +375,16 @@ export function EmployeesPage() {
       {resetEmployee ? (
         <ResetPasswordModal employee={resetEmployee} onClose={() => setResetEmployee(null)} />
       ) : null}
+
+      <DeactivateConfirm
+        target={deactivateTarget}
+        busy={deactivateMutation.isPending}
+        onCancel={() => setDeactivateTarget(null)}
+        onConfirm={(employee) => {
+          deactivateMutation.mutate(employee.id);
+          setDeactivateTarget(null);
+        }}
+      />
     </section>
   );
 }

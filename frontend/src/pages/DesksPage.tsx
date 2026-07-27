@@ -1,3 +1,4 @@
+import { RESOURCE_ICON } from '../utils/resourceIcon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
@@ -11,6 +12,7 @@ import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
 import { emitApiErrorToast } from '../api/events';
+import { deactivationErrorKey } from '../utils/resourceDeactivation';
 import { useDesksQuery, useSetDeskActivation } from '../hooks/useDesks';
 import type { Desk } from '../types/desk';
 
@@ -35,7 +37,7 @@ function DeskStats() {
     <div className="mgmt-stats">
       <StatTile
         dot="var(--ink-faint)"
-        icon="armchair"
+        icon={RESOURCE_ICON.DESK}
         label={t('desks.stats.total')}
         value={total}
         unit={unit}
@@ -116,7 +118,7 @@ export function DesksPage({ embedded = false }: { embedded?: boolean } = {}) {
     // actualización (PUT) NO modifica `active` (bug #83).
     activationMutation.mutate(
       { id: desk.id, active: !desk.active },
-      { onError: () => emitApiErrorToast('desks.errors.toggle') },
+      { onError: (error) => emitApiErrorToast(deactivationErrorKey(error, 'desks')) },
     );
   }
 
@@ -188,7 +190,7 @@ export function DesksPage({ embedded = false }: { embedded?: boolean } = {}) {
 
       {ready && visibleDesks.length === 0 ? (
         <TableEmpty
-          icon="armchair"
+          icon={RESOURCE_ICON.DESK}
           message={t('desks.empty')}
           action={
             <Button variant="green" icon="plus" onClick={openCreate}>

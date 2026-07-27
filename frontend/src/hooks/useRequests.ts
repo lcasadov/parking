@@ -8,6 +8,8 @@ import {
 import {
   adminAssignRequest,
   adminCancelRequest,
+  adminReassignRequest,
+  adminSwapRequests,
   approveRequest,
   cancelRequest,
   createRequest,
@@ -24,10 +26,13 @@ import type {
   PageRequest,
   Request,
   RequestAdminAssignRequest,
+  RequestAdminReassignRequest,
+  RequestAdminSwapRequest,
   RequestApproveRequest,
   RequestCreateRequest,
   RequestListParams,
   RequestRejectRequest,
+  RequestSwapResponse,
   ResourceType,
   SuggestedResource,
 } from '../types/request';
@@ -165,6 +170,36 @@ export function useAdminCancelRequest(): UseMutationResult<Request, unknown, Adm
   const invalidate = useInvalidateRequests();
   return useMutation({
     mutationFn: ({ id, reason }: AdminCancelRequestVars) => adminCancelRequest(id, reason),
+    onSuccess: invalidate,
+  });
+}
+
+// Reasignación administrativa del recurso de una solicitud APPROVED futura a otro
+// recurso libre (capability admin-resource-reassignment). Invalida solicitudes y
+// calendario para refrescar la rejilla de Ocupación con el nuevo recurso.
+export function useAdminReassignRequest(): UseMutationResult<
+  Request,
+  unknown,
+  RequestAdminReassignRequest
+> {
+  const invalidate = useInvalidateRequests();
+  return useMutation({
+    mutationFn: (body: RequestAdminReassignRequest) => adminReassignRequest(body),
+    onSuccess: invalidate,
+  });
+}
+
+// Intercambio (swap) administrativo de recursos entre dos solicitudes APPROVED de la
+// misma fecha y tipo (capability admin-resource-reassignment). Invalida ambos dominios
+// para reflejar las dos filas intercambiadas en la rejilla de Ocupación.
+export function useAdminSwapRequests(): UseMutationResult<
+  RequestSwapResponse,
+  unknown,
+  RequestAdminSwapRequest
+> {
+  const invalidate = useInvalidateRequests();
+  return useMutation({
+    mutationFn: (body: RequestAdminSwapRequest) => adminSwapRequests(body),
     onSuccess: invalidate,
   });
 }

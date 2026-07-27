@@ -15,6 +15,12 @@ import {
   type AdminCancelRequestPrefill,
 } from '../components/AdminCancelRequestModal';
 import { OccupancyAssignModal } from '../components/OccupancyAssignModal';
+import {
+  RequestManageModal,
+  type RequestManagePrefill,
+  type ReassignTarget,
+  type SwapTarget,
+} from '../components/RequestManageModal';
 import { ResourceModeSwitch } from '../components/ResourceModeSwitch';
 import { emitApiErrorToast } from '../api/events';
 import { useAdminCalendarQuery } from '../hooks/useCalendar';
@@ -149,6 +155,46 @@ interface AssignTarget {
   date: string;
 }
 
+// Candidatos de reasignación (recursos libres) e intercambio (otras reservas
+// APPROVED) de una fecha, derivados de la propia rejilla para no pedir datos extra.
+interface ManageTargets {
+  reassign: ReassignTarget[];
+  swap: SwapTarget[];
+}
+
+function cellForDate(row: CalendarRow, date: string): CalendarCell | undefined {
+  return row.cells.find((cell) => cell.date === date);
+}
+
+function deriveManageTargets(
+  rows: CalendarRow[],
+  date: string,
+  excludeRequestId: number,
+): ManageTargets {
+  const reassign: ReassignTarget[] = [];
+  const swap: SwapTarget[] = [];
+  for (const row of rows) {
+    const cell = cellForDate(row, date);
+    if (!cell) {
+      continue;
+    }
+    if (cell.state === 'FREE') {
+      reassign.push({ resourceId: row.parkingSpaceId, label: row.label });
+    } else if (
+      cell.state === 'REQUEST_APPROVED' &&
+      typeof cell.requestId === 'number' &&
+      cell.requestId !== excludeRequestId
+    ) {
+      swap.push({
+        requestId: cell.requestId,
+        resourceLabel: row.label,
+        employeeName: cell.employeeName ?? '',
+      });
+    }
+  }
+  return { reassign, swap };
+}
+
 // Vista de KPIs del modo activo (referidos a hoy). La columna es HOY si la semana
 // mostrada la contiene; si el admin navego a otra semana, se cae al primer dia
 // visible para que los numeros sigan siendo reales (la etiqueta pasa de "hoy" a la
@@ -190,6 +236,7 @@ export function AdminCalendarPage() {
   const [assignTarget, setAssignTarget] = useState<AssignTarget | null>(null);
   const [releasePrefill, setReleasePrefill] = useState<AdministrativeReleasePrefill | null>(null);
   const [cancelPrefill, setCancelPrefill] = useState<AdminCancelRequestPrefill | null>(null);
+  const [managePrefill, setManagePrefill] = useState<RequestManagePrefill | null>(null);
 
   const query = useAdminCalendarQuery(weekStart, resourceType);
   const weekendReservable = useWeekendReservableQuery().data ?? false;
@@ -223,6 +270,13 @@ export function AdminCalendarPage() {
   // filas ya cargadas, sin fetch). El filtrado es real: oculta recursos y atenúa
   // celdas que no cumplen (más abajo).
   const filteredRows = useMemo(() => filterCalendarRows(rows, quickFilter), [rows, quickFilter]);
+  const manageTargets = useMemo<ManageTargets | null>(
+    () =>
+      managePrefill
+        ? deriveManageTargets(rows, managePrefill.date, managePrefill.requestId)
+        : null,
+    [rows, managePrefill],
+  );
   const filterCounts = useMemo(() => countRowsByFilter(rows), [rows]);
 
   const rangeLabel =
@@ -282,11 +336,14 @@ export function AdminCalendarPage() {
         resourceType,
       });
     } else if (kind === 'CANCEL_REQUEST' && typeof cell.requestId === 'number') {
-      setCancelPrefill({
+      // Celda de reserva APPROVED → modal de gestión (reasignar / intercambiar /
+      // liberar), en lugar de saltar directo a la cancelación.
+      setManagePrefill({
         requestId: cell.requestId,
         employeeName: cell.employeeName ?? '',
         resourceLabel: row.label,
-        releaseDate: cell.date,
+        date: cell.date,
+        resourceType,
       });
     }
   }
@@ -317,6 +374,28 @@ export function AdminCalendarPage() {
     setCancelPrefill(null);
     refresh();
     emitApiErrorToast('requests.adminCancel.cancelled');
+  }
+
+  // Éxito de reasignación/intercambio desde el modal de gestión.
+  function handleManaged(messageKey: string): void {
+    setManagePrefill(null);
+    refresh();
+    toast.success(messageKey);
+  }
+
+  // "Liberar" desde el modal de gestión: cierra gestión y abre el modal de
+  // cancelación con motivo (reutiliza el flujo existente) sobre la misma reserva.
+  function handleManageCancel(): void {
+    if (!managePrefill) {
+      return;
+    }
+    setCancelPrefill({
+      requestId: managePrefill.requestId,
+      employeeName: managePrefill.employeeName,
+      resourceLabel: managePrefill.resourceLabel,
+      releaseDate: managePrefill.date,
+    });
+    setManagePrefill(null);
   }
 
   const showGrid = !query.isLoading && !query.isError;
@@ -540,6 +619,17 @@ export function AdminCalendarPage() {
           prefill={releasePrefill}
           onClose={() => setReleasePrefill(null)}
           onCreated={handleReleased}
+        />
+      ) : null}
+
+      {managePrefill && manageTargets ? (
+        <RequestManageModal
+          prefill={managePrefill}
+          reassignTargets={manageTargets.reassign}
+          swapTargets={manageTargets.swap}
+          onDone={handleManaged}
+          onRequestCancel={handleManageCancel}
+          onClose={() => setManagePrefill(null)}
         />
       ) : null}
 

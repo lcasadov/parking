@@ -148,6 +148,20 @@ public interface RequestJpaRepository extends JpaRepository<RequestEntity, Long>
             Long resourceId, ResourceType resourceType, LocalDate requestedDate, RequestStatus status);
 
     /**
+     * Cuenta las solicitudes de un recurso en un estado para HOY o fechas futuras (soporte del
+     * bloqueo de desactivacion: un recurso con reservas aprobadas futuras no debe desactivarse
+     * silenciosamente; change {@code admin-improvements}, tarea 16).
+     *
+     * @param resourceId   recurso a comprobar
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param status       estado a contar (p. ej. {@code APPROVED})
+     * @param from         fecha minima inclusive (hoy)
+     * @return numero de solicitudes de ese recurso/estado con fecha &gt;= {@code from}
+     */
+    long countByResourceIdAndResourceTypeAndStatusAndRequestedDateGreaterThanEqual(
+            Long resourceId, ResourceType resourceType, RequestStatus status, LocalDate from);
+
+    /**
      * Solicitudes en un estado cuyo {@code requested_date} cae dentro del intervalo
      * (extremos inclusive).
      *

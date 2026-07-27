@@ -4,30 +4,41 @@ import { LocationDesk } from './LocationDesk';
 import { LocationParking } from './LocationParking';
 import { longDate } from '../../utils/calendar';
 import { PARKING_AUTO, RESOURCE_DESK } from './wizardTypes';
-import type { DayChoice, ParkingChoice, WizardState } from './wizardTypes';
+import type { BeneficiaryType, DayChoice, ParkingChoice, TypeLocation } from './wizardTypes';
+import type { ResourceType } from '../../types/request';
 
 interface StepLocationPerDayProps {
-  state: WizardState;
+  type: ResourceType;
+  location: TypeLocation;
   dates: string[];
-  patch: (partial: Partial<WizardState>) => void;
+  beneficiaryType: BeneficiaryType;
+  employeeId: number | null;
+  patchLocation: (partial: Partial<TypeLocation>) => void;
 }
 
 // Modo "Distinta por día": una fila por fecha con su elección, y debajo el editor
 // (plano o rejilla de plazas) de la fecha ACTIVA, filtrado por la disponibilidad de
 // ESE día. Atajos: aplicar la elección activa a todos los días y (plaza) auto en
 // los días aún sin asignar.
-export function StepLocationPerDay({ state, dates, patch }: StepLocationPerDayProps) {
+export function StepLocationPerDay({
+  type,
+  location,
+  dates,
+  beneficiaryType,
+  employeeId,
+  patchLocation,
+}: StepLocationPerDayProps) {
   const { t, i18n } = useTranslation();
-  const isDesk = state.resourceType === RESOURCE_DESK;
+  const isDesk = type === RESOURCE_DESK;
   const [rawActive, setActiveDate] = useState<string>(
-    () => dates.find((date) => !state.perDay[date]) ?? dates[0],
+    () => dates.find((date) => !location.perDay[date]) ?? dates[0],
   );
   // Si el usuario cambió las fechas atrás, la activa podría ya no existir: cae a la
   // primera fecha vigente para no editar un día fuera de la selección.
   const activeDate = dates.includes(rawActive) ? rawActive : dates[0];
 
   function setDayChoice(date: string, choice: DayChoice): void {
-    patch({ perDay: { ...state.perDay, [date]: choice } });
+    patchLocation({ perDay: { ...location.perDay, [date]: choice } });
   }
 
   function onDeskChange(deskId: number, label: string): void {
@@ -45,7 +56,7 @@ export function StepLocationPerDay({ state, dates, patch }: StepLocationPerDayPr
 
   // Copia la elección de la fecha activa a todas las fechas.
   function applyToAll(): void {
-    const choice = state.perDay[activeDate];
+    const choice = location.perDay[activeDate];
     if (!choice) {
       return;
     }
@@ -53,22 +64,22 @@ export function StepLocationPerDay({ state, dates, patch }: StepLocationPerDayPr
     dates.forEach((date) => {
       next[date] = choice;
     });
-    patch({ perDay: next });
+    patchLocation({ perDay: next });
   }
 
   // Rellena con auto-asignación los días aún sin elección (solo plaza).
   function autoEmpties(): void {
-    const next: Record<string, DayChoice> = { ...state.perDay };
+    const next: Record<string, DayChoice> = { ...location.perDay };
     dates.forEach((date) => {
       if (!next[date]) {
         next[date] = { resourceId: null, label: null, auto: true };
       }
     });
-    patch({ perDay: next });
+    patchLocation({ perDay: next });
   }
 
   function choiceText(date: string): { label: string; tone: string } {
-    const choice = state.perDay[date];
+    const choice = location.perDay[date];
     if (!choice) {
       return { label: t('wizard.perday.unset'), tone: ' is-unset' };
     }
@@ -78,11 +89,11 @@ export function StepLocationPerDay({ state, dates, patch }: StepLocationPerDayPr
     return { label: choice.label ?? String(choice.resourceId), tone: '' };
   }
 
-  const activeChoiceSet = Boolean(state.perDay[activeDate]);
-  const deskValue = state.perDay[activeDate]?.resourceId ?? null;
-  const parkingValue: ParkingChoice | null = state.perDay[activeDate]?.auto
+  const activeChoiceSet = Boolean(location.perDay[activeDate]);
+  const deskValue = location.perDay[activeDate]?.resourceId ?? null;
+  const parkingValue: ParkingChoice | null = location.perDay[activeDate]?.auto
     ? PARKING_AUTO
-    : (state.perDay[activeDate]?.resourceId ?? null);
+    : (location.perDay[activeDate]?.resourceId ?? null);
 
   return (
     <div className="rzw-perday">
@@ -143,8 +154,8 @@ export function StepLocationPerDay({ state, dates, patch }: StepLocationPerDayPr
         ) : (
           <LocationParking
             dates={[activeDate]}
-            employeeId={state.employeeId}
-            allowAuto={state.beneficiaryType === 'EMPLOYEE'}
+            employeeId={employeeId}
+            allowAuto={beneficiaryType === 'EMPLOYEE'}
             choice={parkingValue}
             onChange={onParkingChange}
           />

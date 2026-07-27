@@ -11,6 +11,8 @@ import {
   useSetFixedAssignments,
 } from '../hooks/useFixedAssignments';
 import { useAdminAssignRequest } from '../hooks/useRequests';
+import { useVisitorsQuery } from '../hooks/useVisitors';
+import { useCreateVisitorReservation } from '../hooks/useVisitorReservations';
 import { getEmployeeFixedAssignments } from '../api/fixedAssignmentsApi';
 import { mergeFixedAssignmentDays } from '../utils/fixedAssignments';
 import { isoWeekday, longDate } from '../utils/calendar';
@@ -20,6 +22,10 @@ import type { ResourceType } from '../types/request';
 // Modo de asignacion inline desde una celda libre de la rejilla de Ocupacion:
 // puntual (una fecha concreta) o fija (todos los <dia> de la semana, indefinido).
 type AssignMode = 'PUNCTUAL' | 'FIXED';
+// Beneficiario de la asignacion: un empleado (con modo puntual/fijo) o un visitante
+// externo (siempre puntual: reserva de visitante para esa fecha).
+type Beneficiary = 'EMPLOYEE' | 'VISITOR';
+const VISITOR_LOOKUP_SIZE = 100;
 
 interface OccupancyAssignModalProps {
   // resource_id generico del recurso (plaza o puesto) de la fila de la celda.
@@ -71,7 +77,9 @@ export function OccupancyAssignModal({
 }: OccupancyAssignModalProps) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  const [beneficiary, setBeneficiary] = useState<Beneficiary>('EMPLOYEE');
   const [employeeId, setEmployeeId] = useState<number | null>(null);
+  const [visitorId, setVisitorId] = useState<number | null>(null);
   const [mode, setMode] = useState<AssignMode>('PUNCTUAL');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -82,8 +90,14 @@ export function OccupancyAssignModal({
     value: String(employee.id),
     label: employee.fullName,
   }));
+  const visitorsQuery = useVisitorsQuery({ page: 0, size: VISITOR_LOOKUP_SIZE });
+  const visitorOptions: SelectOption[] = (visitorsQuery.data?.content ?? []).map((visitor) => ({
+    value: String(visitor.id),
+    label: `${visitor.firstName} ${visitor.lastName}`,
+  }));
   const assignMutation = useAdminAssignRequest();
   const setFixedMutation = useSetFixedAssignments();
+  const visitorReservationMutation = useCreateVisitorReservation();
 
   const weekday = isoWeekday(date);
   const weekdayName = new Intl.DateTimeFormat(i18n.language, { weekday: 'long' }).format(
@@ -118,19 +132,36 @@ export function OccupancyAssignModal({
     });
   }
 
+  // Reserva de VISITANTE del recurso para la fecha (siempre puntual).
+  async function submitVisitor(targetVisitorId: number): Promise<void> {
+    await visitorReservationMutation.mutateAsync({
+      visitorId: targetVisitorId,
+      resourceType,
+      resourceId,
+      reservationDate: date,
+    });
+  }
+
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (employeeId === null) {
+    if (beneficiary === 'VISITOR') {
+      if (visitorId === null) {
+        setError(t('occupancy.assign.requiredVisitor'));
+        return;
+      }
+    } else if (employeeId === null) {
       setError(t('occupancy.assign.requiredEmployee'));
       return;
     }
     setError(null);
     setPending(true);
     try {
-      if (mode === 'FIXED') {
-        await submitFixed(employeeId);
+      if (beneficiary === 'VISITOR') {
+        await submitVisitor(visitorId as number);
+      } else if (mode === 'FIXED') {
+        await submitFixed(employeeId as number);
       } else {
-        await submitPunctual(employeeId);
+        await submitPunctual(employeeId as number);
       }
       onAssigned();
     } catch (mutationError) {
@@ -176,38 +207,73 @@ export function OccupancyAssignModal({
           </div>
         </dl>
 
-        <SelectField
-          label={t('occupancy.assign.employee')}
-          value={employeeId !== null ? String(employeeId) : ''}
-          onValueChange={(value) => setEmployeeId(value === '' ? null : Number(value))}
-          options={employeeOptions}
-          placeholder={t('occupancy.assign.selectEmployee')}
-        />
-
-        <span className="field-label">{t('occupancy.assign.modeLabel')}</span>
-        <div className="segmented" role="group" aria-label={t('occupancy.assign.modeLabel')}>
+        <span className="field-label">{t('occupancy.assign.beneficiary.label')}</span>
+        <div className="segmented" role="group" aria-label={t('occupancy.assign.beneficiary.label')}>
           <button
             type="button"
-            className={mode === 'PUNCTUAL' ? 'active' : ''}
-            aria-pressed={mode === 'PUNCTUAL'}
-            onClick={() => setMode('PUNCTUAL')}
+            className={beneficiary === 'EMPLOYEE' ? 'active' : ''}
+            aria-pressed={beneficiary === 'EMPLOYEE'}
+            onClick={() => setBeneficiary('EMPLOYEE')}
           >
-            {t('occupancy.assign.mode.punctual')}
+            {t('occupancy.assign.beneficiary.employee')}
           </button>
           <button
             type="button"
-            className={mode === 'FIXED' ? 'active' : ''}
-            aria-pressed={mode === 'FIXED'}
-            onClick={() => setMode('FIXED')}
+            className={beneficiary === 'VISITOR' ? 'active' : ''}
+            aria-pressed={beneficiary === 'VISITOR'}
+            onClick={() => setBeneficiary('VISITOR')}
           >
-            {t('occupancy.assign.mode.fixed')}
+            {t('occupancy.assign.beneficiary.visitor')}
           </button>
         </div>
-        <p className="hint">
-          {mode === 'FIXED'
-            ? t('occupancy.assign.fixedHint', { weekday: weekdayName })
-            : t('occupancy.assign.punctualHint')}
-        </p>
+
+        {beneficiary === 'EMPLOYEE' ? (
+          <>
+            <SelectField
+              label={t('occupancy.assign.employee')}
+              value={employeeId !== null ? String(employeeId) : ''}
+              onValueChange={(value) => setEmployeeId(value === '' ? null : Number(value))}
+              options={employeeOptions}
+              placeholder={t('occupancy.assign.selectEmployee')}
+            />
+
+            <span className="field-label">{t('occupancy.assign.modeLabel')}</span>
+            <div className="segmented" role="group" aria-label={t('occupancy.assign.modeLabel')}>
+              <button
+                type="button"
+                className={mode === 'PUNCTUAL' ? 'active' : ''}
+                aria-pressed={mode === 'PUNCTUAL'}
+                onClick={() => setMode('PUNCTUAL')}
+              >
+                {t('occupancy.assign.mode.punctual')}
+              </button>
+              <button
+                type="button"
+                className={mode === 'FIXED' ? 'active' : ''}
+                aria-pressed={mode === 'FIXED'}
+                onClick={() => setMode('FIXED')}
+              >
+                {t('occupancy.assign.mode.fixed')}
+              </button>
+            </div>
+            <p className="hint">
+              {mode === 'FIXED'
+                ? t('occupancy.assign.fixedHint', { weekday: weekdayName })
+                : t('occupancy.assign.punctualHint')}
+            </p>
+          </>
+        ) : (
+          <>
+            <SelectField
+              label={t('occupancy.assign.visitor')}
+              value={visitorId !== null ? String(visitorId) : ''}
+              onValueChange={(value) => setVisitorId(value === '' ? null : Number(value))}
+              options={visitorOptions}
+              placeholder={t('occupancy.assign.selectVisitor')}
+            />
+            <p className="hint">{t('occupancy.assign.visitorHint')}</p>
+          </>
+        )}
 
         {error ? (
           <p className="form-error" role="alert">

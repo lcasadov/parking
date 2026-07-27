@@ -1,3 +1,4 @@
+import { RESOURCE_ICON } from '../utils/resourceIcon';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
@@ -150,7 +151,7 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
         }
       }}
       title={t(isEdit ? 'desks.form.editTitle' : 'desks.form.createTitle')}
-      icon="armchair"
+      icon={RESOURCE_ICON.DESK}
       tone="green"
       narrow
       footer={footer}

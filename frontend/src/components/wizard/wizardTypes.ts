@@ -26,23 +26,46 @@ export interface DayChoice {
   auto: boolean;
 }
 
-// Índice de cada paso del asistente (modo admin, con paso de empleado).
-export const STEP_RESOURCE = 0;
-export const STEP_DATES = 1;
-export const STEP_EMPLOYEE = 2;
-export const STEP_LOCATION = 3;
-export const STEP_SUMMARY = 4;
-
-// Estado completo del asistente. `dates` es la lista canónica y ordenada de
-// fechas ISO (YYYY-MM-DD) derivada del modo activo; el resto de campos son la
-// materia prima de cada modo para poder reconstruir la selección al volver atrás.
 // Beneficiario de la reserva: un empleado interno o un visitante externo. El
 // visitante reserva por su propio endpoint (/visitor-reservations) y NO recibe email;
 // no tiene categoría, así que no hay auto-asignación por planta.
 export type BeneficiaryType = 'EMPLOYEE' | 'VISITOR';
 
+// Estado de ubicación de UN tipo de recurso (plaza o puesto). Con varios tipos
+// seleccionados, el asistente mantiene un slice por tipo (change admin-improvements,
+// tarea 3: reservar plaza Y puesto en el mismo alta con un paso de ubicación por tipo).
+export interface TypeLocation {
+  // Modo de asignación de ubicación (relevante con varias fechas).
+  locationMode: LocationMode;
+  // --- Modo ALL (misma ubicación para todos los días) ---
+  deskId: number | null;
+  parkingChoice: ParkingChoice | null;
+  // Etiqueta humana del recurso elegido (p. ej. "D-08"), para el resumen. null en
+  // auto-asignación de plaza (aún sin recurso concreto).
+  chosenLabel: string | null;
+  // --- Modo PER_DAY (una elección por día) ---
+  // Mapa fecha ISO → elección de ese día. Ausencia de clave = día sin asignar.
+  perDay: Record<string, DayChoice>;
+}
+
+// Slice de ubicación vacío (estado inicial de cada tipo).
+export function emptyTypeLocation(): TypeLocation {
+  return { locationMode: 'ALL', deskId: null, parkingChoice: null, chosenLabel: null, perDay: {} };
+}
+
+export const RESOURCE_PARKING: ResourceType = 'PARKING';
+export const RESOURCE_DESK: ResourceType = 'DESK';
+
+// Orden canónico de los tipos en el asistente: primero Plaza, luego Puesto. Fija el
+// orden de los pasos de ubicación cuando se piden ambos (tarea 3).
+export const ORDERED_RESOURCE_TYPES: ResourceType[] = [RESOURCE_PARKING, RESOURCE_DESK];
+
+// Estado completo del asistente. `dates` es la lista canónica y ordenada de
+// fechas ISO derivada del modo activo; el resto de campos son la materia prima de
+// cada modo para poder reconstruir la selección al volver atrás.
 export interface WizardState {
-  resourceType: ResourceType | null;
+  // Tipos de recurso a reservar (uno o ambos), en orden canónico.
+  resourceTypes: ResourceType[];
   dateMode: DateMode;
   // SINGLE
   singleDate: string;
@@ -55,24 +78,45 @@ export interface WizardState {
   beneficiaryType: BeneficiaryType;
   employeeId: number | null;
   visitorId: number | null;
-  // Modo de asignación de ubicación (relevante con varias fechas).
-  locationMode: LocationMode;
-  // --- Modo ALL (misma ubicación para todos los días) ---
-  // Ubicación: puesto elegido (deskId) o plaza elegida / auto.
-  deskId: number | null;
-  parkingChoice: ParkingChoice | null;
-  // Etiqueta humana del recurso elegido (p. ej. "D-08"), para el resumen. null en
-  // auto-asignación de plaza (aún sin recurso concreto).
-  chosenLabel: string | null;
-  // --- Modo PER_DAY (una elección por día) ---
-  // Mapa fecha ISO → elección de ese día. Ausencia de clave = día sin asignar.
-  perDay: Record<string, DayChoice>;
+  // Ubicación por tipo de recurso (ambas claves siempre presentes; solo se usan las
+  // de los tipos seleccionados).
+  locations: Record<ResourceType, TypeLocation>;
 }
 
-// Resultado por fecha de la confirmación (loop de POST /requests/admin).
+// Tipo de paso del asistente. Los pasos de ubicación son dinámicos: uno por cada
+// tipo de recurso seleccionado (tarea 3).
+export type StepKind = 'RESOURCE' | 'DATES' | 'EMPLOYEE' | 'LOCATION' | 'SUMMARY';
+
+// Descriptor de un paso: su tipo y, para los pasos de ubicación, el recurso al que
+// aplica (Plaza / Puesto).
+export interface StepDescriptor {
+  kind: StepKind;
+  type?: ResourceType;
+}
+
+// Construye la secuencia de pasos según los tipos seleccionados: fijos (recurso,
+// fechas, beneficiario), luego un paso de ubicación por tipo (en orden canónico), y
+// el resumen al final.
+export function buildSteps(resourceTypes: ResourceType[]): StepDescriptor[] {
+  const steps: StepDescriptor[] = [
+    { kind: 'RESOURCE' },
+    { kind: 'DATES' },
+    { kind: 'EMPLOYEE' },
+  ];
+  for (const type of resourceTypes) {
+    steps.push({ kind: 'LOCATION', type });
+  }
+  steps.push({ kind: 'SUMMARY' });
+  return steps;
+}
+
+// Resultado por fecha de la confirmación (loop de POST /requests/admin). Con varios
+// tipos, cada resultado lleva su tipo para distinguir plaza de puesto en la misma fecha.
 export interface BookingOutcome {
   date: string;
   ok: boolean;
+  // Tipo de recurso al que corresponde el resultado (para agrupar cuando se piden ambos).
+  resourceType?: ResourceType;
   // Clave i18n del motivo del fallo (duplicada / sin disponibilidad / genérico).
   reasonKey?: string;
 }
@@ -83,6 +127,3 @@ export interface EligibleResource {
   resourceId: number;
   label: string;
 }
-
-export const RESOURCE_PARKING: ResourceType = 'PARKING';
-export const RESOURCE_DESK: ResourceType = 'DESK';

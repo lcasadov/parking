@@ -20,22 +20,34 @@ const MODE_ICON: Record<ApprovalMode, string> = {
   AUTOMATIC: 'bolt',
 };
 
-// Tesela explicativa de un modo de aprobación (presentacional): icono + nombre
-// corto + explicación; resalta el modo actualmente seleccionado con la insignia
-// «Modo actual». Refleja el valor elegido; el control real es el <select>.
-function ModeTile({ mode, active }: { mode: ApprovalMode; active: boolean }) {
+// Tesela de un modo de aprobación: ahora es SELECCIONABLE (clic elige el modo).
+// Muestra un check cuando está elegida; sin selector aparte.
+function ModeTile({
+  mode,
+  active,
+  onSelect,
+}: {
+  mode: ApprovalMode;
+  active: boolean;
+  onSelect: () => void;
+}) {
   const { t } = useTranslation();
   return (
-    <div className={`settings-mode${active ? ' is-active' : ''}`}>
+    <button
+      type="button"
+      className={`settings-mode${active ? ' is-active' : ''}`}
+      aria-pressed={active}
+      onClick={onSelect}
+    >
       <div className="settings-mode-head">
         <i className={`ti ti-${MODE_ICON[mode]}`} aria-hidden="true" />
         <span className="settings-mode-name">{t(`settings.approvalMode.short.${mode}`)}</span>
-        {active ? (
-          <span className="settings-mode-badge">{t('settings.approvalMode.activeBadge')}</span>
-        ) : null}
+        <span className="settings-mode-check" aria-hidden="true">
+          <i className={`ti ti-${active ? 'circle-check' : 'circle'}`} />
+        </span>
       </div>
       <p className="settings-mode-hint">{t(`settings.approvalMode.hints.${mode}`)}</p>
-    </div>
+    </button>
   );
 }
 
@@ -44,10 +56,15 @@ function ModeTile({ mode, active }: { mode: ApprovalMode; active: boolean }) {
 function WeekendReservableCard({ enabled }: { enabled: boolean }) {
   const { t } = useTranslation();
   const mutation = useUpdateWeekendReservable();
+  // Draft local: NO se autoguarda; se persiste con el botón Guardar.
+  const [draft, setDraft] = useState<boolean | null>(null);
+  const value = draft ?? enabled;
+  const isDirty = value !== enabled;
 
-  async function toggle(next: boolean): Promise<void> {
+  async function save(): Promise<void> {
     try {
-      await mutation.mutateAsync(next);
+      await mutation.mutateAsync(value);
+      setDraft(null);
       emitApiErrorToast('settings.saved', 'success');
     } catch {
       emitApiErrorToast('settings.saveError');
@@ -65,16 +82,29 @@ function WeekendReservableCard({ enabled }: { enabled: boolean }) {
           <p className="settings-hero-desc">{t('settings.weekend.description')}</p>
         </div>
       </div>
-      <label className="checkbox-field">
-        <input
-          type="checkbox"
-          checked={enabled}
-          disabled={mutation.isPending}
-          onChange={(event) => void toggle(event.target.checked)}
-        />
+      <div className="switch-field">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={value}
+          className={`switch${value ? ' is-on' : ''}`}
+          onClick={() => setDraft(!value)}
+        >
+          <span className="switch-knob" />
+        </button>
         <span>{t('settings.weekend.label')}</span>
-      </label>
+      </div>
       <p className="hint">{t('settings.weekend.hint')}</p>
+      <div className="settings-actions">
+        <Button
+          variant="green"
+          icon="check"
+          disabled={!isDirty || mutation.isPending}
+          onClick={() => void save()}
+        >
+          {t('settings.save')}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -83,18 +113,27 @@ function WeekendReservableCard({ enabled }: { enabled: boolean }) {
 function ParkingAddressCard({ current }: { current: string }) {
   const { t } = useTranslation();
   const mutation = useUpdateParkingAddress();
+  // El botón "Ir al parking" se activa con un toggle; solo entonces aparece el
+  // campo de dirección. Draft local (no autoguarda): se persiste con Guardar.
+  const currentActive = current.trim() !== '';
+  const [active, setActive] = useState<boolean | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
+  const isActive = active ?? currentActive;
   const value = draft ?? current;
-  const isDirty = value.trim() !== current.trim();
+  const trimmed = value.trim();
+  const isDirty = isActive !== currentActive || (isActive && trimmed !== current.trim());
+  // Con el botón activo hay que dar una dirección para poder guardar.
+  const canSave = isDirty && (!isActive || trimmed !== '');
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (!isDirty) {
+    if (!canSave) {
       return;
     }
     try {
-      await mutation.mutateAsync(value.trim() === '' ? null : value.trim());
+      await mutation.mutateAsync(isActive ? trimmed : null);
       setDraft(null);
+      setActive(null);
       emitApiErrorToast('settings.saved', 'success');
     } catch {
       emitApiErrorToast('settings.saveError');
@@ -112,23 +151,36 @@ function ParkingAddressCard({ current }: { current: string }) {
           <p className="settings-hero-desc">{t('settings.parkingAddress.description')}</p>
         </div>
       </div>
-      <div className="settings-control">
-        <label className="field-label" htmlFor="parking-address">
-          {t('settings.parkingAddress.label')}
-        </label>
-        <input
-          id="parking-address"
-          type="text"
-          className="field-input"
-          maxLength={500}
-          placeholder={t('settings.parkingAddress.placeholder')}
-          value={value}
-          onChange={(event) => setDraft(event.target.value)}
-        />
-        <p className="hint">{t('settings.parkingAddress.hint')}</p>
+      <div className="switch-field">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isActive}
+          className={`switch${isActive ? ' is-on' : ''}`}
+          onClick={() => setActive(!isActive)}
+        >
+          <span className="switch-knob" />
+        </button>
+        <span>{t('settings.parkingAddress.enableLabel')}</span>
       </div>
+      {isActive ? (
+        <div className="settings-control">
+          <label className="field-label" htmlFor="parking-address">
+            {t('settings.parkingAddress.label')}
+          </label>
+          <input
+            id="parking-address"
+            type="text"
+            className="field-input"
+            maxLength={500}
+            placeholder={t('settings.parkingAddress.placeholder')}
+            value={value}
+            onChange={(event) => setDraft(event.target.value)}
+          />
+        </div>
+      ) : null}
       <div className="settings-actions">
-        <Button variant="green" icon="check" submit disabled={!isDirty || mutation.isPending}>
+        <Button variant="green" icon="check" submit disabled={!canSave || mutation.isPending}>
           {t('settings.save')}
         </Button>
       </div>
@@ -195,26 +247,13 @@ export function SettingsPage() {
 
           <div className="settings-modes">
             {MODES.map((mode) => (
-              <ModeTile key={mode} mode={mode} active={value === mode} />
+              <ModeTile
+                key={mode}
+                mode={mode}
+                active={value === mode}
+                onSelect={() => setSelected(mode)}
+              />
             ))}
-          </div>
-
-          <div className="settings-control">
-            <label className="field-label" htmlFor="approval-mode">
-              {t('settings.approvalMode.label')}
-            </label>
-            <select
-              id="approval-mode"
-              className="field-input settings-select"
-              value={value}
-              onChange={(event) => setSelected(event.target.value as ApprovalMode)}
-            >
-              {MODES.map((mode) => (
-                <option key={mode} value={mode}>
-                  {t(`settings.approvalMode.options.${mode}`)}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="settings-actions">

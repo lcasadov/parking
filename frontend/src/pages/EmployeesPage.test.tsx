@@ -27,15 +27,19 @@ describe('EmployeesPage', () => {
 
     expect(await screen.findByText('Alice Andersson')).toBeInTheDocument();
     expect(screen.getByText('Bob Brown')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /dar de baja|deactivate/i })).toBeInTheDocument();
+    // Las acciones sensibles (baja/reset) viven en el menú kebab "Más acciones".
+    expect(
+      screen.getAllByRole('button', { name: /más acciones|more actions/i }).length,
+    ).toBeGreaterThan(0);
   });
 
   it('should_render_fixed_resource_columns_with_space_label', async () => {
     renderWithProviders(<EmployeesPage />);
 
     // Alice (id 10) tiene la plaza P-01 en las asignaciones fijas por defecto.
+    // Ahora el resumen es "P-01 · L M X J V" (una línea; el detalle va en el tooltip).
     const aliceRow = (await screen.findByText('Alice Andersson')).closest('tr') as HTMLElement;
-    expect(within(aliceRow).getByText('P-01')).toBeInTheDocument();
+    expect(within(aliceRow).getByText(/P-01/)).toBeInTheDocument();
   });
 
   it('should_render_category_label_for_each_employee', async () => {
@@ -84,9 +88,13 @@ describe('EmployeesPage', () => {
     );
     const user = userEvent.setup();
     renderWithProviders(<EmployeesPage />);
-    await screen.findByText('Alice Andersson');
+    const aliceRow = (await screen.findByText('Alice Andersson')).closest('tr') as HTMLElement;
 
-    await user.click(screen.getByRole('button', { name: /dar de baja|deactivate/i }));
+    // Baja/reset viven en el menú kebab; la baja además pide confirmación.
+    await user.click(within(aliceRow).getByRole('button', { name: /más acciones|more actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /dar de baja|deactivate/i }));
+    const dialog = within(await screen.findByRole('alertdialog'));
+    await user.click(dialog.getByRole('button', { name: /dar de baja|deactivate/i }));
 
     await waitFor(() => {
       expect(deletedId).toBe(String(employeeAlice.id));
@@ -103,9 +111,10 @@ describe('EmployeesPage', () => {
     );
     const user = userEvent.setup();
     renderWithProviders(<EmployeesPage />);
-    await screen.findByText('Bob Brown');
+    const bobRow = (await screen.findByText('Bob Brown')).closest('tr') as HTMLElement;
 
-    await user.click(screen.getByRole('button', { name: /reactivar|reactivate/i }));
+    await user.click(within(bobRow).getByRole('button', { name: /más acciones|more actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /reactivar|reactivate/i }));
 
     await waitFor(() => {
       expect(reactivatedId).toBe(String(employeeBob.id));
@@ -136,13 +145,11 @@ describe('EmployeesPage', () => {
   it('should_open_reset_password_modal_when_clicking_reset', async () => {
     const user = userEvent.setup();
     renderWithProviders(<EmployeesPage />);
-    const aliceRow = (await screen.findByText('Alice Andersson')).closest('tr');
-    expect(aliceRow).not.toBeNull();
+    const aliceRow = (await screen.findByText('Alice Andersson')).closest('tr') as HTMLElement;
 
+    await user.click(within(aliceRow).getByRole('button', { name: /más acciones|more actions/i }));
     await user.click(
-      within(aliceRow as HTMLElement).getByRole('button', {
-        name: /restablecer contraseña|reset password/i,
-      }),
+      await screen.findByRole('menuitem', { name: /restablecer contraseña|reset password/i }),
     );
 
     expect(

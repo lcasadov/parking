@@ -3,10 +3,13 @@ import type {
   PageRequest,
   Request,
   RequestAdminAssignRequest,
+  RequestAdminReassignRequest,
+  RequestAdminSwapRequest,
   RequestApproveRequest,
   RequestCreateRequest,
   RequestListParams,
   RequestRejectRequest,
+  RequestSwapResponse,
   ResourceType,
   SuggestedParkingSpace,
   SuggestedResource,
@@ -94,6 +97,26 @@ export async function adminAssignRequest(body: RequestAdminAssignRequest): Promi
     `${REQUESTS}/admin`,
     buildAdminAssignBody(body),
   );
+  return data;
+}
+
+// POST /requests/admin/reassign (ADMIN): reasigna el recurso de una solicitud APPROVED
+// futura a otro recurso libre del mismo tipo. Devuelve la solicitud ya actualizada
+// (capability admin-resource-reassignment). 409 si el recurso destino no está libre.
+export async function adminReassignRequest(
+  body: RequestAdminReassignRequest,
+): Promise<Request> {
+  const { data } = await apiClient.post<Request>(`${REQUESTS}/admin/reassign`, body);
+  return data;
+}
+
+// POST /requests/admin/swap (ADMIN): intercambia atómicamente los recursos de dos
+// solicitudes APPROVED de la misma fecha y tipo. Devuelve ambas solicitudes ya
+// intercambiadas (capability admin-resource-reassignment).
+export async function adminSwapRequests(
+  body: RequestAdminSwapRequest,
+): Promise<RequestSwapResponse> {
+  const { data } = await apiClient.post<RequestSwapResponse>(`${REQUESTS}/admin/swap`, body);
   return data;
 }
 

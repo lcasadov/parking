@@ -90,17 +90,17 @@ describe('VisitorsPage (ADMIN)', () => {
     expect(within(dialog).getByLabelText(/^nombre$|^first name$/i)).toHaveValue('Carla');
   });
 
-  it('should_open_detail_when_clicking_view', async () => {
-    const user = userEvent.setup();
+  it('should_not_offer_a_view_action_only_edit_and_reserve', async () => {
     renderWithProviders(<VisitorsPage />);
     await screen.findByText('Carla Cortes');
     const carlaRow = rowFor('Carla Cortes');
 
-    await user.click(within(carlaRow).getByRole('button', { name: /^ver$|^view$/i }));
-
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/ficha de visitante|visitor card/i)).toBeInTheDocument();
-    expect(within(dialog).getByText('12345678Z')).toBeInTheDocument();
+    // La acción "Ver" se retiró; con Editar y Reservar basta.
+    expect(
+      within(carlaRow).queryByRole('button', { name: /^ver$|^view$/i }),
+    ).not.toBeInTheDocument();
+    expect(within(carlaRow).getByRole('button', { name: /editar|edit/i })).toBeInTheDocument();
+    expect(within(carlaRow).getByRole('button', { name: /reservar|reserve/i })).toBeInTheDocument();
   });
 
   it('should_show_error_message_when_list_request_fails', async () => {

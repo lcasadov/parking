@@ -1,3 +1,4 @@
+import { RESOURCE_ICON } from '../utils/resourceIcon';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -30,9 +31,9 @@ const WEEK_LENGTH = 7;
 const REASON_MIN = 5;
 
 // Icono Tabler por tipo de recurso (mismo mapa que el resto de la app: plaza ->
-// ti-parking, puesto -> ti-armchair). Solo presentacion.
+// icono unico via RESOURCE_ICON. Solo presentacion.
 function resourceIcon(type: ResourceType): string {
-  return type === 'DESK' ? 'armchair' : 'parking';
+  return RESOURCE_ICON[type];
 }
 
 // Tono de la pill de estado segun el origen de la reserva (mapa unico

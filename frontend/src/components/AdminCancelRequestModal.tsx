@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Dialog } from './Dialog';
@@ -49,12 +49,15 @@ export function AdminCancelRequestModal({
   const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
   const adminCancelMutation = useAdminCancelRequest();
 
   function handleSubmit(event: FormEvent): void {
     event.preventDefault();
     if (reason.trim().length < REASON_MIN) {
       setError(t('requests.adminCancel.requiredReason'));
+      reasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      reasonRef.current?.focus();
       return;
     }
     setError(null);
@@ -111,6 +114,7 @@ export function AdminCancelRequestModal({
         </label>
         <textarea
           id="admin-cancel-request-reason"
+          ref={reasonRef}
           className="field-input"
           value={reason}
           onChange={(event) => setReason(event.target.value)}

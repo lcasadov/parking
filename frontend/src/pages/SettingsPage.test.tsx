@@ -8,7 +8,6 @@ import { MSW_BASE } from '../mocks/handlers';
 import { renderWithProviders } from '../test/renderWithProviders';
 
 const SETTINGS_URL = `${MSW_BASE}/admin/settings`;
-const MODE_LABEL = /modo de aprobación|approval mode/i;
 const SAVE_BUTTON = /guardar|save/i;
 
 function settings(approvalMode: string) {
@@ -20,8 +19,9 @@ describe('SettingsPage', () => {
     server.use(http.get(SETTINGS_URL, () => settings('AUTOMATIC')));
     renderWithProviders(<SettingsPage />);
 
-    const select = (await screen.findByLabelText(MODE_LABEL)) as HTMLSelectElement;
-    await waitFor(() => expect(select.value).toBe('AUTOMATIC'));
+    // El modo se elige con teselas seleccionables (aria-pressed); ya no hay <select>.
+    const autoTile = await screen.findByRole('button', { name: /automático|automatic/i });
+    await waitFor(() => expect(autoTile).toHaveAttribute('aria-pressed', 'true'));
   });
 
   it('should_put_new_mode_when_admin_switches_and_saves', async () => {
@@ -37,13 +37,10 @@ describe('SettingsPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<SettingsPage />);
 
-    const select = (await screen.findByLabelText(MODE_LABEL)) as HTMLSelectElement;
-    await waitFor(() => expect(select.value).toBe('MANUAL'));
-
-    // Hay dos formularios (modo de aprobación y dirección del parking), cada uno
-    // con su "Guardar"; se acota al formulario del modo.
-    const approvalForm = within(select.closest('form') as HTMLElement);
-    await user.selectOptions(select, 'AUTOMATIC');
+    // Elige la tesela "Automático" y guarda (dentro del form del modo).
+    const autoTile = await screen.findByRole('button', { name: /automático|automatic/i });
+    await user.click(autoTile);
+    const approvalForm = within(autoTile.closest('form') as HTMLElement);
     await user.click(approvalForm.getByRole('button', { name: SAVE_BUTTON }));
 
     await waitFor(() => expect(receivedMode).toBe('AUTOMATIC'));
@@ -53,8 +50,8 @@ describe('SettingsPage', () => {
     server.use(http.get(SETTINGS_URL, () => settings('MANUAL')));
     renderWithProviders(<SettingsPage />);
 
-    const select = await screen.findByLabelText(MODE_LABEL);
-    const approvalForm = within(select.closest('form') as HTMLElement);
+    const manualTile = await screen.findByRole('button', { name: /^manual/i });
+    const approvalForm = within(manualTile.closest('form') as HTMLElement);
     expect(approvalForm.getByRole('button', { name: SAVE_BUTTON })).toBeDisabled();
   });
 });

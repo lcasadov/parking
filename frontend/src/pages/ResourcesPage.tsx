@@ -1,3 +1,4 @@
+import { RESOURCE_ICON } from '../utils/resourceIcon';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -26,8 +27,8 @@ export function ResourcesPage() {
   const tab: ResourceTab = isResourceTab(requested) ? requested : DEFAULT_TAB;
 
   const items: SectionSwitchItem[] = [
-    { id: 'parking', label: t('resources.tabs.parking'), icon: 'parking' },
-    { id: 'desks', label: t('resources.tabs.desks'), icon: 'armchair' },
+    { id: 'parking', label: t('resources.tabs.parking'), icon: RESOURCE_ICON.PARKING },
+    { id: 'desks', label: t('resources.tabs.desks'), icon: RESOURCE_ICON.DESK },
   ];
 
   function handleChange(id: string): void {

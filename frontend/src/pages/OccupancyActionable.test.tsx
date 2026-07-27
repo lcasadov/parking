@@ -209,6 +209,15 @@ describe('Ocupación accionable (ADMIN)', () => {
     const grid = await screen.findByRole('table');
     await user.click(cellButton(grid, /solicitud aprobada|request approved/i));
 
+    // La celda aprobada abre el modal de gestión (reasignar / intercambiar /
+    // liberar). Se elige "Liberar" y se confirma para pasar al modal de
+    // cancelación con motivo.
+    const manage = within(await screen.findByRole('dialog'));
+    await user.click(manage.getByRole('button', { name: /^liberar$|^release$/i }));
+    await user.click(
+      manage.getByRole('button', { name: /liberar reserva|release reservation/i }),
+    );
+
     const dialog = within(await screen.findByRole('dialog'));
     await user.type(dialog.getByLabelText(/motivo|reason/i), 'Reasignación');
     await user.click(dialog.getByRole('button', { name: /^liberar$|^release$/i }));

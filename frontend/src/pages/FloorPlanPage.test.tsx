@@ -338,6 +338,24 @@ describe('FloorPlanPage', () => {
     expect(putBody).toEqual({ coordX: 25, coordY: 50 });
   });
 
+  it('should_open_assign_modal_when_admin_selects_a_free_desk', async () => {
+    useAdmin();
+    server.use(
+      http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([floorDeskFree]))),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<FloorPlanPage />);
+    await screen.findByTestId('floor-marker');
+
+    // El ADMIN activa un puesto libre desde el listado → modal de asignación.
+    await user.click(screen.getByRole('button', { name: /asignar el nº 1|assign no\. 1/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(/asignar recurso|assign resource/i),
+    ).toBeInTheDocument();
+  });
+
   it('should_request_a_free_desk_from_the_mobile_list', async () => {
     useEmployee();
     let requestedDeskId: string | undefined;
@@ -352,8 +370,8 @@ describe('FloorPlanPage', () => {
     renderWithProviders(<FloorPlanPage />);
     await screen.findByTestId('floor-marker');
 
-    // The mobile "available to request" list exposes a Solicitar button per row.
-    await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
+    // El listado a todo ancho expone cada puesto libre como botón "Solicitar el nº N".
+    await user.click(screen.getByRole('button', { name: /solicitar el nº 1|request no\. 1/i }));
     await confirmPendingRequest();
 
     expect(await screen.findByText(/solicitud creada|request created/i)).toBeInTheDocument();
@@ -375,7 +393,7 @@ describe('FloorPlanPage', () => {
     renderWithProviders(<FloorPlanPage />);
     await screen.findByTestId('floor-marker');
 
-    await user.click(screen.getByRole('button', { name: /^solicitar$|^request$/i }));
+    await user.click(screen.getByRole('button', { name: /solicitar el nº 1|request no\. 1/i }));
     await confirmPendingRequest();
 
     expect(

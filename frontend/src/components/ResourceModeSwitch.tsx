@@ -1,15 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import { RESOURCE_ICON } from '../utils/resourceIcon';
 import type { ResourceType } from '../types/request';
 
 // Orden fijo del conmutador (S1192: sin literales repetidos).
 const RESOURCE_TYPES: ResourceType[] = ['PARKING', 'DESK'];
-
-// Icono Tabler por tipo de recurso (coherente con el resto de la app: plaza =
-// ti-parking, puesto = ti-armchair).
-const RESOURCE_ICON: Record<ResourceType, string> = {
-  PARKING: 'parking',
-  DESK: 'armchair',
-};
 
 // Conmutador GRANDE plaza/puesto de la pantalla de Ocupación: dos segmentos con
 // icono + etiqueta, imposible de ignorar. Al cambiarlo cambian titulo, KPIs y

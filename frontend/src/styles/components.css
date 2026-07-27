@@ -723,7 +723,7 @@ body.theme-dark .btn-white {
 }
 .field-input {
   width: 100%;
-  border: 0.5px solid var(--border);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   padding: 8px 10px;
   font-size: var(--text-sm);
@@ -1369,6 +1369,71 @@ body.theme-dark .segmented button.active {
   flex-wrap: wrap;
   /* Botones de acción pegados a la derecha de la columna (todas las tablas). */
   justify-content: flex-end;
+  align-items: center;
+}
+/* Empleados: fila de una sola línea. Acciones (Editar + kebab) en línea, sin
+   envolver; resumen de plaza/puesto fijo compacto con tooltip para el detalle. */
+.emp-table .table-actions {
+  flex-wrap: nowrap;
+}
+.emp-table .table td {
+  white-space: nowrap;
+}
+.fixed-cell-summary {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 3px;
+}
+.fixed-tip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--text-xs);
+}
+.fixed-tip-list li {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+.fixed-tip-day {
+  opacity: 0.8;
+}
+
+/* Botón-icono cuadrado (p. ej. disparador del menú kebab de acciones). */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.icon-btn:hover {
+  background: var(--panel-2);
+}
+.icon-btn i {
+  font-size: 18px;
 }
 
 .pill {
@@ -1855,11 +1920,76 @@ body.theme-dark .segmented button.active {
   gap: var(--space-5);
 }
 
+/* Fila principal del Plano (rediseño §6): [mapa + minimapa] a la izquierda y la
+   columna de contadores grandes a la derecha. Colapsa a una sola columna en móvil. */
+.plano-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: start;
+}
+.plano-map-col {
+  min-width: 0;
+}
+@media (max-width: 860px) {
+  .plano-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Contadores de ocupación del día a la derecha del mapa: numerales grandes con tinte
+   por estado (mapa único §4 vía .state-*). En móvil pasan a una fila de 2×2. */
+.plano-counters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  min-width: 168px;
+}
+.plano-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+.plano-counter-num {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-3xl, 2rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+.plano-counter-label {
+  margin: 0;
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  opacity: 0.85;
+}
+@media (max-width: 860px) {
+  .plano-counters {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .plano-counter {
+    flex: 1 1 40%;
+  }
+}
+
 /* Envoltorio del lienzo: capa de anclaje (relative, SIN overflow) para el tooltip
    flotante, que se saca del `.floor-plan-surface` (overflow:hidden) para no
-   recortarse ni escalar con el zoom. */
+   recortarse ni escalar con el zoom. Apila el mapa y el minimapa (que va debajo). */
 .floor-plan-surface-wrap {
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Superficie del plano: lienzo oscuro premium que recorta el "mundo" transformado.
@@ -1899,11 +2029,13 @@ body.theme-dark .segmented button.active {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
 }
-/* Minimapa: overview fijo en la esquina inferior derecha del lienzo. */
+/* Minimapa: overview que se muestra DEBAJO del mapa (rediseño Plano §6.1), ya no
+   superpuesto en la esquina del lienzo. Se renderiza dentro de `.floor-plan-surface-
+   wrap`, que apila mapa y minimapa en columna. */
 .floor-mini {
-  position: absolute;
-  right: var(--space-4);
-  bottom: var(--space-4);
+  position: static;
+  align-self: flex-start;
+  margin-top: var(--space-3);
   z-index: 6;
   border-radius: 8px;
   overflow: hidden;
@@ -1913,6 +2045,14 @@ body.theme-dark .segmented button.active {
     var(--shadow-2, 0 6px 18px rgba(0, 0, 0, 0.28));
   cursor: pointer;
   touch-action: none;
+}
+/* En pantalla completa el minimapa vuelve a flotar sobre el lienzo (no hay espacio
+   debajo para apilarlo). */
+.floor-plan-surface-wrap.is-maximized .floor-mini {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  margin-top: 0;
 }
 .floor-mini-img {
   display: block;
@@ -2695,6 +2835,50 @@ body.theme-dark .floor-plan-image {
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
+}
+
+/* ---- Listado de puestos a todo el ancho (rediseño Plano §6.3) ---- */
+.plano-desks {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  padding: var(--space-4);
+}
+.plano-desks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+.plano-desks-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text);
+}
+.plano-desks-search {
+  margin: 0;
+  min-width: 220px;
+}
+/* Rejilla responsive de tarjetas de puesto: se adapta al ancho disponible. */
+.plano-desks-grid {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-2);
+}
+/* Fila no accionable (puesto no libre): sin afordancia de click. */
+.plano-card.is-static {
+  cursor: default;
+}
+.plano-card.is-static:hover {
+  transform: none;
+  border-color: var(--line);
+  box-shadow: none;
 }
 
 /* ---- Lista móvil "Disponibles para solicitar" ---- */
@@ -4063,8 +4247,43 @@ button.pop-row.pop-danger:disabled {
    Solo presentación; toda la lógica vive en AdministrativeReleasesPage.
    Colores desde tokens del design system (contrato ALEATICA §1–5).
    ============================================================ */
+/* La pantalla "Liberar" usa todo el ancho (la semana con recursos por día se ve
+   mejor); el selector de empleado sí se mantiene estrecho (no aporta ser ancho). */
 .release-body {
-  max-width: 860px;
+  max-width: none;
+}
+.release-employee-select {
+  max-width: 460px;
+}
+/* "Por fecha": input de fecha estrecho pero con la fecha grande y legible. */
+.release-date-input {
+  max-width: 220px;
+  height: 48px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* Barra de acción de liberación en lote (aparece al marcar filas). */
+.release-batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--state-released-border);
+  background: var(--state-released-bg);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+}
+.col-check {
+  width: 40px;
+  text-align: center;
+}
+.release-batch-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /* Etiqueta de sección (empleado / motivo): 11px uppercase, tracking amplio. */
@@ -5281,19 +5500,67 @@ button.pop-row.pop-danger:disabled {
 
 /* El tablist del modal ahora vive dentro de .rx-dialog-body (Radix): quita el
    inset horizontal propio y sepáralo del contenido con un borde a ancho completo. */
+/* Pestañas del modal FIJAS al hacer scroll: sticky FLUSH al borde superior del
+   cuerpo. Se elimina el padding-top del cuerpo (si tiene tabs) para que no quede
+   una franja por la que asome el contenido; la barra aporta su propio padding y su
+   fondo tapa lo que scrollea por debajo. */
+.rx-dialog-body:has(> .modal-tabs) {
+  padding-top: 0;
+}
 .rx-dialog-body > .modal-tabs {
-  padding: 0;
-  margin: 0 0 var(--space-4);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-card);
+  margin: 0 calc(-1 * var(--space-5)) var(--space-4);
+  padding: var(--space-4) var(--space-5) 0;
   gap: var(--space-5);
 }
 
 /* Cabecera de la sección de días: etiqueta + acción rápida "aplicar a la semana". */
 .day-assign-head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.apply-all-field {
+  flex: 1;
+  min-width: 0;
+  max-width: 340px;
+}
+/* Editor por-día de la asignación fija: una fila por día con su selector. */
+.day-select-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.day-select-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+/* Deja respiración al mensaje de error bajo la lista de días. */
+.day-select-list + .form-error {
+  margin-top: var(--space-3);
+}
+.day-select-day {
+  flex: none;
+  width: 96px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.day-select-row .field-input {
+  flex: 1;
+  min-width: 0;
 }
 .link-btn {
   appearance: none;
@@ -5392,17 +5659,57 @@ button.pop-row.pop-danger:disabled {
   justify-content: space-between;
   gap: var(--space-3);
   padding: 8px 12px;
-  border: 0.5px solid var(--border);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   background: var(--bg-soft);
   font-size: var(--text-sm);
 }
 
+/* Resumen etiqueta→valor (dl) compartido por el tab Histórico y los modales de
+   Asignar/Liberar/Cancelar. Antes usaba el <dl> nativo (dd indentado) y quedaba
+   desalineado; ahora es una tarjeta con filas alineadas label izquierda / valor
+   derecha. */
+.release-prefill {
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+}
+.release-prefill-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.release-prefill-row dt {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.release-prefill-row dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Ajustes: tarjeta única con el conmutador de modo de aprobación. */
+/* Separación entre las tarjetas de Configuración. */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
 .settings-card {
-  max-width: 640px;
+  max-width: none;
   background: var(--panel);
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-1);
   padding: var(--space-5);
@@ -6303,21 +6610,82 @@ button.pop-row.pop-danger:disabled {
 .settings-modes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
+/* Tesela seleccionable (botón): reset de estilos nativos + puntero. */
 .settings-mode {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 14px 15px;
-  border: 1px solid var(--line);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  padding: 16px 17px;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   background: var(--panel-2);
   transition:
     border-color var(--dur-fast) var(--ease-standard),
     box-shadow var(--dur-fast) var(--ease-standard),
     background var(--dur-fast) var(--ease-standard);
+}
+.settings-mode:hover {
+  border-color: var(--accent-line);
+}
+/* Check de selección de la tesela (círculo gris / check verde). */
+.settings-mode-check {
+  margin-left: auto;
+  display: inline-flex;
+  font-size: 20px;
+  color: var(--ink-faint);
+  line-height: 1;
+}
+.settings-mode.is-active .settings-mode-check {
+  color: var(--accent);
+}
+
+/* Toggle (switch) customizado — reemplaza el checkbox nativo. */
+.switch-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+.switch {
+  flex: none;
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.switch.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+.switch.is-on .switch-knob {
+  transform: translateX(20px);
 }
 .settings-mode.is-active {
   border-color: var(--accent-line);
@@ -7607,6 +7975,30 @@ button.rzw-step-btn:hover .rzw-step-label {
   font-size: 12px;
 }
 /* ---- Paso 5 · Preview de auto-asignación por categoría ---- */
+/* Sección de ubicación por tipo en el resumen (tarea 3: plaza y/o puesto). */
+.rzw-summary-section {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.rzw-summary-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  color: var(--text);
+}
+/* Etiqueta de tipo (Plaza/Puesto) en cada fila del resultado por fecha. */
+.rzw-result-type {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
 .rzw-auto-preview {
   margin: var(--space-4) 0 0;
   padding: var(--space-4);

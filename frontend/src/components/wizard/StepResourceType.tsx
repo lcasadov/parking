@@ -1,10 +1,12 @@
+import { RESOURCE_ICON } from '../../utils/resourceIcon';
 import { useTranslation } from 'react-i18next';
 import { RESOURCE_DESK, RESOURCE_PARKING } from './wizardTypes';
 import type { ResourceType } from '../../types/request';
 
 interface StepResourceTypeProps {
-  value: ResourceType | null;
-  onChange: (value: ResourceType) => void;
+  // Tipos seleccionados (uno o ambos). El paso de ubicación se repite por tipo.
+  values: ResourceType[];
+  onToggle: (value: ResourceType) => void;
 }
 
 interface Option {
@@ -27,7 +29,7 @@ const OPTIONS: Option[] = [
   },
   {
     type: RESOURCE_DESK,
-    icon: 'armchair',
+    icon: RESOURCE_ICON.DESK,
     titleKey: 'wizard.resource.desk',
     descKey: 'wizard.resource.deskDesc',
     tagIcon: 'map-2',
@@ -35,22 +37,23 @@ const OPTIONS: Option[] = [
   },
 ];
 
-// Paso 1 — Tipo de recurso: dos tarjetas grandes seleccionables (plaza / puesto).
-export function StepResourceType({ value, onChange }: StepResourceTypeProps) {
+// Paso 1 — Tipo de recurso: dos tarjetas grandes MULTISELECCIONABLES (plaza y/o
+// puesto). Elegir ambas añade un paso de ubicación por cada una (tarea 3).
+export function StepResourceType({ values, onToggle }: StepResourceTypeProps) {
   const { t } = useTranslation();
   return (
     <div className="rzw-step-body">
       <p className="rzw-lead">{t('wizard.resource.lead')}</p>
       <div className="rzw-choice-grid rzw-choice-2">
         {OPTIONS.map((option) => {
-          const selected = value === option.type;
+          const selected = values.includes(option.type);
           return (
             <button
               key={option.type}
               type="button"
               className={`rzw-choice-card${selected ? ' is-selected' : ''}`}
               aria-pressed={selected}
-              onClick={() => onChange(option.type)}
+              onClick={() => onToggle(option.type)}
             >
               <span className="rzw-choice-icon" aria-hidden="true">
                 <i className={`ti ti-${option.icon}`} />
