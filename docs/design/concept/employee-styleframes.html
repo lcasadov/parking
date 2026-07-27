@@ -1,0 +1,486 @@
+<title>ALEATICA · Concepto — Empleado</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --ink:#05070A; --board:#0A0E13; --panel:#0F141C; --panel-2:#151D28;
+    --edge:rgba(255,255,255,.075); --edge-2:rgba(255,255,255,.14);
+    --txt:#EAF0F7; --dim:#8A97A8; --faint:#5A6573;
+    --signal:#FFB020; --signal-hi:#FFC957;
+    --go:#22E0A1; --stop:#FF5C6C; --mine:#54B7FF; --wait:#FFB020; --free-cool:#38D6C6;
+    --cream:#F7F1E4;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --gut: clamp(20px, 5vw, 84px);
+    --lane: repeating-linear-gradient(90deg, var(--edge-2) 0 22px, transparent 22px 44px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  .stage{
+    background:
+      radial-gradient(120% 80% at 12% -8%, rgba(255,176,32,.10), transparent 46%),
+      radial-gradient(90% 70% at 92% 6%, rgba(84,183,255,.07), transparent 50%),
+      var(--board);
+    color:var(--txt); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    line-height:1.5; overflow-x:hidden; min-height:100vh;
+  }
+  :root[data-theme="light"] .stage, :root[data-theme="dark"] .stage{ color:var(--txt); }
+  ::selection{ background:var(--signal); color:#1A1204; }
+
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 var(--gut); }
+  .mono{ font-family:var(--mono); }
+  .tnum{ font-variant-numeric:tabular-nums; }
+  .kick{ font-family:var(--mono); font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:var(--faint); }
+  .kick .dot{ color:var(--signal); }
+
+  /* ---------- top chrome ---------- */
+  .chrome{ position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:18px;
+    padding:14px var(--gut); background:linear-gradient(180deg, rgba(8,11,16,.92), rgba(8,11,16,.55)); backdrop-filter:blur(10px); border-bottom:1px solid var(--edge); }
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .chev{ width:26px; height:26px; display:grid; place-items:center; color:var(--ink); background:var(--signal); border-radius:5px; font-weight:900; box-shadow:0 0 24px rgba(255,176,32,.5); }
+  .chev svg{ width:15px; height:15px; }
+  .brand b{ font-weight:800; letter-spacing:.18em; font-size:15px; }
+  .brand span{ font-family:var(--mono); font-size:10px; letter-spacing:.28em; color:var(--faint); text-transform:uppercase; }
+  .chrome-r{ display:flex; align-items:center; gap:18px; }
+  .clock{ font-family:var(--mono); font-size:13px; letter-spacing:.12em; color:var(--dim); }
+  .clock b{ color:var(--go); font-weight:600; }
+  .pill-live{ display:inline-flex; align-items:center; gap:7px; font-family:var(--mono); font-size:10px; letter-spacing:.24em; text-transform:uppercase; color:var(--dim); }
+  .pill-live i{ width:7px; height:7px; border-radius:50%; background:var(--go); box-shadow:0 0 0 4px rgba(34,224,161,.15), 0 0 14px var(--go); animation:beat 2.4s ease-in-out infinite; }
+  @keyframes beat{ 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  /* ---------- section frame ---------- */
+  section{ padding:clamp(52px,7vw,104px) 0; position:relative; }
+  .lane{ height:1px; background:var(--lane); opacity:.5; }
+  .sec-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:34px; flex-wrap:wrap; }
+  .sec-no{ font-family:var(--mono); font-size:12px; color:var(--signal); letter-spacing:.2em; }
+  .sec-title{ font-size:clamp(1.5rem,3.4vw,2.4rem); font-weight:800; letter-spacing:-.02em; margin:0; }
+  .sec-sub{ color:var(--dim); max-width:54ch; margin:0; }
+
+  /* ---------- COVER ---------- */
+  .cover{ padding-top:clamp(40px,7vw,80px); }
+  .cover-grid{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:clamp(28px,5vw,72px); align-items:center; }
+  .cover h1{ font-size:clamp(2.5rem,7vw,5.8rem); line-height:.94; letter-spacing:-.035em; font-weight:800; margin:.35em 0 .32em; text-wrap:balance; }
+  .cover h1 em{ font-style:normal; color:var(--signal); text-shadow:0 0 44px rgba(255,176,32,.45); }
+  .cover p.lead{ font-size:clamp(1rem,1.5vw,1.2rem); color:var(--dim); max-width:44ch; margin:0 0 30px; }
+  .legend{ display:flex; flex-wrap:wrap; gap:10px; }
+  .lamp{ display:inline-flex; align-items:center; gap:9px; padding:9px 13px 9px 11px; border:1px solid var(--edge); border-radius:999px; background:rgba(255,255,255,.02); font-size:12.5px; }
+  .lamp i{ width:10px; height:10px; border-radius:50%; position:relative; }
+  .lamp.go i{ background:var(--go); box-shadow:0 0 12px var(--go); }
+  .lamp.stop i{ background:var(--stop); box-shadow:0 0 12px var(--stop); }
+  .lamp.mine i{ background:var(--mine); box-shadow:0 0 12px var(--mine); }
+  .lamp.wait i{ background:var(--wait); box-shadow:0 0 12px var(--wait); }
+  .lamp.rel i{ background:var(--free-cool); box-shadow:0 0 12px var(--free-cool); }
+  .lamp b{ font-weight:600; } .lamp span{ color:var(--faint); font-family:var(--mono); font-size:11px; }
+
+  .shield{ position:relative; border:2px solid var(--signal); border-radius:22px;
+    background:linear-gradient(180deg, rgba(255,176,32,.09), rgba(255,176,32,.02)); padding:26px 22px 22px; overflow:hidden;
+    box-shadow:0 0 0 6px rgba(255,176,32,.05), 0 40px 90px -40px rgba(255,176,32,.4), inset 0 1px 0 rgba(255,255,255,.06); }
+  .shield::before{ content:""; position:absolute; inset:8px; border:1px solid rgba(255,176,32,.35); border-radius:15px; pointer-events:none; }
+  .shield .tag{ font-family:var(--mono); font-size:11px; letter-spacing:.3em; color:var(--signal-hi); text-transform:uppercase; display:flex; justify-content:space-between; }
+  .shield .num{ font-family:var(--mono); font-weight:700; font-size:clamp(3rem,8.5vw,5.2rem); line-height:1; letter-spacing:-.03em; color:var(--cream); margin:6px 0 2px; text-shadow:0 0 40px rgba(255,201,87,.35); }
+  .shield .sub{ display:flex; justify-content:space-between; align-items:center; font-family:var(--mono); font-size:12px; color:var(--dim); letter-spacing:.12em; }
+  .shield .sub .ok{ color:var(--go); display:inline-flex; align-items:center; gap:6px; }
+  .shield .sub .ok i{ width:8px; height:8px; border-radius:50%; background:var(--go); box-shadow:0 0 10px var(--go); }
+  .shield .scan{ position:absolute; left:0; right:0; height:64px; top:-64px; background:linear-gradient(180deg, transparent, rgba(255,201,87,.14), transparent); animation:shieldscan 4.5s linear infinite; }
+  @keyframes shieldscan{ 0%{ transform:translateY(0) } 100%{ transform:translateY(360px) } }
+
+  /* ---------- WEEK LINE ---------- */
+  .weekscroll{ overflow-x:auto; padding-bottom:8px; }
+  .weekline{ position:relative; display:grid; grid-auto-flow:column; grid-auto-columns:minmax(150px,1fr); gap:0; min-width:780px; padding:46px 0 8px; }
+  .weekline::before{ content:""; position:absolute; left:9%; right:9%; top:66px; height:2px; background:var(--lane); }
+  .station{ position:relative; padding:0 12px; text-align:center; }
+  .station .node{ width:16px; height:16px; border-radius:50%; margin:0 auto 20px; background:var(--panel-2); border:2px solid var(--edge-2); position:relative; z-index:2; }
+  .station.now .node{ background:var(--signal); border-color:var(--signal); box-shadow:0 0 0 6px rgba(255,176,32,.16), 0 0 20px var(--signal); animation:nodepulse 2.6s ease-in-out infinite; }
+  @keyframes nodepulse{ 0%,100%{ box-shadow:0 0 0 6px rgba(255,176,32,.16),0 0 18px var(--signal);} 50%{ box-shadow:0 0 0 11px rgba(255,176,32,.05),0 0 30px var(--signal);} }
+  .station .dow{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); }
+  .station.now .dow{ color:var(--signal); }
+  .station .date{ font-weight:800; font-size:1.15rem; letter-spacing:-.02em; margin:2px 0 14px; }
+  .res{ display:flex; align-items:center; gap:8px; justify-content:center; margin:8px 0; padding:8px 10px; border:1px solid var(--edge); border-radius:10px; background:rgba(255,255,255,.015); font-size:12.5px; transition:.15s; }
+  .res:hover{ border-color:var(--edge-2); }
+  .res i{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .res.p i{ background:var(--mine); box-shadow:0 0 10px var(--mine);} .res.d i{ background:var(--go); box-shadow:0 0 10px var(--go);}
+  .res.rel{ color:var(--free-cool); border-color:rgba(56,214,198,.3);} .res.rel i{ background:var(--free-cool); box-shadow:0 0 10px var(--free-cool);}
+  .res.free{ color:var(--faint); border-style:dashed; } .res.free i{ background:var(--faint); box-shadow:none; }
+  .res b{ font-family:var(--mono); font-weight:600; letter-spacing:.02em; }
+  .youhere{ position:absolute; top:-42px; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--signal); text-transform:uppercase; white-space:nowrap; animation:bob 3s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateX(-50%) translateY(0);} 50%{ transform:translateX(-50%) translateY(-4px);} }
+
+  /* ---------- WIZARD ROUTE + PLAN ---------- */
+  .route{ display:flex; align-items:center; gap:0; margin-bottom:30px; flex-wrap:wrap; }
+  .stop{ display:flex; align-items:center; gap:10px; }
+  .stop .b{ width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-family:var(--mono); font-size:13px; border:2px solid var(--edge-2); color:var(--faint); }
+  .stop.done .b{ background:var(--go); border-color:var(--go); color:var(--ink); font-weight:700; }
+  .stop.active .b{ background:var(--signal); border-color:var(--signal); color:var(--ink); font-weight:800; animation:stoppulse 2.2s ease-in-out infinite; }
+  @keyframes stoppulse{ 0%,100%{ box-shadow:0 0 0 6px rgba(255,176,32,.14),0 0 18px var(--signal);} 50%{ box-shadow:0 0 0 10px rgba(255,176,32,.05),0 0 28px var(--signal);} }
+  .stop .t{ font-size:13px; color:var(--dim); } .stop.active .t{ color:var(--txt); font-weight:600; } .stop.done .t{ color:var(--txt);}
+  .stop .link{ width:30px; height:2px; background:var(--lane); margin:0 6px; }
+
+  .plan-grid{ display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:22px; align-items:stretch; }
+  .board-panel{ position:relative; border:1px solid var(--edge); border-radius:20px; overflow:hidden; background:linear-gradient(180deg, var(--panel), #0B0F16); box-shadow:0 30px 80px -50px #000, inset 0 1px 0 rgba(255,255,255,.04); }
+  .board-top{ position:absolute; top:0; left:0; right:0; z-index:3; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:linear-gradient(180deg, rgba(9,13,19,.85), transparent); }
+  .gate{ display:inline-flex; align-items:center; gap:10px; font-family:var(--mono); font-size:12px; letter-spacing:.14em; color:var(--dim); text-transform:uppercase; }
+  .gate b{ color:var(--txt); }
+  .hint-tap{ font-family:var(--mono); font-size:11px; color:var(--signal-hi); letter-spacing:.1em; }
+  #floor{ display:block; width:100%; height:clamp(300px, 42vw, 460px); }
+  .board-foot{ position:absolute; bottom:0; left:0; right:0; z-index:3; display:flex; gap:16px; padding:12px 16px; background:linear-gradient(0deg, rgba(9,13,19,.9), transparent); font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.14em; }
+  .board-foot b{ color:var(--dim); }
+  .pickpanel{ display:flex; flex-direction:column; gap:14px; }
+  .pickcard{ border:1px solid var(--edge); border-radius:16px; padding:18px; background:linear-gradient(180deg, var(--panel-2), var(--panel)); }
+  .pickcard .lbl{ font-family:var(--mono); font-size:11px; letter-spacing:.26em; text-transform:uppercase; color:var(--faint); margin-bottom:10px; }
+  .pickcard .big{ font-family:var(--mono); font-weight:700; font-size:2.4rem; letter-spacing:-.03em; color:var(--cream); }
+  .pickcard.sel{ border-color:var(--go); box-shadow:0 0 0 3px rgba(34,224,161,.08); }
+  .pickcard.sel .big{ color:var(--go); }
+  .miniopts{ display:flex; flex-wrap:wrap; gap:8px; }
+  .miniopt{ font-family:var(--mono); font-size:13px; padding:8px 11px; border-radius:9px; border:1px solid var(--edge-2); display:flex; gap:8px; align-items:center; }
+  .miniopt i{ width:8px;height:8px;border-radius:50%;background:var(--go);box-shadow:0 0 9px var(--go);}
+  .miniopt.pick{ border-color:var(--go); color:var(--go); }
+
+  /* ---------- GANTRY (LIBERAR) ---------- */
+  .stagebox{ position:relative; border:1px solid var(--edge); border-radius:20px; overflow:hidden; min-height:320px; background:radial-gradient(80% 60% at 50% 120%, rgba(255,176,32,.06), transparent), var(--board); display:flex; align-items:flex-end; }
+  .stagebox .dim{ position:absolute; inset:0; background:linear-gradient(180deg, transparent, rgba(0,0,0,.4)); }
+  .gantry{ position:relative; width:100%; border-top:2px solid var(--signal); background:linear-gradient(180deg, var(--panel-2), var(--panel)); box-shadow:0 -30px 80px -30px rgba(255,176,32,.35), 0 -1px 0 rgba(255,201,87,.4); border-radius:20px 20px 0 0; padding:22px clamp(18px,3vw,32px) 26px; animation:rise .5s cubic-bezier(.2,.9,.25,1) both; }
+  @keyframes rise{ from{ transform:translateY(24px); opacity:.4 } to{ transform:translateY(0); opacity:1 } }
+  .gantry-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .gantry-h .ti{ display:flex; align-items:center; gap:12px; }
+  .gantry-h .ti .g{ width:34px; height:34px; border-radius:9px; background:var(--signal); color:var(--ink); display:grid; place-items:center; box-shadow:0 0 20px rgba(255,176,32,.5); }
+  .gantry-h h3{ margin:0; font-size:1.2rem; letter-spacing:-.01em; }
+  .gantry-h .who{ font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.14em; }
+  .gantry-h .x{ width:34px; height:34px; border-radius:9px; border:1px solid var(--edge-2); background:transparent; color:var(--dim); cursor:pointer; font-size:16px; }
+  .seg{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; }
+  .seg button{ padding:14px; border-radius:12px; border:1px solid var(--edge-2); background:rgba(255,255,255,.02); color:var(--dim); cursor:pointer; font-size:13.5px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:9px; transition:.15s; }
+  .seg button svg{ width:18px; height:18px; }
+  .seg button.on{ border-color:var(--signal); color:var(--txt); background:linear-gradient(180deg, rgba(255,176,32,.12), transparent); box-shadow:0 0 0 3px rgba(255,176,32,.08); }
+  .field-line{ font-family:var(--mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--faint); margin:0 0 10px; }
+  .daychips{ display:flex; gap:9px; flex-wrap:wrap; }
+  .daychip{ font-family:var(--mono); font-size:13px; padding:9px 13px; border-radius:10px; border:1px solid var(--edge-2); color:var(--dim); cursor:pointer; display:flex; gap:9px; align-items:center; }
+  .daychip i{ width:8px;height:8px;border-radius:50%;background:var(--faint);}
+  .daychip.on{ border-color:var(--free-cool); color:var(--free-cool); background:rgba(56,214,198,.08);} .daychip.on i{ background:var(--free-cool); box-shadow:0 0 10px var(--free-cool);}
+  .gantry-foot{ display:flex; gap:12px; justify-content:flex-end; margin-top:22px; }
+
+  /* ---------- BUTTONS + COMPONENTS ---------- */
+  .btn{ appearance:none; border:0; cursor:pointer; font-family:var(--sans); font-weight:700; font-size:14px; padding:12px 20px; border-radius:11px; display:inline-flex; align-items:center; gap:9px; transition:transform .12s, box-shadow .2s, background .2s; }
+  .btn:active{ transform:translateY(1px) scale(.99); }
+  .btn.sig{ background:var(--signal); color:#1B1204; box-shadow:0 0 0 1px rgba(255,201,87,.6), 0 14px 34px -14px rgba(255,176,32,.8); }
+  .btn.sig:hover{ background:var(--signal-hi); box-shadow:0 0 0 1px var(--signal), 0 18px 44px -14px rgba(255,176,32,.9); }
+  .btn.ghost{ background:transparent; color:var(--txt); box-shadow:inset 0 0 0 1px var(--edge-2); }
+  .btn.ghost:hover{ box-shadow:inset 0 0 0 1px var(--signal); color:var(--signal-hi); }
+  .btn.cool{ background:transparent; color:var(--free-cool); box-shadow:inset 0 0 0 1px rgba(56,214,198,.5); }
+  .btn.cool:hover{ background:rgba(56,214,198,.1); }
+
+  .comp-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:18px; }
+  .card{ border:1px solid var(--edge); border-radius:16px; padding:20px; background:linear-gradient(180deg, var(--panel), #0B0F16); }
+  .card h5{ margin:0 0 16px; font-family:var(--mono); font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:var(--faint); }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{ font-family:var(--mono); font-size:11.5px; padding:6px 11px; border-radius:999px; display:inline-flex; align-items:center; gap:7px; }
+  .chip i{ width:7px; height:7px; border-radius:50%; }
+  .chip.go{ background:rgba(34,224,161,.1); color:var(--go); } .chip.go i{ background:var(--go); box-shadow:0 0 8px var(--go);}
+  .chip.stop{ background:rgba(255,92,108,.1); color:var(--stop);} .chip.stop i{ background:var(--stop); box-shadow:0 0 8px var(--stop);}
+  .chip.mine{ background:rgba(84,183,255,.1); color:var(--mine);} .chip.mine i{ background:var(--mine); box-shadow:0 0 8px var(--mine);}
+  .chip.wait{ background:rgba(255,176,32,.1); color:var(--signal-hi);} .chip.wait i{ background:var(--wait); box-shadow:0 0 8px var(--wait);}
+  .sfield{ display:flex; align-items:center; gap:10px; border:1px solid var(--edge-2); border-radius:11px; padding:12px 14px; background:rgba(255,255,255,.02); }
+  .sfield input{ background:transparent; border:0; color:var(--txt); font-family:var(--mono); font-size:15px; outline:none; width:100%; letter-spacing:.05em; }
+  .sfield:focus-within{ border-color:var(--signal); box-shadow:0 0 0 3px rgba(255,176,32,.1); }
+  .sfield svg{ width:17px; height:17px; color:var(--faint); }
+  .switch{ width:52px; height:29px; border-radius:999px; background:var(--panel-2); border:1px solid var(--edge-2); position:relative; cursor:pointer; }
+  .switch.on{ background:linear-gradient(90deg, rgba(255,176,32,.35), rgba(255,176,32,.15)); border-color:var(--signal); }
+  .switch .knob{ position:absolute; top:2px; left:2px; width:23px; height:23px; border-radius:50%; background:var(--dim); transition:.2s; }
+  .switch.on .knob{ left:26px; background:var(--signal); box-shadow:0 0 14px var(--signal); }
+
+  .foot{ padding:52px 0 76px; border-top:1px solid var(--edge); }
+  .foot-row{ display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .foot small{ color:var(--faint); font-family:var(--mono); font-size:11px; letter-spacing:.14em; }
+  a.note{ color:var(--signal-hi); text-decoration:none; border-bottom:1px solid rgba(255,201,87,.3); }
+
+  @media (max-width:900px){
+    .cover-grid{ grid-template-columns:1fr; }
+    .plan-grid{ grid-template-columns:1fr; }
+    .pickpanel{ flex-direction:row; flex-wrap:wrap; } .pickcard{ flex:1 1 44%; }
+    .seg{ grid-template-columns:1fr; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .shield .scan{ display:none; } .pill-live i, .station.now .node, .stop.active .b, .youhere, .gantry{ animation:none; }
+  }
+</style>
+
+<div class="stage" id="top">
+  <header class="chrome">
+    <div class="brand">
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 14 L12 6 L20 14" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div><b>ALEATICA</b><br><span>Mi espacio · Empleado</span></div>
+    </div>
+    <div class="chrome-r">
+      <span class="pill-live"><i></i> En vivo</span>
+      <span class="clock mono">DEV EMPLEADO · <b id="clk">—</b></span>
+    </div>
+  </header>
+
+  <!-- COVER -->
+  <section class="cover">
+    <div class="wrap cover-grid">
+      <div>
+        <p class="kick"><span class="dot">◆</span>&nbsp; Concepto · Portal del empleado — Señalización viva</p>
+        <h1>Tu sitio,<br><em>señalizado.</em></h1>
+        <p class="lead">Tu semana deja de ser una lista. Se convierte en una <b style="color:var(--txt)">ruta señalizada</b> — plaza y puesto como lámparas vivas que reclamas, ves y liberas.</p>
+        <div class="legend">
+          <span class="lamp go"><i></i><b>Libre</b> <span>GO</span></span>
+          <span class="lamp mine"><i></i><b>Tuyo</b> <span>YOU</span></span>
+          <span class="lamp wait"><i></i><b>Solicitado</b> <span>WAIT</span></span>
+          <span class="lamp rel"><i></i><b>Liberado</b> <span>OPEN</span></span>
+        </div>
+      </div>
+      <div class="shield" aria-label="Tu plaza P-1004">
+        <div class="scan"></div>
+        <div class="tag"><span>TU PLAZA · HOY</span><span>PLANTA 1</span></div>
+        <div class="num tnum">P·1004</div>
+        <div class="sub"><span>PARKING</span><span class="ok"><i></i>ASIGNADA</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="lane"></div></div>
+
+  <!-- MI SEMANA -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-no">01</span>
+        <div>
+          <h2 class="sec-title">Mi Semana — la línea</h2>
+          <p class="sec-sub">Tu semana como una línea de tránsito. Cada día es una estación con sus lámparas de plaza y puesto; “HOY” es tu marcador «estás aquí».</p>
+        </div>
+      </div>
+      <div class="weekscroll">
+        <div class="weekline">
+          <div class="station now">
+            <div class="youhere">▾ Estás aquí</div>
+            <div class="node"></div><div class="dow">Lun</div><div class="date">27</div>
+            <div class="res p"><i></i><b>P·1004</b></div><div class="res d"><i></i><b>D·02</b></div>
+          </div>
+          <div class="station">
+            <div class="node"></div><div class="dow">Mar</div><div class="date">28</div>
+            <div class="res p"><i></i><b>P·1004</b></div><div class="res free"><i></i><b>Puesto —</b></div>
+          </div>
+          <div class="station">
+            <div class="node"></div><div class="dow">Mié</div><div class="date">29</div>
+            <div class="res rel"><i></i><b>Liberada</b></div><div class="res d"><i></i><b>D·02</b></div>
+          </div>
+          <div class="station">
+            <div class="node"></div><div class="dow">Jue</div><div class="date">30</div>
+            <div class="res p"><i></i><b>P·1004</b></div><div class="res d"><i></i><b>D·02</b></div>
+          </div>
+          <div class="station">
+            <div class="node"></div><div class="dow">Vie</div><div class="date">31</div>
+            <div class="res free"><i></i><b>Plaza —</b></div><div class="res free"><i></i><b>Puesto —</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="lane"></div></div>
+
+  <!-- RESERVAR: RUTA + PLANO -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-no">02</span>
+        <div>
+          <h2 class="sec-title">Reservar — elige en el plano</h2>
+          <p class="sec-sub">La reserva es una ruta señalizada. Al llegar al puesto, el plano es un radar vivo: una barra de escaneo recorre la planta y tocas una lámpara verde para reclamarlo.</p>
+        </div>
+      </div>
+      <div class="route">
+        <div class="stop done"><span class="b">✓</span><span class="t">Recurso</span></div><span class="link"></span>
+        <div class="stop done"><span class="b">✓</span><span class="t">Fechas</span></div><span class="link"></span>
+        <div class="stop active"><span class="b">3</span><span class="t">Puesto</span></div><span class="link"></span>
+        <div class="stop"><span class="b">4</span><span class="t">Confirmar</span></div>
+      </div>
+      <div class="plan-grid">
+        <div class="board-panel">
+          <div class="board-top">
+            <span class="gate">PLANO · <b>PLANTA 1</b></span>
+            <span class="hint-tap">▸ toca una lámpara verde</span>
+          </div>
+          <canvas id="floor"></canvas>
+          <div class="board-foot"><span><b>63</b> LIBRES</span><span><b>SCAN</b> 4.0s</span><span><b>ZOOM</b> 88%</span></div>
+        </div>
+        <div class="pickpanel">
+          <div class="pickcard sel">
+            <div class="lbl">Tu elección</div>
+            <div class="big tnum">D·02</div>
+          </div>
+          <div class="pickcard">
+            <div class="lbl">Cerca, libres</div>
+            <div class="miniopts">
+              <span class="miniopt pick"><i></i>D·02</span>
+              <span class="miniopt"><i></i>D·08</span>
+              <span class="miniopt"><i></i>D·11</span>
+              <span class="miniopt"><i></i>D·24</span>
+            </div>
+          </div>
+          <button class="btn sig" style="justify-content:center">Reservar D·02 →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="lane"></div></div>
+
+  <!-- LIBERAR (GANTRY) -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-no">03</span>
+        <div>
+          <h2 class="sec-title">Liberar — panel de andén</h2>
+          <p class="sec-sub">Cuando no vayas, liberas tu sitio. Adiós al cuadro centrado: la acción sube como un panel de andén (gantry) con el filo ámbar iluminado.</p>
+        </div>
+      </div>
+      <div class="stagebox">
+        <div class="dim"></div>
+        <div class="gantry">
+          <div class="gantry-h">
+            <div class="ti">
+              <span class="g"><svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 5v9m0 0-3.5-3.5M12 14l3.5-3.5M5 19h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div><h3>Liberar mi plaza</h3><span class="who">P·1004 · PLANTA 1 · ASIGNACIÓN FIJA</span></div>
+            </div>
+            <button class="x" aria-label="Cerrar">✕</button>
+          </div>
+          <div class="seg">
+            <button class="on"><svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="8" r="3" stroke="currentColor" stroke-width="2"/><path d="M4 20v-1a4 4 0 0 1 8 0M12 19a4 4 0 0 1 8 0v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Días sueltos</button>
+            <button><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 9h16M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Rango</button>
+          </div>
+          <p class="field-line">¿Qué días no vas a acudir?</p>
+          <div class="daychips">
+            <span class="daychip on"><i></i>MIÉ 29</span>
+            <span class="daychip on"><i></i>VIE 31</span>
+            <span class="daychip"><i></i>LUN 03</span>
+            <span class="daychip"><i></i>MAR 04</span>
+            <span class="daychip"><i></i>JUE 06</span>
+          </div>
+          <div class="gantry-foot">
+            <button class="btn ghost">Cerrar</button>
+            <button class="btn cool">Liberar 2 días →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="lane"></div></div>
+
+  <!-- KIT -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-no">04</span>
+        <div>
+          <h2 class="sec-title">El kit — señalización</h2>
+          <p class="sec-sub">Botones señal, lámparas de estado, campos monoespaciados, conmutadores iluminados y marcadores. Un lenguaje, todas las pantallas del empleado.</p>
+        </div>
+      </div>
+      <div class="comp-grid">
+        <div class="card">
+          <h5>Acciones</h5>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+            <button class="btn sig">Reservar ahora →</button>
+            <button class="btn ghost">Ver en plano</button>
+            <button class="btn cool">Liberar día</button>
+          </div>
+        </div>
+        <div class="card">
+          <h5>Estados</h5>
+          <div class="chips">
+            <span class="chip go"><i></i>LIBRE</span>
+            <span class="chip mine"><i></i>TUYO</span>
+            <span class="chip wait"><i></i>SOLICITADO</span>
+            <span class="chip stop"><i></i>OCUPADO</span>
+          </div>
+        </div>
+        <div class="card">
+          <h5>Buscar puesto</h5>
+          <div class="sfield">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input value="D·0" aria-label="Buscar puesto" />
+          </div>
+          <div style="height:14px"></div>
+          <h5>Ir al parking</h5>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="switch on" role="switch" aria-checked="true"><span class="knob"></span></span>
+            <span style="color:var(--dim);font-size:13px">Mostrar cómo llegar</span>
+          </div>
+        </div>
+        <div class="card">
+          <h5>Marcador</h5>
+          <div style="display:flex;gap:12px;align-items:center">
+            <span style="font-family:var(--mono);font-weight:700;font-size:2.2rem;color:var(--cream);letter-spacing:-.03em" class="tnum">D·02</span>
+            <span class="chip mine" style="align-self:center"><i></i>TUYO</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <div>
+        <p class="kick" style="margin:0 0 6px"><span class="dot">◆</span> ALEATICA · Portal del empleado</p>
+        <small>Concepto de diseño — no es la implementación. Dirección: “Wayfinding / Señalización viva”.</small>
+      </div>
+      <a class="note" href="#top">Volver arriba ↑</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  function tick(){ var d=new Date(); var el=document.getElementById('clk'); if(el) el.textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); }
+  tick(); setInterval(tick,1000);
+
+  var cv=document.getElementById('floor'); if(!cv) return;
+  var ctx=cv.getContext('2d');
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var desks=[];
+  function seed(s){ return function(){ s=(s*9301+49297)%233280; return s/233280; }; }
+  function build(w,h){
+    desks=[]; var rnd=seed(4021); var cols=13, rows=6, padX=w*0.09, padY=h*0.17;
+    var gw=(w-padX*2)/(cols-1), gh=(h-padY*2)/(rows-1), n=0;
+    for(var r=0;r<rows;r++) for(var c=0;c<cols;c++){
+      var cx=c/(cols-1), cy=r/(rows-1);
+      if(((cx>0.42&&cx<0.62)&&(cy>0.15&&cy<0.85)) && rnd()<0.7) continue;
+      if(rnd()<0.06) continue;
+      var st='go', rr=rnd();
+      if(n===9) st='mine'; else if(rr<0.03) st='stop'; else if(rr<0.05) st='wait';
+      desks.push({ x:padX+c*gw+(rnd()-0.5)*gw*0.3, y:padY+r*gh+(rnd()-0.5)*gh*0.3, st:st, ph:rnd()*6.28 }); n++;
+    }
+  }
+  var COL={ go:[34,224,161], stop:[255,92,108], mine:[84,183,255], wait:[255,176,32] };
+  function resize(){ var rect=cv.getBoundingClientRect(); var dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.width=rect.width*dpr; cv.height=rect.height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); build(rect.width,rect.height); }
+  window.addEventListener('resize',resize);
+  function draw(t){
+    var rect=cv.getBoundingClientRect(), w=rect.width, h=rect.height; ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle='rgba(255,255,255,0.035)'; ctx.lineWidth=1;
+    for(var gx=0;gx<w;gx+=34){ ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,h); ctx.stroke(); }
+    for(var gy=0;gy<h;gy+=34){ ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(w,gy); ctx.stroke(); }
+    ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1.5; ctx.strokeRect(w*0.055,h*0.1,w*0.89,h*0.8);
+    var period=4000, sx=reduce?w*0.5:(t%period)/period*w;
+    if(!reduce){ var g=ctx.createLinearGradient(sx-70,0,sx+70,0);
+      g.addColorStop(0,'rgba(255,201,87,0)'); g.addColorStop(.5,'rgba(255,201,87,0.13)'); g.addColorStop(1,'rgba(255,201,87,0)');
+      ctx.fillStyle=g; ctx.fillRect(sx-70,h*0.1,140,h*0.8);
+      ctx.strokeStyle='rgba(255,201,87,0.5)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(sx,h*0.1); ctx.lineTo(sx,h*0.9); ctx.stroke(); }
+    for(var i=0;i<desks.length;i++){ var d=desks[i], col=COL[d.st];
+      var near=Math.abs(d.x-sx), boost=reduce?0:Math.max(0,1-near/90);
+      var pulse=d.st==='mine'?(0.5+0.5*Math.sin(t/500+d.ph)):0;
+      var glow=(d.st==='go'?0.5:0.9)+boost*0.6+pulse*0.5, rad=d.st==='go'?9:12;
+      var grd=ctx.createRadialGradient(d.x,d.y,0,d.x,d.y,rad+8);
+      grd.addColorStop(0,'rgba('+col[0]+','+col[1]+','+col[2]+','+(0.5*glow)+')'); grd.addColorStop(1,'rgba('+col[0]+','+col[1]+','+col[2]+',0)');
+      ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(d.x,d.y,rad+8,0,6.2832); ctx.fill();
+      ctx.fillStyle='rgba('+col[0]+','+col[1]+','+col[2]+','+Math.min(1,0.7+boost)+')';
+      ctx.beginPath(); ctx.arc(d.x,d.y,d.st==='go'?2.4:3.4,0,6.2832); ctx.fill();
+      if(d.st==='mine'){ ctx.strokeStyle='rgba(84,183,255,'+(0.4+pulse*0.5)+')'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(d.x,d.y,8+pulse*4,0,6.2832); ctx.stroke(); } }
+    requestAnimationFrame(draw);
+  }
+  resize(); requestAnimationFrame(draw);
+})();
+</script>
