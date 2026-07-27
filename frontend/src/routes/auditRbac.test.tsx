@@ -8,13 +8,17 @@ import { MSW_BASE } from '../mocks/handlers';
 import { adminUser, employeeUser } from '../mocks/fixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 
+// Las rutas antiguas de Auditoría y Accesos redirigen a la página unificada de
+// Registros (RecordsPage), cuyo título de página es "Registros" / "Records".
+const RECORDS_HEADING = /^registros$|^records$/i;
+
 describe('Audit and LoginLogs RBAC', () => {
   it('should_render_audit_view_when_admin_opens_route', async () => {
     server.use(http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(adminUser)));
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminAudit });
 
     expect(
-      await screen.findByRole('heading', { name: /auditoría de acciones|action audit/i }),
+      await screen.findByRole('heading', { name: RECORDS_HEADING }),
     ).toBeInTheDocument();
   });
 
@@ -23,7 +27,7 @@ describe('Audit and LoginLogs RBAC', () => {
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminLoginLogs });
 
     expect(
-      await screen.findByRole('heading', { name: /accesos|sign-ins/i }),
+      await screen.findByRole('heading', { name: RECORDS_HEADING }),
     ).toBeInTheDocument();
   });
 
@@ -35,7 +39,7 @@ describe('Audit and LoginLogs RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /auditoría de acciones|action audit/i }),
+      screen.queryByRole('heading', { name: RECORDS_HEADING }),
     ).not.toBeInTheDocument();
   });
 
@@ -47,7 +51,7 @@ describe('Audit and LoginLogs RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /accesos|sign-ins/i }),
+      screen.queryByRole('heading', { name: RECORDS_HEADING }),
     ).not.toBeInTheDocument();
   });
 });

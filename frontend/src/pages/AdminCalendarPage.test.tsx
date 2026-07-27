@@ -86,8 +86,11 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
 
     await screen.findByRole('table');
     // La fila de KPIs del modo activo se refiere al primer dia visible del fixture
-    // (2026-05-11): P-01 ASSIGNED => 1 ocupado; P-02 FREE => 1 libre.
-    const occupied = screen.getByText(/ocupados|occupied/i).closest('.occ-kpi');
+    // (2026-05-11): P-01 ASSIGNED => 1 ocupado; P-02 FREE => 1 libre. El texto
+    // "Ocupados" tambien aparece en el chip de filtro, asi que acotamos la
+    // busqueda al contenedor de KPIs (.occ-kpis).
+    const kpis = document.querySelector('.occ-kpis') as HTMLElement;
+    const occupied = within(kpis).getByText(/ocupados|occupied/i).closest('.occ-kpi');
     expect(occupied).not.toBeNull();
     expect(within(occupied as HTMLElement).getByText('1')).toBeInTheDocument();
   });

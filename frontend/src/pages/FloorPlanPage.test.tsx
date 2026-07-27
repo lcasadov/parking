@@ -220,14 +220,36 @@ describe('FloorPlanPage', () => {
 
   it('should_show_the_save_positions_button_and_confirm_on_click', async () => {
     useAdmin();
-    server.use(http.get(FLOOR_PLAN_URL, () => HttpResponse.json(defaultFloorPlan)));
+    server.use(
+      http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([floorDeskFree]))),
+      http.put(`${FLOOR_PLAN_URL}/desks/:deskId/position`, () => new HttpResponse(null, { status: 204 })),
+    );
     const user = userEvent.setup();
     renderWithProviders(<FloorPlanPage />);
-    await screen.findAllByTestId('floor-marker');
+    await screen.findByTestId('floor-marker');
 
     await user.click(screen.getByRole('button', { name: /editar posiciones|edit positions/i }));
-    // El editor expone un guardado explícito además del auto-save por arrastre.
-    await user.click(screen.getByRole('button', { name: /guardar posiciones|save positions/i }));
+
+    // Arrastrar un marcador solo llena el buffer local; el guardado es explícito
+    // vía el botón "Guardar cambios", que persiste el buffer y confirma.
+    const surface = screen.getByTestId('floor-plan-surface');
+    surface.getBoundingClientRect = vi.fn().mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 1000,
+      height: 1000,
+      right: 1000,
+      bottom: 1000,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    const marker = screen.getByRole('button', { name: /puesto 1/i });
+    fireEvent.pointerDown(marker, { clientX: 200, clientY: 300, pointerId: 1 });
+    fireEvent.pointerMove(surface, { clientX: 250, clientY: 500, pointerId: 1 });
+    fireEvent.pointerUp(surface, { clientX: 250, clientY: 500, pointerId: 1 });
+
+    await user.click(screen.getByRole('button', { name: /guardar cambios|save changes/i }));
 
     expect(
       await screen.findByText(/posiciones guardadas|positions saved/i),
@@ -302,10 +324,14 @@ describe('FloorPlanPage', () => {
     });
 
     const marker = screen.getByRole('button', { name: /puesto 1/i });
-    // Pointer Events (unifican ratón + táctil): arrastre del marcador.
+    // Pointer Events (unifican ratón + táctil): arrastre del marcador. El
+    // arrastre solo llena el buffer local; la persistencia (PUT) ocurre al
+    // pulsar "Guardar cambios".
     fireEvent.pointerDown(marker, { clientX: 200, clientY: 300, pointerId: 1 });
     fireEvent.pointerMove(surface, { clientX: 250, clientY: 500, pointerId: 1 });
     fireEvent.pointerUp(surface, { clientX: 250, clientY: 500, pointerId: 1 });
+
+    await user.click(screen.getByRole('button', { name: /guardar cambios|save changes/i }));
 
     await waitFor(() => expect(putBody).not.toBeNull());
     expect(putDeskId).toBe('1');

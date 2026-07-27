@@ -8,7 +8,9 @@ import { MSW_BASE } from '../mocks/handlers';
 import { adminUser, agencyUser, employeeUser } from '../mocks/fixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 
-const RELEASE_HEADING = /liberación administrativa|administrative release/i;
+// La vista de AGENCIA es ahora el hub de liberaciones (ReleaseHubPage), cuyo
+// título de página es "Liberar" / "Release".
+const RELEASE_HEADING = /^liberar$|^release$/i;
 const SIGN_IN = /entrar|sign in/i;
 
 describe('Agency RBAC', () => {

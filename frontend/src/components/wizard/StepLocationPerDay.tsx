@@ -102,7 +102,7 @@ export function StepLocationPerDay({ state, dates, patch }: StepLocationPerDayPr
                 <span className="rzw-perday-date">{longDate(date, i18n.language)}</span>
                 <span className={`rzw-perday-choice${tone}`}>
                   {isDesk ? (
-                    <i className="ti ti-armchair" aria-hidden="true" />
+                    <i className="ti ti-device-desktop" aria-hidden="true" />
                   ) : (
                     <i className="ti ti-car" aria-hidden="true" />
                   )}

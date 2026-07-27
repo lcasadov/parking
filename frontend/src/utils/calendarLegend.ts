@@ -37,7 +37,7 @@ const MY_WEEK_LEGEND_COLOR: Record<'ASSIGNED' | 'RELEASED' | 'REQUEST_PENDING' |
   ASSIGNED: 'var(--accent)', // verde — lo tienes
   RELEASED: 'var(--brand-blue)', // cian — liberado
   REQUEST_PENDING: 'var(--pink-text)', // rosa — pendiente de confirmación
-  FREE: 'var(--ink-faint)', // gris — sin reservar
+  FREE: 'var(--pend)', // naranja — sin reservar (llama la atención)
 };
 
 export function myWeekLegend(t: TFunction): LegendItem[] {

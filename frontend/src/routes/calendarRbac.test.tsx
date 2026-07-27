@@ -18,7 +18,7 @@ describe('Calendar / Availability RBAC', () => {
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminCalendar });
 
     expect(
-      await screen.findByRole('heading', { name: /asignación semanal|weekly assignment/i }),
+      await screen.findByRole('heading', { name: /plazas de parking|parking spaces/i }),
     ).toBeInTheDocument();
   });
 
@@ -42,7 +42,7 @@ describe('Calendar / Availability RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /asignación semanal|weekly assignment/i }),
+      screen.queryByRole('heading', { name: /plazas de parking|parking spaces/i }),
     ).not.toBeInTheDocument();
   });
 

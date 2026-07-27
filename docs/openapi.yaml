@@ -1020,6 +1020,11 @@ paths:
       tags: [Requests]
       operationId: listMyRequests
       summary: Mis solicitudes (EMPLOYEE)
+      description: >
+        Lista paginada de las solicitudes propias. Admite filtro opcional por estado y por
+        rango de fecha de recurso (`requestedDate`) inclusive `[from, to]` para la navegación
+        por meses de "Mis solicitudes"; cuando se pasa el rango, el orden es por `requestedDate`
+        ascendente (change `reservas-employee-admin-reassign`, Feature D).
       parameters:
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/SizeParam'
@@ -1028,6 +1033,22 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/RequestStatus'
+        - name: from
+          in: query
+          required: false
+          description: Fecha de recurso mínima (inclusive, ISO-8601 date).
+          schema:
+            type: string
+            format: date
+            example: '2026-07-01'
+        - name: to
+          in: query
+          required: false
+          description: Fecha de recurso máxima (inclusive, ISO-8601 date).
+          schema:
+            type: string
+            format: date
+            example: '2026-07-31'
       responses:
         '200':
           description: Página de solicitudes propias
@@ -1035,6 +1056,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PageRequest'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/suggested:
+    get:
+      tags: [Requests]
+      operationId: suggestedResource
+      summary: Vista previa del recurso auto-asignado al propio empleado (EMPLOYEE)
+      description: >
+        Change `reservas-employee-admin-reassign`. Devuelve el recurso (plaza/puesto) que se
+        auto-asignaría al propio empleado esa fecha aplicando la MISMA lógica que `POST /requests`
+        en modo automático —incluida la preferencia por el recurso fijo propio (Feature A)— sin
+        crear la solicitud. Si no hay ninguno libre, responde 200 con `available = false`.
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: Fecha a consultar (ISO-8601 date).
+          schema: { type: string, format: date, example: '2026-07-10' }
+        - name: resourceType
+          in: query
+          required: false
+          description: Tipo de recurso a sugerir; por defecto PARKING.
+          schema:
+            allOf: [ { $ref: '#/components/schemas/ResourceType' } ]
+            default: PARKING
+      responses:
+        '200':
+          description: Recurso sugerido (o available = false si no hay disponibilidad)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestedResource'
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/ServerError' }
@@ -1067,6 +1124,13 @@ paths:
         solicitud nace `PENDING` igualmente (NO se responde `409` ni se exige elegir
         puesto). Si se indica `resourceId` (elección explícita), el comportamiento no
         cambia: nace `APPROVED` con ese puesto, `409` si no está disponible.
+
+
+        Change `reservas-employee-admin-reassign`: si el ajuste global `weekendReservable`
+        es `false` (por defecto), una `requestedDate` en sábado o domingo se rechaza con
+        `400` y `error = WEEKEND_NOT_RESERVABLE` (detalle en `fields.requestedDate`); con
+        `true`, se permite. La regla solo aplica al autoservicio del empleado, no a la
+        asignación puntual del admin.
       requestBody:
         required: true
         content:
@@ -1080,7 +1144,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Request'
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '400':
+          description: >
+            Fecha pasada (`OUTSIDE_REQUEST_WINDOW`) o fin de semana con reservas de fin de
+            semana deshabilitadas (`WEEKEND_NOT_RESERVABLE`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409':
@@ -1128,6 +1198,83 @@ paths:
           description: >
             Conflicto: el recurso indicado no está disponible esa fecha, o
             `NO_AVAILABILITY` (auto-asignación de PARKING sin plaza libre).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/admin/reassign:
+    post:
+      tags: [Requests]
+      operationId: adminReassignRequest
+      summary: Reasigna el recurso de una asignación por fecha (ADMIN)
+      description: >
+        Change `reservas-employee-admin-reassign`, capability `admin-resource-reassignment`
+        (Feature B). Cambia el recurso (plaza/puesto) de una asignación `APPROVED` de fecha
+        futura al recurso destino indicado, validando que esté libre y sea del mismo tipo que
+        el original (409 `SPACE_NOT_AVAILABLE` si está ocupado). El recurso anterior queda
+        libre; el empleado afectado recibe un email con su recurso resultante y la fecha (best
+        effort). Queda trazado en `audit_log` con el admin como actor. Si `newResourceId`
+        coincide con el recurso actual, la operación es idempotente (no cambia nada ni notifica).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestAdminReassignRequest'
+      responses:
+        '200':
+          description: Solicitud reasignada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Conflicto: la solicitud no es `APPROVED` de fecha futura, o el recurso destino no
+            está disponible esa fecha (`SPACE_NOT_AVAILABLE`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /requests/admin/swap:
+    post:
+      tags: [Requests]
+      operationId: adminSwapRequests
+      summary: Intercambia (swap) recursos entre dos asignaciones por fecha (ADMIN)
+      description: >
+        Change `reservas-employee-admin-reassign`, capability `admin-resource-reassignment`
+        (Feature B). Intercambia en una operación ATÓMICA los recursos de dos asignaciones
+        `APPROVED` de la misma `requestedDate` y del mismo tipo; si cualquiera de los dos lados
+        falla, no se aplica ninguno (rollback total). Ambos empleados afectados reciben un email
+        con su recurso resultante y la fecha (best effort). Queda trazado en `audit_log` con el
+        admin como actor. Responde `409` si son la misma solicitud, no están ambas `APPROVED`,
+        o difieren en fecha o tipo de recurso.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestAdminSwapRequest'
+      responses:
+        '200':
+          description: Ambas solicitudes intercambiadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestSwapResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            Conflicto: misma solicitud, no ambas `APPROVED`, o difieren en fecha o tipo de recurso.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
@@ -1808,6 +1955,62 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/ServerError' }
 
+  /admin/settings/parking-address:
+    put:
+      tags: [SystemSettings]
+      operationId: updateParkingAddress
+      summary: Cambia la dirección del parking (ADMIN)
+      description: >
+        Change `reservas-employee-admin-reassign`. Establece o borra (enviando `null` o cadena
+        en blanco en `parkingAddress`) la dirección postal del parking usada por el botón "Ir al
+        parking" del empleado (abre Google Maps). El servicio normaliza el valor (recorta
+        espacios; blanco → `null`). Queda trazado en `audit_log` con el admin como actor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateParkingAddressRequest'
+      responses:
+        '200':
+          description: Ajuste global actualizado (incluye parkingAddress)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSettings'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /admin/settings/weekend-reservable:
+    put:
+      tags: [SystemSettings]
+      operationId: updateWeekendReservable
+      summary: Cambia el permiso de reservas en fin de semana (ADMIN)
+      description: >
+        Change `reservas-employee-admin-reassign`. Activa (`true`) o desactiva (`false`, por
+        defecto) la posibilidad de crear solicitudes en sábado/domingo. Con `false`,
+        `POST /requests` responde 400 `WEEKEND_NOT_RESERVABLE` para fechas de fin de semana. Queda
+        trazado en `audit_log` con el admin como actor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWeekendReservableRequest'
+      responses:
+        '200':
+          description: Ajuste global actualizado (incluye weekendReservable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSettings'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
   /settings/approval-mode:
     get:
       tags: [SystemSettings]
@@ -1826,6 +2029,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApprovalModeResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /settings/parking-address:
+    get:
+      tags: [SystemSettings]
+      operationId: getParkingAddress
+      summary: Lee la dirección del parking (cualquier autenticado)
+      description: >
+        Change `reservas-employee-admin-reassign`. Accesible a cualquier empleado autenticado
+        (EMPLOYEE/AGENCIA/ADMIN); expone SOLO la dirección postal del parking (para el botón "Ir
+        al parking" de "Mi Semana"), sin el modo de aprobación ni la trazabilidad. `parkingAddress`
+        es `null` si aún no se ha configurado.
+      responses:
+        '200':
+          description: Dirección del parking vigente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParkingAddressResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /settings/weekend-reservable:
+    get:
+      tags: [SystemSettings]
+      operationId: getWeekendReservable
+      summary: Lee el permiso de reservas en fin de semana (cualquier autenticado)
+      description: >
+        Change `reservas-employee-admin-reassign`. Accesible a cualquier empleado autenticado
+        (EMPLOYEE/AGENCIA/ADMIN); expone SOLO el flag `weekendReservable`, sin el modo de aprobación
+        ni la trazabilidad. La UI lo usa para decidir si ofrecer sábado/domingo como fechas
+        reservables.
+      responses:
+        '200':
+          description: Permiso de fin de semana vigente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeekendReservableResponse'
         '401': { $ref: '#/components/responses/Unauthorized' }
         '500': { $ref: '#/components/responses/ServerError' }
 
@@ -2490,6 +2733,50 @@ components:
             Recurso a asignar. Opcional en PARKING (auto-asignación por categoría/planta
             si se omite; 409 NO_AVAILABILITY si no hay ninguna plaza libre). Obligatorio
             en DESK (400 si se omite; no hay auto-asignación de puestos).
+    RequestAdminReassignRequest:
+      type: object
+      required: [requestId, newResourceId]
+      description: >
+        Reasignación administrativa (capability `admin-resource-reassignment`): cambia el recurso
+        de una asignación `APPROVED` de fecha futura al recurso destino, que debe existir, ser del
+        mismo tipo que el original y estar libre esa fecha.
+      properties:
+        requestId:
+          type: integer
+          format: int64
+          description: Solicitud APPROVED a reasignar.
+        newResourceId:
+          type: integer
+          format: int64
+          description: Recurso destino (plaza/puesto) al que se reasigna.
+    RequestAdminSwapRequest:
+      type: object
+      required: [requestIdA, requestIdB]
+      description: >
+        Intercambio (swap) administrativo (capability `admin-resource-reassignment`): intercambia
+        atómicamente los recursos de dos asignaciones `APPROVED` de la misma fecha y del mismo
+        tipo. Ambos identificadores deben ser distintos.
+      properties:
+        requestIdA:
+          type: integer
+          format: int64
+          description: Primera solicitud APPROVED a intercambiar.
+        requestIdB:
+          type: integer
+          format: int64
+          description: Segunda solicitud APPROVED a intercambiar.
+    RequestSwapResponse:
+      type: object
+      description: >
+        Resultado de un intercambio de recursos: ambas solicitudes ya actualizadas (cada una con
+        el recurso de la otra).
+      properties:
+        requestA:
+          allOf: [ { $ref: '#/components/schemas/Request' } ]
+          description: Primera solicitud, ya con el recurso de la segunda.
+        requestB:
+          allOf: [ { $ref: '#/components/schemas/Request' } ]
+          description: Segunda solicitud, ya con el recurso de la primera.
     SuggestedParkingSpace:
       type: object
       description: >
@@ -2543,11 +2830,86 @@ components:
         reason: { type: string, minLength: 5, maxLength: 500 }
     SystemSettings:
       type: object
-      description: Ajuste global del sistema (modo de aprobación de solicitudes).
+      description: >
+        Ajuste global del sistema (modo de aprobación, dirección del parking y reservas de fin de
+        semana).
       properties:
         approvalMode: { $ref: '#/components/schemas/ApprovalMode' }
+        parkingAddress:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: >
+            Dirección postal del parking usada por el botón "Ir al parking" del empleado (abre
+            Google Maps); null si aún no se ha configurado (change `reservas-employee-admin-reassign`).
+          example: 'Av. de Europa 18, 28108 Alcobendas, Madrid'
+        weekendReservable:
+          type: boolean
+          description: >
+            Si se permiten reservas en fin de semana (sábado/domingo). Por defecto `false`: con
+            `false`, `POST /requests` rechaza fechas de fin de semana con 400
+            `WEEKEND_NOT_RESERVABLE` (change `reservas-employee-admin-reassign`).
+          example: false
         updatedById: { type: integer, format: int64, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
+    ParkingAddressResponse:
+      type: object
+      description: >
+        Dirección del parking, legible por cualquier empleado autenticado (schema de
+        `GET /settings/parking-address`); sin el modo de aprobación ni la trazabilidad.
+      properties:
+        parkingAddress:
+          type: string
+          nullable: true
+          description: Dirección postal del parking; null si sin configurar.
+          example: 'Av. de Europa 18, 28108 Alcobendas, Madrid'
+    UpdateParkingAddressRequest:
+      type: object
+      description: >
+        Cambio de la dirección del parking (change `reservas-employee-admin-reassign`). La
+        dirección es opcional: `null` o cadena en blanco la borra (el servicio recorta espacios).
+      properties:
+        parkingAddress:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Nueva dirección postal; null o blanco para borrarla.
+          example: 'Av. de Europa 18, 28108 Alcobendas, Madrid'
+    WeekendReservableResponse:
+      type: object
+      description: >
+        Permiso de reservas en fin de semana, legible por cualquier empleado autenticado (schema de
+        `GET /settings/weekend-reservable`); sin el modo de aprobación ni la trazabilidad.
+      properties:
+        weekendReservable:
+          type: boolean
+          description: Si se permiten reservas en sábado/domingo.
+          example: false
+    UpdateWeekendReservableRequest:
+      type: object
+      required: [weekendReservable]
+      description: >
+        Cambio del permiso de reservas en fin de semana (change `reservas-employee-admin-reassign`).
+      properties:
+        weekendReservable:
+          type: boolean
+          description: true para permitir reservas en sábado/domingo.
+          example: true
+    SuggestedResource:
+      type: object
+      description: >
+        Recurso (plaza o puesto) que se auto-asignaría al PROPIO empleado para una fecha, aplicando
+        la misma lógica que la creación automatica (incluida la preferencia por el recurso fijo
+        propio), sin crear la solicitud (schema de `GET /requests/suggested`).
+      properties:
+        available:
+          type: boolean
+          description: Indica si hay un recurso libre que se auto-asignaría.
+        resourceLabel:
+          type: string
+          nullable: true
+          description: Etiqueta humana del recurso sugerido; null si no hay disponibilidad.
+          example: 'Plaza 3005'
     ApprovalModeResponse:
       type: object
       description: >
@@ -2713,6 +3075,20 @@ components:
           type: boolean
           default: false
           description: Igual que `waitlisted`, para la solicitud de puesto propia de ese día.
+        releaseId:
+          type: integer
+          format: int64
+          nullable: true
+          description: >
+            Id de la liberación propia de la PLAZA de ese día cuando el día está en estado
+            `RELEASED` por una liberación del propio empleado aún cancelable (hoy o futuro); null en
+            otro caso. Permite a "Mi Semana" ofrecer "Deshacer ausencia" cancelándola con
+            `DELETE /releases/{id}` (change `reservas-employee-admin-reassign`).
+        deskReleaseId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Igual que `releaseId`, para la liberación propia del PUESTO de ese día.
     MyWeekResponse:
       type: object
       properties:

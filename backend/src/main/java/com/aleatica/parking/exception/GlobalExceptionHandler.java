@@ -20,6 +20,7 @@ import com.aleatica.parking.request.application.RequestStateException;
 import com.aleatica.parking.request.application.ResendTooSoonException;
 import com.aleatica.parking.request.application.ResourceSelectionRequiredException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
+import com.aleatica.parking.request.application.WeekendNotReservableException;
 import com.aleatica.parking.visitor.application.PastVisitorReservationCancellationException;
 import com.aleatica.parking.visitor.application.SpaceNotAvailableForReservationException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
@@ -65,6 +66,7 @@ public class GlobalExceptionHandler {
     private static final String CODE_PASSWORD_POLICY = "PASSWORD_POLICY_VIOLATION";
     private static final String CODE_CONFLICT = "CONFLICT";
     private static final String CODE_OUTSIDE_WINDOW = "OUTSIDE_REQUEST_WINDOW";
+    private static final String CODE_WEEKEND_NOT_RESERVABLE = "WEEKEND_NOT_RESERVABLE";
     private static final String CODE_REQUEST_PENDING = "REQUEST_ALREADY_PENDING";
     private static final String CODE_SPACE_UNAVAILABLE = "SPACE_NOT_AVAILABLE";
     private static final String CODE_NO_AVAILABILITY = "NO_AVAILABILITY";
@@ -428,6 +430,21 @@ public class GlobalExceptionHandler {
         Map<String, String> fields = Map.of(FIELD_REQUESTED_DATE, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_OUTSIDE_WINDOW, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce el intento de crear una solicitud para sabado/domingo con las reservas de fin de
+     * semana deshabilitadas a {@code 400} con {@code error = WEEKEND_NOT_RESERVABLE} y el detalle
+     * en {@code requestedDate} (change {@code reservas-employee-admin-reassign}).
+     *
+     * @param ex excepcion de fin de semana no reservable
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(WeekendNotReservableException.class)
+    public ResponseEntity<ApiError> handleWeekendNotReservable(WeekendNotReservableException ex) {
+        Map<String, String> fields = Map.of(FIELD_REQUESTED_DATE, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_WEEKEND_NOT_RESERVABLE, ex.getMessage(), fields));
     }
 
     /**

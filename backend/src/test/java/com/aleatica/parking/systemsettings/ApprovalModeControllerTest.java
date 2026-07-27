@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.aleatica.parking.config.SecurityConfig;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import com.aleatica.parking.systemsettings.domain.ApprovalMode;
+import com.aleatica.parking.systemsettings.dto.ParkingAddressResponse;
+import com.aleatica.parking.systemsettings.dto.WeekendReservableResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -27,6 +29,8 @@ import org.springframework.test.web.servlet.MockMvc;
 class ApprovalModeControllerTest {
 
     private static final String URL = "/api/v1/settings/approval-mode";
+    private static final String ADDRESS_URL = "/api/v1/settings/parking-address";
+    private static final String WEEKEND_URL = "/api/v1/settings/weekend-reservable";
     private static final String ADMIN = "admin";
     private static final String EMP = "empleado";
     private static final String ROLE_ADMIN = "ADMIN";
@@ -61,5 +65,39 @@ class ApprovalModeControllerTest {
         mockMvc.perform(get(URL).with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.approvalMode").value("AUTOMATIC"));
+    }
+
+    // ---- Direccion del parking (lectura de cualquier autenticado) ----
+
+    @Test
+    void shouldReturn401_whenGettingParkingAddressWithoutSession() throws Exception {
+        mockMvc.perform(get(ADDRESS_URL)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn200_whenEmployeeGetsParkingAddress() throws Exception {
+        given(systemSettingsService.parkingAddress())
+                .willReturn(new ParkingAddressResponse("Av. de Europa 18"));
+
+        mockMvc.perform(get(ADDRESS_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.parkingAddress").value("Av. de Europa 18"));
+    }
+
+    // ---- Permiso de reservas en fin de semana (lectura de cualquier autenticado) ----
+
+    @Test
+    void shouldReturn401_whenGettingWeekendWithoutSession() throws Exception {
+        mockMvc.perform(get(WEEKEND_URL)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn200_whenEmployeeGetsWeekendReservable() throws Exception {
+        given(systemSettingsService.weekendReservableView())
+                .willReturn(new WeekendReservableResponse(false));
+
+        mockMvc.perform(get(WEEKEND_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weekendReservable").value(false));
     }
 }

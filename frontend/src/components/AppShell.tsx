@@ -2,7 +2,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation } from 'react-router-dom';
-import aleaticaLogo from '../assets/aleatica-logo.png';
 import { useAuth } from '../auth/useAuth';
 import { DUR, EASE, drawerVariants, scrimVariants } from '../theme/motion';
 import { LanguageToggle } from './LanguageToggle';
@@ -10,7 +9,6 @@ import { TopbarReserve } from './TopbarReserve';
 import { Sidebar } from './Sidebar';
 import { SidebarUserCard } from './SidebarUserCard';
 import { ThemeToggle } from './ThemeToggle';
-import { UserAvatar } from './UserAvatar';
 
 interface AppShellProps {
   // Contenido de navegación (secciones + NavLinks) provisto por cada layout.
@@ -69,11 +67,6 @@ export function AppShell({ nav }: AppShellProps) {
     };
   }, [drawerOpen]);
 
-  const fullName = user
-    ? user.firstName || user.lastName
-      ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
-      : user.login
-    : '';
 
   const drawerTransition = reduceMotion
     ? { duration: 0 }
@@ -113,19 +106,13 @@ export function AppShell({ nav }: AppShellProps) {
         >
           <i className="ti ti-menu-2" aria-hidden="true" />
         </button>
-        <img src={aleaticaLogo} alt="ALEATICA" className="shell-topbar-logo" />
-        {user ? (
-          <button
-            type="button"
-            className="shell-topbar-avatar"
-            aria-label={t('layout.nav.open')}
-            onClick={openDrawer}
-          >
-            <UserAvatar user={user} label={fullName} />
-          </button>
-        ) : (
-          <span className="shell-topbar-spacer" />
-        )}
+        <div className="shell-topbar-brand">
+          <img src="/logo-aleatica-mini.png" alt="ALEATICA" className="shell-topbar-mark" />
+          <div className="shell-topbar-brand-text">
+            <b className="shell-topbar-name">{t('common.appName')}</b>
+            <span className="shell-topbar-sub">ALEATICA</span>
+          </div>
+        </div>
       </header>
 
       {/* Drawer off-canvas (móvil) + scrim. */}

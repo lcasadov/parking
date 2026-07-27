@@ -5,6 +5,10 @@ import type { ApprovalMode, SystemSettings } from '../types/settings';
 
 const SETTINGS = '/admin/settings';
 const APPROVAL_MODE = '/settings/approval-mode';
+const PARKING_ADDRESS = '/settings/parking-address';
+const ADMIN_PARKING_ADDRESS = '/admin/settings/parking-address';
+const WEEKEND_RESERVABLE = '/settings/weekend-reservable';
+const ADMIN_WEEKEND_RESERVABLE = '/admin/settings/weekend-reservable';
 
 // GET /admin/settings (ADMIN): modo de aprobacion global vigente + trazabilidad.
 export async function getSettings(): Promise<SystemSettings> {
@@ -26,5 +30,38 @@ export async function getApprovalMode(): Promise<ApprovalMode> {
 // PUT /admin/settings (ADMIN): conmuta el modo de aprobacion global.
 export async function updateApprovalMode(approvalMode: ApprovalMode): Promise<SystemSettings> {
   const { data } = await apiClient.put<SystemSettings>(SETTINGS, { approvalMode });
+  return data;
+}
+
+// GET /settings/parking-address (cualquier autenticado): dirección del parking para
+// el botón "Ir al parking" del empleado. Endpoint EMPLOYEE-safe (el catálogo admin no).
+export async function getParkingAddress(): Promise<string | null> {
+  const { data } = await apiClient.get<{ parkingAddress: string | null }>(PARKING_ADDRESS);
+  return data.parkingAddress;
+}
+
+// PUT /admin/settings/parking-address (ADMIN): fija o borra (null/vacío) la dirección.
+export async function updateParkingAddress(
+  parkingAddress: string | null,
+): Promise<SystemSettings> {
+  const { data } = await apiClient.put<SystemSettings>(ADMIN_PARKING_ADDRESS, { parkingAddress });
+  return data;
+}
+
+// GET /settings/weekend-reservable (cualquier autenticado): si se admite reservar
+// en fin de semana. Lo usan Mi Semana y el calendario de reserva para ocultar/
+// deshabilitar sábados y domingos.
+export async function getWeekendReservable(): Promise<boolean> {
+  const { data } = await apiClient.get<{ weekendReservable: boolean }>(WEEKEND_RESERVABLE);
+  return data.weekendReservable;
+}
+
+// PUT /admin/settings/weekend-reservable (ADMIN): activa/desactiva las reservas en finde.
+export async function updateWeekendReservable(
+  weekendReservable: boolean,
+): Promise<SystemSettings> {
+  const { data } = await apiClient.put<SystemSettings>(ADMIN_WEEKEND_RESERVABLE, {
+    weekendReservable,
+  });
   return data;
 }

@@ -22,6 +22,11 @@ import type {
 
 // Claves raiz de cache (S1192: sin literales repetidos).
 const RELEASES_KEY = 'releases';
+// Otras raices afectadas por una liberacion: el calendario (Mi Semana +
+// disponibilidad, ambos bajo 'calendar'), las solicitudes y la ocupacion admin.
+const CALENDAR_KEY = 'calendar';
+const REQUESTS_KEY = 'requests';
+const OCCUPANCY_KEY = 'occupancy';
 const MINE_SCOPE = 'mine';
 const ADMINISTRATIVE_MINE_SCOPE = 'administrative-mine';
 
@@ -57,11 +62,18 @@ export function useMyAdministrativeReleasesQuery(
   });
 }
 
-// Invalida toda la cache de liberaciones tras una mutacion con exito.
+// Invalida la cache afectada por una liberacion (crear/cancelar). Ademas de las
+// liberaciones, liberar/reactivar un recurso cambia el estado del dia en el
+// calendario (Mi Semana), su disponibilidad, las solicitudes y la ocupacion
+// admin. Sin esto el listado quedaba obsoleto (seguia mostrando ASSIGNED) y no
+// se podia volver a reservar el recurso recien liberado.
 function useInvalidateReleases(): () => void {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: [RELEASES_KEY] });
+    void queryClient.invalidateQueries({ queryKey: [CALENDAR_KEY] });
+    void queryClient.invalidateQueries({ queryKey: [REQUESTS_KEY] });
+    void queryClient.invalidateQueries({ queryKey: [OCCUPANCY_KEY] });
   };
 }
 

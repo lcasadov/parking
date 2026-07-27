@@ -1,11 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateRequestModal } from './CreateRequestModal';
 import { server } from '../mocks/server';
 import { MSW_BASE, waitlistConflictThenSuccessHandler } from '../mocks/handlers';
-import { requestApproved, requestPending1 } from '../mocks/requestFixtures';
+import { pageOfRequests, requestApproved, requestPending1 } from '../mocks/requestFixtures';
 import { emptyAvailability } from '../mocks/calendarFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { addDaysIso } from '../utils/calendar';
@@ -84,10 +84,31 @@ function captureRequestBodies(): {
   return captured;
 }
 
+// Selecciona una fecha en el CALENDARIO del modal (rediseño: ya no hay <input date>).
+// Por defecto HOY (celda con clase .is-today). Para fechas futuras navega meses
+// hacia delante y clica el día correspondiente en el mes destino.
 async function fillDate(value: string = todayIso()): Promise<void> {
   const user = userEvent.setup();
-  await user.clear(screen.getByLabelText(/fecha de la solicitud|request date/i));
-  await user.type(screen.getByLabelText(/fecha de la solicitud|request date/i), value);
+  if (value === todayIso()) {
+    fireEvent.click(document.querySelector('.rc-day.is-today') as HTMLElement);
+    return;
+  }
+  const target = new Date(`${value}T00:00:00`);
+  const now = new Date(`${todayIso()}T00:00:00`);
+  const months =
+    (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
+  const next = screen.getByRole('button', { name: /mes siguiente|next month/i });
+  for (let i = 0; i < months; i += 1) {
+    await user.click(next);
+  }
+  const day = String(target.getDate());
+  const cell = [...document.querySelectorAll('.rc-day')].find(
+    (el) =>
+      el.textContent === day &&
+      !el.classList.contains('is-out') &&
+      !(el as HTMLButtonElement).disabled,
+  ) as HTMLElement;
+  fireEvent.click(cell);
 }
 
 async function submit(): Promise<void> {
@@ -96,13 +117,33 @@ async function submit(): Promise<void> {
   await user.click(dialog.getByRole('button', { name: /enviar solicitud|submit request/i }));
 }
 
+// Ningún recurso viene marcado por defecto: el usuario elige qué reservar. Estos
+// helpers marcan cada recurso desde su tarjeta.
+async function selectParking(): Promise<void> {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /plaza de parking|parking space/i }));
+}
+
+async function selectDesk(): Promise<void> {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /puesto de trabajo|work desk/i }));
+}
+
 describe('CreateRequestModal (unified request)', () => {
+  // El marcador del calendario (GET /requests/mine) determina qué días ya tienes
+  // reservados (se omiten al enviar). Por defecto lo dejamos vacío para que solo
+  // los tests de duplicados lo controlen; el fixture global incluye una reserva HOY.
+  beforeEach(() => {
+    server.use(http.get(`${MSW_BASE}/requests/mine`, () => HttpResponse.json(pageOfRequests([]))));
+  });
+
   it('should_post_only_parking_request_when_only_parking_selected', async () => {
     const captured = captureRequestBodies();
     const onCreated = vi.fn();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
+    await selectParking();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -117,6 +158,7 @@ describe('CreateRequestModal (unified request)', () => {
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate(farFuture);
+    await selectParking();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -127,12 +169,10 @@ describe('CreateRequestModal (unified request)', () => {
   it('should_post_desk_request_when_only_desk_selected', async () => {
     const captured = captureRequestBodies();
     const onCreated = vi.fn();
-    const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/plaza de parking|parking space/i));
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
+    await selectDesk();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -143,11 +183,11 @@ describe('CreateRequestModal (unified request)', () => {
   it('should_post_both_requests_when_parking_and_desk_selected', async () => {
     const captured = captureRequestBodies();
     const onCreated = vi.fn();
-    const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
+    await selectParking();
+    await selectDesk();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -156,18 +196,16 @@ describe('CreateRequestModal (unified request)', () => {
     expect(types).toEqual(['DESK', 'PARKING']);
   });
 
-  it('should_show_error_when_no_resource_selected', async () => {
+  it('should_disable_submit_when_no_resource_selected', async () => {
     const captured = captureRequestBodies();
-    const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/plaza de parking|parking space/i));
-    await submit();
+    // Ningún recurso viene marcado por defecto → no hay nada que reservar.
 
-    expect(
-      await screen.findByText(/al menos un recurso|at least one resource/i),
-    ).toBeInTheDocument();
+    // El envío se BLOQUEA deshabilitando el botón (rediseño), sin POST.
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('button', { name: /enviar solicitud|submit request/i })).toBeDisabled();
     expect(captured.bodies).toHaveLength(0);
   });
 
@@ -182,6 +220,7 @@ describe('CreateRequestModal (unified request)', () => {
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
+    await selectParking();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -203,6 +242,7 @@ describe('CreateRequestModal (unified request)', () => {
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
+    await selectParking();
     await submit();
 
     await waitFor(() =>
@@ -216,7 +256,7 @@ describe('CreateRequestModal (unified request)', () => {
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
+    await user.click(screen.getByRole('button', { name: /puesto de trabajo|work desk/i }));
 
     // Reserva rápida: el puesto se auto-asigna por categoría (capability
     // desk-auto-assignment), no se elige en el plano.
@@ -228,12 +268,10 @@ describe('CreateRequestModal (unified request)', () => {
   it('should_post_desk_request_without_resourceId_when_desk_selected', async () => {
     const captured = captureRequestBodies();
     const onCreated = vi.fn();
-    const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/plaza de parking|parking space/i)); // desmarca PLAZA
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
+    await selectDesk();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -243,15 +281,65 @@ describe('CreateRequestModal (unified request)', () => {
     expect(captured.bodies[0].resourceId).toBeUndefined();
   });
 
+  // Marca HOY como plaza ya reservada (reserva viva) en el calendario del modal.
+  function reservedParkingToday(): void {
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () =>
+        HttpResponse.json(
+          pageOfRequests([{ ...requestPending1, resourceType: 'PARKING', requestedDate: todayIso() }]),
+        ),
+      ),
+    );
+  }
+
+  it('should_lock_resource_card_when_single_day_already_reserved', async () => {
+    reservedParkingToday();
+    const captured = captureRequestBodies();
+    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
+
+    await fillDate();
+
+    // La tarjeta de plaza se bloquea (ya la tienes ese día) y no es seleccionable.
+    // Espera a que resuelva el marcador (GET /requests/mine) que marca el día.
+    await screen.findByText(/ya tienes plaza este día|you already have a space this day/i);
+    const parkingCard = screen.getByRole('button', {
+      name: /plaza de parking|parking space/i,
+    });
+    expect(parkingCard).toBeDisabled();
+    // No hay nada nuevo que crear → botón enviar deshabilitado, sin POST.
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('button', { name: /enviar solicitud|submit request/i })).toBeDisabled();
+    expect(captured.bodies).toHaveLength(0);
+  });
+
+  it('should_skip_reserved_day_and_only_post_the_free_one_on_multi_day', async () => {
+    reservedParkingToday();
+    const captured = captureRequestBodies();
+    const onCreated = vi.fn();
+    const free = addDaysIso(todayIso(), 3);
+    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+    await fillDate(); // HOY: ya reservada → se omite
+    await fillDate(free); // día libre → se envía
+    await selectParking();
+    await submit();
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    // Solo se envía el día libre (el ya reservado se omite, sin 409 de ruido).
+    expect(captured.bodies).toHaveLength(1);
+    expect(captured.bodies[0].requestedDate).toBe(free);
+  });
+
   describe('waitlist (capability request-waitlist)', () => {
     it('should_offer_join_waitlist_when_availability_is_zero_without_blocking_submit', async () => {
       zeroParkingAvailability();
       renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
 
       await fillDate();
+      await selectParking();
 
       expect(
-        await screen.findByText(/no quedan plazas libres este día|there are no spaces left today/i),
+        await screen.findByText(/sin disponibilidad|no availability/i),
       ).toBeInTheDocument();
       expect(
         screen.getByRole('button', { name: /apuntarme a la lista de espera|join the waitlist/i }),
@@ -269,6 +357,7 @@ describe('CreateRequestModal (unified request)', () => {
       renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
       await fillDate();
+      await selectParking();
       await user.click(
         await screen.findByRole('button', { name: /apuntarme a la lista de espera|join the waitlist/i }),
       );
@@ -293,6 +382,7 @@ describe('CreateRequestModal (unified request)', () => {
       renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
       await fillDate();
+      await selectParking();
       await submit();
 
       const retryButton = await screen.findByRole('button', {

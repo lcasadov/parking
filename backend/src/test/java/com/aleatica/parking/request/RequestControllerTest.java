@@ -27,7 +27,9 @@ import com.aleatica.parking.request.application.ResourceSelectionRequiredExcepti
 import com.aleatica.parking.request.application.SpaceUnavailableException;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.request.dto.RequestSwapResponse;
 import com.aleatica.parking.request.dto.SuggestedParkingSpaceResponse;
+import com.aleatica.parking.request.dto.SuggestedResourceResponse;
 import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -55,7 +57,12 @@ class RequestControllerTest {
 
     private static final String BASE_URL = "/api/v1/requests";
     private static final String MINE_URL = BASE_URL + "/mine";
+    private static final String SUGGESTED_URL = BASE_URL + "/suggested";
     private static final String ADMIN_ASSIGN_URL = BASE_URL + "/admin";
+    private static final String REASSIGN_URL = BASE_URL + "/admin/reassign";
+    private static final String SWAP_URL = BASE_URL + "/admin/swap";
+    private static final String REASSIGN_BODY = "{\"requestId\":42,\"newResourceId\":9}";
+    private static final String SWAP_BODY = "{\"requestIdA\":42,\"requestIdB\":43}";
     private static final String SUGGESTED_SPACE_URL = BASE_URL + "/admin/suggested-space";
     private static final String PENDING_URL = BASE_URL + "/pending";
     private static final String ID_URL = BASE_URL + "/42";
@@ -182,9 +189,36 @@ class RequestControllerTest {
     }
 
     @Test
+    void shouldReturn200_whenEmployeeGetsSuggestedResource() throws Exception {
+        // Arrange
+        given(requestService.suggestForEmployee(anyString(), any(), any()))
+                .willReturn(SuggestedResourceResponse.available("Plaza 3005"));
+
+        // Act / Assert
+        mockMvc.perform(get(SUGGESTED_URL).param("date", "2026-07-10").param("resourceType", "PARKING")
+                        .with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(true))
+                .andExpect(jsonPath("$.resourceLabel").value("Plaza 3005"));
+    }
+
+    @Test
+    void shouldReturn403_whenAdminGetsSuggestedResource() throws Exception {
+        mockMvc.perform(get(SUGGESTED_URL).param("date", "2026-07-10")
+                        .with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldReturn400_whenSuggestedResourceMissingDate() throws Exception {
+        mockMvc.perform(get(SUGGESTED_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void shouldReturn200_whenEmployeeListsOwnRequests() throws Exception {
         // Arrange
-        given(requestService.listMine(anyString(), eq(null), any()))
+        given(requestService.listMine(anyString(), eq(null), eq(null), eq(null), any()))
                 .willReturn(new PageResponse<>(List.of(sample(RequestStatus.PENDING)), 1, 1, 20, 0, true, true));
 
         // Act / Assert
@@ -464,6 +498,85 @@ class RequestControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(ADMIN_ASSIGN_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+
+    // ---- Reasignacion / swap admin (Feature B) ----
+
+    @Test
+    void shouldReturn403_whenEmployeeReassigns() throws Exception {
+        mockMvc.perform(post(REASSIGN_URL).with(user(EMP).roles(ROLE_EMPLOYEE))
+                        .contentType(MediaType.APPLICATION_JSON).content(REASSIGN_BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath(ERROR_PATH).value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldReturn200_whenAdminReassigns() throws Exception {
+        // Arrange
+        given(requestService.adminReassign(anyString(), any()))
+                .willReturn(sample(RequestStatus.APPROVED));
+
+        // Act / Assert
+        mockMvc.perform(post(REASSIGN_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(REASSIGN_BODY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+
+    @Test
+    void shouldReturn400_whenReassignMissingRequiredFields() throws Exception {
+        mockMvc.perform(post(REASSIGN_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath(ERROR_PATH).value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldReturn409_whenReassignTargetOccupied() throws Exception {
+        // Arrange
+        willThrow(new SpaceUnavailableException("ocupada"))
+                .given(requestService).adminReassign(anyString(), any());
+
+        // Act / Assert
+        mockMvc.perform(post(REASSIGN_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(REASSIGN_BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath(ERROR_PATH).value("SPACE_NOT_AVAILABLE"));
+    }
+
+    @Test
+    void shouldReturn403_whenEmployeeSwaps() throws Exception {
+        mockMvc.perform(post(SWAP_URL).with(user(EMP).roles(ROLE_EMPLOYEE))
+                        .contentType(MediaType.APPLICATION_JSON).content(SWAP_BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath(ERROR_PATH).value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldReturn200_whenAdminSwaps() throws Exception {
+        // Arrange
+        given(requestService.adminSwap(anyString(), any())).willReturn(
+                new RequestSwapResponse(sample(RequestStatus.APPROVED), sample(RequestStatus.APPROVED)));
+
+        // Act / Assert
+        mockMvc.perform(post(SWAP_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(SWAP_BODY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestA.status").value("APPROVED"))
+                .andExpect(jsonPath("$.requestB.status").value("APPROVED"));
+    }
+
+    @Test
+    void shouldReturn409_whenSwapDifferentDates() throws Exception {
+        // Arrange
+        willThrow(new RequestStateException("fechas distintas"))
+                .given(requestService).adminSwap(anyString(), any());
+
+        // Act / Assert
+        mockMvc.perform(post(SWAP_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(SWAP_BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath(ERROR_PATH).value("CONFLICT"));
     }
 
     @Test

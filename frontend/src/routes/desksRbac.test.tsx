@@ -14,7 +14,7 @@ describe('Desks RBAC', () => {
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminDesks });
 
     expect(
-      await screen.findByRole('heading', { name: /puestos|desks/i }),
+      await screen.findByRole('heading', { name: /recursos|resources/i }),
     ).toBeInTheDocument();
   });
 
@@ -26,7 +26,7 @@ describe('Desks RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /puestos|desks/i }),
+      screen.queryByRole('heading', { name: /recursos|resources/i }),
     ).not.toBeInTheDocument();
   });
 });

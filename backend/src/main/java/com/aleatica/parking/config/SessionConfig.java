@@ -12,7 +12,9 @@ import org.springframework.session.web.http.DefaultCookieSerializer;
  *
  * <p>La sesion vive en las tablas {@code SPRING_SESSION} / {@code SPRING_SESSION_ATTRIBUTES}
  * (creadas por Flyway), lo que permite invalidacion inmediata desde el servidor
- * (logout, bloqueo) y, en Fase 2, el Single Logout. TTL de inactividad: 60 minutos.</p>
+ * (logout, bloqueo) y, en Fase 2, el Single Logout. TTL de inactividad: 30 dias
+ * (decision de producto: sesion de larga duracion; el contador se reinicia con
+ * cada peticion, asi que solo expira tras ~1 mes sin actividad).</p>
  *
  * <p>Cookie {@code parking_SESSION}: {@code HttpOnly} (inaccesible a XSS),
  * {@code SameSite=Lax} (anti-CSRF permitiendo el retorno del SSO),
@@ -24,8 +26,8 @@ import org.springframework.session.web.http.DefaultCookieSerializer;
 @EnableJdbcHttpSession(maxInactiveIntervalInSeconds = SessionConfig.SESSION_TTL_SECONDS)
 public class SessionConfig {
 
-    /** TTL de inactividad de la sesion: 60 minutos. */
-    public static final int SESSION_TTL_SECONDS = 60 * 60;
+    /** TTL de inactividad de la sesion: 30 dias (se reinicia con cada peticion). */
+    public static final int SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
     private static final String COOKIE_NAME = "parking_SESSION";
     private static final String COOKIE_PATH = "/parking-api";

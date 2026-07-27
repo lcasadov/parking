@@ -50,17 +50,18 @@
 
   /* === Neutros / superficie — tema CLARO del mockup ===
      Fondo verde-piedra frío y aireado; tintas verde-carbón; hairlines discretas. */
-  --bg: #eaf0ed; /* fondo de contenido */
+  --bg: #ffffff; /* fondo de contenido: blanco puro (prueba de comparación) */
   --panel: #ffffff; /* tarjetas/tablas */
-  --panel-2: #f5f9f7; /* superficies suaves (cabeceras/footers) */
+  --panel-2: #f1f4f7; /* superficies suaves (cabeceras/footers): gris neutro */
   --elev: #ffffff; /* material elevado (tooltips, popovers) */
   --ink: #0e1a15; /* texto primario verde-carbón */
   --ink-soft: #586a62; /* texto secundario (mockup ink-2) */
-  --ink-faint: #8a998f; /* texto atenuado / labels (mockup ink-3) */
+  --ink-faint: #5f6f67; /* texto atenuado / labels — ≥4.5:1 sobre panel (WCAG 1.4.3) */
   --ink-2: #586a62; /* alias mockup */
-  --ink-3: #8a998f; /* alias mockup */
+  --ink-3: #5f6f67; /* alias mockup (≥4.5:1) */
   --line: rgba(12, 32, 24, 0.09); /* hairline discreta */
   --line-soft: rgba(12, 32, 24, 0.05);
+  --line-strong: rgba(12, 32, 24, 0.14); /* borde de contenedor (tablas/paneles) sobre blanco */
   --line-strong: rgba(12, 32, 24, 0.15);
   --line-2: rgba(12, 32, 24, 0.15); /* alias mockup */
 
@@ -251,9 +252,9 @@ body.theme-dark {
   --elev: #1f2c26;
   --ink: #ecf3ef;
   --ink-soft: #9db1a8;
-  --ink-faint: #6a7c74;
+  --ink-faint: #8fa39a; /* ≥4.5:1 sobre fondo oscuro (WCAG 1.4.3) */
   --ink-2: #9db1a8;
-  --ink-3: #6a7c74;
+  --ink-3: #8fa39a;
   --line: rgba(255, 255, 255, 0.07);
   --line-soft: rgba(255, 255, 255, 0.05);
   --line-strong: rgba(255, 255, 255, 0.13);

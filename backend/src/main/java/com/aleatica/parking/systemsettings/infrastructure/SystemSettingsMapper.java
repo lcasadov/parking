@@ -23,8 +23,8 @@ public final class SystemSettingsMapper {
      */
     public static SystemSettings toDomain(SystemSettingsEntity entity) {
         return SystemSettings.restore(
-                entity.getId(), entity.getApprovalMode(),
-                entity.getUpdatedById(), entity.getUpdatedAt());
+                entity.getId(), entity.getApprovalMode(), entity.getParkingAddress(),
+                entity.isWeekendReservable(), entity.getUpdatedById(), entity.getUpdatedAt());
     }
 
     /**
@@ -36,7 +36,7 @@ public final class SystemSettingsMapper {
      */
     public static SystemSettingsEntity toEntity(SystemSettings settings) {
         return new SystemSettingsEntity(
-                (byte) settings.getId(), settings.getApprovalMode(),
-                settings.getUpdatedById(), settings.getUpdatedAt());
+                (byte) settings.getId(), settings.getApprovalMode(), settings.getParkingAddress(),
+                settings.isWeekendReservable(), settings.getUpdatedById(), settings.getUpdatedAt());
     }
 }

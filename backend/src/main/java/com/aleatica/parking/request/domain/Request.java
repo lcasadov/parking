@@ -44,6 +44,15 @@ public class Request {
      */
     public static final String ADMIN_ASSIGNMENT_NOTE = "admin-assignment";
 
+    /**
+     * Nota de resolucion que identifica una reasignacion o intercambio (swap) de recurso por el
+     * {@code ADMIN} (change {@code reservas-employee-admin-reassign}, capability
+     * {@code admin-resource-reassignment}): la solicitud sigue {@code APPROVED} pero cambia de
+     * recurso, distinguiendola de una asignacion puntual ({@link #ADMIN_ASSIGNMENT_NOTE}) y de la
+     * auto-aprobacion del sistema ({@link #AUTO_APPROVAL_NOTE}).
+     */
+    public static final String ADMIN_REASSIGNMENT_NOTE = "admin-reassignment";
+
     private Long id;
     private Long employeeId;
     private LocalDate requestedDate;
@@ -363,6 +372,32 @@ public class Request {
         this.status = RequestStatus.APPROVED;
         this.resourceId = resourceId;
         this.approvalNote = approvalNote;
+        this.resolvedById = resolvedById;
+        this.resolvedAt = now;
+    }
+
+    /**
+     * Reasigna el recurso de una solicitud ya {@code APPROVED} a otro recurso, conservando el
+     * estado {@code APPROVED} (change {@code reservas-employee-admin-reassign}, capability
+     * {@code admin-resource-reassignment}). Registra el {@code ADMIN} actuante como resolutor, marca
+     * la nota {@link #ADMIN_REASSIGNMENT_NOTE} y actualiza el instante de resolucion. El recurso
+     * anterior queda libre implicitamente: la disponibilidad se recalcula solo sobre filas
+     * {@code APPROVED} por {@code resource_id}, de modo que al cambiar el {@code resource_id} el
+     * recurso previo reaparece en disponibilidad. La guarda de estado/fecha ({@code APPROVED} de
+     * fecha futura) la impone el caso de uso antes de invocar este metodo.
+     *
+     * @param newResourceId nuevo recurso asignado (del mismo tipo, ya validado como libre)
+     * @param resolvedById  empleado (ADMIN) que ejecuta la reasignacion
+     * @param now           instante de la reasignacion (UTC)
+     * @throws IllegalStateException si la solicitud no esta {@code APPROVED}
+     */
+    public void reassign(Long newResourceId, Long resolvedById, Instant now) {
+        if (status != RequestStatus.APPROVED) {
+            throw new IllegalStateException(
+                    "Solo se puede reasignar una solicitud APPROVED; estado actual: " + status);
+        }
+        this.resourceId = newResourceId;
+        this.approvalNote = ADMIN_REASSIGNMENT_NOTE;
         this.resolvedById = resolvedById;
         this.resolvedAt = now;
     }

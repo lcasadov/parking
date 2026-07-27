@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog } from './Dialog';
 import { Button } from './Button';
@@ -22,40 +22,21 @@ interface FloorPlanFocusModalProps {
 }
 
 // Modal "Ver en plano" (solo lectura): reutiliza FloorPlanSurface (misma imagen,
-// mismas coordenadas, mismo useFloorPlanQuery y el mismo realce focusDeskId/pulso
-// que ya usaba la navegación) dentro de un Dialog. NO permite editar ni arrastrar
-// ni solicitar: onRequest/onDragStart son no-ops. Centra el viewport en el puesto
-// enfocado y lo pulsa de forma continua mientras el modal está abierto.
+// mismas coordenadas, mismo useFloorPlanQuery y el realce focusDeskId/pulso) dentro
+// de un Dialog. NO permite editar ni arrastrar ni solicitar. NO hace zoom al puesto:
+// muestra el plano COMPLETO (100%) con el asiento resaltado y parpadeando, para que
+// el empleado vea dónde está en el conjunto de la oficina.
 export function FloorPlanFocusModal({ desk, deskLabel, date, onClose }: FloorPlanFocusModalProps) {
   const { t } = useTranslation();
   const surfaceRef = useRef<HTMLDivElement>(null);
   const pulsing = true;
-  const focusedRef = useRef(false);
 
   const isDateValid = isValidIsoDate(date);
   const query = useFloorPlanQuery(date, isDateValid);
   const viewport = useFloorPlanViewport(true);
 
   const desks = query.data?.desks ?? [];
-  // Puesto vivo del plano (por deskId); cae al recibido mientras el plano carga.
-  const liveDesk = desks.find((item) => item.deskId === desk.deskId) ?? desk;
   const showPlan = isDateValid && !query.isLoading && !query.isError;
-
-  // Centra el viewport en el puesto una vez cargado el plano (una sola vez).
-  useEffect(() => {
-    if (focusedRef.current || !showPlan) {
-      return;
-    }
-    if (liveDesk.coordX === null || liveDesk.coordY === null) {
-      return;
-    }
-    const rect = surfaceRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0) {
-      return;
-    }
-    focusedRef.current = true;
-    viewport.focusOn(liveDesk.coordX, liveDesk.coordY, rect.width, rect.height);
-  }, [showPlan, liveDesk, viewport]);
 
 
   const footer = (

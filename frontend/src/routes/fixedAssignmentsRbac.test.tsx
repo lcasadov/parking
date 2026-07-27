@@ -19,7 +19,7 @@ describe('Fixed assignments RBAC', () => {
     renderWithProviders(<AppRoutes />, { route: ROUTES.employeeFixedAssignments });
 
     expect(
-      await screen.findByRole('heading', { name: /mis asignaciones fijas|my fixed assignments/i }),
+      await screen.findByRole('heading', { name: /mis sitios fijos|my fixed spots/i }),
     ).toBeInTheDocument();
   });
 

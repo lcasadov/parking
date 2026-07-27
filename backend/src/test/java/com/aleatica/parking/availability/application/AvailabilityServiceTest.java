@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.CalendarCellState;
@@ -773,6 +774,10 @@ class AvailabilityServiceTest {
     private void givenActor() {
         given(employeeRepository.findByLogin(EMP_LOGIN))
                 .willReturn(Optional.of(employee(EMP_ID, "Test", "User")));
+        // "Mi Semana" consulta el reloj para decidir si un dia RELEASED sigue siendo cancelable
+        // (change reservas-employee-admin-reassign). lenient(): no todos los tests de myWeek tienen
+        // un dia RELEASED que lo evalue.
+        lenient().when(clock.now()).thenReturn(NOW);
     }
 
     // ---- Fabricas de entidades ----

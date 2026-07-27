@@ -22,6 +22,7 @@ import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
@@ -105,6 +106,9 @@ class RequestServiceTest {
     private SystemSettingsService systemSettingsService;
 
     @Mock
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
@@ -121,7 +125,8 @@ class RequestServiceTest {
     private RequestService newService() {
         return new RequestService(
                 requestRepository, employeeRepository, resourceResolvers,
-                availabilityService, systemSettingsService, eventPublisher, auditRecorder, clock);
+                availabilityService, systemSettingsService, fixedAssignmentRepository,
+                eventPublisher, auditRecorder, clock);
     }
 
     private void givenManualMode() {
@@ -131,6 +136,11 @@ class RequestServiceTest {
         // que no versan sobre la lista de espera. lenient(): no todos los tests que llaman a este
         // helper llegan a evaluarlo (p. ej. si fallan antes por BOLA/estado).
         lenient().when(availabilityService.availabilityForDate(any(), any())).thenReturn(available());
+        // Permite reservas de fin de semana por defecto (change reservas-employee-admin-reassign):
+        // algunos tests de creacion usan fechas que pueden caer en sabado/domingo (p. ej. hoy o
+        // hoy+400). lenient(): solo se evalua cuando la fecha es fin de semana. La regla de rechazo
+        // se cubre en tests dedicados que estuban el flag en false.
+        lenient().when(systemSettingsService.weekendReservable()).thenReturn(true);
     }
 
     private static AvailabilityResponse available() {
@@ -180,6 +190,33 @@ class RequestServiceTest {
 
         // Act / Assert
         assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(FAR_FUTURE, null)).status())
+                .isEqualTo(RequestStatus.PENDING);
+    }
+
+    // ---- Feature: enforcement de reservas en fin de semana ----
+
+    @Test
+    void shouldRejectWeekend_whenWeekendNotReservable() {
+        // Arrange: fecha en sabado (2026-07-11) con reservas de fin de semana deshabilitadas
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.weekendReservable()).willReturn(false);
+        LocalDate saturday = TODAY.plusDays(7);
+
+        // Act / Assert: 400 WEEKEND_NOT_RESERVABLE, no se crea la solicitud
+        assertThatThrownBy(() -> newService().create(
+                EMP_LOGIN, new RequestCreateRequest(saturday, null)))
+                .isInstanceOf(WeekendNotReservableException.class);
+    }
+
+    @Test
+    void shouldAllowWeekend_whenWeekendReservable() {
+        // Arrange: mismo sabado, pero con reservas de fin de semana habilitadas
+        givenActor(EMP_LOGIN, EMP_ID);
+        givenManualMode(); // estuba weekendReservable = true
+        LocalDate saturday = TODAY.plusDays(7);
+
+        // Act / Assert: se permite y nace PENDING (modo manual)
+        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(saturday, null)).status())
                 .isEqualTo(RequestStatus.PENDING);
     }
 
@@ -972,7 +1009,7 @@ class RequestServiceTest {
 
         // Act
         RequestResponse result = newService()
-                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+                .listMine(EMP_LOGIN, null, null, null, Pageable.unpaged()).content().get(0);
 
         // Assert: se muestra el NUMERO real de la plaza (3005) y su planta, no el id interno (8)
         assertThat(result.resourceNumber()).isEqualTo(3005);
@@ -993,7 +1030,7 @@ class RequestServiceTest {
 
         // Act
         RequestResponse result = newService()
-                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+                .listMine(EMP_LOGIN, null, null, null, Pageable.unpaged()).content().get(0);
 
         // Assert: numero del puesto sin planta (los puestos no tienen planta derivada)
         assertThat(result.resourceNumber()).isEqualTo(12);
@@ -1008,11 +1045,47 @@ class RequestServiceTest {
 
         // Act
         RequestResponse result = newService()
-                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+                .listMine(EMP_LOGIN, null, null, null, Pageable.unpaged()).content().get(0);
 
         // Assert: sin numero (el frontend degrada a "—")
         assertThat(result.resourceNumber()).isNull();
         assertThat(result.floor()).isNull();
+    }
+
+    // ---- Feature D: filtro de "mis solicitudes" por rango de fechas (mes) ----
+
+    @Test
+    void shouldReturnOnlyRequestsWithinRange_whenListingByMonth() {
+        // Arrange: tres solicitudes en meses distintos; se consulta solo julio
+        requestRepository.seed(pendingWithId(101L, EMP_ID, LocalDate.of(2026, 6, 30)));
+        requestRepository.seed(pendingWithId(102L, EMP_ID, LocalDate.of(2026, 7, 5)));
+        requestRepository.seed(pendingWithId(103L, EMP_ID, LocalDate.of(2026, 7, 20)));
+        requestRepository.seed(pendingWithId(104L, EMP_ID, LocalDate.of(2026, 8, 1)));
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        List<RequestResponse> result = newService().listMine(
+                EMP_LOGIN, null, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31),
+                Pageable.unpaged()).content();
+
+        // Assert: solo las dos de julio, en orden ascendente por fecha de recurso
+        assertThat(result).extracting(RequestResponse::requestedDate)
+                .containsExactly(LocalDate.of(2026, 7, 5), LocalDate.of(2026, 7, 20));
+    }
+
+    @Test
+    void shouldReturnEmptyPage_whenMonthHasNoRequests() {
+        // Arrange: solo hay una solicitud en julio; se consulta septiembre (mes vacio)
+        requestRepository.seed(pendingWithId(201L, EMP_ID, LocalDate.of(2026, 7, 5)));
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        List<RequestResponse> result = newService().listMine(
+                EMP_LOGIN, null, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30),
+                Pageable.unpaged()).content();
+
+        // Assert: pagina vacia, sin error
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -1025,7 +1098,7 @@ class RequestServiceTest {
 
         // Act
         RequestResponse result = newService()
-                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+                .listMine(EMP_LOGIN, null, null, null, Pageable.unpaged()).content().get(0);
 
         // Assert
         assertThat(result.resourceNumber()).isNull();
@@ -1192,6 +1265,30 @@ class RequestServiceTest {
             return new PageImpl<>(store.values().stream()
                     .filter(r -> employeeId.equals(r.getEmployeeId()) && status == r.getStatus())
                     .toList());
+        }
+
+        @Override
+        public Page<Request> findByEmployeeIdAndRequestedDateBetween(
+                Long employeeId, LocalDate from, LocalDate to, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> employeeId.equals(r.getEmployeeId()) && inRange(r, from, to))
+                    .sorted(Comparator.comparing(Request::getRequestedDate))
+                    .toList());
+        }
+
+        @Override
+        public Page<Request> findByEmployeeIdAndStatusAndRequestedDateBetween(
+                Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> employeeId.equals(r.getEmployeeId()) && status == r.getStatus()
+                            && inRange(r, from, to))
+                    .sorted(Comparator.comparing(Request::getRequestedDate))
+                    .toList());
+        }
+
+        private static boolean inRange(Request request, LocalDate from, LocalDate to) {
+            LocalDate date = request.getRequestedDate();
+            return !date.isBefore(from) && !date.isAfter(to);
         }
 
         @Override

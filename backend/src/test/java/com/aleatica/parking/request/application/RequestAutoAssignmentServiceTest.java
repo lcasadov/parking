@@ -15,6 +15,8 @@ import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.request.domain.RejectionReasonCode;
@@ -24,6 +26,8 @@ import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.request.dto.SuggestedResourceResponse;
+import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
@@ -33,6 +37,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -80,6 +85,9 @@ class RequestAutoAssignmentServiceTest {
     private SystemSettingsService systemSettingsService;
 
     @Mock
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
@@ -93,7 +101,8 @@ class RequestAutoAssignmentServiceTest {
     private RequestService newService() {
         return new RequestService(
                 requestRepository, employeeRepository, resourceResolvers,
-                availabilityService, systemSettingsService, eventPublisher, auditRecorder, clock);
+                availabilityService, systemSettingsService, fixedAssignmentRepository,
+                eventPublisher, auditRecorder, clock);
     }
 
     // ---- Algoritmo de auto-asignacion ----
@@ -394,6 +403,139 @@ class RequestAutoAssignmentServiceTest {
         assertThat(requestRepository.byId(77L).getStatus()).isEqualTo(RequestStatus.REJECTED);
     }
 
+    // ---- Feature A: preferencia por el recurso FIJO propio antes de la categoria ----
+
+    @Test
+    void shouldPreferOwnFixedParking_whenFixedResourceFreeOnThatDate() {
+        // Arrange: el empleado tiene plaza fija 3005 ese dia de la semana y esta libre esa fecha
+        givenAutomaticActor(EmployeeCategory.EMPLEADO);
+        int dayOfWeek = DATE.getDayOfWeek().getValue();
+        FixedAssignmentEntity ownFixed = fixed(3005L);
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                EMP_ID, ResourceType.PARKING, dayOfWeek)).willReturn(List.of(ownFixed));
+        given(availabilityService.isSpaceTakenForDate(3005L, ResourceType.PARKING, DATE))
+                .willReturn(false);
+
+        // Act
+        RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(DATE, null));
+
+        // Assert: recupera SU fijo (3005), sin pasar por la auto-asignacion por categoria
+        assertThat(result.status()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(result.parkingSpaceId()).isEqualTo(3005L);
+        verifyEventPublished(RequestApprovedEvent.class);
+    }
+
+    @Test
+    void shouldFallBackToCategoryParking_whenOwnFixedTakenByAnother() {
+        // Arrange: tiene fijo 3005 ese dia pero ya lo ocupa otro esa fecha -> cae a categoria
+        givenAutomaticActor(EmployeeCategory.EMPLEADO);
+        int dayOfWeek = DATE.getDayOfWeek().getValue();
+        FixedAssignmentEntity ownFixed = fixed(3005L);
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                EMP_ID, ResourceType.PARKING, dayOfWeek)).willReturn(List.of(ownFixed));
+        given(availabilityService.isSpaceTakenForDate(3005L, ResourceType.PARKING, DATE))
+                .willReturn(true);
+        ParkingSpace fromCategory = mock(ParkingSpace.class);
+        given(fromCategory.getId()).willReturn(8L);
+        given(fromCategory.getNumber()).willReturn(5001);
+        given(fromCategory.floor()).willReturn(5);
+        given(availabilityService.freeParkingSpacesForDate(DATE)).willReturn(List.of(fromCategory));
+
+        // Act
+        RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(DATE, null));
+
+        // Assert: no recupera su fijo (ocupado); recibe la plaza por categoria (8)
+        assertThat(result.status()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(result.parkingSpaceId()).isEqualTo(8L);
+    }
+
+    @Test
+    void shouldPreferOwnFixedDesk_whenFixedDeskFreeOnThatDate() {
+        // Arrange: el empleado tiene puesto fijo DESK_ID ese dia y esta libre esa fecha
+        givenAutomaticActor(EmployeeCategory.EMPLEADO);
+        int dayOfWeek = DATE.getDayOfWeek().getValue();
+        FixedAssignmentEntity ownFixed = fixed(DESK_ID);
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                EMP_ID, ResourceType.DESK, dayOfWeek)).willReturn(List.of(ownFixed));
+        given(availabilityService.isSpaceTakenForDate(DESK_ID, ResourceType.DESK, DATE))
+                .willReturn(false);
+
+        // Act
+        RequestResponse result = newService().create(
+                EMP_LOGIN, new RequestCreateRequest(DATE, ResourceType.DESK));
+
+        // Assert: recupera SU puesto fijo, sin pasar por la auto-asignacion por categoria
+        assertThat(result.status()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(result.parkingSpaceId()).isEqualTo(DESK_ID);
+        assertThat(result.resourceType()).isEqualTo(ResourceType.DESK);
+    }
+
+    private static FixedAssignmentEntity fixed(Long resourceId) {
+        FixedAssignmentEntity entity = mock(FixedAssignmentEntity.class);
+        given(entity.getResourceId()).willReturn(resourceId);
+        return entity;
+    }
+
+    // ---- Task 3: preview de auto-asignacion para el propio empleado (ambos tipos) ----
+
+    @Test
+    void shouldSuggestOwnFixedParking_whenPreviewAndFixedFree() {
+        // Arrange: el empleado tiene plaza fija 3005 libre ese dia -> se sugiere SU fija
+        Employee employee = mockEmployee(EMP_ID, EmployeeCategory.EMPLEADO);
+        given(employeeRepository.findByLogin(EMP_LOGIN)).willReturn(Optional.of(employee));
+        int dayOfWeek = DATE.getDayOfWeek().getValue();
+        FixedAssignmentEntity ownFixed = fixed(3005L);
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                EMP_ID, ResourceType.PARKING, dayOfWeek)).willReturn(List.of(ownFixed));
+        given(availabilityService.isSpaceTakenForDate(3005L, ResourceType.PARKING, DATE))
+                .willReturn(false);
+        BookableResource resource = mock(BookableResource.class);
+        given(resource.getNumber()).willReturn(3005);
+        given(resourceResolvers.resolveAll(List.of(3005L), ResourceType.PARKING))
+                .willReturn(Map.of(3005L, resource));
+
+        // Act
+        SuggestedResourceResponse result =
+                newService().suggestForEmployee(EMP_LOGIN, DATE, ResourceType.PARKING);
+
+        // Assert
+        assertThat(result.available()).isTrue();
+        assertThat(result.resourceLabel()).isEqualTo("Plaza 3005");
+    }
+
+    @Test
+    void shouldSuggestCategoryDesk_whenPreviewWithoutOwnFixed() {
+        // Arrange: sin fijo (repo vacio por defecto), se sugiere un puesto por categoria
+        Employee employee = mockEmployee(EMP_ID, EmployeeCategory.EMPLEADO);
+        given(employeeRepository.findByLogin(EMP_LOGIN)).willReturn(Optional.of(employee));
+        given(availabilityService.freeDesksForDate(DATE))
+                .willReturn(List.of(desk(DESK_ID, 12, DeskCategory.STANDARD)));
+
+        // Act
+        SuggestedResourceResponse result =
+                newService().suggestForEmployee(EMP_LOGIN, DATE, ResourceType.DESK);
+
+        // Assert
+        assertThat(result.available()).isTrue();
+        assertThat(result.resourceLabel()).isEqualTo("Puesto 12");
+    }
+
+    @Test
+    void shouldSuggestUnavailable_whenPreviewAndNoResourceFree() {
+        // Arrange: sin fijo y sin plazas libres
+        Employee employee = mockEmployee(EMP_ID, EmployeeCategory.EMPLEADO);
+        given(employeeRepository.findByLogin(EMP_LOGIN)).willReturn(Optional.of(employee));
+        given(availabilityService.freeParkingSpacesForDate(DATE)).willReturn(List.of());
+
+        // Act
+        SuggestedResourceResponse result =
+                newService().suggestForEmployee(EMP_LOGIN, DATE, ResourceType.PARKING);
+
+        // Assert
+        assertThat(result.available()).isFalse();
+        assertThat(result.resourceLabel()).isNull();
+    }
+
     private void givenAutomaticActor(EmployeeCategory category) {
         given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
         // El mock del empleado se crea (y estubea) ANTES del given externo para no
@@ -503,6 +645,18 @@ class RequestAutoAssignmentServiceTest {
         @Override
         public Page<Request> findByEmployeeIdAndStatus(
                 Long employeeId, RequestStatus status, Pageable pageable) {
+            return new PageImpl<>(List.copyOf(store.values()));
+        }
+
+        @Override
+        public Page<Request> findByEmployeeIdAndRequestedDateBetween(
+                Long employeeId, LocalDate from, LocalDate to, Pageable pageable) {
+            return new PageImpl<>(List.copyOf(store.values()));
+        }
+
+        @Override
+        public Page<Request> findByEmployeeIdAndStatusAndRequestedDateBetween(
+                Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable) {
             return new PageImpl<>(List.copyOf(store.values()));
         }
 

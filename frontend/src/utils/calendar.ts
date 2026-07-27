@@ -79,6 +79,32 @@ export function dayMonth(dateIso: string): string {
   return `${day}/${month}`;
 }
 
+// Formato corto localizado día + mes abreviado (p. ej. "28 jul" / "Jul 28") a
+// partir de un ISO date, sin desfase de zona horaria. Para listar fechas en avisos.
+export function shortDayMonth(dateIso: string, locale: string): string {
+  const parsed = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateIso;
+  }
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(parsed);
+}
+
+// Formato compacto con día de la semana abreviado (p. ej. "lun, 27 jul 2026" /
+// "Mon, Jul 27, 2026"): más corto que longDate pero manteniendo contexto. Sin
+// desfase de zona horaria.
+export function mediumDate(dateIso: string, locale: string): string {
+  const parsed = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateIso;
+  }
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
+}
+
 // Numero de semana ISO-8601 (lunes como primer dia; semana 1 = la del primer
 // jueves del año) a partir de un ISO date. Solo presentacion.
 export function isoWeekNumber(dateIso: string): number {

@@ -11,6 +11,7 @@ import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.request.domain.RequestRepositoryPort;
 import com.aleatica.parking.request.dto.SuggestedParkingSpaceResponse;
@@ -64,6 +65,9 @@ class RequestSuggestedSpaceServiceTest {
     private SystemSettingsService systemSettingsService;
 
     @Mock
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
@@ -74,7 +78,8 @@ class RequestSuggestedSpaceServiceTest {
     private RequestService newService() {
         return new RequestService(
                 requestRepository, employeeRepository, resourceResolvers,
-                availabilityService, systemSettingsService, eventPublisher, auditRecorder, clock);
+                availabilityService, systemSettingsService, fixedAssignmentRepository,
+                eventPublisher, auditRecorder, clock);
     }
 
     @Test

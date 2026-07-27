@@ -17,6 +17,21 @@ if (typeof window !== 'undefined') {
     }
   }
   window.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent;
+
+  // Radix UI (Select y otras primitivas) usa APIs de pointer capture y scroll que
+  // jsdom no implementa; sin estos stubs el trigger no abre el panel en los tests.
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = () => false;
+  }
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = () => {};
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = () => {};
+  }
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = () => {};
+  }
 }
 
 // MSW: arranca antes de los tests, resetea handlers entre tests, cierra al final.

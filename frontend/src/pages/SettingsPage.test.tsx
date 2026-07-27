@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
@@ -40,8 +40,11 @@ describe('SettingsPage', () => {
     const select = (await screen.findByLabelText(MODE_LABEL)) as HTMLSelectElement;
     await waitFor(() => expect(select.value).toBe('MANUAL'));
 
+    // Hay dos formularios (modo de aprobación y dirección del parking), cada uno
+    // con su "Guardar"; se acota al formulario del modo.
+    const approvalForm = within(select.closest('form') as HTMLElement);
     await user.selectOptions(select, 'AUTOMATIC');
-    await user.click(screen.getByRole('button', { name: SAVE_BUTTON }));
+    await user.click(approvalForm.getByRole('button', { name: SAVE_BUTTON }));
 
     await waitFor(() => expect(receivedMode).toBe('AUTOMATIC'));
   });
@@ -50,7 +53,8 @@ describe('SettingsPage', () => {
     server.use(http.get(SETTINGS_URL, () => settings('MANUAL')));
     renderWithProviders(<SettingsPage />);
 
-    await screen.findByLabelText(MODE_LABEL);
-    expect(screen.getByRole('button', { name: SAVE_BUTTON })).toBeDisabled();
+    const select = await screen.findByLabelText(MODE_LABEL);
+    const approvalForm = within(select.closest('form') as HTMLElement);
+    expect(approvalForm.getByRole('button', { name: SAVE_BUTTON })).toBeDisabled();
   });
 });

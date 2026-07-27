@@ -4,7 +4,12 @@ import { Button } from '../components/Button';
 import { PageHeader } from '../components/PageHeader';
 import { Spinner } from '../components/Spinner';
 import { emitApiErrorToast } from '../api/events';
-import { useSettingsQuery, useUpdateApprovalMode } from '../hooks/useSettings';
+import {
+  useSettingsQuery,
+  useUpdateApprovalMode,
+  useUpdateParkingAddress,
+  useUpdateWeekendReservable,
+} from '../hooks/useSettings';
 import type { ApprovalMode } from '../types/settings';
 
 const MODES: ApprovalMode[] = ['MANUAL', 'AUTOMATIC'];
@@ -34,6 +39,103 @@ function ModeTile({ mode, active }: { mode: ApprovalMode; active: boolean }) {
   );
 }
 
+// Tarjeta ADMIN: activar/desactivar reservas en fin de semana. Guarda al cambiar el
+// toggle (self-contained para no cargar la complejidad de SettingsPage, S3776).
+function WeekendReservableCard({ enabled }: { enabled: boolean }) {
+  const { t } = useTranslation();
+  const mutation = useUpdateWeekendReservable();
+
+  async function toggle(next: boolean): Promise<void> {
+    try {
+      await mutation.mutateAsync(next);
+      emitApiErrorToast('settings.saved', 'success');
+    } catch {
+      emitApiErrorToast('settings.saveError');
+    }
+  }
+
+  return (
+    <div className="settings-card settings-approval">
+      <div className="settings-hero">
+        <span className="settings-hero-icon">
+          <i className="ti ti-calendar-week" aria-hidden="true" />
+        </span>
+        <div>
+          <h2 className="settings-hero-title">{t('settings.weekend.heading')}</h2>
+          <p className="settings-hero-desc">{t('settings.weekend.description')}</p>
+        </div>
+      </div>
+      <label className="checkbox-field">
+        <input
+          type="checkbox"
+          checked={enabled}
+          disabled={mutation.isPending}
+          onChange={(event) => void toggle(event.target.checked)}
+        />
+        <span>{t('settings.weekend.label')}</span>
+      </label>
+      <p className="hint">{t('settings.weekend.hint')}</p>
+    </div>
+  );
+}
+
+// Tarjeta ADMIN: dirección del parking (form con guardado). Self-contained (S3776).
+function ParkingAddressCard({ current }: { current: string }) {
+  const { t } = useTranslation();
+  const mutation = useUpdateParkingAddress();
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? current;
+  const isDirty = value.trim() !== current.trim();
+
+  async function handleSubmit(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    if (!isDirty) {
+      return;
+    }
+    try {
+      await mutation.mutateAsync(value.trim() === '' ? null : value.trim());
+      setDraft(null);
+      emitApiErrorToast('settings.saved', 'success');
+    } catch {
+      emitApiErrorToast('settings.saveError');
+    }
+  }
+
+  return (
+    <form className="settings-card settings-approval" onSubmit={handleSubmit}>
+      <div className="settings-hero">
+        <span className="settings-hero-icon">
+          <i className="ti ti-map-pin" aria-hidden="true" />
+        </span>
+        <div>
+          <h2 className="settings-hero-title">{t('settings.parkingAddress.heading')}</h2>
+          <p className="settings-hero-desc">{t('settings.parkingAddress.description')}</p>
+        </div>
+      </div>
+      <div className="settings-control">
+        <label className="field-label" htmlFor="parking-address">
+          {t('settings.parkingAddress.label')}
+        </label>
+        <input
+          id="parking-address"
+          type="text"
+          className="field-input"
+          maxLength={500}
+          placeholder={t('settings.parkingAddress.placeholder')}
+          value={value}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+        <p className="hint">{t('settings.parkingAddress.hint')}</p>
+      </div>
+      <div className="settings-actions">
+        <Button variant="green" icon="check" submit disabled={!isDirty || mutation.isPending}>
+          {t('settings.save')}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 // Vista ADMIN: configuracion global del sistema. Permite consultar y conmutar el
 // modo de aprobacion de solicitudes (MANUAL/AUTOMATIC) contra GET/PUT /admin/settings
 // (tasks §6.2). RBAC ADMIN garantizado por la ruta protegida.
@@ -47,6 +149,7 @@ export function SettingsPage() {
   // Hasta que el admin toque el selector, refleja el valor del servidor.
   const value: ApprovalMode = selected ?? currentMode ?? 'MANUAL';
   const isDirty = currentMode !== null && value !== currentMode;
+  const ready = !query.isLoading && !query.isError;
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -78,7 +181,7 @@ export function SettingsPage() {
         </p>
       ) : null}
 
-      {!query.isLoading && !query.isError ? (
+      {ready ? (
         <form className="settings-card settings-approval" onSubmit={handleSubmit}>
           <div className="settings-hero">
             <span className="settings-hero-icon">
@@ -125,6 +228,14 @@ export function SettingsPage() {
             </Button>
           </div>
         </form>
+      ) : null}
+
+      {ready ? (
+        <ParkingAddressCard current={query.data?.parkingAddress ?? ''} />
+      ) : null}
+
+      {ready ? (
+        <WeekendReservableCard enabled={query.data?.weekendReservable ?? false} />
       ) : null}
     </section>
   );

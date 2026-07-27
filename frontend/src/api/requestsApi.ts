@@ -7,7 +7,9 @@ import type {
   RequestCreateRequest,
   RequestListParams,
   RequestRejectRequest,
+  ResourceType,
   SuggestedParkingSpace,
+  SuggestedResource,
 } from '../types/request';
 
 // Endpoints de Requests segun docs/openapi.yaml. baseURL relativo del apiClient.
@@ -25,6 +27,12 @@ function buildListParams(params: RequestListParams): Record<string, string | num
   }
   if (params.status !== undefined) {
     query.status = params.status;
+  }
+  if (params.from !== undefined) {
+    query.from = params.from;
+  }
+  if (params.to !== undefined) {
+    query.to = params.to;
   }
   return query;
 }
@@ -98,6 +106,18 @@ export async function getSuggestedSpace(
 ): Promise<SuggestedParkingSpace> {
   const { data } = await apiClient.get<SuggestedParkingSpace>(`${REQUESTS}/admin/suggested-space`, {
     params: { employeeId, date },
+  });
+  return data;
+}
+
+// GET /requests/suggested?date&resourceType (EMPLOYEE): preview del recurso que la
+// auto-asignación le daría (incluye la preferencia por el fijo propio). Sin crear nada.
+export async function getSuggestedResource(
+  date: string,
+  resourceType: ResourceType,
+): Promise<SuggestedResource> {
+  const { data } = await apiClient.get<SuggestedResource>(`${REQUESTS}/suggested`, {
+    params: { date, resourceType },
   });
   return data;
 }

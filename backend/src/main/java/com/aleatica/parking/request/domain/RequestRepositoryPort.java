@@ -84,6 +84,35 @@ public interface RequestRepositoryPort {
     Page<Request> findByEmployeeIdAndStatus(Long employeeId, RequestStatus status, Pageable pageable);
 
     /**
+     * Pagina de las solicitudes de un empleado cuyo {@code requestedDate} cae en el intervalo
+     * (extremos inclusive), para el filtro por mes de "mis solicitudes" (change
+     * {@code reservas-employee-admin-reassign}, Feature D).
+     *
+     * @param employeeId empleado propietario
+     * @param from       fecha de recurso minima (inclusive)
+     * @param to         fecha de recurso maxima (inclusive)
+     * @param pageable   pagina, tamano y orden solicitados
+     * @return pagina de solicitudes propias del intervalo
+     */
+    Page<Request> findByEmployeeIdAndRequestedDateBetween(
+            Long employeeId, LocalDate from, LocalDate to, Pageable pageable);
+
+    /**
+     * Pagina de las solicitudes de un empleado filtradas por estado cuyo {@code requestedDate} cae
+     * en el intervalo (extremos inclusive), para el filtro por mes de "mis solicitudes" combinado
+     * con el filtro de estado (change {@code reservas-employee-admin-reassign}, Feature D).
+     *
+     * @param employeeId empleado propietario
+     * @param status     estado por el que filtrar
+     * @param from       fecha de recurso minima (inclusive)
+     * @param to         fecha de recurso maxima (inclusive)
+     * @param pageable   pagina, tamano y orden solicitados
+     * @return pagina de solicitudes propias del intervalo en ese estado
+     */
+    Page<Request> findByEmployeeIdAndStatusAndRequestedDateBetween(
+            Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable);
+
+    /**
      * Pagina de solicitudes en un estado, en orden FIFO por fecha de creacion
      * (listado admin de pendientes).
      *

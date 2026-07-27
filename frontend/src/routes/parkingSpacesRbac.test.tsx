@@ -14,7 +14,7 @@ describe('Parking spaces RBAC', () => {
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminParkingSpaces });
 
     expect(
-      await screen.findByRole('heading', { name: /plazas|parking spaces/i }),
+      await screen.findByRole('heading', { name: /recursos|resources/i }),
     ).toBeInTheDocument();
   });
 
@@ -26,7 +26,7 @@ describe('Parking spaces RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /plazas|parking spaces/i }),
+      screen.queryByRole('heading', { name: /recursos|resources/i }),
     ).not.toBeInTheDocument();
   });
 });

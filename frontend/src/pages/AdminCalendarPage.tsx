@@ -18,6 +18,7 @@ import { OccupancyAssignModal } from '../components/OccupancyAssignModal';
 import { ResourceModeSwitch } from '../components/ResourceModeSwitch';
 import { emitApiErrorToast } from '../api/events';
 import { useAdminCalendarQuery } from '../hooks/useCalendar';
+import { useWeekendReservableQuery } from '../hooks/useSettings';
 import { useFloorPlanQuery } from '../hooks/useFloorPlan';
 import { useToast } from '../hooks/useToast';
 import { adminCalendarLegend } from '../utils/calendarLegend';
@@ -111,6 +112,18 @@ function deskNumberFromLabel(label: string): number | null {
   return match ? Number(match[0]) : null;
 }
 
+// Sábado/domingo. Se ocultan del calendario semanal cuando el admin no admite
+// reservas en fin de semana.
+function isWeekendIso(date: string): boolean {
+  const day = weekdayIndex(date);
+  return day === 0 || day === 6;
+}
+
+// Días visibles: todos, o solo laborables si no se admite reservar en finde.
+function visibleDays(days: string[], weekendReservable: boolean): string[] {
+  return weekendReservable ? days : days.filter((d) => !isWeekendIso(d));
+}
+
 // Accion inline resoluble desde una celda (weekly-assignment spec, celdas
 // accionables): asignar (celda FREE) o liberar (ASSIGNED = fija, REQUEST_APPROVED
 // = solicitud). El resto de estados no admiten accion en contexto.
@@ -179,7 +192,12 @@ export function AdminCalendarPage() {
   const [cancelPrefill, setCancelPrefill] = useState<AdminCancelRequestPrefill | null>(null);
 
   const query = useAdminCalendarQuery(weekStart, resourceType);
-  const days = useMemo(() => query.data?.days ?? [], [query.data]);
+  const weekendReservable = useWeekendReservableQuery().data ?? false;
+  const days = useMemo(
+    () => visibleDays(query.data?.days ?? [], weekendReservable),
+    [query.data, weekendReservable],
+  );
+  const daySet = useMemo(() => new Set(days), [days]);
   const rows = useMemo(() => query.data?.rows ?? [], [query.data]);
   const today = todayIso();
 
@@ -475,7 +493,9 @@ export function AdminCalendarPage() {
                         />
                       ) : null}
                     </th>
-                    {row.cells.map((cell) => {
+                    {row.cells
+                      .filter((cell) => daySet.has(cell.date))
+                      .map((cell) => {
                       const actionable = isCellActionable(cell);
                       return (
                         <CalendarCellView

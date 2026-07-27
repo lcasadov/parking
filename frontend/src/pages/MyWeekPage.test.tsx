@@ -98,6 +98,11 @@ async function resourceRow(text: RegExp): Promise<ReturnType<typeof within>> {
 function asEmployee(): void {
   server.use(
     http.get(ME_URL, () => HttpResponse.json({ ...adminUser, employeeId: 10, role: 'EMPLOYEE' })),
+    // Fines de semana reservables en los tests → no se filtran días de finde y las
+    // fechas relativas de los fixtures se muestran sea cual sea el día de la semana.
+    http.get(`${MSW_BASE}/settings/weekend-reservable`, () =>
+      HttpResponse.json({ weekendReservable: true }),
+    ),
   );
 }
 
@@ -110,19 +115,21 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     // La plaza fija (P-12) y el puesto por solicitud (D-03) se muestran en paralelo.
     expect(await screen.findByText(/plaza P-12|space P-12/i)).toBeInTheDocument();
     expect(screen.getByText(/puesto D-03|desk D-03/i)).toBeInTheDocument();
-    // Ambos tipos de recurso aparecen rotulados (Plaza / Puesto) en cada día.
-    expect(screen.getAllByText(/^plaza$|^space$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^puesto$|^desk$/i).length).toBeGreaterThan(0);
+    // Ambos tipos de recurso aparecen rotulados con su nombre completo en cada día.
+    expect(screen.getAllByText(/plaza de parking|parking space/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/puesto de trabajo|work desk/i).length).toBeGreaterThan(0);
   });
 
-  it('should_notLabelNoSpace_when_dayHasDeskButNoParking', async () => {
+  it('should_label_free_resources_with_resource_specific_text', async () => {
     asEmployee();
     server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(multiResourceWeek)));
     renderWithProviders(<MyWeekPage />);
 
-    // El día del puesto APPROVED tiene la plaza libre: nunca debe rotularse "sin plaza".
+    // Rediseño: un recurso libre se rotula con copy específico por tipo
+    // ("Sin plaza este día" / "Sin puesto este día"), no un genérico "Libre".
     await screen.findByText(/puesto D-03|desk D-03/i);
-    expect(screen.queryByText(/sin plaza|no space/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/sin plaza este día|no space this day/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/sin puesto este día|no desk this day/i).length).toBeGreaterThan(0);
   });
 
   it('should_notRenderThirdPartyNames_when_showingMyWeek', async () => {
@@ -297,7 +304,7 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     renderWithProviders(<MyWeekPage />);
 
     expect(
-      await screen.findByText(/no hay días que mostrar|no days to show/i),
+      await screen.findByText(/no quedan más días esta semana|no more days this week/i),
     ).toBeInTheDocument();
   });
 });

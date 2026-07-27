@@ -70,11 +70,11 @@ describe('App composition (rutas + SessionExpiredModal)', () => {
   it('should_open_modal_and_return_to_login_when_active_session_expires', async () => {
     bootAppAt('/admin');
 
-    // Sesion activa: el usuario admin ve su area. Al eliminarse el top-bar
-    // (AppHeader), el rotulo "Administración" ya no lo aporta la barra superior
-    // sino el eyebrow del PageHeader de la landing (/admin -> /admin/employees).
+    // Sesion activa: el usuario admin ve su area. La landing /admin renderiza
+    // el DashboardPage (saludo + KPIs + enlace "Ver semana"); ese enlace es
+    // exclusivo del dashboard autenticado y confirma que la sesion esta activa.
     await waitFor(() => {
-      expect(screen.getByText(/administración|administration/i)).toHaveClass('page-eyebrow');
+      expect(screen.getByRole('link', { name: /ver semana|see week/i })).toBeInTheDocument();
     });
 
     // La sesion caduca en el backend y una llamada posterior responde 401.

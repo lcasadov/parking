@@ -74,6 +74,10 @@ export interface MyWeekDay {
   deskRequestId?: number | null;
   // Igual que `waitlisted`, para la solicitud de PUESTO propia de ese dia.
   deskWaitlisted?: boolean;
+  // Id de la liberación PROPIA cancelable de ese día (RELEASED por el empleado, hoy
+  // o futuro) → habilita "Deshacer". Null si no es una liberación propia cancelable.
+  releaseId?: number | null;
+  deskReleaseId?: number | null;
 }
 
 // MyWeekResponse: schema #/components/schemas/MyWeekResponse.

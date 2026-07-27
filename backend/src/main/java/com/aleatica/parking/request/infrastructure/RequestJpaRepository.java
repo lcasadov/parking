@@ -53,6 +53,35 @@ public interface RequestJpaRepository extends JpaRepository<RequestEntity, Long>
     Page<RequestEntity> findByEmployeeIdAndStatus(Long employeeId, RequestStatus status, Pageable pageable);
 
     /**
+     * Pagina de las solicitudes de un empleado cuyo {@code requested_date} cae en el intervalo
+     * (extremos inclusive), para el filtro por mes de "mis solicitudes" (change
+     * {@code reservas-employee-admin-reassign}, Feature D).
+     *
+     * @param employeeId empleado propietario
+     * @param from       fecha de recurso minima (inclusive)
+     * @param to         fecha de recurso maxima (inclusive)
+     * @param pageable   pagina, tamano y orden solicitados
+     * @return pagina de solicitudes propias del intervalo
+     */
+    Page<RequestEntity> findByEmployeeIdAndRequestedDateBetween(
+            Long employeeId, LocalDate from, LocalDate to, Pageable pageable);
+
+    /**
+     * Pagina de las solicitudes de un empleado filtradas por estado cuyo {@code requested_date}
+     * cae en el intervalo (extremos inclusive), para el filtro por mes combinado con el estado
+     * (change {@code reservas-employee-admin-reassign}, Feature D).
+     *
+     * @param employeeId empleado propietario
+     * @param status     estado por el que filtrar
+     * @param from       fecha de recurso minima (inclusive)
+     * @param to         fecha de recurso maxima (inclusive)
+     * @param pageable   pagina, tamano y orden solicitados
+     * @return pagina de solicitudes propias del intervalo en ese estado
+     */
+    Page<RequestEntity> findByEmployeeIdAndStatusAndRequestedDateBetween(
+            Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable);
+
+    /**
      * Pagina de solicitudes en un estado, en orden FIFO por fecha de creacion
      * (listado admin de pendientes).
      *

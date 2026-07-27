@@ -71,6 +71,21 @@ public class RequestPersistenceAdapter implements RequestRepositoryPort {
     }
 
     @Override
+    public Page<Request> findByEmployeeIdAndRequestedDateBetween(
+            Long employeeId, LocalDate from, LocalDate to, Pageable pageable) {
+        return jpaRepository.findByEmployeeIdAndRequestedDateBetween(employeeId, from, to, pageable)
+                .map(RequestMapper::toDomain);
+    }
+
+    @Override
+    public Page<Request> findByEmployeeIdAndStatusAndRequestedDateBetween(
+            Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable) {
+        return jpaRepository
+                .findByEmployeeIdAndStatusAndRequestedDateBetween(employeeId, status, from, to, pageable)
+                .map(RequestMapper::toDomain);
+    }
+
+    @Override
     public Page<Request> findByStatusOrderByCreatedAtAsc(RequestStatus status, Pageable pageable) {
         return jpaRepository.findByStatusOrderByCreatedAtAsc(status, pageable)
                 .map(RequestMapper::toDomain);

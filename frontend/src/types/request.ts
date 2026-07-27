@@ -96,6 +96,10 @@ export interface RequestListParams {
   page?: number;
   size?: number;
   status?: RequestStatus;
+  // Rango de fechas (ISO yyyy-MM-dd) sobre requestedDate, inclusive. Lo usa el
+  // selector de mes de "Mis solicitudes".
+  from?: string;
+  to?: string;
 }
 
 // SuggestedParkingSpace: vista previa de la plaza que la auto-asignacion daria a
@@ -107,4 +111,13 @@ export interface SuggestedParkingSpace {
   parkingSpaceId: number | null;
   number: number | null;
   floor: number | null;
+}
+
+// SuggestedResource: preview EMPLOYEE-safe del recurso (plaza o puesto) que la
+// auto-asignación daría al propio empleado para una fecha (incluye la preferencia
+// por el fijo propio). `available: false` → resourceLabel null. Schema
+// #/components/schemas/SuggestedResource. GET /requests/suggested?date&resourceType.
+export interface SuggestedResource {
+  available: boolean;
+  resourceLabel: string | null;
 }

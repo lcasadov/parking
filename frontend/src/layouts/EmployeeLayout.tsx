@@ -7,10 +7,11 @@ import { ROUTES } from '../routes/paths';
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   `nav-item${isActive ? ' active' : ''}`;
 
-// Layout de empleado (app-shell spec): 4 destinos (Mi Semana, Plano, Mis
-// solicitudes, Mis plazas). La navegación se entrega a AppShell, que la fija en el
-// sidebar (desktop) y el drawer off-canvas (móvil, uso principal del empleado).
-// "Mi Semana" es la ruta índice del portal. Destinos y orden sin cambios.
+// Layout de empleado: 3 destinos (Mi Semana, Mis solicitudes, Mis sitios fijos).
+// El "Plano" se quitó del nav (change reservas-employee-admin-reassign): la
+// orientación se cubre con el botón "Mapa" contextual en las tarjetas. La
+// navegación se entrega a AppShell (sidebar en desktop, drawer en móvil).
+// "Mi Semana" es la ruta índice del portal.
 export function EmployeeLayout() {
   const { t } = useTranslation();
   return (
@@ -21,10 +22,6 @@ export function EmployeeLayout() {
           <NavLink to={ROUTES.employeeMyWeek} className={navItemClass}>
             <i className="ti ti-calendar-event" aria-hidden="true" />
             {t('calendar.myWeek.navLabel')}
-          </NavLink>
-          <NavLink to={ROUTES.employeeFloorPlan} className={navItemClass}>
-            <i className="ti ti-map-2" aria-hidden="true" />
-            {t('floorPlan.navLabel')}
           </NavLink>
           <NavLink to={ROUTES.employeeRequests} className={navItemClass}>
             <i className="ti ti-inbox" aria-hidden="true" />

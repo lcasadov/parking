@@ -53,7 +53,14 @@ const actionableCalendar: AdminWeeklyCalendarResponse = {
 };
 
 function useActionableCalendar(): void {
-  server.use(http.get(CALENDAR_URL, () => HttpResponse.json(actionableCalendar)));
+  server.use(
+    http.get(CALENDAR_URL, () => HttpResponse.json(actionableCalendar)),
+    // Finde reservable → el calendario admin no oculta columnas de sábado/domingo,
+    // así las celdas del fixture (fechas relativas) siempre están presentes.
+    http.get(`${MSW_BASE}/settings/weekend-reservable`, () =>
+      HttpResponse.json({ weekendReservable: true }),
+    ),
+  );
 }
 
 // Devuelve el botón de la celda cuyo texto de estado coincide con `state`.
@@ -66,13 +73,42 @@ function cellButton(grid: HTMLElement, state: RegExp): HTMLElement {
   return button;
 }
 
+// El desplegable de empleado es ahora un Radix Select (combobox + panel en un
+// portal), no un <select> nativo: se abre el trigger y se elige la opción por
+// nombre. El empleado id 10 corresponde a "Alice Employee" (handler por defecto).
+async function selectEmployee(
+  user: ReturnType<typeof userEvent.setup>,
+  optionName: RegExp,
+): Promise<void> {
+  await user.click(screen.getByRole('combobox', { name: /empleado|employee/i }));
+  await user.click(await screen.findByRole('option', { name: optionName }));
+}
+
 describe('Ocupación accionable (ADMIN)', () => {
   it('should_assignFixed_preloadingAndResendingAllDays', async () => {
-    // El empleado 10 tiene plaza fija PARKING los días 1,2,3 (handler por defecto).
+    // El empleado 10 (Alice) ya tiene la plaza RESOURCE_ID fija PARKING los días
+    // 1,2,3: el merge del PUT solo reenvía los días de ESE mismo recurso, por lo
+    // que la precarga debe estar sobre la plaza que se está asignando.
     let putBody: { parkingSpaceId: number; daysOfWeek: number[]; resourceType?: string } | null =
       null;
     useActionableCalendar();
     server.use(
+      http.get(FIXED_URL, () =>
+        HttpResponse.json(
+          [1, 2, 3].map((day) => ({
+            id: 100 + day,
+            parkingSpaceId: RESOURCE_ID,
+            employeeId: 10,
+            dayOfWeek: day,
+            resourceType: 'PARKING',
+            active: true,
+            createdById: 1,
+            createdAt: '2026-02-01T09:00:00Z',
+            revokedById: null,
+            revokedAt: null,
+          })),
+        ),
+      ),
       http.put(FIXED_URL, async ({ request }) => {
         putBody = (await request.json()) as typeof putBody;
         return HttpResponse.json([]);
@@ -85,7 +121,7 @@ describe('Ocupación accionable (ADMIN)', () => {
     await user.click(cellButton(grid, /^libre$|^free$/i));
 
     const dialog = within(await screen.findByRole('dialog'));
-    await user.selectOptions(dialog.getByLabelText(/empleado|employee/i), '10');
+    await selectEmployee(user, /alice/i);
     await user.click(dialog.getByRole('button', { name: /fija|fixed/i }));
     await user.click(dialog.getByRole('button', { name: /^asignar$|^assign$/i }));
 
@@ -114,7 +150,7 @@ describe('Ocupación accionable (ADMIN)', () => {
     await user.click(cellButton(grid, /^libre$|^free$/i));
 
     const dialog = within(await screen.findByRole('dialog'));
-    await user.selectOptions(dialog.getByLabelText(/empleado|employee/i), '10');
+    await selectEmployee(user, /alice/i);
     // El modo puntual es el predeterminado.
     await user.click(dialog.getByRole('button', { name: /^asignar$|^assign$/i }));
 
@@ -202,13 +238,15 @@ describe('Ocupación accionable (ADMIN)', () => {
     await user.click(cellButton(grid, /^libre$|^free$/i));
 
     const dialog = within(await screen.findByRole('dialog'));
-    await user.selectOptions(dialog.getByLabelText(/empleado|employee/i), '10');
+    await selectEmployee(user, /alice/i);
     await user.click(dialog.getByRole('button', { name: /^asignar$|^assign$/i }));
 
     // El conflicto se muestra en contexto (toast traducido) sin romper la rejilla.
     expect(
       await screen.findByText(/ya está ocupado esa fecha|already occupied on that date/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole('table')).toBeInTheDocument();
+    // El modal sigue abierto tras el 409, por lo que Radix marca el fondo como
+    // aria-hidden; la rejilla sigue en el DOM (hidden: true) sin romperse.
+    expect(screen.getByRole('table', { hidden: true })).toBeInTheDocument();
   });
 });

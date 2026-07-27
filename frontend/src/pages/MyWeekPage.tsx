@@ -6,13 +6,15 @@ import { CancelRequestModal } from '../components/CancelRequestModal';
 import { CreateRequestModal } from '../components/CreateRequestModal';
 import { Legend } from '../components/Legend';
 import { PageHeader } from '../components/PageHeader';
+import { DeskMapButton } from '../components/DeskMapButton';
+import { ParkingDirectionsButton } from '../components/ParkingDirectionsButton';
 import { ReleaseResourceModal } from '../components/ReleaseResourceModal';
-import { Spinner } from '../components/Spinner';
+import { ResourceIcon } from '../components/ResourceIcon';
 import { WaitlistBadge } from '../components/WaitlistBadge';
-import { emitApiErrorToast } from '../api/events';
 import { useAuth } from '../auth/useAuth';
 import { useMyWeekQuery } from '../hooks/useCalendar';
 import { useEmployeeFixedAssignmentsQuery } from '../hooks/useFixedAssignments';
+import { useWeekendReservableQuery } from '../hooks/useSettings';
 import { useToast } from '../hooks/useToast';
 import { toEmployeeFixedResources, type FixedAssignmentGroup } from '../utils/fixedAssignments';
 import { myWeekLegend } from '../utils/calendarLegend';
@@ -26,6 +28,7 @@ import {
   dayMonth,
   mondayOfWeek,
   myWeekStateKey,
+  weekRangeLabel,
   weekdayIndex,
 } from '../utils/calendar';
 
@@ -39,10 +42,13 @@ const RESOURCE_STATE_VARIANT: Record<MyWeekDayState, string> = {
   REQUEST_PENDING: 'request',
   FREE: 'free',
 };
-const RESOURCE_ICON: Record<ResourceType, string> = {
-  PARKING: 'parking',
-  DESK: 'armchair',
-};
+// Clave i18n del toast al liberar un recurso (por tipo): "Plaza de parking
+// liberada" / "Puesto de trabajo liberado".
+function releasedToastKey(resourceType: ResourceType): string {
+  return resourceType === 'PARKING'
+    ? 'calendar.myWeek.released.PARKING'
+    : 'calendar.myWeek.released.DESK';
+}
 
 // Vista por-recurso (plaza o puesto) de un día: el contrato de "Mi Semana" lleva
 // ambos recursos en paralelo (design §D4). Se deriva una vista por cada recurso.
@@ -58,7 +64,13 @@ interface ResourceDayView {
 // Cómo se libera el recurso de un día: cancelando la solicitud propia (APPROVED
 // futura / PENDING) o creando un Release sobre la asignación fija.
 type ReleaseAction =
-  | { kind: 'CANCEL_REQUEST'; requestId: number; date: string; pending: boolean }
+  | {
+      kind: 'CANCEL_REQUEST';
+      requestId: number;
+      date: string;
+      pending: boolean;
+      resourceType: ResourceType;
+    }
   | {
       kind: 'FIXED_RELEASE';
       parkingSpaceId: number;
@@ -138,6 +150,7 @@ function resolveReleaseAction(
       requestId: view.requestId,
       date,
       pending: view.requestStatus === 'PENDING',
+      resourceType: view.resourceType,
     };
   }
   if (kind === 'FIXED_RELEASE' && fixedGroup !== null) {
@@ -158,18 +171,59 @@ function isFreeResource(view: ResourceDayView): boolean {
   return view.state === 'FREE' && !view.label;
 }
 
+// Reservable en 1 toque: libre (FREE) o LIBERADO (lo soltaste ese día y puedes
+// volver a reclamarlo). En ambos casos el recurso está disponible para ti.
+function isReservable(view: ResourceDayView): boolean {
+  return isFreeResource(view) || view.state === 'RELEASED';
+}
+
+// Tienes ese recurso asignado ese día (con etiqueta concreta): habilita el botón
+// "Mapa" (puesto) o "Ir al parking" (plaza).
+function hasAssignedDesk(view: ResourceDayView): boolean {
+  return view.resourceType === 'DESK' && view.state === 'ASSIGNED' && Boolean(view.label);
+}
+
+function hasAssignedParking(view: ResourceDayView): boolean {
+  return view.resourceType === 'PARKING' && view.state === 'ASSIGNED' && Boolean(view.label);
+}
+
+// Sábado (6) o domingo (0). Cuando el admin no admite reserva en finde, esos días
+// se ocultan de "Próximos días" y no ofrecen reservar.
+function isWeekendIso(date: string): boolean {
+  const day = weekdayIndex(date);
+  return day === 0 || day === 6;
+}
+
+// ¿Mostrar el botón "Reservar"? Recurso reservable (libre o liberado → puedes
+// reclamarlo), sin acción de liberar, y —si el admin no admite finde— que no sea
+// sábado/domingo. Un día liberado ofrece "Reservar" (reusa el alta: te da tu fijo
+// si sigue libre, si no otro; el backend valida disponibilidad).
+function showReserve(
+  view: ResourceDayView,
+  date: string,
+  hasAction: boolean,
+  weekendReservable: boolean,
+): boolean {
+  return !hasAction && isReservable(view) && (weekendReservable || !isWeekendIso(date));
+}
+
 // Vista EMPLOYEE "Mi Semana" (consume GET /calendar/my-week). Rediseño empleado:
 // arriba un HÉROE con HOY y MAÑANA (plaza + puesto de un vistazo, con reserva o
 // liberación en un toque) y, debajo, la tira semanal navegable. Multi-recurso:
 // cada día muestra el estado de la PLAZA y del PUESTO de forma independiente.
 export function MyWeekPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const toast = useToast();
   const reduceMotion = useReducedMotion();
+  // Fin de semana: si el admin no lo admite, se ocultan sáb/dom del empleado.
+  const weekendReservable = useWeekendReservableQuery().data ?? false;
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [reservePreset, setReservePreset] = useState<ReservePreset | null>(null);
   const [releaseAction, setReleaseAction] = useState<ReleaseAction | null>(null);
+  // Semana visible en "Próximos días" (0 = la ventana inmediata desde pasado
+  // mañana). El héroe HOY/MAÑANA permanece fijo; solo navega esta tira.
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // El héroe (HOY/MAÑANA) y la tira "próximos días" comparten UNA sola fuente de
   // datos: la semana actual + la siguiente. Así un mismo día no puede mostrar
@@ -197,14 +251,22 @@ export function MyWeekPage() {
   const todayDay = heroDays.find((day) => day.date === todayDate);
   const tomorrowDay = heroDays.find((day) => day.date === tomorrowDate);
   const heroLoading = heroQuery.isLoading || heroNextQuery.isLoading;
-  const heroReady = !heroLoading && !heroQuery.isError && !heroNextQuery.isError;
 
-  // "Próximos días": desde PASADO MAÑANA (el héroe ya cubre HOY y MAÑANA) hasta 7
-  // días vista, tomados de heroDays → sin días pasados y sin discrepancias con el héroe.
-  const upcomingEnd = addDaysIso(todayDate, 7);
-  const upcomingDays = heroDays.filter(
-    (day) => day.date > tomorrowDate && day.date <= upcomingEnd,
-  );
+  // "Próximos días": una SEMANA LABORAL completa (L–V; L–D si se admite finde),
+  // navegable por semanas. offset 0 = semana actual, mostrando solo los días > MAÑANA
+  // (el héroe ya cubre HOY y MAÑANA) y no pasados → a media semana puede quedar vacía.
+  // No se retrocede por debajo de 0 (no mostramos semanas pasadas).
+  const shownWeekStart = addDaysIso(mondayOfWeek(), weekOffset * WEEK_LENGTH);
+  const shownWeekEnd = addDaysIso(shownWeekStart, weekendReservable ? 6 : 4);
+  const weekQuery = useMyWeekQuery(shownWeekStart);
+  const upcomingDays = useMemo(() => {
+    return (weekQuery.data?.days ?? [])
+      .filter((day) => day.date > tomorrowDate)
+      .filter((day) => weekendReservable || !isWeekendIso(day.date))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [weekQuery.data, tomorrowDate, weekendReservable]);
+  const upcomingLoading = weekQuery.isLoading;
+  const upcomingReady = !upcomingLoading && !weekQuery.isError;
 
   const fixedQuery = useEmployeeFixedAssignmentsQuery(user?.employeeId ?? null);
   const fixedResources = useMemo(
@@ -229,6 +291,10 @@ export function MyWeekPage() {
         ? `${label} · ${t('calendar.myWeek.states.RELEASED')}`
         : label;
     }
+    // Sin recurso ese día: mensaje específico por tipo ("Sin plaza/puesto este día").
+    if (view.state === 'FREE') {
+      return t(`calendar.myWeek.noResource.${view.resourceType}`);
+    }
     return t(myWeekStateKey(view.state));
   }
 
@@ -245,12 +311,15 @@ export function MyWeekPage() {
   function refetchAll(): void {
     void heroQuery.refetch();
     void heroNextQuery.refetch();
+    void weekQuery.refetch();
   }
 
   function handleRequested(): void {
+    // El toast de éxito lo emite el propio modal (toast.success con el mensaje
+    // correcto según aprobada/pendiente/lista de espera). Aquí NO se emite otro
+    // (antes salía un segundo toast en rojo "Solicitud creada.").
     closeReserve();
     refetchAll();
-    emitApiErrorToast('requests.mine.created');
   }
 
   function closeReleaseAction(): void {
@@ -258,15 +327,29 @@ export function MyWeekPage() {
   }
 
   function handleReleased(): void {
+    const resourceType =
+      releaseAction?.kind === 'FIXED_RELEASE' ? releaseAction.resourceType : 'PARKING';
     setReleaseAction(null);
     refetchAll();
-    toast.success('releases.release.created');
+    toast.success(releasedToastKey(resourceType));
   }
 
+  // "Liberar" y "Cancelar" comparten modal (CancelRequestModal), pero el mensaje
+  // difiere: renunciar a una solicitud PENDIENTE = "solicitud cancelada";
+  // liberar una reserva que YA tenías (aprobada) = "plaza/puesto liberado".
   function handleCancelled(): void {
+    const action = releaseAction;
+    const isRelease = action?.kind === 'CANCEL_REQUEST' && !action.pending;
+    const resourceType = action?.kind === 'CANCEL_REQUEST' ? action.resourceType : 'PARKING';
     setReleaseAction(null);
     refetchAll();
-    emitApiErrorToast('requests.cancel.done');
+    if (isRelease) {
+      toast.success(releasedToastKey(resourceType));
+    } else {
+      // Cancelar una solicitud es una acción completada con éxito → toast verde
+      // (antes salía en rojo por usar emitApiErrorToast).
+      toast.success('requests.cancel.done');
+    }
   }
 
   // Modal de liberación según el mecanismo resuelto (cancelar solicitud / Release fijo).
@@ -305,7 +388,7 @@ export function MyWeekPage() {
     return (
       <li key={view.resourceType} className={`week-resource ${RESOURCE_STATE_VARIANT[view.state]}`}>
         <span className="week-resource-icon" aria-hidden="true">
-          <i className={`ti ti-${RESOURCE_ICON[view.resourceType]}`} />
+          <ResourceIcon type={view.resourceType} />
         </span>
         <span className="week-resource-info">
           <span className="week-resource-kind">
@@ -313,16 +396,31 @@ export function MyWeekPage() {
           </span>
           <span className="week-resource-state">{resourceLine(view)}</span>
         </span>
-        {action ? (
-          <Button
-            variant="white"
-            icon="arrow-back-up"
-            className="week-resource-action"
-            onClick={() => setReleaseAction(action)}
-          >
-            {isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction')}
-          </Button>
-        ) : null}
+        <span className="week-resource-actions">
+          {action ? (
+            <Button
+              variant="white"
+              icon="arrow-back-up"
+              className="week-resource-action"
+              onClick={() => setReleaseAction(action)}
+            >
+              {isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction')}
+            </Button>
+          ) : null}
+          {showReserve(view, date, Boolean(action), weekendReservable) ? (
+            <Button
+              variant="green"
+              icon="plus"
+              className="week-resource-action"
+              onClick={() => openReserve({ date, resource: view.resourceType })}
+            >
+              {t('calendar.myWeek.hero.reserve')}
+            </Button>
+          ) : null}
+          {hasAssignedDesk(view) && view.label ? (
+            <DeskMapButton deskLabel={view.label} date={date} className="week-resource-action" />
+          ) : null}
+        </span>
       </li>
     );
   }
@@ -340,7 +438,7 @@ export function MyWeekPage() {
     return (
       <li key={view.resourceType} className={`mw-res ${RESOURCE_STATE_VARIANT[view.state]}`}>
         <span className="mw-res-icon" aria-hidden="true">
-          <i className={`ti ti-${RESOURCE_ICON[view.resourceType]}`} />
+          <ResourceIcon type={view.resourceType} />
         </span>
         <span className="mw-res-info">
           <span className="mw-res-kind">
@@ -354,31 +452,45 @@ export function MyWeekPage() {
             </span>
           ) : null}
         </span>
-        {action ? (
-          <Button
-            variant="white"
-            icon="arrow-back-up"
-            className="mw-res-action"
-            onClick={() => setReleaseAction(action)}
-          >
-            {isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction')}
-          </Button>
-        ) : null}
-        {!action && isFreeResource(view) ? (
-          <Button
-            variant="green"
-            icon="plus"
-            className="mw-res-action"
-            onClick={() => openReserve({ date, resource: view.resourceType })}
-          >
-            {t('calendar.myWeek.hero.reserve')}
-          </Button>
-        ) : null}
+        <span className="mw-res-actions">
+          {action ? (
+            <Button
+              variant="white"
+              icon="arrow-back-up"
+              className="mw-res-action"
+              onClick={() => setReleaseAction(action)}
+            >
+              {isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction')}
+            </Button>
+          ) : null}
+          {showReserve(view, date, Boolean(action), weekendReservable) ? (
+            <Button
+              variant="green"
+              icon="plus"
+              className="mw-res-action"
+              onClick={() => openReserve({ date, resource: view.resourceType })}
+            >
+              {t('calendar.myWeek.hero.reserve')}
+            </Button>
+          ) : null}
+          {hasAssignedDesk(view) && view.label ? (
+            <DeskMapButton deskLabel={view.label} date={date} className="mw-res-action" />
+          ) : null}
+          {hasAssignedParking(view) ? <ParkingDirectionsButton className="mw-res-action" /> : null}
+        </span>
       </li>
     );
   }
 
-  function renderHeroCard(when: 'today' | 'tomorrow', date: string, day?: MyWeekDay): ReactElement {
+  function renderHeroCard(
+    when: 'today' | 'tomorrow',
+    date: string,
+    day?: MyWeekDay,
+  ): ReactElement | null {
+    // Fin de semana no reservable → no se muestra la tarjeta del héroe de ese día.
+    if (!weekendReservable && isWeekendIso(date)) {
+      return null;
+    }
     return (
       <article className={`mw-hero-card${when === 'today' ? ' is-today' : ''}`}>
         <header className="mw-hero-head">
@@ -442,31 +554,60 @@ export function MyWeekPage() {
         {renderHeroCard('tomorrow', tomorrowDate, tomorrowDay)}
       </div>
 
-      {/* PRÓXIMOS DÍAS: continuación del héroe (desde pasado mañana), misma fuente. */}
+      {/* PRÓXIMOS DÍAS: ventana de 7 días navegable por semanas (el héroe con
+          HOY/MAÑANA se queda fijo arriba). */}
       <section className="mw-week" aria-label={t('calendar.myWeek.weekTitle')}>
         <div className="mw-week-head">
           <h2 className="mw-week-title">{t('calendar.myWeek.weekTitle')}</h2>
+          <div className="mw-week-nav">
+            <span className="mw-week-range">
+              {weekRangeLabel(shownWeekStart, shownWeekEnd, i18n.language)}
+            </span>
+            <button
+              type="button"
+              className="mw-week-nav-btn"
+              disabled={weekOffset === 0}
+              aria-label={t('calendar.myWeek.prevWeek')}
+              onClick={() => setWeekOffset((offset) => Math.max(0, offset - 1))}
+            >
+              <i className="ti ti-chevron-left" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="mw-week-nav-btn"
+              aria-label={t('calendar.myWeek.nextWeek')}
+              onClick={() => setWeekOffset((offset) => offset + 1)}
+            >
+              <i className="ti ti-chevron-right" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
-        {heroLoading ? <Spinner /> : null}
+        {upcomingLoading ? (
+          <ul className="my-week-list" aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="week-day-card week-day-skeleton" />
+            ))}
+          </ul>
+        ) : null}
 
-        {heroQuery.isError || heroNextQuery.isError ? (
+        {weekQuery.isError ? (
           <p className="form-error" role="alert">
             {t('calendar.myWeek.loadError')}
           </p>
         ) : null}
 
-        {heroReady ? (
+        {upcomingReady ? (
           <ul className="my-week-list">
             {upcomingDays.length === 0 ? (
-              <li className="my-week-empty">{t('calendar.myWeek.empty')}</li>
+              <li className="my-week-empty">{t('calendar.myWeek.emptyWeek')}</li>
             ) : (
               upcomingDays.map((day, index) => renderDay(day, index))
             )}
           </ul>
         ) : null}
 
-        {heroReady ? <Legend items={myWeekLegend(t)} /> : null}
+        {upcomingReady ? <Legend items={myWeekLegend(t)} /> : null}
       </section>
 
       {/* Acción principal SIEMPRE visible (sticky en móvil). */}

@@ -39,6 +39,12 @@ import java.time.LocalDate;
  *                          espera (change {@code waitlist-requests}); {@code false} si el dia no
  *                          proviene de una solicitud en espera
  * @param deskWaitlisted    igual que {@code waitlisted}, para la solicitud de puesto propia
+ * @param releaseId         id de la liberacion propia de la PLAZA de ese dia cuando el dia esta en
+ *                          estado {@code RELEASED} por una liberacion del propio empleado aun
+ *                          cancelable (hoy o futuro); {@code null} en otro caso. Permite a "Mi
+ *                          Semana" ofrecer "Deshacer ausencia" cancelando esa liberacion (change
+ *                          {@code reservas-employee-admin-reassign})
+ * @param deskReleaseId     igual que {@code releaseId}, para la liberacion propia del PUESTO
  */
 @Schema(description = "Dia de la vista personal 'Mi Semana' (plaza y puesto)")
 public record MyWeekDayResponse(
@@ -79,5 +85,13 @@ public record MyWeekDayResponse(
 
         @Schema(description = "En lista de espera la solicitud de puesto propia ese dia",
                 example = "false")
-        @JsonProperty("deskWaitlisted") boolean deskWaitlisted) {
+        @JsonProperty("deskWaitlisted") boolean deskWaitlisted,
+
+        @Schema(description = "Id de la liberacion propia de la plaza (RELEASED cancelable); null si "
+                + "no aplica", example = "77")
+        @JsonProperty("releaseId") Long releaseId,
+
+        @Schema(description = "Id de la liberacion propia del puesto (RELEASED cancelable); null si "
+                + "no aplica", example = "78")
+        @JsonProperty("deskReleaseId") Long deskReleaseId) {
 }

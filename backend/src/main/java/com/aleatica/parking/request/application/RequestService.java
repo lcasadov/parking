@@ -10,6 +10,8 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.dto.PageResponse;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentEntity;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
@@ -22,17 +24,22 @@ import com.aleatica.parking.request.domain.Request;
 import com.aleatica.parking.request.domain.RequestRepositoryPort;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestAdminAssignRequest;
+import com.aleatica.parking.request.dto.RequestAdminReassignRequest;
+import com.aleatica.parking.request.dto.RequestAdminSwapRequest;
 import com.aleatica.parking.request.dto.RequestApproveRequest;
 import com.aleatica.parking.request.dto.RequestCreateRequest;
 import com.aleatica.parking.request.dto.RequestRejectRequest;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.request.dto.RequestSwapResponse;
 import com.aleatica.parking.request.dto.SuggestedParkingSpaceResponse;
+import com.aleatica.parking.request.dto.SuggestedResourceResponse;
 import com.aleatica.parking.resource.BookableResource;
 import com.aleatica.parking.resource.ResourceResolvers;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import com.aleatica.parking.systemsettings.domain.ApprovalMode;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -47,7 +54,9 @@ import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -97,6 +106,8 @@ public class RequestService {
     private static final String MSG_RESOURCE_NOT_FOUND = "Recurso no encontrado: ";
     private static final String MSG_OUTSIDE_WINDOW =
             "La fecha solicitada debe ser hoy o una fecha futura; no se permiten fechas pasadas";
+    private static final String MSG_WEEKEND_NOT_RESERVABLE =
+            "No se permiten reservas en fin de semana (sabado o domingo)";
     private static final String MSG_ALREADY_PENDING =
             "Ya existe una solicitud pendiente para esa fecha";
     private static final String MSG_NOT_OWNER = "No puede operar sobre la solicitud de otro empleado";
@@ -124,6 +135,18 @@ public class RequestService {
     private static final String MSG_RESEND_TOO_SOON =
             "Debe esperar al menos 24 horas desde la creacion o el ultimo reenvio para volver a "
                     + "avisar al administrador";
+    private static final String MSG_NOT_REASSIGNABLE =
+            "Solo se puede reasignar una solicitud APPROVED de fecha futura";
+    private static final String MSG_REASSIGN_UNAVAILABLE =
+            "El recurso destino no esta disponible para la fecha de la solicitud";
+    private static final String MSG_SWAP_SAME_REQUEST =
+            "No se puede intercambiar una solicitud consigo misma";
+    private static final String MSG_SWAP_NOT_APPROVED =
+            "Ambas solicitudes deben estar APPROVED para poder intercambiarse";
+    private static final String MSG_SWAP_DIFFERENT_DATE =
+            "Solo se pueden intercambiar recursos de solicitudes de la misma fecha";
+    private static final String MSG_SWAP_DIFFERENT_TYPE =
+            "Solo se pueden intercambiar recursos del mismo tipo (plaza con plaza, puesto con puesto)";
 
     /** Accion de auditoria: el empleado cancela una solicitud APPROVED y libera el recurso. */
     private static final String AUDIT_ACTION_RELEASE = "CANCEL_APPROVED_REQUEST";
@@ -138,14 +161,31 @@ public class RequestService {
      * {@code admin-punctual-assignment}); el detalle guarda el empleado y el recurso asignados.
      */
     private static final String AUDIT_ACTION_ADMIN_ASSIGN = "ADMIN_PUNCTUAL_ASSIGNMENT";
+    /**
+     * Accion de auditoria: un ADMIN reasigna el recurso de una asignacion APPROVED de un empleado
+     * para una fecha concreta (change {@code reservas-employee-admin-reassign}, capability
+     * {@code admin-resource-reassignment}); el detalle guarda el recurso anterior y el nuevo.
+     */
+    private static final String AUDIT_ACTION_ADMIN_REASSIGN = "ADMIN_REASSIGN_RESOURCE";
+    /**
+     * Accion de auditoria: un ADMIN intercambia (swap) los recursos de dos asignaciones APPROVED
+     * de la misma fecha en una operacion atomica; el detalle guarda ambas solicitudes y recursos.
+     */
+    private static final String AUDIT_ACTION_ADMIN_SWAP = "ADMIN_SWAP_RESOURCES";
     /** Tipo de entidad auditada en la liberacion por cancelacion. */
     private static final String AUDIT_ENTITY_REQUEST = "Request";
+
+    /** Prefijo de la etiqueta humana de una plaza en la vista previa de auto-asignacion. */
+    private static final String LABEL_PARKING_PREFIX = "Plaza ";
+    /** Prefijo de la etiqueta humana de un puesto en la vista previa de auto-asignacion. */
+    private static final String LABEL_DESK_PREFIX = "Puesto ";
 
     private final RequestRepositoryPort requestRepository;
     private final EmployeeRepository employeeRepository;
     private final ResourceResolvers resourceResolvers;
     private final AvailabilityService availabilityService;
     private final SystemSettingsService systemSettingsService;
+    private final FixedAssignmentJpaRepository fixedAssignmentRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final AuditRecorder auditRecorder;
     private final ClockPort clock;
@@ -158,6 +198,9 @@ public class RequestService {
      * @param availabilityService   servicio de disponibilidad consolidado (regla unica al aprobar
      *                              y auto-asignacion de plaza)
      * @param systemSettingsService ajuste global (modo de aprobacion MANUAL/AUTOMATIC)
+     * @param fixedAssignmentRepository repositorio de asignaciones fijas: resuelve el recurso fijo
+     *                              propio del empleado para preferirlo en la auto-asignacion (change
+     *                              {@code reservas-employee-admin-reassign}, Feature A)
      * @param eventPublisher        publicador de eventos de notificacion
      * @param auditRecorder         puerto de auditoria para trazar la liberacion por cancelacion
      *                              de una solicitud APPROVED (change {@code cancel-approved-request})
@@ -169,6 +212,7 @@ public class RequestService {
             ResourceResolvers resourceResolvers,
             AvailabilityService availabilityService,
             SystemSettingsService systemSettingsService,
+            FixedAssignmentJpaRepository fixedAssignmentRepository,
             ApplicationEventPublisher eventPublisher,
             AuditRecorder auditRecorder,
             ClockPort clock) {
@@ -177,6 +221,7 @@ public class RequestService {
         this.resourceResolvers = resourceResolvers;
         this.availabilityService = availabilityService;
         this.systemSettingsService = systemSettingsService;
+        this.fixedAssignmentRepository = fixedAssignmentRepository;
         this.eventPublisher = eventPublisher;
         this.auditRecorder = auditRecorder;
         this.clock = clock;
@@ -231,6 +276,7 @@ public class RequestService {
         LocalDate requestedDate = request.requestedDate();
         ResourceType resourceType = request.resourceTypeOrDefault();
         requireNotPastDate(requestedDate, now);
+        requireWeekendAllowed(requestedDate);
         requireNoPendingDuplicate(employeeId, resourceType, requestedDate);
         if (systemSettingsService.approvalMode() == ApprovalMode.AUTOMATIC) {
             return createAutomatic(employee, request, resourceType, requestedDate, now);
@@ -288,6 +334,11 @@ public class RequestService {
             Long resourceId = chosenDesk(request.resourceId(), requestedDate);
             return autoApprove(employee.getId(), ResourceType.DESK, resourceId, requestedDate, now);
         }
+        Optional<Long> ownFixed = preferredOwnFixedResource(
+                employee.getId(), ResourceType.DESK, requestedDate);
+        if (ownFixed.isPresent()) {
+            return autoApprove(employee.getId(), ResourceType.DESK, ownFixed.get(), requestedDate, now);
+        }
         return autoAssignDesk(employee.getCategory(), requestedDate)
                 .map(desk -> autoApprove(
                         employee.getId(), ResourceType.DESK, desk.getId(), requestedDate, now))
@@ -303,6 +354,12 @@ public class RequestService {
      */
     private RequestResponse createAutomaticParking(
             Employee employee, RequestCreateRequest request, LocalDate requestedDate, Instant now) {
+        Optional<Long> ownFixed = preferredOwnFixedResource(
+                employee.getId(), ResourceType.PARKING, requestedDate);
+        if (ownFixed.isPresent()) {
+            return autoApprove(
+                    employee.getId(), ResourceType.PARKING, ownFixed.get(), requestedDate, now);
+        }
         Optional<ParkingSpace> space = autoAssignParkingSpace(employee.getCategory(), requestedDate);
         if (space.isPresent()) {
             return autoApprove(
@@ -312,6 +369,32 @@ public class RequestService {
             return createPending(employee.getId(), ResourceType.PARKING, requestedDate, now, true);
         }
         throw new NoAvailabilityException(MSG_NO_AVAILABILITY);
+    }
+
+    /**
+     * Resuelve el recurso <strong>FIJO propio</strong> del empleado para el dia de la semana de la
+     * fecha solicitada, si existe una asignacion fija activa y ese recurso esta LIBRE esa fecha
+     * (change {@code reservas-employee-admin-reassign}, Feature A). Es la preferencia que se aplica
+     * <em>antes</em> de la auto-asignacion por categoria en el alta automatica: al liberar y volver
+     * a reservar, el empleado recupera su recurso de siempre en vez de uno cualquiera de su
+     * categoria. El dia de la semana es ISO ({@code 1}=Lunes … {@code 7}=Domingo).
+     *
+     * @param employeeId    empleado solicitante
+     * @param resourceType  tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha solicitada
+     * @return el id del recurso fijo propio si existe y esta libre esa fecha; vacio en otro caso
+     */
+    private Optional<Long> preferredOwnFixedResource(
+            Long employeeId, ResourceType resourceType, LocalDate requestedDate) {
+        int dayOfWeek = requestedDate.getDayOfWeek().getValue();
+        return fixedAssignmentRepository
+                .findByEmployeeIdAndResourceTypeAndDayOfWeekAndActiveTrue(
+                        employeeId, resourceType, dayOfWeek)
+                .stream()
+                .map(FixedAssignmentEntity::getResourceId)
+                .filter(resourceId -> !availabilityService.isSpaceTakenForDate(
+                        resourceId, resourceType, requestedDate))
+                .findFirst();
     }
 
     private Long chosenDesk(Long deskId, LocalDate requestedDate) {
@@ -432,6 +515,159 @@ public class RequestService {
                 + response.requestedDate() + "\"}";
     }
 
+    /**
+     * Reasigna el recurso de una asignacion {@code APPROVED} de fecha futura de un empleado a otro
+     * recurso libre del mismo tipo, a peticion de un {@code ADMIN} (change
+     * {@code reservas-employee-admin-reassign}, capability {@code admin-resource-reassignment},
+     * Feature B). El recurso destino debe existir, ser del mismo tipo que el original y estar LIBRE
+     * esa fecha (409 {@code SPACE_NOT_AVAILABLE} si esta ocupado); al reasignar, el recurso anterior
+     * queda libre (la fila cambia de {@code resource_id}, dejando de contar en el indice unico
+     * {@code UX_requests_space_date_approved} para el recurso anterior). Si el destino coincide con
+     * el recurso actual la operacion es idempotente (no cambia nada ni notifica). Queda trazada en
+     * auditoria con el admin actor y notifica {@code AFTER_COMMIT} al empleado afectado reutilizando
+     * {@link RequestAdminAssignedEvent} (mismo correo que la asignacion puntual: recurso resultante
+     * y fecha). Un fallo del correo no revierte la reasignacion (best-effort).
+     *
+     * @param adminLogin login del administrador actuante (principal de la sesion)
+     * @param request    solicitud a reasignar y recurso destino
+     * @return la solicitud reasignada (DTO)
+     * @throws EntityNotFoundException   si la solicitud o el recurso destino no existen
+     * @throws RequestStateException     si la solicitud no esta {@code APPROVED} o es de fecha pasada
+     * @throws SpaceUnavailableException si el recurso destino no esta libre esa fecha
+     */
+    @Transactional
+    public RequestResponse adminReassign(String adminLogin, RequestAdminReassignRequest request) {
+        Request target = loadRequest(request.requestId());
+        LocalDate today = LocalDate.ofInstant(clock.now(), ZoneOffset.UTC);
+        requireReassignable(target, today);
+        Long newResourceId = request.newResourceId();
+        if (newResourceId.equals(target.getResourceId())) {
+            return RequestResponse.from(target);
+        }
+        ResourceType resourceType = target.getResourceType();
+        requireResourceExists(newResourceId, resourceType);
+        requireReassignResourceAvailable(newResourceId, resourceType, target.getRequestedDate());
+        Long adminId = resolveEmployeeId(adminLogin);
+        Long previousResourceId = target.getResourceId();
+        target.reassign(newResourceId, adminId, clock.now());
+        RequestResponse response = RequestResponse.from(requestRepository.saveAndFlush(target));
+        recordReassignment(adminId, previousResourceId, response);
+        eventPublisher.publishEvent(new RequestAdminAssignedEvent(response));
+        return response;
+    }
+
+    /**
+     * Intercambia (swap) en una operacion <strong>atomica</strong> los recursos de dos asignaciones
+     * {@code APPROVED} de la MISMA fecha y del mismo tipo, a peticion de un {@code ADMIN} (change
+     * {@code reservas-employee-admin-reassign}, capability {@code admin-resource-reassignment},
+     * Feature B). Ambas solicitudes deben estar {@code APPROVED}, ser de la misma {@code requestedDate}
+     * y del mismo {@link ResourceType}; en otro caso responde 409 sin efecto. El intercambio ocurre
+     * en una unica transaccion: si cualquiera de los dos lados falla, no se aplica ninguno (rollback
+     * total).
+     *
+     * <p>Para no violar el indice unico filtrado {@code UX_requests_space_date_approved}
+     * ({@code resource_id, resource_type, requested_date} WHERE {@code status = 'APPROVED'}) durante
+     * el intercambio de un 2-ciclo, se aparca temporalmente la primera solicitud en un
+     * {@link #sentinelResourceId(Request) valor centinela} libre, se mueve la segunda al recurso de
+     * la primera y finalmente la primera al recurso de la segunda; el centinela nunca persiste al
+     * commit (siempre se reemplaza por el recurso definitivo). Queda trazado en auditoria y notifica
+     * {@code AFTER_COMMIT} a AMBOS empleados con su recurso resultante y la fecha
+     * ({@link RequestAdminAssignedEvent}); un fallo del correo no revierte el intercambio.</p>
+     *
+     * @param adminLogin login del administrador actuante (principal de la sesion)
+     * @param request    identificadores de las dos solicitudes a intercambiar
+     * @return ambas solicitudes ya intercambiadas (DTO)
+     * @throws EntityNotFoundException si alguna de las dos solicitudes no existe
+     * @throws RequestStateException   si son la misma, no estan ambas {@code APPROVED}, o difieren en
+     *                                 fecha o tipo de recurso
+     */
+    @Transactional
+    public RequestSwapResponse adminSwap(String adminLogin, RequestAdminSwapRequest request) {
+        if (request.requestIdA().equals(request.requestIdB())) {
+            throw new RequestStateException(MSG_SWAP_SAME_REQUEST);
+        }
+        Request first = loadRequest(request.requestIdA());
+        Request second = loadRequest(request.requestIdB());
+        requireSwappable(first, second);
+        Long adminId = resolveEmployeeId(adminLogin);
+        Instant now = clock.now();
+        Long resourceFirst = first.getResourceId();
+        Long resourceSecond = second.getResourceId();
+        // Aparca la primera en un centinela libre para liberar su recurso sin colisionar con el
+        // indice unico, mueve la segunda al recurso de la primera y la primera al de la segunda.
+        first.reassign(sentinelResourceId(first), adminId, now);
+        requestRepository.saveAndFlush(first);
+        second.reassign(resourceFirst, adminId, now);
+        RequestResponse responseSecond = RequestResponse.from(requestRepository.saveAndFlush(second));
+        first.reassign(resourceSecond, adminId, now);
+        RequestResponse responseFirst = RequestResponse.from(requestRepository.saveAndFlush(first));
+        recordSwap(adminId, responseFirst, responseSecond);
+        eventPublisher.publishEvent(new RequestAdminAssignedEvent(responseFirst));
+        eventPublisher.publishEvent(new RequestAdminAssignedEvent(responseSecond));
+        return new RequestSwapResponse(responseFirst, responseSecond);
+    }
+
+    private void requireReassignable(Request request, LocalDate today) {
+        if (!request.canBeAdminCancelledBy(today)) {
+            throw new RequestStateException(MSG_NOT_REASSIGNABLE);
+        }
+    }
+
+    private void requireReassignResourceAvailable(
+            Long resourceId, ResourceType resourceType, LocalDate requestedDate) {
+        if (availabilityService.isSpaceTakenForDate(resourceId, resourceType, requestedDate)) {
+            throw new SpaceUnavailableException(MSG_REASSIGN_UNAVAILABLE);
+        }
+    }
+
+    private void requireSwappable(Request first, Request second) {
+        if (!first.isApproved() || !second.isApproved()) {
+            throw new RequestStateException(MSG_SWAP_NOT_APPROVED);
+        }
+        if (!first.getRequestedDate().equals(second.getRequestedDate())) {
+            throw new RequestStateException(MSG_SWAP_DIFFERENT_DATE);
+        }
+        if (first.getResourceType() != second.getResourceType()) {
+            throw new RequestStateException(MSG_SWAP_DIFFERENT_TYPE);
+        }
+    }
+
+    /**
+     * Valor centinela transitorio para el recurso de una solicitud durante el swap: el negativo de
+     * su id. Es unico entre solicitudes y no coincide con ningun recurso real (los ids de recurso
+     * son positivos), por lo que no colisiona con el indice unico filtrado. Nunca persiste al commit
+     * (el swap lo reemplaza siempre por el recurso definitivo).
+     */
+    private static Long sentinelResourceId(Request request) {
+        return -Math.abs(request.getId());
+    }
+
+    private void recordReassignment(
+            Long adminId, Long previousResourceId, RequestResponse response) {
+        auditRecorder.record(new AuditEntry(
+                adminId, AUDIT_ACTION_ADMIN_REASSIGN, AUDIT_ENTITY_REQUEST, response.id(),
+                reassignDetails(previousResourceId, response)));
+    }
+
+    private static String reassignDetails(Long previousResourceId, RequestResponse response) {
+        return "{\"employeeId\":" + response.employeeId() + ",\"resourceType\":\""
+                + response.resourceType() + "\",\"previousResourceId\":" + previousResourceId
+                + ",\"newResourceId\":" + response.parkingSpaceId() + ",\"requestedDate\":\""
+                + response.requestedDate() + "\"}";
+    }
+
+    private void recordSwap(Long adminId, RequestResponse first, RequestResponse second) {
+        auditRecorder.record(new AuditEntry(
+                adminId, AUDIT_ACTION_ADMIN_SWAP, AUDIT_ENTITY_REQUEST, first.id(),
+                swapDetails(first, second)));
+    }
+
+    private static String swapDetails(RequestResponse first, RequestResponse second) {
+        return "{\"requestIdA\":" + first.id() + ",\"resourceIdA\":" + first.parkingSpaceId()
+                + ",\"requestIdB\":" + second.id() + ",\"resourceIdB\":" + second.parkingSpaceId()
+                + ",\"requestedDate\":\"" + first.requestedDate() + "\"}";
+    }
+
     private Employee loadEmployeeById(Long employeeId) {
         return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EntityNotFoundException(MSG_EMPLOYEE_NOT_FOUND + employeeId));
@@ -458,6 +694,65 @@ public class RequestService {
         return autoAssignParkingSpace(employee.getCategory(), requestedDate)
                 .map(SuggestedParkingSpaceResponse::from)
                 .orElseGet(SuggestedParkingSpaceResponse::unavailable);
+    }
+
+    /**
+     * Vista previa, para el PROPIO empleado de la sesion, del recurso (plaza o puesto) que se le
+     * auto-asignaria para una fecha, sin crear la solicitud (change
+     * {@code reservas-employee-admin-reassign}, feedback de auto-asignacion). Aplica la MISMA logica
+     * que la creacion automatica real: primero la preferencia por el recurso FIJO propio del dia
+     * (Feature A, {@link #preferredOwnFixedResource(Long, ResourceType, LocalDate)}) y, si no aplica,
+     * la auto-asignacion por categoria ({@link #autoAssignParkingSpace}/{@link #autoAssignDesk}).
+     * Devuelve la etiqueta humana del recurso ("Plaza 3005"/"Puesto 12"), o {@code available = false}
+     * si no hay ninguno libre esa fecha.
+     *
+     * @param requesterLogin login del empleado de la sesion (principal)
+     * @param requestedDate  fecha para la que se consulta la sugerencia
+     * @param resourceType   tipo de recurso a sugerir ({@code PARKING}/{@code DESK})
+     * @return la vista previa del recurso sugerido, o sin disponibilidad
+     * @throws EntityNotFoundException si el login de sesion no corresponde a ningun empleado
+     */
+    @Transactional(readOnly = true)
+    public SuggestedResourceResponse suggestForEmployee(
+            String requesterLogin, LocalDate requestedDate, ResourceType resourceType) {
+        Employee employee = loadEmployee(requesterLogin);
+        Optional<Long> ownFixed =
+                preferredOwnFixedResource(employee.getId(), resourceType, requestedDate);
+        if (ownFixed.isPresent()) {
+            return suggestedLabelForResource(ownFixed.get(), resourceType);
+        }
+        if (resourceType == ResourceType.DESK) {
+            return autoAssignDesk(employee.getCategory(), requestedDate)
+                    .map(desk -> SuggestedResourceResponse.available(deskLabel(desk.getNumber())))
+                    .orElseGet(SuggestedResourceResponse::unavailable);
+        }
+        return autoAssignParkingSpace(employee.getCategory(), requestedDate)
+                .map(space -> SuggestedResourceResponse.available(parkingLabel(space.getNumber())))
+                .orElseGet(SuggestedResourceResponse::unavailable);
+    }
+
+    /**
+     * Resuelve la etiqueta humana de un recurso fijo propio ya elegido (Feature A) consultando su
+     * numero por tipo. Si el recurso ya no existe, degrada a "sin disponibilidad".
+     */
+    private SuggestedResourceResponse suggestedLabelForResource(
+            Long resourceId, ResourceType resourceType) {
+        BookableResource resource =
+                resourceResolvers.resolveAll(List.of(resourceId), resourceType).get(resourceId);
+        if (resource == null) {
+            return SuggestedResourceResponse.unavailable();
+        }
+        String label = resourceType == ResourceType.DESK
+                ? deskLabel(resource.getNumber()) : parkingLabel(resource.getNumber());
+        return SuggestedResourceResponse.available(label);
+    }
+
+    private static String parkingLabel(int number) {
+        return LABEL_PARKING_PREFIX + number;
+    }
+
+    private static String deskLabel(int number) {
+        return LABEL_DESK_PREFIX + number;
     }
 
     /**
@@ -694,21 +989,57 @@ public class RequestService {
 
     /**
      * Lista de forma paginada las solicitudes del empleado de la sesion (verificacion
-     * de pertenencia implicita: solo las propias), con filtro opcional por estado.
+     * de pertenencia implicita: solo las propias), con filtro opcional por estado y, opcionalmente,
+     * acotadas a un rango de fechas de recurso ({@code requestedDate}) inclusive {@code [from, to]}
+     * (change {@code reservas-employee-admin-reassign}, Feature D: navegacion por meses en "Mis
+     * solicitudes"). Cuando se pasa el rango, el orden es por {@code requestedDate} ascendente; sin
+     * rango, el comportamiento clasico. Si solo se indica uno de los extremos, el otro no acota.
      *
      * @param requesterLogin login del empleado (principal de la sesion)
      * @param status         estado por el que filtrar; {@code null} para todos
+     * @param from           fecha de recurso minima (inclusive); {@code null} = sin cota inferior
+     * @param to             fecha de recurso maxima (inclusive); {@code null} = sin cota superior
      * @param pageable       pagina y tamano solicitados
      * @return pagina de solicitudes propias (DTO)
      */
     @Transactional(readOnly = true)
     public PageResponse<RequestResponse> listMine(
-            String requesterLogin, RequestStatus status, Pageable pageable) {
+            String requesterLogin, RequestStatus status, LocalDate from, LocalDate to,
+            Pageable pageable) {
         Long employeeId = resolveEmployeeId(requesterLogin);
-        Page<Request> page = status == null
+        Page<Request> page = (from == null && to == null)
+                ? listMineUnbounded(employeeId, status, pageable)
+                : listMineInRange(employeeId, status, from, to, pageable);
+        return enrichWithResourceNumber(page);
+    }
+
+    private Page<Request> listMineUnbounded(Long employeeId, RequestStatus status, Pageable pageable) {
+        return status == null
                 ? requestRepository.findByEmployeeId(employeeId, pageable)
                 : requestRepository.findByEmployeeIdAndStatus(employeeId, status, pageable);
-        return enrichWithResourceNumber(page);
+    }
+
+    /**
+     * Variante acotada por rango de fechas: normaliza los extremos ausentes ({@code null}) a los
+     * limites minimo/maximo, fuerza el orden por {@code requestedDate} ascendente (preservando
+     * pagina y tamano) y delega en el puerto.
+     */
+    private Page<Request> listMineInRange(
+            Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable) {
+        LocalDate effectiveFrom = from == null ? LocalDate.MIN : from;
+        LocalDate effectiveTo = to == null ? LocalDate.MAX : to;
+        // Fuerza el orden por requestedDate ascendente preservando pagina/tamano. Un Pageable no
+        // paginado ({@code Pageable.unpaged()}) no admite getPageNumber/getPageSize, asi que se
+        // usa tal cual (no aplica en produccion, donde el controlador siempre pagina).
+        Pageable sorted = pageable.isUnpaged()
+                ? pageable
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                        Sort.by(Sort.Direction.ASC, "requestedDate"));
+        return status == null
+                ? requestRepository.findByEmployeeIdAndRequestedDateBetween(
+                        employeeId, effectiveFrom, effectiveTo, sorted)
+                : requestRepository.findByEmployeeIdAndStatusAndRequestedDateBetween(
+                        employeeId, status, effectiveFrom, effectiveTo, sorted);
     }
 
     /**
@@ -1040,6 +1371,20 @@ public class RequestService {
         LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
         if (requestedDate.isBefore(today)) {
             throw new OutsideRequestWindowException(MSG_OUTSIDE_WINDOW);
+        }
+    }
+
+    /**
+     * Rechaza la creacion de una solicitud para sabado o domingo cuando el ajuste global
+     * {@code weekendReservable} esta desactivado (change {@code reservas-employee-admin-reassign}).
+     * Aplica a ambos modos de aprobacion y a ambos tipos de recurso; solo afecta al autoservicio
+     * del empleado ({@code create}), no a la asignacion puntual del admin.
+     */
+    private void requireWeekendAllowed(LocalDate requestedDate) {
+        DayOfWeek dayOfWeek = requestedDate.getDayOfWeek();
+        boolean weekend = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY;
+        if (weekend && !systemSettingsService.weekendReservable()) {
+            throw new WeekendNotReservableException(MSG_WEEKEND_NOT_RESERVABLE);
         }
     }
 

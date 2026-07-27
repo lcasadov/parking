@@ -116,7 +116,7 @@ export function LocationDesk({ dates, deskId, onChange }: LocationDeskProps) {
                   aria-pressed={selected}
                   onClick={() => pickDesk(resource.resourceId)}
                 >
-                  <i className="ti ti-armchair" aria-hidden="true" />
+                  <i className="ti ti-device-desktop" aria-hidden="true" />
                   <span className="mono">{resource.label}</span>
                 </button>
               </li>

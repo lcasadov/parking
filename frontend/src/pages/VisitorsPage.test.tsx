@@ -22,7 +22,9 @@ function rowFor(text: string): HTMLElement {
 }
 
 async function openReservationsTab(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  await user.click(screen.getByRole('tab', { name: /reservas futuras|upcoming reservations/i }));
+  await user.click(
+    screen.getByRole('button', { name: /reservas futuras|upcoming reservations/i }),
+  );
 }
 
 describe('VisitorsPage (ADMIN)', () => {
@@ -148,9 +150,11 @@ describe('VisitorsPage (ADMIN)', () => {
 
     await user.click(screen.getByRole('button', { name: /nueva reserva|new reservation/i }));
 
+    // La creacion de reservas de visita usa ahora el ReservationWizard
+    // (titulo "Nueva reserva" / "New reservation"), preseleccionado a VISITOR.
     const dialog = await screen.findByRole('dialog');
     expect(
-      within(dialog).getByText(/nueva reserva de visita|new visitor reservation/i),
+      within(dialog).getByText(/nueva reserva|new reservation/i),
     ).toBeInTheDocument();
   });
 

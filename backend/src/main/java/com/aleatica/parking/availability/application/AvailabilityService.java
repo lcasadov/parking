@@ -41,6 +41,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -777,7 +778,7 @@ public class AvailabilityService {
             Map<Integer, FixedAssignmentEntity> fixedByDow,
             Map<LocalDate, RequestEntity> approvedByDate,
             Map<LocalDate, RequestEntity> pendingByDate,
-            Set<SpaceDate> releasedKeys,
+            Map<SpaceDate, Long> releaseIdsByKey,
             Map<Long, String> labels) {
     }
 
@@ -789,7 +790,7 @@ public class AvailabilityService {
      */
     private record MyWeekResourceState(
             MyWeekDayState state, String label, RequestStatus requestStatus, Long requestId,
-            boolean waitlisted) {
+            boolean waitlisted, Long releaseId) {
     }
 
     /**
@@ -837,11 +838,18 @@ public class AvailabilityService {
                 .collect(Collectors.toMap(FixedAssignmentEntity::getDayOfWeek, Function.identity(), (a, b) -> a));
         Map<LocalDate, RequestEntity> approvedByDate = requestsByDate(myRequests, RequestStatus.APPROVED);
         Map<LocalDate, RequestEntity> pendingByDate = requestsByDate(myRequests, RequestStatus.PENDING);
-        Set<SpaceDate> releasedKeys = myReleases.stream()
-                .map(r -> new SpaceDate(r.getResourceId(), r.getReleaseDate()))
-                .collect(Collectors.toSet());
+        // Todas las liberaciones se cargan por employeeId, luego son SIEMPRE del propio empleado
+        // (cancelables por el via DELETE /releases/{id}); se indexan por (recurso, fecha) para
+        // exponer su id en "Mi Semana" y ofrecer "Deshacer ausencia". Se usa HashMap (no toMap)
+        // para tolerar un id nulo (entidad no persistida): la clave marca el dia como RELEASED y el
+        // valor aporta el id cuando existe.
+        Map<SpaceDate, Long> releaseIdsByKey = new HashMap<>();
+        for (ReleaseEntity release : myReleases) {
+            releaseIdsByKey.put(new SpaceDate(release.getResourceId(), release.getReleaseDate()),
+                    release.getId());
+        }
         Map<Long, String> labels = resourceLabels(fixedByDow, approvedByDate, resourceType);
-        return new MyWeekTypeContext(fixedByDow, approvedByDate, pendingByDate, releasedKeys, labels);
+        return new MyWeekTypeContext(fixedByDow, approvedByDate, pendingByDate, releaseIdsByKey, labels);
     }
 
     private MyWeekDayResponse myWeekDay(LocalDate day, MyWeekTypeContext parking, MyWeekTypeContext desk) {
@@ -852,7 +860,8 @@ public class AvailabilityService {
                 parkingState.requestStatus(), parkingState.requestId(),
                 deskState.state(), deskState.label(),
                 deskState.requestStatus(), deskState.requestId(),
-                parkingState.waitlisted(), deskState.waitlisted());
+                parkingState.waitlisted(), deskState.waitlisted(),
+                parkingState.releaseId(), deskState.releaseId());
     }
 
     private MyWeekResourceState myWeekResourceState(LocalDate day, MyWeekTypeContext context) {
@@ -860,22 +869,28 @@ public class AvailabilityService {
         if (approved != null) {
             return new MyWeekResourceState(MyWeekDayState.ASSIGNED,
                     context.labels().get(approved.getResourceId()), RequestStatus.APPROVED,
-                    approved.getId(), false);
+                    approved.getId(), false, null);
         }
         FixedAssignmentEntity assignment = context.fixedByDow().get(day.getDayOfWeek().getValue());
         if (assignment != null) {
-            boolean released = context.releasedKeys().contains(new SpaceDate(assignment.getResourceId(), day));
+            SpaceDate key = new SpaceDate(assignment.getResourceId(), day);
+            boolean released = context.releaseIdsByKey().containsKey(key);
             MyWeekDayState state = released ? MyWeekDayState.RELEASED : MyWeekDayState.ASSIGNED;
+            // Solo se expone el id si la liberacion propia sigue siendo cancelable (hoy o futuro):
+            // DELETE /releases/{id} rechaza una liberacion de fecha pasada (409).
+            Long cancelableReleaseId =
+                    released && !day.isBefore(today()) ? context.releaseIdsByKey().get(key) : null;
             return new MyWeekResourceState(
-                    state, context.labels().get(assignment.getResourceId()), null, null, false);
+                    state, context.labels().get(assignment.getResourceId()), null, null, false,
+                    cancelableReleaseId);
         }
         RequestEntity pending = context.pendingByDate().get(day);
         if (pending != null) {
             return new MyWeekResourceState(
                     MyWeekDayState.REQUEST_PENDING, null, RequestStatus.PENDING, pending.getId(),
-                    pending.isWaitlisted());
+                    pending.isWaitlisted(), null);
         }
-        return new MyWeekResourceState(MyWeekDayState.FREE, null, null, null, false);
+        return new MyWeekResourceState(MyWeekDayState.FREE, null, null, null, false, null);
     }
 
     // -------------------------------------------------------------------------

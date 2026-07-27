@@ -52,18 +52,19 @@ export function Toast() {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }
 
-  if (toasts.length === 0) {
-    return null;
-  }
-
+  // Región viva PERSISTENTE (WCAG 4.1.3): el contenedor se monta siempre —aunque
+  // esté vacío— para que los lectores de pantalla anuncien el PRIMER toast (una
+  // live region creada a la vez que su contenido suele perderse). El contenido
+  // (éxito/info) lo anuncia el contenedor `aria-live=polite`; los errores llevan
+  // `role=alert` para interrumpir.
   return (
-    <div className="toast-stack">
+    <div className="toast-stack" aria-live="polite" aria-atomic="false">
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
           <motion.div
             key={toast.id}
             className={`toast toast-${toast.tone}`}
-            role={toast.tone === 'error' ? 'alert' : 'status'}
+            role={toast.tone === 'error' ? 'alert' : undefined}
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
