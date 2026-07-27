@@ -171,6 +171,23 @@ function isFreeResource(view: ResourceDayView): boolean {
   return view.state === 'FREE' && !view.label;
 }
 
+// Marcador tipo señalización del recurso: prefijo P (plaza) / D (puesto) + numeral
+// con punto medio (P·1004 / D·02). Sin recurso → guion.
+function markerLabel(view: ResourceDayView): string {
+  if (!view.label) {
+    return '—';
+  }
+  const digits = view.label.replace(/\D/g, '');
+  const prefix = view.resourceType === 'PARKING' ? 'P' : 'D';
+  return digits ? `${prefix}·${digits}` : view.label;
+}
+
+// ¿El recurso es una asignación FIJA (no una solicitud puntual)? ASSIGNED con
+// etiqueta y sin estado de solicitud propia.
+function isFixedResource(view: ResourceDayView): boolean {
+  return view.state === 'ASSIGNED' && !view.requestStatus && Boolean(view.label);
+}
+
 // Reservable en 1 toque: libre (FREE) o LIBERADO (lo soltaste ese día y puedes
 // volver a reclamarlo). En ambos casos el recurso está disponible para ti.
 function isReservable(view: ResourceDayView): boolean {
@@ -247,9 +264,7 @@ export function MyWeekPage() {
     return [...byDate.values()];
   }, [heroQuery.data, heroNextQuery.data]);
   const todayDate = todayIso();
-  const tomorrowDate = addDaysIso(todayDate, 1);
   const todayDay = heroDays.find((day) => day.date === todayDate);
-  const tomorrowDay = heroDays.find((day) => day.date === tomorrowDate);
   const heroLoading = heroQuery.isLoading || heroNextQuery.isLoading;
 
   // "Próximos días": una SEMANA LABORAL completa (L–V; L–D si se admite finde),
@@ -261,10 +276,10 @@ export function MyWeekPage() {
   const weekQuery = useMyWeekQuery(shownWeekStart);
   const upcomingDays = useMemo(() => {
     return (weekQuery.data?.days ?? [])
-      .filter((day) => day.date > tomorrowDate)
+      .filter((day) => day.date >= todayDate)
       .filter((day) => weekendReservable || !isWeekendIso(day.date))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [weekQuery.data, tomorrowDate, weekendReservable]);
+  }, [weekQuery.data, todayDate, weekendReservable]);
   const upcomingLoading = weekQuery.isLoading;
   const upcomingReady = !upcomingLoading && !weekQuery.isError;
 
@@ -380,47 +395,78 @@ export function MyWeekPage() {
     return null;
   }
 
+  // Slot COMPACTO de recurso en la línea de tránsito (tema Wayfinding): lámpara de
+  // estado + marcador mono (P·12 / D·02). El slot es accionable — reservable → abre
+  // reserva; liberable → abre liberación — para no perder función en la vista de un
+  // vistazo (las acciones con texto viven en el héroe HOY/MAÑANA).
   function renderResource(view: ResourceDayView, date: string): ReactElement {
     const action = resolveReleaseAction(view, date, fixedGroupFor(view.resourceType));
-    // "Cancelar" SOLO cuando es una solicitud aún PENDIENTE (no tienes el recurso);
-    // si ya lo tienes (aprobada o asignación fija) la acción es "Liberar".
     const isCancel = action?.kind === 'CANCEL_REQUEST' && view.requestStatus === 'PENDING';
-    return (
-      <li key={view.resourceType} className={`week-resource ${RESOURCE_STATE_VARIANT[view.state]}`}>
-        <span className="week-resource-icon" aria-hidden="true">
+    const reservable = showReserve(view, date, Boolean(action), weekendReservable);
+    const variant = RESOURCE_STATE_VARIANT[view.state];
+    const kindClass = view.resourceType === 'PARKING' ? 'is-parking' : 'is-desk';
+    const marker = markerLabel(view);
+    const kindName = t(`calendar.myWeek.resourceKind.${view.resourceType}`);
+    const actionHint = reservable ? 'ti-plus' : action ? 'ti-arrow-back-up' : null;
+    const actionText = reservable
+      ? t('calendar.myWeek.hero.reserve')
+      : action
+        ? isCancel
+          ? t('calendar.myWeek.cancelAction')
+          : t('calendar.myWeek.releaseAction')
+        : null;
+
+    const inner = (
+      <>
+        <span className="mw-slot-lamp" aria-hidden="true" />
+        <span className="mw-slot-icon" aria-hidden="true">
           <ResourceIcon type={view.resourceType} />
         </span>
-        <span className="week-resource-info">
-          <span className="week-resource-kind">
-            {t(`calendar.myWeek.resourceKind.${view.resourceType}`)}
+        <span className="mw-slot-marker">{marker}</span>
+        {actionText ? (
+          <span className="mw-slot-act">
+            <i className={`ti ${actionHint}`} aria-hidden="true" /> {actionText}
           </span>
-          <span className="week-resource-state">{resourceLine(view)}</span>
-        </span>
-        <span className="week-resource-actions">
-          {action ? (
-            <Button
-              variant="white"
-              icon="arrow-back-up"
-              className="week-resource-action"
-              onClick={() => setReleaseAction(action)}
-            >
-              {isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction')}
-            </Button>
-          ) : null}
-          {showReserve(view, date, Boolean(action), weekendReservable) ? (
-            <Button
-              variant="green"
-              icon="plus"
-              className="week-resource-action"
-              onClick={() => openReserve({ date, resource: view.resourceType })}
-            >
-              {t('calendar.myWeek.hero.reserve')}
-            </Button>
-          ) : null}
-          {hasAssignedDesk(view) && view.label ? (
-            <DeskMapButton deskLabel={view.label} date={date} className="week-resource-action" />
-          ) : null}
-        </span>
+        ) : null}
+      </>
+    );
+
+    const slotClass = `mw-slot ${variant} ${kindClass}`;
+
+    if (reservable) {
+      return (
+        <li key={view.resourceType} className="mw-slot-item">
+          <button
+            type="button"
+            className={slotClass}
+            aria-label={`${t('calendar.myWeek.hero.reserve')} · ${kindName} · ${resourceLine(view)}`}
+            onClick={() => openReserve({ date, resource: view.resourceType })}
+          >
+            {inner}
+          </button>
+        </li>
+      );
+    }
+    if (action) {
+      const label = isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction');
+      return (
+        <li key={view.resourceType} className="mw-slot-item">
+          <button
+            type="button"
+            className={slotClass}
+            aria-label={`${label} · ${kindName} · ${resourceLine(view)}`}
+            onClick={() => setReleaseAction(action)}
+          >
+            {inner}
+          </button>
+        </li>
+      );
+    }
+    return (
+      <li key={view.resourceType} className="mw-slot-item">
+        <div className={`${slotClass} is-static`} title={`${kindName} · ${resourceLine(view)}`}>
+          {inner}
+        </div>
       </li>
     );
   }
@@ -482,6 +528,130 @@ export function MyWeekPage() {
     );
   }
 
+  // Recurso principal del shield (HOY): la plaza con etiqueta, o el puesto con
+  // etiqueta, o el primer recurso como referencia (aunque esté libre).
+  function primaryHeroView(day: MyWeekDay): ResourceDayView {
+    const views = resourceViews(day);
+    return (
+      views.find((v) => v.resourceType === 'PARKING' && Boolean(v.label)) ??
+      views.find((v) => Boolean(v.label)) ??
+      views[0]
+    );
+  }
+
+  // Fila COMPACTA del panel del shield: icono + lámpara, tipo + marcador, y pill
+  // "Fija" (asignación fija) o el estado. Sin acciones (van en un pie único).
+  function renderShieldRow(view: ResourceDayView): ReactElement {
+    const variant = RESOURCE_STATE_VARIANT[view.state];
+    const isDesk = view.resourceType === 'DESK';
+    const kindName = t(`calendar.myWeek.resourceKind.${view.resourceType}`);
+    const fixed = isFixedResource(view);
+    const tag = fixed ? t('calendar.myWeek.heroShield.fixed') : t(`calendar.myWeek.states.${view.state}`);
+    // Liberado o libre → HOY no tienes ese recurso: muestra "Sin plaza/puesto" en
+    // vez del número (el D·01 liberado confundía, parecía asignado).
+    const empty = view.state === 'RELEASED' || view.state === 'FREE' || !view.label;
+    const markerText = empty
+      ? t(isDesk ? 'calendar.myWeek.heroShield.noDesk' : 'calendar.myWeek.heroShield.noParking')
+      : markerLabel(view);
+    return (
+      <li key={view.resourceType} className={`mw-srow ${variant}${empty ? ' is-empty' : ''}`}>
+        <span className="mw-srow-ic" aria-hidden="true">
+          <ResourceIcon type={view.resourceType} />
+          <span className="mw-srow-dot" />
+        </span>
+        <span className="mw-srow-info">
+          <span className="mw-srow-kind">{kindName}</span>
+          <span className="mw-srow-marker">{markerText}</span>
+        </span>
+        <span className={`mw-srow-tag${fixed ? ' is-fixed' : ''}`}>{tag}</span>
+      </li>
+    );
+  }
+
+  // Acciones del héroe HOY recogidas en un ÚNICO pie (reservar / liberar / plano /
+  // ir al parking), etiquetadas por recurso para no perder claridad ni función.
+  function heroActions(day: MyWeekDay, date: string): ReactElement[] {
+    const buttons: ReactElement[] = [];
+    resourceViews(day).forEach((view) => {
+      const action = resolveReleaseAction(view, date, fixedGroupFor(view.resourceType));
+      const reservable = showReserve(view, date, Boolean(action), weekendReservable);
+      const kindLower = t(
+        view.resourceType === 'DESK'
+          ? 'calendar.myWeek.heroShield.kindLabelDesk'
+          : 'calendar.myWeek.heroShield.kindLabelParking',
+      ).toLowerCase();
+      if (reservable) {
+        buttons.push(
+          <Button
+            key={`reserve-${view.resourceType}`}
+            variant="green"
+            icon="plus"
+            onClick={() => openReserve({ date, resource: view.resourceType })}
+          >
+            {t('calendar.myWeek.hero.reserve')} {kindLower}
+          </Button>,
+        );
+      } else if (action) {
+        const isCancel = action.kind === 'CANCEL_REQUEST' && view.requestStatus === 'PENDING';
+        buttons.push(
+          <Button
+            key={`release-${view.resourceType}`}
+            variant="white"
+            icon="arrow-back-up"
+            onClick={() => setReleaseAction(action)}
+          >
+            {(isCancel ? t('calendar.myWeek.cancelAction') : t('calendar.myWeek.releaseAction'))} {kindLower}
+          </Button>,
+        );
+      }
+      if (hasAssignedDesk(view) && view.label) {
+        buttons.push(
+          <DeskMapButton key={`map-${view.resourceType}`} deskLabel={view.label} date={date} />,
+        );
+      }
+      if (hasAssignedParking(view)) {
+        buttons.push(<ParkingDirectionsButton key={`dir-${view.resourceType}`} />);
+      }
+    });
+    return buttons;
+  }
+
+  // Héroe HOY como MARCADOR (shield): numeral gigante del recurso + panel de filas
+  // compactas + pie de acciones único (tema Wayfinding).
+  function renderHeroShield(date: string, day: MyWeekDay): ReactElement {
+    const primary = primaryHeroView(day);
+    const variant = RESOURCE_STATE_VARIANT[primary.state];
+    const isDesk = primary.resourceType === 'DESK';
+    const your = t(isDesk ? 'calendar.myWeek.heroShield.yourDesk' : 'calendar.myWeek.heroShield.yourParking');
+    const kind = t(isDesk ? 'calendar.myWeek.heroShield.kindDesk' : 'calendar.myWeek.heroShield.kindParking');
+    const actions = heroActions(day, date);
+    return (
+      <article className={`mw-hero-card mw-hero-shield is-today ${variant}`}>
+        <div className="mw-shield">
+          <div className="mw-shield-tag">
+            <span>
+              {your} · {t('calendar.myWeek.hero.today')}
+            </span>
+            <span>
+              {dayAbbr(date)} · {dayMonth(date)}
+            </span>
+          </div>
+          <div className="mw-shield-num">{markerLabel(primary)}</div>
+          <div className="mw-shield-sub">
+            <span>{kind}</span>
+            <span className="mw-shield-state">
+              <i aria-hidden="true" /> {t(`calendar.myWeek.states.${primary.state}`)}
+            </span>
+          </div>
+        </div>
+        <div className="mw-shield-side">
+          <ul className="mw-srows">{resourceViews(day).map((view) => renderShieldRow(view))}</ul>
+          {actions.length > 0 ? <div className="mw-shield-acts">{actions}</div> : null}
+        </div>
+      </article>
+    );
+  }
+
   function renderHeroCard(
     when: 'today' | 'tomorrow',
     date: string,
@@ -490,6 +660,10 @@ export function MyWeekPage() {
     // Fin de semana no reservable → no se muestra la tarjeta del héroe de ese día.
     if (!weekendReservable && isWeekendIso(date)) {
       return null;
+    }
+    // HOY con datos → shield marcador; el resto (MAÑANA / cargando) → tarjeta compacta.
+    if (when === 'today' && day) {
+      return renderHeroShield(date, day);
     }
     return (
       <article className={`mw-hero-card${when === 'today' ? ' is-today' : ''}`}>
@@ -518,19 +692,29 @@ export function MyWeekPage() {
   // prefers-reduced-motion (solo cambia opacidad, nunca posición).
   function renderDay(day: MyWeekDay, index: number): ReactElement {
     const isToday = day.date === todayIso();
+    const isTomorrow = day.date === addDaysIso(todayIso(), 1);
+    const stationMod = isToday ? ' is-today' : isTomorrow ? ' is-tomorrow' : '';
     return (
       <motion.li
         key={day.date}
-        className={`week-day-card${isToday ? ' is-today' : ''}`}
+        className={`week-day-card mw-station${stationMod}`}
         initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: DUR.slow, ease: EASE.out, delay: reduceMotion ? 0 : index * 0.04 }}
       >
+        {/* Nodo de estación sobre el carril de la línea de tránsito (tema Wayfinding). */}
+        {isToday ? <span className="mw-station-hoy" aria-hidden="true">{t('calendar.myWeek.hero.today')}</span> : null}
+        {isTomorrow ? (
+          <span className="mw-station-manana" aria-hidden="true">{t('calendar.myWeek.hero.tomorrow')}</span>
+        ) : null}
+        <span className="mw-station-node" aria-hidden="true" />
         <div className="week-day-head">
           <span className="week-day-abbr">{dayAbbr(day.date)}</span>
           <span className="week-day-date">{dayMonth(day.date)}</span>
           {isToday ? (
             <span className="week-day-today-badge">{t('calendar.toolbar.today')}</span>
+          ) : isTomorrow ? (
+            <span className="week-day-tomorrow-badge">{t('calendar.myWeek.hero.tomorrow')}</span>
           ) : null}
         </div>
         <ul className="week-day-resources">
@@ -551,7 +735,6 @@ export function MyWeekPage() {
       {/* HÉROE: lo que tengo HOY y MAÑANA, de un vistazo. */}
       <div className="mw-hero" aria-label={t('calendar.myWeek.hero.sectionLabel')}>
         {renderHeroCard('today', todayDate, todayDay)}
-        {renderHeroCard('tomorrow', tomorrowDate, tomorrowDay)}
       </div>
 
       {/* PRÓXIMOS DÍAS: ventana de 7 días navegable por semanas (el héroe con
@@ -598,13 +781,15 @@ export function MyWeekPage() {
         ) : null}
 
         {upcomingReady ? (
-          <ul className="my-week-list">
-            {upcomingDays.length === 0 ? (
-              <li className="my-week-empty">{t('calendar.myWeek.emptyWeek')}</li>
-            ) : (
-              upcomingDays.map((day, index) => renderDay(day, index))
-            )}
-          </ul>
+          <div className="mw-week-scroll">
+            <ul className="my-week-list">
+              {upcomingDays.length === 0 ? (
+                <li className="my-week-empty">{t('calendar.myWeek.emptyWeek')}</li>
+              ) : (
+                upcomingDays.map((day, index) => renderDay(day, index))
+              )}
+            </ul>
+          </div>
         ) : null}
 
         {upcomingReady ? <Legend items={myWeekLegend(t)} /> : null}

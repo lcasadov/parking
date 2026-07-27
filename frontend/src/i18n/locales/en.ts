@@ -1558,6 +1558,17 @@ export const en = {
         REQUEST_PENDING: 'Request pending',
         FREE: 'Not booked',
       },
+      heroShield: {
+        yourParking: 'Your space',
+        yourDesk: 'Your desk',
+        kindParking: 'Parking',
+        kindDesk: 'Desk',
+        fixed: 'Fixed',
+        kindLabelParking: 'Space',
+        kindLabelDesk: 'Desk',
+        noParking: 'No space',
+        noDesk: 'No desk',
+      },
     },
   },
   audit: {

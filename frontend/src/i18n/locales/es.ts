@@ -1562,6 +1562,17 @@ export const es = {
         REQUEST_PENDING: 'Solicitud pendiente',
         FREE: 'Sin reservar',
       },
+      heroShield: {
+        yourParking: 'Tu plaza',
+        yourDesk: 'Tu puesto',
+        kindParking: 'Parking',
+        kindDesk: 'Puesto',
+        fixed: 'Fija',
+        kindLabelParking: 'Plaza',
+        kindLabelDesk: 'Puesto',
+        noParking: 'Sin plaza',
+        noDesk: 'Sin puesto',
+      },
     },
   },
   audit: {
