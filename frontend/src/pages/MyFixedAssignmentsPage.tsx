@@ -214,17 +214,14 @@ export function MyFixedAssignmentsPage({ embedded = false }: { embedded?: boolea
                   <span className="mfa-card-num">{markerFor(group)}</span>
                 </div>
                 <div className="mfa-card-body">
-                  <div className="mfa-card-top">
-                    <span className="mfa-card-kind">
-                      {t(`calendar.myWeek.resourceKind.${group.resourceType}`)}
-                    </span>
-                    <span className="mfa-card-tag">{t('calendar.myWeek.heroShield.fixed')}</span>
-                  </div>
+                  <span className="mfa-card-kind">
+                    {t(`calendar.myWeek.resourceKind.${group.resourceType}`)}
+                  </span>
                   <DayBadges days={group.days} />
                 </div>
                 <div className="mfa-card-actions">
                   {group.resourceType === 'DESK' ? (
-                    <DeskMapButton deskLabel={spaceLabel(group)} date={todayIso()} />
+                    <DeskMapButton deskLabel={spaceLabel(group)} date={todayIso()} iconOnly />
                   ) : null}
                 </div>
               </li>

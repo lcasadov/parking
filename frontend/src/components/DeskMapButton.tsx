@@ -63,17 +63,25 @@ interface DeskMapButtonProps {
   deskLabel: string;
   date: string;
   className?: string;
+  // Solo icono (sin texto "Plano"): para tarjetas compactas.
+  iconOnly?: boolean;
 }
 
 // Botón "Mapa" para las tarjetas de PUESTO de Mi Semana: abre el plano enfocado en
 // el puesto asignado (Feature C). Reutiliza FloorPlanFocusModal (mismo realce/pulso).
-export function DeskMapButton({ deskLabel, date, className }: DeskMapButtonProps) {
+export function DeskMapButton({ deskLabel, date, className, iconOnly = false }: DeskMapButtonProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button variant="white" icon="map-pin" className={className} onClick={() => setOpen(true)}>
-        {t('calendar.myWeek.viewMap')}
+      <Button
+        variant="white"
+        icon="map-pin"
+        className={className}
+        aria-label={iconOnly ? t('calendar.myWeek.viewMap') : undefined}
+        onClick={() => setOpen(true)}
+      >
+        {iconOnly ? null : t('calendar.myWeek.viewMap')}
       </Button>
       {open ? <DeskMapModal deskLabel={deskLabel} date={date} onClose={() => setOpen(false)} /> : null}
     </>

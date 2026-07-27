@@ -13,11 +13,10 @@
    variable de noche), enganchados al toggle existente (`body.theme-dark`).
    ===================================================================== */
 
-/* ---------- CLARO (señalización de día) ---------- */
-.portal-way {
+/* ---------- CLARO (señalización de día) — GLOBAL (toda la app + modales) ---------- */
+:root {
   color-scheme: light;
 
-  /* superficies — hormigón frío y aireado */
   /* superficies — HORMIGÓN cálido + papel de ingeniería (no blanco plano) */
   --bg: #e6e8e2;
   --panel: #ffffff;
@@ -84,14 +83,14 @@
 }
 
 /* ---------- Firma DÍA (solo tema claro): papel de ingeniería + esmalte ---------- */
-/* Rejilla técnica sutil sobre el hormigón (blueprint/graph-paper). */
-.portal-way .main {
+/* Rejilla técnica sutil sobre el hormigón (blueprint/graph-paper) — global. */
+.main {
   background-image:
     repeating-linear-gradient(0deg, transparent 0 39px, rgba(18, 24, 28, 0.04) 39px 40px),
     repeating-linear-gradient(90deg, transparent 0 39px, rgba(18, 24, 28, 0.04) 39px 40px);
   background-attachment: local;
 }
-body.theme-dark .portal-way .main { background-image: none; }
+body.theme-dark .main { background-image: none; }
 
 /* Paneles con keyline nítida (precisión de señalización) en día. */
 body:not(.theme-dark) .portal-way .week-day-card,
@@ -116,8 +115,8 @@ body:not(.theme-dark) .portal-way .mw-shield::after {
   animation: none;
 }
 
-/* ---------- OSCURO (panel de mensaje variable) ---------- */
-body.theme-dark .portal-way {
+/* ---------- OSCURO (panel de mensaje variable) — GLOBAL ---------- */
+body.theme-dark {
   color-scheme: dark;
 
   --bg: #0a0e13;
@@ -917,4 +916,44 @@ body.theme-dark .portal-way {
   background: currentColor;
   box-shadow: 0 0 8px currentColor;
   flex: 0 0 auto;
+}
+
+/* Mis sitios fijos — tarjeta MÁS COMPACTA: título y días en una línea, plano como
+   icono a la derecha (el "FIJA" se retira: ya estamos en la sección de fijas). */
+.portal-way .mfa-card {
+  padding: var(--space-3) var(--space-4);
+  align-items: center;
+}
+.portal-way .mfa-card-marker {
+  min-width: 84px;
+  padding: 10px 14px;
+}
+.portal-way .mfa-card-num {
+  font-size: 1.4rem;
+}
+.portal-way .mfa-card-body {
+  gap: 8px;
+}
+.portal-way .mfa-card-kind {
+  white-space: nowrap;
+  letter-spacing: 0.16em;
+}
+.portal-way .mfa-card .day-badges {
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+.portal-way .mfa-card .day-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+/* Plano icon-only pegado a la derecha. */
+.portal-way .mfa-card-actions {
+  margin-left: auto;
+}
+.portal-way .mfa-card-actions .btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
 }
