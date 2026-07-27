@@ -1,0 +1,274 @@
+/* =====================================================================
+   TEMA "WAYFINDING / SEÑALIZACIÓN VIVA" — portal de EMPLEADO
+   ---------------------------------------------------------------------
+   Se aplica SOLO bajo `.portal-way` (el AppShell cuando el rol es EMPLOYEE),
+   por lo que el admin y la agencia conservan el look actual. Aprovecha que la
+   app es 100% token-driven: al sobrescribir las tokens BASE aquí, los alias
+   (definidos como var()) se recalculan en el punto de uso y toda la UI del
+   empleado adopta el nuevo lenguaje sin tocar el markup.
+
+   Lenguaje: asfalto + ámbar señal, semántica de semáforo (verde=libre/positivo,
+   azul=liberado, ámbar=pendiente/solicitado, rojo=stop), numerales tipo marcador
+   kilométrico. Dos temas: claro (señalización de día) y oscuro (panel de mensaje
+   variable de noche), enganchados al toggle existente (`body.theme-dark`).
+   ===================================================================== */
+
+/* ---------- CLARO (señalización de día) ---------- */
+.portal-way {
+  color-scheme: light;
+
+  /* superficies — hormigón frío y aireado */
+  --bg: #eaeef3;
+  --panel: #ffffff;
+  --panel-2: #f2f5f9;
+  --elev: #ffffff;
+  --ink: #0c1219;
+  --ink-soft: #55616f;
+  --ink-faint: #5b6774;
+  --ink-2: #55616f;
+  --ink-3: #5b6774;
+  --line: rgba(12, 20, 30, 0.1);
+  --line-soft: rgba(12, 20, 30, 0.05);
+  --line-strong: rgba(12, 20, 30, 0.16);
+  --line-2: rgba(12, 20, 30, 0.16);
+  --highlight: #eef2f7;
+  --field-bg: #ffffff;
+  --frame-bg: #dde3ea;
+
+  /* acento ÁMBAR SEÑAL (relleno con tinta oscura; texto-acento en ámbar profundo) */
+  --accent: #e8930c;
+  --accent-2: #cf7f06;
+  --accent-ink: #1b1204;
+  --accent-soft: rgba(232, 147, 12, 0.12);
+  --accent-line: rgba(232, 147, 12, 0.34);
+  --brand-green-deep: #955806; /* "acento como texto" legible sobre claro */
+  --brand-green-hover: #cf7f06;
+  --brand-green-active: #b26e05;
+  --green-focus: #e8930c;
+
+  /* semáforo */
+  --ok: #10a277;
+  --ok-soft: rgba(16, 162, 119, 0.12);
+  --busy: #e23e4e;
+  --busy-soft: rgba(226, 62, 78, 0.12);
+  --rel: #d98a0a;
+  --rel-soft: rgba(217, 138, 10, 0.14);
+  --pend: #d98a0a;
+  --pend-soft: rgba(217, 138, 10, 0.14);
+  --info: #1e86d6;
+  --red-text: #c02a38;
+
+  /* estado plaza/puesto: libre/positivo=verde, liberado=azul, pend/solicitud=ámbar */
+  --state-occupied-bg: rgba(16, 162, 119, 0.12);
+  --state-occupied-ink: #0a7a57;
+  --state-occupied-border: rgba(16, 162, 119, 0.35);
+  --state-released-bg: rgba(30, 134, 214, 0.12);
+  --state-released-ink: #1466a8;
+  --state-released-border: rgba(30, 134, 214, 0.35);
+  --state-pending-bg: rgba(217, 138, 10, 0.14);
+  --state-pending-ink: #8a5a06;
+  --state-pending-border: rgba(217, 138, 10, 0.4);
+  --state-request-bg: rgba(217, 138, 10, 0.14);
+  --state-request-ink: #8a5a06;
+  --state-request-border: rgba(217, 138, 10, 0.4);
+  --state-free-bg: var(--panel-2);
+  --state-free-ink: var(--ink-soft);
+  --state-free-border: var(--line-strong);
+
+  /* numerales tipo marcador (mono real; stacks sin cero tachado en macOS) */
+  --font-mono: ui-monospace, "SF Mono", Menlo, "Roboto Mono", Consolas, monospace;
+
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- OSCURO (panel de mensaje variable) ---------- */
+body.theme-dark .portal-way {
+  color-scheme: dark;
+
+  --bg: #0a0e13;
+  --panel: #0f141c;
+  --panel-2: #151d28;
+  --elev: #1a2431;
+  --ink: #eaf0f7;
+  --ink-soft: #8a97a8;
+  --ink-faint: #93a0b0;
+  --ink-2: #8a97a8;
+  --ink-3: #93a0b0;
+  --line: rgba(255, 255, 255, 0.075);
+  --line-soft: rgba(255, 255, 255, 0.05);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --line-2: rgba(255, 255, 255, 0.14);
+  --highlight: rgba(255, 255, 255, 0.05);
+  --field-bg: #151d28;
+  --frame-bg: #06090d;
+
+  --accent: #ffb020;
+  --accent-2: #e89a10;
+  --accent-ink: #1b1204;
+  --accent-soft: rgba(255, 176, 32, 0.13);
+  --accent-line: rgba(255, 176, 32, 0.32);
+  --brand-green-deep: #ffd27a;
+  --brand-green-hover: #ffc24d;
+  --brand-green-active: #e89a10;
+  --green-focus: #ffb020;
+
+  --ok: #22e0a1;
+  --ok-soft: rgba(34, 224, 161, 0.14);
+  --busy: #ff5c6c;
+  --busy-soft: rgba(255, 92, 108, 0.15);
+  --rel: #ffb020;
+  --rel-soft: rgba(255, 176, 32, 0.15);
+  --pend: #ffb020;
+  --pend-soft: rgba(255, 176, 32, 0.15);
+  --info: #54b7ff;
+  --red-text: #ff98a3;
+
+  --state-occupied-bg: rgba(34, 224, 161, 0.13);
+  --state-occupied-ink: #7fefc4;
+  --state-occupied-border: rgba(34, 224, 161, 0.4);
+  --state-released-bg: rgba(84, 183, 255, 0.16);
+  --state-released-ink: #bee0ff;
+  --state-released-border: rgba(84, 183, 255, 0.4);
+  --state-pending-bg: rgba(255, 176, 32, 0.15);
+  --state-pending-ink: #ffd98a;
+  --state-pending-border: rgba(255, 176, 32, 0.4);
+  --state-request-bg: rgba(255, 176, 32, 0.15);
+  --state-request-ink: #ffd98a;
+  --state-request-border: rgba(255, 176, 32, 0.4);
+  --state-free-bg: var(--panel-2);
+  --state-free-ink: var(--ink-soft);
+  --state-free-border: var(--line-strong);
+
+  /* halo de acento sobre superficie oscura */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 34px rgba(0, 0, 0, 0.42);
+}
+
+/* =====================================================================
+   PIEZAS DE FIRMA (scoped a .portal-way) — se aplican sin cambiar el markup
+   ===================================================================== */
+
+/* Numerales/KPIs y etiquetas mono → tabulares tipo marcador. */
+.portal-way .mono,
+.portal-way .kpi-num,
+.portal-way [class*="-num"] {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Botón primario = señal: relleno ámbar con halo. */
+.portal-way .btn-green {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 14px 30px -14px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+.portal-way .btn-green:hover {
+  box-shadow: 0 0 0 1px var(--accent),
+    0 18px 40px -14px color-mix(in srgb, var(--accent) 90%, transparent);
+}
+
+/* Nav activo: filo iluminado (riel de acento con glow). */
+.portal-way .nav-link.active::before,
+.portal-way a.active .nav-rail {
+  box-shadow: 0 0 14px var(--accent);
+}
+
+/* Foco global: anillo ámbar señal. */
+.portal-way :focus-visible {
+  outline-color: var(--accent);
+}
+
+/* ---------- Mi Semana: transit-line / marcadores / lámparas ---------- */
+
+/* Día de la semana como etiqueta de señalización (mono, uppercase, tracking). */
+.portal-way .week-day-head .week-day-abbr {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: var(--text-base);
+  color: var(--ink-soft);
+}
+.portal-way .week-day-head .week-day-date {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "HOY" iluminado: halo ámbar + nodo de estación sobre la tarjeta. */
+.portal-way .week-day-card.is-today {
+  box-shadow: var(--shadow-2), 0 0 0 1px var(--accent-line), 0 26px 60px -34px var(--accent);
+  overflow: visible;
+}
+.portal-way .week-day-card.is-today::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: var(--space-4);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px var(--accent-soft), 0 0 16px var(--accent);
+  animation: wayNode 2.6s ease-in-out infinite;
+}
+@keyframes wayNode {
+  0%, 100% { box-shadow: 0 0 0 5px var(--accent-soft), 0 0 14px var(--accent); }
+  50% { box-shadow: 0 0 0 9px rgba(255, 176, 32, 0.04), 0 0 26px var(--accent); }
+}
+
+/* Numerales de recurso (P-08 / D-02) en mono tipo marcador. */
+.portal-way .mw-res-state,
+.portal-way .week-resource-state {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lámpara de estado en el icono del recurso (glow por semáforo). */
+.portal-way .mw-res.assigned .mw-res-icon,
+.portal-way .week-resource.assigned .week-resource-icon {
+  box-shadow: 0 0 0 1px var(--state-occupied-border), 0 0 16px -3px var(--ok);
+}
+.portal-way .mw-res.released .mw-res-icon,
+.portal-way .week-resource.released .week-resource-icon {
+  box-shadow: 0 0 0 1px var(--state-released-border), 0 0 16px -3px var(--info);
+}
+.portal-way .mw-res.request .mw-res-icon,
+.portal-way .week-resource.request .week-resource-icon {
+  box-shadow: 0 0 0 1px var(--state-request-border), 0 0 16px -3px var(--pend);
+}
+
+/* Hero "HOY": marcador tipo shield con filo ámbar y barrido de escaneo. */
+.portal-way .mw-hero-card.is-today {
+  position: relative;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-2), 0 0 0 1px var(--accent-line), 0 30px 70px -42px var(--accent);
+  overflow: hidden;
+}
+.portal-way .mw-hero-card.is-today::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    color-mix(in srgb, var(--accent) 9%, transparent) 50%,
+    transparent 58%
+  );
+  background-size: 250% 100%;
+  animation: wayScan 5.5s linear infinite;
+}
+@keyframes wayScan {
+  from { background-position: 130% 0; }
+  to { background-position: -130% 0; }
+}
+
+/* Numerales grandes del hero en mono. */
+.portal-way .mw-hero-when {
+  letter-spacing: -0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-way .week-day-card.is-today::before,
+  .portal-way .mw-hero-card.is-today::after {
+    animation: none;
+  }
+}

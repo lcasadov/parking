@@ -36,6 +36,9 @@ export function AppShell({ nav }: AppShellProps) {
   // (solo liberaciones) no ve el botón.
   const canReserve = user?.role === 'ADMIN' || user?.role === 'EMPLOYEE';
   const isAdmin = user?.role === 'ADMIN';
+  // Portal del EMPLEADO → tema "Wayfinding" (scoped en .portal-way). Admin/agencia
+  // conservan el look actual.
+  const isEmployee = user?.role === 'EMPLOYEE';
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
@@ -83,7 +86,7 @@ export function AppShell({ nav }: AppShellProps) {
   );
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isEmployee ? ' portal-way' : ''}`}>
       {/* Sidebar fijo (desktop). Oculto en móvil vía CSS. */}
       <Sidebar
         className="shell-sidebar"
