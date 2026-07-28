@@ -135,4 +135,39 @@ describe('SettingsPage', () => {
 
     await waitFor(() => expect(body).toMatchObject({ weekendReservable: true }));
   });
+
+  it('should_put_notification_channels_when_toggled_and_saved', async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.get(SETTINGS_URL, () =>
+        HttpResponse.json({
+          approvalMode: 'MANUAL',
+          parkingAddress: null,
+          weekendReservable: false,
+          emailNotificationsEnabled: true,
+          pushNotificationsEnabled: true,
+          updatedById: null,
+          updatedAt: null,
+        }),
+      ),
+      http.put(`${MSW_BASE}/admin/settings/notification-channels`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          approvalMode: 'MANUAL',
+          emailNotificationsEnabled: true,
+          pushNotificationsEnabled: false,
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+
+    const heading = await screen.findByRole('heading', { name: /^notificaciones$|^notifications$/i });
+    const card = within(heading.closest('.settings-card') as HTMLElement);
+    const switches = card.getAllByRole('switch');
+    await user.click(switches[1]); // apaga el push
+    await user.click(card.getByRole('button', { name: SAVE_BUTTON }));
+
+    await waitFor(() => expect(body).toMatchObject({ pushNotificationsEnabled: false }));
+  });
 });

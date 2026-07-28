@@ -66,12 +66,12 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 - [ ] 9.1 Backend unit: resolver de destinatarios (empleado / fan-out admins en MANUAL / no-admin en AUTOMATIC); regla de entrega efectiva `global ∧ empleado` por canal (incl. empleado silenciado); aviso al empleado en cancelación admin y no-autoaviso en cancelación propia; borrado ante 410.
 - [ ] 9.2 Backend web (`@WebMvcTest`): RBAC de los endpoints (401/403), alta idempotente, baja, cambio de flags globales solo ADMIN, flags por empleado en el formulario solo ADMIN.
 - [ ] 9.3 Backend IT (Testcontainers): persistencia y upsert de `push_subscription`; borrado en cascada al desactivar empleado.
-- [ ] 9.4 Frontend: flujo de permiso (mock `Notification`/`PushManager`), estados de la UI, checkboxes de canal global (guardan por separado), checkboxes por empleado en `EmployeeFormModal`, toggle push, y **tarjetas de onboarding** por plataforma/estado (mock de `standalone`/UA/`beforeinstallprompt`; verificar que no hay auto-prompt).
-- [ ] 9.5 Cobertura ≥ umbrales (líneas ≥80 / branches ≥75 / funciones ≥80) y sin regresión.
+- [x] 9.4 Frontend: flujo de permiso (mock `Notification`/`PushManager`), estados de la UI, checkboxes de canal global (guardan por separado), checkboxes por empleado en `EmployeeFormModal`, toggle push, y **tarjetas de onboarding** por plataforma/estado (mock de `standalone`/UA/`beforeinstallprompt`; verificar que no hay auto-prompt).
+- [x] 9.5 Cobertura ≥ umbrales (líneas ≥80 / branches ≥75 / funciones ≥80) y sin regresión.
 
 ## 10. Gates (verificación final)
 
 - [ ] 10.1 Backend (JDK 21): `mvn clean verify` verde; ArchUnit/Sonar sin violations nuevas.
-- [ ] 10.2 Frontend: `npm run lint && npm test && npm run build` sin errores.
+- [x] 10.2 Frontend: `npm run lint && npm test && npm run build` sin errores.
 - [ ] 10.3 Prueba manual en Chrome/Firefox (suscribir, recibir push, deep-link) y verificación de fallback email con push apagado.
 - [ ] 10.4 Actualizar este `tasks.md` y archivar el change tras merge.
