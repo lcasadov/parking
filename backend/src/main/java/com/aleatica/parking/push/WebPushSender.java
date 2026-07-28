@@ -1,9 +1,11 @@
 package com.aleatica.parking.push;
 
+import java.security.Security;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import nl.martijndwars.webpush.Subscription;
 import org.apache.http.HttpResponse;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +27,15 @@ public class WebPushSender {
     public enum Outcome { SENT, EXPIRED, FAILED }
 
     private static final Logger log = LoggerFactory.getLogger(WebPushSender.class);
+
+    static {
+        // web-push usa "BC" como provider JCE para las claves EC/VAPID pero NO lo registra por si
+        // mismo (a diferencia de versiones antiguas). Sin este registro, construir PushService lanza
+        // "no such provider: BC" y el canal push queda deshabilitado. Se registra una sola vez.
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
+    }
 
     private final String publicKey;
     private final PushService pushService;

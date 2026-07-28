@@ -3,6 +3,7 @@ package com.aleatica.parking.push;
 import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import jakarta.persistence.EntityNotFoundException;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,8 +38,20 @@ public class PushSubscriptionService {
     @Transactional
     public void subscribe(String login, String endpoint, String p256dh, String auth, String userAgent) {
         Long employeeId = employeeIdFor(login);
-        subscriptionRepository.findByEndpoint(endpoint)
-                .ifPresent(existing -> subscriptionRepository.deleteByEndpoint(endpoint));
+        Optional<PushSubscription> existing = subscriptionRepository.findByEndpoint(endpoint);
+        if (existing.isPresent()) {
+            PushSubscription current = existing.get();
+            if (current.getEmployeeId().equals(employeeId)) {
+                // Mismo dueño: actualiza claves in-place (dirty-check -> UPDATE). Sin delete/insert,
+                // asi no se viola el indice unico de endpoint al re-suscribir el mismo dispositivo.
+                current.updateKeys(p256dh, auth, userAgent);
+                return;
+            }
+            // El endpoint cambia de dueño: borra y FUERZA el flush del DELETE antes del INSERT
+            // (si no, Hibernate ordena el INSERT antes del DELETE encolado -> UNIQUE violation).
+            subscriptionRepository.delete(current);
+            subscriptionRepository.flush();
+        }
         subscriptionRepository.save(PushSubscription.of(employeeId, endpoint, p256dh, auth, userAgent));
     }
 
