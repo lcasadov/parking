@@ -1671,6 +1671,15 @@ export const en = {
       placeholder: 'e.g. Av. de Europa 18, 28108 Alcobendas, Madrid',
       hint: 'Leave blank to hide the "Go to parking" button.',
       enableLabel: 'Show the "Go to parking" button to employees',
+      map: {
+        hint: 'Drag the marker or click the map to set the exact spot.',
+        search: 'Find on map',
+        satellite: 'Satellite',
+        streets: 'Map',
+        coords: 'Pinned point: {{lat}}, {{lng}}',
+        searchError: 'Address not found. Place the marker manually.',
+        noToken: 'Map unavailable: the Mapbox token (VITE_MAPBOX_TOKEN) is not configured.',
+      },
     },
     weekend: {
       heading: 'Weekend bookings',

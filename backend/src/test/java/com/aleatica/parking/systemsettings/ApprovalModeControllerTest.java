@@ -77,7 +77,7 @@ class ApprovalModeControllerTest {
     @Test
     void shouldReturn200_whenEmployeeGetsParkingAddress() throws Exception {
         given(systemSettingsService.parkingAddress())
-                .willReturn(new ParkingAddressResponse("Av. de Europa 18"));
+                .willReturn(new ParkingAddressResponse("Av. de Europa 18", null, null));
 
         mockMvc.perform(get(ADDRESS_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
                 .andExpect(status().isOk())

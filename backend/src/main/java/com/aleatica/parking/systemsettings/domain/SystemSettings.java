@@ -21,16 +21,20 @@ public class SystemSettings {
     private final short id;
     private ApprovalMode approvalMode;
     private String parkingAddress;
+    private Double parkingLat;
+    private Double parkingLng;
     private boolean weekendReservable;
     private Long updatedById;
     private Instant updatedAt;
 
     private SystemSettings(
-            short id, ApprovalMode approvalMode, String parkingAddress, boolean weekendReservable,
-            Long updatedById, Instant updatedAt) {
+            short id, ApprovalMode approvalMode, String parkingAddress, Double parkingLat,
+            Double parkingLng, boolean weekendReservable, Long updatedById, Instant updatedAt) {
         this.id = id;
         this.approvalMode = approvalMode;
         this.parkingAddress = parkingAddress;
+        this.parkingLat = parkingLat;
+        this.parkingLng = parkingLng;
         this.weekendReservable = weekendReservable;
         this.updatedById = updatedById;
         this.updatedAt = updatedAt;
@@ -44,6 +48,9 @@ public class SystemSettings {
      * @param approvalMode      modo de aprobacion global
      * @param parkingAddress    direccion postal del parking para "Ir al parking"; {@code null} si sin
      *                          configurar (change {@code reservas-employee-admin-reassign})
+     * @param parkingLat        latitud del punto exacto del parking (mapa Mapbox); {@code null} si sin
+     *                          configurar (change {@code admin-improvements})
+     * @param parkingLng        longitud del punto exacto del parking; {@code null} si sin configurar
      * @param weekendReservable si se permiten reservas en sabado/domingo (change
      *                          {@code reservas-employee-admin-reassign}); por defecto {@code false}
      * @param updatedById       empleado (ADMIN) que hizo el ultimo cambio; {@code null} si nunca
@@ -51,10 +58,11 @@ public class SystemSettings {
      * @return el ajuste reconstituido
      */
     public static SystemSettings restore(
-            short id, ApprovalMode approvalMode, String parkingAddress, boolean weekendReservable,
-            Long updatedById, Instant updatedAt) {
+            short id, ApprovalMode approvalMode, String parkingAddress, Double parkingLat,
+            Double parkingLng, boolean weekendReservable, Long updatedById, Instant updatedAt) {
         return new SystemSettings(
-                id, approvalMode, parkingAddress, weekendReservable, updatedById, updatedAt);
+                id, approvalMode, parkingAddress, parkingLat, parkingLng, weekendReservable,
+                updatedById, updatedAt);
     }
 
     /**
@@ -65,7 +73,8 @@ public class SystemSettings {
      * @return un ajuste transitorio con los valores por defecto y sin trazabilidad
      */
     public static SystemSettings defaults() {
-        return new SystemSettings(SINGLETON_ID, ApprovalMode.MANUAL, null, false, null, null);
+        return new SystemSettings(
+                SINGLETON_ID, ApprovalMode.MANUAL, null, null, null, false, null, null);
     }
 
     /**
@@ -88,11 +97,20 @@ public class SystemSettings {
      * direccion configurada.
      *
      * @param parkingAddress nueva direccion postal; {@code null}/blanco para dejarla sin configurar
+     * @param parkingLat     latitud del punto exacto (mapa Mapbox); {@code null} si sin punto
+     * @param parkingLng     longitud del punto exacto; {@code null} si sin punto
      * @param actorId        empleado (ADMIN) que ejecuta el cambio
      * @param now            instante del cambio (UTC)
      */
-    public void changeParkingAddress(String parkingAddress, Long actorId, Instant now) {
-        this.parkingAddress = normalizeAddress(parkingAddress);
+    public void changeParkingAddress(
+            String parkingAddress, Double parkingLat, Double parkingLng, Long actorId, Instant now) {
+        String normalized = normalizeAddress(parkingAddress);
+        this.parkingAddress = normalized;
+        // Las coordenadas solo tienen sentido junto a una direccion: si se borra la direccion, se
+        // descartan; si no llegan coordenadas validas, se dejan sin fijar (fallback a la direccion).
+        boolean hasCoords = normalized != null && parkingLat != null && parkingLng != null;
+        this.parkingLat = hasCoords ? parkingLat : null;
+        this.parkingLng = hasCoords ? parkingLng : null;
         this.updatedById = actorId;
         this.updatedAt = now;
     }
@@ -129,6 +147,14 @@ public class SystemSettings {
 
     public String getParkingAddress() {
         return parkingAddress;
+    }
+
+    public Double getParkingLat() {
+        return parkingLat;
+    }
+
+    public Double getParkingLng() {
+        return parkingLng;
     }
 
     public boolean isWeekendReservable() {

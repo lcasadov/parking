@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { ApprovalMode, SystemSettings } from '../types/settings';
+import type { ApprovalMode, ParkingLocation, SystemSettings } from '../types/settings';
 
 // Endpoints de SystemSettings segun docs/openapi.yaml. baseURL relativo del apiClient.
 
@@ -33,18 +33,33 @@ export async function updateApprovalMode(approvalMode: ApprovalMode): Promise<Sy
   return data;
 }
 
-// GET /settings/parking-address (cualquier autenticado): dirección del parking para
+// GET /settings/parking-address (cualquier autenticado): ubicación del parking para
 // el botón "Ir al parking" del empleado. Endpoint EMPLOYEE-safe (el catálogo admin no).
-export async function getParkingAddress(): Promise<string | null> {
-  const { data } = await apiClient.get<{ parkingAddress: string | null }>(PARKING_ADDRESS);
-  return data.parkingAddress;
+// Devuelve dirección + coordenadas opcionales del punto exacto fijado en el mapa.
+export async function getParkingAddress(): Promise<ParkingLocation> {
+  const { data } = await apiClient.get<{
+    parkingAddress: string | null;
+    parkingLat: number | null;
+    parkingLng: number | null;
+  }>(PARKING_ADDRESS);
+  return {
+    address: data.parkingAddress,
+    lat: data.parkingLat ?? null,
+    lng: data.parkingLng ?? null,
+  };
 }
 
-// PUT /admin/settings/parking-address (ADMIN): fija o borra (null/vacío) la dirección.
+// PUT /admin/settings/parking-address (ADMIN): fija o borra (address null/vacío) la
+// ubicación. Las coordenadas son opcionales (punto exacto del mapa); se descartan si
+// no hay dirección.
 export async function updateParkingAddress(
-  parkingAddress: string | null,
+  location: ParkingLocation,
 ): Promise<SystemSettings> {
-  const { data } = await apiClient.put<SystemSettings>(ADMIN_PARKING_ADDRESS, { parkingAddress });
+  const { data } = await apiClient.put<SystemSettings>(ADMIN_PARKING_ADDRESS, {
+    parkingAddress: location.address,
+    parkingLat: location.lat,
+    parkingLng: location.lng,
+  });
   return data;
 }
 

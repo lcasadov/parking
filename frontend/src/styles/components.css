@@ -9090,3 +9090,67 @@ body.theme-dark .auth2-spot{background:radial-gradient(560px circle at var(--mx,
 
 /* Mis solicitudes: filas de fecha pasada atenuadas (las que importan son las futuras). */
 .my-requests-table .table-row.is-past { opacity: 0.55; }
+
+/* ============================================================
+   MAPA DE UBICACIÓN DEL PARKING (Ajustes, admin) — Mapbox GL.
+   Marcador arrastrable para fijar el punto exacto; el estilo del
+   mapa lo conmuta el componente según body.theme-dark.
+   ============================================================ */
+.parking-map {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+/* Fila dirección + "Buscar": el botón se alinea al borde inferior del input (por la
+   label encima) y, cuando no cabe (móvil), flex-wrap lo baja a otra línea. */
+.parking-map-search {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.parking-map-field {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.parking-map-search .btn {
+  flex: 0 0 auto;
+}
+.parking-map-canvas {
+  height: 420px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.parking-map-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.parking-map-coords {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent);
+}
+.parking-map-hint {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+.parking-map-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--red);
+}
+.parking-map-missing {
+  margin-top: var(--space-3);
+}
+/* La marca de agua/atribución de Mapbox debe verse en ambos temas. */
+.parking-map-canvas .mapboxgl-ctrl-attrib {
+  font-size: 10px;
+}

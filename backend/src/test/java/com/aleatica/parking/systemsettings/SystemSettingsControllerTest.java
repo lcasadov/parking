@@ -85,7 +85,8 @@ class SystemSettingsControllerTest {
     @Test
     void shouldReturnSettings_whenAdminGets() throws Exception {
         given(systemSettingsService.current())
-                .willReturn(new SystemSettingsResponse(ApprovalMode.MANUAL, null, false, null, null));
+                .willReturn(new SystemSettingsResponse(
+                        ApprovalMode.MANUAL, null, null, null, false, null, null));
 
         mockMvc.perform(get(URL).with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isOk())
@@ -95,7 +96,8 @@ class SystemSettingsControllerTest {
     @Test
     void shouldUpdateSettings_whenAdminUpdatesWithValidMode() throws Exception {
         given(systemSettingsService.updateApprovalMode(any(ApprovalMode.class), anyString()))
-                .willReturn(new SystemSettingsResponse(ApprovalMode.AUTOMATIC, null, false, 1L, Instant.now()));
+                .willReturn(new SystemSettingsResponse(
+                        ApprovalMode.AUTOMATIC, null, null, null, false, 1L, Instant.now()));
 
         mockMvc.perform(put(URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
@@ -129,9 +131,9 @@ class SystemSettingsControllerTest {
 
     @Test
     void shouldUpdateParkingAddress_whenAdminUpdates() throws Exception {
-        given(systemSettingsService.updateParkingAddress(anyString(), anyString()))
+        given(systemSettingsService.updateParkingAddress(anyString(), any(), any(), anyString()))
                 .willReturn(new SystemSettingsResponse(
-                        ApprovalMode.MANUAL, "Av. de Europa 18", false, 1L, Instant.now()));
+                        ApprovalMode.MANUAL, "Av. de Europa 18", null, null, false, 1L, Instant.now()));
 
         mockMvc.perform(put(ADDRESS_URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(ADDRESS_BODY))
@@ -166,7 +168,7 @@ class SystemSettingsControllerTest {
     void shouldUpdateWeekend_whenAdminUpdates() throws Exception {
         given(systemSettingsService.updateWeekendReservable(anyBoolean(), anyString()))
                 .willReturn(new SystemSettingsResponse(
-                        ApprovalMode.MANUAL, null, true, 1L, Instant.now()));
+                        ApprovalMode.MANUAL, null, null, null, true, 1L, Instant.now()));
 
         mockMvc.perform(put(WEEKEND_URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(WEEKEND_BODY))

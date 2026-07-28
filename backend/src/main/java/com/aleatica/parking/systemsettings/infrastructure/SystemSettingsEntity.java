@@ -7,6 +7,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -38,6 +39,12 @@ public class SystemSettingsEntity {
     @Column(name = "parking_address", length = 500)
     private String parkingAddress;
 
+    @Column(name = "parking_lat", precision = 9, scale = 6)
+    private BigDecimal parkingLat;
+
+    @Column(name = "parking_lng", precision = 9, scale = 6)
+    private BigDecimal parkingLng;
+
     @Column(name = "weekend_reservable", nullable = false)
     private boolean weekendReservable;
 
@@ -59,16 +66,20 @@ public class SystemSettingsEntity {
      * @param id                identificador constante de la fila ({@code = 1})
      * @param approvalMode      modo de aprobacion global
      * @param parkingAddress    direccion postal del parking; {@code null} si sin configurar
+     * @param parkingLat        latitud del punto exacto del parking; {@code null} si sin configurar
+     * @param parkingLng        longitud del punto exacto del parking; {@code null} si sin configurar
      * @param weekendReservable si se permiten reservas en fin de semana
      * @param updatedById       empleado (ADMIN) que hizo el ultimo cambio; {@code null} si nunca
      * @param updatedAt         instante del ultimo cambio (UTC); {@code null} si nunca
      */
     public SystemSettingsEntity(
-            Byte id, ApprovalMode approvalMode, String parkingAddress, boolean weekendReservable,
-            Long updatedById, Instant updatedAt) {
+            Byte id, ApprovalMode approvalMode, String parkingAddress, BigDecimal parkingLat,
+            BigDecimal parkingLng, boolean weekendReservable, Long updatedById, Instant updatedAt) {
         this.id = id;
         this.approvalMode = approvalMode;
         this.parkingAddress = parkingAddress;
+        this.parkingLat = parkingLat;
+        this.parkingLng = parkingLng;
         this.weekendReservable = weekendReservable;
         this.updatedById = updatedById;
         this.updatedAt = updatedAt;
@@ -84,6 +95,14 @@ public class SystemSettingsEntity {
 
     public String getParkingAddress() {
         return parkingAddress;
+    }
+
+    public BigDecimal getParkingLat() {
+        return parkingLat;
+    }
+
+    public BigDecimal getParkingLng() {
+        return parkingLng;
     }
 
     public boolean isWeekendReservable() {

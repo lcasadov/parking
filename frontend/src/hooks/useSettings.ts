@@ -14,7 +14,7 @@ import {
   updateParkingAddress,
   updateWeekendReservable,
 } from '../api/settingsApi';
-import type { ApprovalMode, SystemSettings } from '../types/settings';
+import type { ApprovalMode, ParkingLocation, SystemSettings } from '../types/settings';
 
 // Clave de cache del ajuste global (S1192: sin literales repetidos).
 const SETTINGS_KEY = 'settings';
@@ -55,13 +55,17 @@ export function useUpdateApprovalMode(): UseMutationResult<
     mutationFn: (approvalMode: ApprovalMode) => updateApprovalMode(approvalMode),
     onSuccess: (data) => {
       queryClient.setQueryData(settingsQueryKey(), data);
+      // Propaga a la lectura EMPLOYEE-safe ['settings','approval-mode'] (CreateRequestModal):
+      // sin esto, el aviso "Se confirmará al instante" / "Quedará pendiente" quedaba con el
+      // valor anterior hasta 5 min (staleTime) tras cambiar el modo desde Ajustes.
+      queryClient.setQueryData([SETTINGS_KEY, APPROVAL_MODE_SCOPE], data.approvalMode);
     },
   });
 }
 
 // Dirección del parking, EMPLOYEE-safe (GET /settings/parking-address). La usa el
 // botón "Ir al parking" de Mi Semana.
-export function useParkingAddressQuery(): UseQueryResult<string | null> {
+export function useParkingAddressQuery(): UseQueryResult<ParkingLocation> {
   return useQuery({
     queryKey: [SETTINGS_KEY, PARKING_ADDRESS_SCOPE],
     queryFn: getParkingAddress,
@@ -69,19 +73,23 @@ export function useParkingAddressQuery(): UseQueryResult<string | null> {
   });
 }
 
-// Actualiza (o borra con null/vacío) la dirección del parking (ADMIN). Refresca la
-// caché admin y la lectura EMPLOYEE-safe.
+// Actualiza (o borra con address null/vacío) la ubicación del parking (ADMIN). Refresca
+// la caché admin y la lectura EMPLOYEE-safe (dirección + coordenadas).
 export function useUpdateParkingAddress(): UseMutationResult<
   SystemSettings,
   unknown,
-  string | null
+  ParkingLocation
 > {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (parkingAddress: string | null) => updateParkingAddress(parkingAddress),
+    mutationFn: (location: ParkingLocation) => updateParkingAddress(location),
     onSuccess: (data) => {
       queryClient.setQueryData(settingsQueryKey(), data);
-      queryClient.setQueryData([SETTINGS_KEY, PARKING_ADDRESS_SCOPE], data.parkingAddress ?? null);
+      queryClient.setQueryData<ParkingLocation>([SETTINGS_KEY, PARKING_ADDRESS_SCOPE], {
+        address: data.parkingAddress ?? null,
+        lat: data.parkingLat ?? null,
+        lng: data.parkingLng ?? null,
+      });
     },
   });
 }

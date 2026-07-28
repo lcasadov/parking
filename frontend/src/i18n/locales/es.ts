@@ -1677,6 +1677,15 @@ export const es = {
       placeholder: 'Ej.: Av. de Europa 18, 28108 Alcobendas, Madrid',
       hint: 'Déjalo en blanco para quitar el botón "Ir al parking".',
       enableLabel: 'Mostrar el botón "Ir al parking" a los empleados',
+      map: {
+        hint: 'Arrastra el marcador o haz clic en el mapa para fijar el punto exacto.',
+        search: 'Buscar en el mapa',
+        satellite: 'Satélite',
+        streets: 'Mapa',
+        coords: 'Punto fijado: {{lat}}, {{lng}}',
+        searchError: 'No se encontró la dirección. Coloca el marcador a mano.',
+        noToken: 'Mapa no disponible: falta configurar el token de Mapbox (VITE_MAPBOX_TOKEN).',
+      },
     },
     weekend: {
       heading: 'Reservas en fin de semana',

@@ -67,7 +67,8 @@ class SystemSettingsServiceTest {
     void shouldReturnPersistedMode_whenRowExists() {
         // Arrange
         settingsRepository.seed(SystemSettings.restore(
-                SystemSettings.SINGLETON_ID, ApprovalMode.AUTOMATIC, null, false, ADMIN_ID, NOW));
+                SystemSettings.SINGLETON_ID, ApprovalMode.AUTOMATIC, null, null, null, false,
+                ADMIN_ID, NOW));
 
         // Act / Assert
         assertThat(newService().approvalMode()).isEqualTo(ApprovalMode.AUTOMATIC);
@@ -116,7 +117,7 @@ class SystemSettingsServiceTest {
         // Arrange
         settingsRepository.seed(SystemSettings.restore(
                 SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, "Av. de Europa 18, Alcobendas",
-                false, ADMIN_ID, NOW));
+                null, null, false, ADMIN_ID, NOW));
 
         // Act / Assert
         assertThat(newService().parkingAddress().parkingAddress())
@@ -130,7 +131,7 @@ class SystemSettingsServiceTest {
 
         // Act
         SystemSettingsResponse result =
-                newService().updateParkingAddress("  Av. de Europa 18  ", ADMIN_LOGIN);
+                newService().updateParkingAddress("  Av. de Europa 18  ", null, null, ADMIN_LOGIN);
 
         // Assert: se normaliza (trim) y se registra la trazabilidad
         assertThat(result.parkingAddress()).isEqualTo("Av. de Europa 18");
@@ -144,11 +145,12 @@ class SystemSettingsServiceTest {
     void shouldClearParkingAddress_whenUpdatingWithBlank() {
         // Arrange: habia una direccion configurada
         settingsRepository.seed(SystemSettings.restore(
-                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, "Direccion previa", false, ADMIN_ID, NOW));
+                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, "Direccion previa", null, null,
+                false, ADMIN_ID, NOW));
         givenAdmin();
 
         // Act: enviar blanco la borra
-        SystemSettingsResponse result = newService().updateParkingAddress("   ", ADMIN_LOGIN);
+        SystemSettingsResponse result = newService().updateParkingAddress("   ", null, null, ADMIN_LOGIN);
 
         // Assert
         assertThat(result.parkingAddress()).isNull();
@@ -165,7 +167,8 @@ class SystemSettingsServiceTest {
     void shouldReturnPersistedWeekend_whenRowExists() {
         // Arrange
         settingsRepository.seed(SystemSettings.restore(
-                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, null, true, ADMIN_ID, NOW));
+                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, null, null, null, true,
+                ADMIN_ID, NOW));
 
         // Act / Assert
         assertThat(newService().weekendReservable()).isTrue();

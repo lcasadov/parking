@@ -113,15 +113,18 @@ public class SystemSettingsService {
      * {@code null} o en blanco borra la direccion configurada.
      *
      * @param parkingAddress nueva direccion postal; {@code null}/blanco para borrarla
+     * @param parkingLat     latitud del punto exacto (mapa); {@code null} si sin punto
+     * @param parkingLng     longitud del punto exacto; {@code null} si sin punto
      * @param adminLogin     login del administrador que ejecuta el cambio (principal de la sesion)
      * @return el ajuste actualizado (DTO)
      * @throws EntityNotFoundException si el login de sesion no corresponde a ningun empleado
      */
     @Transactional
-    public SystemSettingsResponse updateParkingAddress(String parkingAddress, String adminLogin) {
+    public SystemSettingsResponse updateParkingAddress(
+            String parkingAddress, Double parkingLat, Double parkingLng, String adminLogin) {
         Long actorId = resolveEmployeeId(adminLogin);
         SystemSettings settings = settingsRepository.find().orElseGet(SystemSettings::defaults);
-        settings.changeParkingAddress(parkingAddress, actorId, clock.now());
+        settings.changeParkingAddress(parkingAddress, parkingLat, parkingLng, actorId, clock.now());
         SystemSettingsResponse response =
                 SystemSettingsResponse.from(settingsRepository.save(settings));
         eventPublisher.publishEvent(new SystemSettingsAuditEvent(response));

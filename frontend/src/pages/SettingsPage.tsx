@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { PageHeader } from '../components/PageHeader';
+import { ParkingLocationMap } from '../components/ParkingLocationMap';
 import { Spinner } from '../components/Spinner';
 import { emitApiErrorToast } from '../api/events';
 import {
@@ -10,7 +11,7 @@ import {
   useUpdateParkingAddress,
   useUpdateWeekendReservable,
 } from '../hooks/useSettings';
-import type { ApprovalMode } from '../types/settings';
+import type { ApprovalMode, ParkingLocation } from '../types/settings';
 
 const MODES: ApprovalMode[] = ['MANUAL', 'AUTOMATIC'];
 
@@ -109,19 +110,31 @@ function WeekendReservableCard({ enabled }: { enabled: boolean }) {
   );
 }
 
-// Tarjeta ADMIN: dirección del parking (form con guardado). Self-contained (S3776).
-function ParkingAddressCard({ current }: { current: string }) {
+// Tarjeta ADMIN: ubicación del parking (dirección + punto exacto en el mapa) con guardado.
+// Self-contained para no cargar la complejidad de SettingsPage (S3776).
+function ParkingAddressCard({ current }: { current: ParkingLocation }) {
   const { t } = useTranslation();
   const mutation = useUpdateParkingAddress();
-  // El botón "Ir al parking" se activa con un toggle; solo entonces aparece el
-  // campo de dirección. Draft local (no autoguarda): se persiste con Guardar.
-  const currentActive = current.trim() !== '';
+  // El botón "Ir al parking" se activa con un toggle; solo entonces aparecen el campo de
+  // dirección y el mapa. Drafts locales (no autoguarda): se persisten con Guardar.
+  const currentAddress = current.address ?? '';
+  const currentActive = currentAddress.trim() !== '';
   const [active, setActive] = useState<boolean | null>(null);
-  const [draft, setDraft] = useState<string | null>(null);
+  const [draftAddress, setDraftAddress] = useState<string | null>(null);
+  // draftCoords null = sin tocar (refleja las coords del servidor).
+  const [draftCoords, setDraftCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   const isActive = active ?? currentActive;
-  const value = draft ?? current;
-  const trimmed = value.trim();
-  const isDirty = isActive !== currentActive || (isActive && trimmed !== current.trim());
+  const addressValue = draftAddress ?? currentAddress;
+  const trimmed = addressValue.trim();
+  const lat = draftCoords ? draftCoords.lat : current.lat;
+  const lng = draftCoords ? draftCoords.lng : current.lng;
+
+  const addressChanged = trimmed !== currentAddress.trim();
+  const coordsChanged =
+    draftCoords != null && (draftCoords.lat !== current.lat || draftCoords.lng !== current.lng);
+  const isDirty =
+    isActive !== currentActive || (isActive && (addressChanged || coordsChanged));
   // Con el botón activo hay que dar una dirección para poder guardar.
   const canSave = isDirty && (!isActive || trimmed !== '');
 
@@ -131,8 +144,13 @@ function ParkingAddressCard({ current }: { current: string }) {
       return;
     }
     try {
-      await mutation.mutateAsync(isActive ? trimmed : null);
-      setDraft(null);
+      await mutation.mutateAsync({
+        address: isActive ? trimmed : null,
+        lat: isActive ? lat : null,
+        lng: isActive ? lng : null,
+      });
+      setDraftAddress(null);
+      setDraftCoords(null);
       setActive(null);
       emitApiErrorToast('settings.saved', 'success');
     } catch {
@@ -165,17 +183,12 @@ function ParkingAddressCard({ current }: { current: string }) {
       </div>
       {isActive ? (
         <div className="settings-control">
-          <label className="field-label" htmlFor="parking-address">
-            {t('settings.parkingAddress.label')}
-          </label>
-          <input
-            id="parking-address"
-            type="text"
-            className="field-input"
-            maxLength={500}
-            placeholder={t('settings.parkingAddress.placeholder')}
-            value={value}
-            onChange={(event) => setDraft(event.target.value)}
+          <ParkingLocationMap
+            lat={lat}
+            lng={lng}
+            address={addressValue}
+            onAddressChange={setDraftAddress}
+            onChange={(nextLat, nextLng) => setDraftCoords({ lat: nextLat, lng: nextLng })}
           />
         </div>
       ) : null}
@@ -211,7 +224,7 @@ export function SettingsPage() {
     try {
       await updateMutation.mutateAsync(value);
       setSelected(null);
-      emitApiErrorToast('settings.saved');
+      emitApiErrorToast('settings.saved', 'success');
     } catch {
       emitApiErrorToast('settings.saveError');
     }
@@ -270,7 +283,13 @@ export function SettingsPage() {
       ) : null}
 
       {ready ? (
-        <ParkingAddressCard current={query.data?.parkingAddress ?? ''} />
+        <ParkingAddressCard
+          current={{
+            address: query.data?.parkingAddress ?? null,
+            lat: query.data?.parkingLat ?? null,
+            lng: query.data?.parkingLng ?? null,
+          }}
+        />
       ) : null}
 
       {ready ? (

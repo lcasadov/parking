@@ -6,19 +6,22 @@ interface ParkingDirectionsButtonProps {
   className?: string;
 }
 
-// Botón "Ir al parking" (Feature C): abre Google Maps con la dirección del parking
-// configurada por el admin (system-settings.parkingAddress). Se muestra SOLO si hay
-// dirección configurada; si no, no renderiza nada (no tiene sentido navegar a nada).
+// Botón "Ir al parking" (Feature C): abre Google Maps con la ubicación del parking
+// configurada por el admin. Si hay coordenadas exactas (punto fijado en el mapa) navega
+// a ellas —más preciso que geocodificar el texto—; si no, cae a la dirección postal. Se
+// muestra SOLO si hay ubicación configurada; si no, no renderiza nada.
 export function ParkingDirectionsButton({ className }: ParkingDirectionsButtonProps) {
   const { t } = useTranslation();
   const { data } = useParkingAddressQuery();
-  const address = data?.trim();
+  const address = data?.address?.trim();
+  const hasCoords = data?.lat != null && data?.lng != null;
 
-  if (!address) {
+  if (!hasCoords && !address) {
     return null;
   }
 
-  const href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+  const destination = hasCoords ? `${data?.lat},${data?.lng}` : (address as string);
+  const href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
 
   return (
     <Button

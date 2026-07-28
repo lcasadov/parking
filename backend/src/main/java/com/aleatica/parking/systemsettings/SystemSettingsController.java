@@ -121,7 +121,8 @@ public class SystemSettingsController {
     public ResponseEntity<SystemSettingsResponse> updateParkingAddress(
             @Valid @RequestBody UpdateParkingAddressRequest request, Authentication authentication) {
         return ResponseEntity.ok(systemSettingsService.updateParkingAddress(
-                request.parkingAddress(), authentication.getName()));
+                request.parkingAddress(), request.parkingLat(), request.parkingLng(),
+                authentication.getName()));
     }
 
     /**
