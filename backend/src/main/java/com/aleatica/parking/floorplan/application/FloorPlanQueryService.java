@@ -17,6 +17,8 @@ import com.aleatica.parking.request.infrastructure.RequestJpaRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.resource.ResourceType;
+import com.aleatica.parking.visitor.VisitorReservation;
+import com.aleatica.parking.visitor.VisitorReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -54,15 +56,17 @@ public class FloorPlanQueryService {
     private final ReleaseJpaRepository releaseRepository;
     private final RequestJpaRepository requestRepository;
     private final EmployeeRepository employeeRepository;
+    private final VisitorReservationRepository visitorReservationRepository;
     private final ClockPort clock;
 
     /**
-     * @param deskRepository            repositorio de puestos (recursos DESK activos)
-     * @param fixedAssignmentRepository repositorio de asignaciones fijas (titular por dia)
-     * @param releaseRepository         repositorio de liberaciones (libera el puesto una fecha)
-     * @param requestRepository         repositorio de solicitudes (aprobadas/pendientes por fecha)
-     * @param employeeRepository        repositorio de empleados (resolucion de la sesion)
-     * @param clock                     reloj inyectable (ventana hoy..+14d)
+     * @param deskRepository               repositorio de puestos (recursos DESK activos)
+     * @param fixedAssignmentRepository    repositorio de asignaciones fijas (titular por dia)
+     * @param releaseRepository            repositorio de liberaciones (libera el puesto una fecha)
+     * @param requestRepository            repositorio de solicitudes (aprobadas/pendientes por fecha)
+     * @param employeeRepository           repositorio de empleados (resolucion de la sesion)
+     * @param visitorReservationRepository repositorio de reservas de visitante (ocupa el puesto)
+     * @param clock                        reloj inyectable (ventana hoy..+14d)
      */
     public FloorPlanQueryService(
             DeskRepository deskRepository,
@@ -70,12 +74,14 @@ public class FloorPlanQueryService {
             ReleaseJpaRepository releaseRepository,
             RequestJpaRepository requestRepository,
             EmployeeRepository employeeRepository,
+            VisitorReservationRepository visitorReservationRepository,
             ClockPort clock) {
         this.deskRepository = deskRepository;
         this.fixedAssignmentRepository = fixedAssignmentRepository;
         this.releaseRepository = releaseRepository;
         this.requestRepository = requestRepository;
         this.employeeRepository = employeeRepository;
+        this.visitorReservationRepository = visitorReservationRepository;
         this.clock = clock;
     }
 
@@ -105,11 +111,17 @@ public class FloorPlanQueryService {
                 .findByResourceTypeAndReleaseDateBetween(ResourceType.DESK, date, date).stream()
                 .map(ReleaseEntity::getResourceId)
                 .collect(Collectors.toSet());
+        // Puestos ocupados por una reserva de visitante esa fecha: aparecen ocupados
+        // (tercero, sin identidad) en el plano, igual que una asignación de otro.
+        Set<Long> visitorReservedDesks = visitorReservationRepository
+                .findByResourceTypeAndReservationDateBetween(ResourceType.DESK, date, date).stream()
+                .map(VisitorReservation::getResourceId)
+                .collect(Collectors.toSet());
 
         List<FloorPlanDeskResponse> items = desks.stream()
                 .map(desk -> toResponse(desk, deskState(
                         desk.getId(), requesterId, approvedByDesk, fixedByDesk, releasedDesks,
-                        pendingByDesk)))
+                        pendingByDesk, visitorReservedDesks)))
                 .toList();
         return new FloorPlanResponse(date, items);
     }
@@ -122,7 +134,8 @@ public class FloorPlanQueryService {
 
     private FloorPlanDeskState deskState(
             Long deskId, Long requesterId, Map<Long, Long> approvedByDesk,
-            Map<Long, Long> fixedByDesk, Set<Long> releasedDesks, Map<Long, Long> pendingByDesk) {
+            Map<Long, Long> fixedByDesk, Set<Long> releasedDesks, Map<Long, Long> pendingByDesk,
+            Set<Long> visitorReservedDesks) {
         Long approvedHolder = approvedByDesk.get(deskId);
         if (approvedHolder != null) {
             return mineOr(approvedHolder, requesterId, FloorPlanDeskState.ASSIGNED);
@@ -133,6 +146,10 @@ public class FloorPlanQueryService {
                 return FloorPlanDeskState.RELEASED;
             }
             return mineOr(fixedHolder, requesterId, FloorPlanDeskState.ASSIGNED);
+        }
+        // Reserva de visitante: ocupa el puesto (tercero); nunca es MINE ni liberable aquí.
+        if (visitorReservedDesks.contains(deskId)) {
+            return FloorPlanDeskState.ASSIGNED;
         }
         Long pendingHolder = pendingByDesk.get(deskId);
         if (pendingHolder != null) {

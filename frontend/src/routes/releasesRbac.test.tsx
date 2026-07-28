@@ -8,13 +8,19 @@ import { MSW_BASE } from '../mocks/handlers';
 import { adminUser, employeeUser } from '../mocks/fixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 
+// La ruta antigua de liberaciones ADMIN redirige al hub de liberaciones
+// (ReleaseHubPage), cuyo título de página es "Liberar" / "Release". La de
+// empleado redirige a "Mis sitios fijos" (MyResourcesPage, pestaña de liberaciones).
+const RELEASE_HUB_HEADING = /^liberar$|^release$/i;
+const MY_RESOURCES_HEADING = /mis sitios fijos|my fixed spots/i;
+
 describe('Releases RBAC', () => {
   it('should_render_admin_release_panel_when_admin_opens_admin_releases_route', async () => {
     server.use(http.get(`${MSW_BASE}/auth/me`, () => HttpResponse.json(adminUser)));
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminReleases });
 
     expect(
-      await screen.findByRole('heading', { name: /liberación administrativa|administrative release/i }),
+      await screen.findByRole('heading', { name: RELEASE_HUB_HEADING }),
     ).toBeInTheDocument();
   });
 
@@ -26,7 +32,7 @@ describe('Releases RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /liberación administrativa|administrative release/i }),
+      screen.queryByRole('heading', { name: RELEASE_HUB_HEADING }),
     ).not.toBeInTheDocument();
   });
 
@@ -35,7 +41,7 @@ describe('Releases RBAC', () => {
     renderWithProviders(<AppRoutes />, { route: ROUTES.employeeReleases });
 
     expect(
-      await screen.findByRole('heading', { name: /mis liberaciones|my releases/i }),
+      await screen.findByRole('heading', { name: MY_RESOURCES_HEADING }),
     ).toBeInTheDocument();
   });
 
@@ -47,7 +53,7 @@ describe('Releases RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /mis liberaciones|my releases/i }),
+      screen.queryByRole('heading', { name: MY_RESOURCES_HEADING }),
     ).not.toBeInTheDocument();
   });
 });

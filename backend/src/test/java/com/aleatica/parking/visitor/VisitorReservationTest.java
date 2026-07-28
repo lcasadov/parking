@@ -2,6 +2,7 @@ package com.aleatica.parking.visitor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.aleatica.parking.resource.ResourceType;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -19,11 +20,12 @@ class VisitorReservationTest {
     @Test
     void shouldCreateReservation_whenFactoryUsed() {
         // Act
-        VisitorReservation reservation = VisitorReservation.create(42L, 8L, DATE, "Puerta norte", 1L, NOW);
+        VisitorReservation reservation = VisitorReservation.create(42L, ResourceType.PARKING, 8L, DATE, "Puerta norte", 1L, NOW);
 
         // Assert
         assertThat(reservation.getVisitorId()).isEqualTo(42L);
-        assertThat(reservation.getParkingSpaceId()).isEqualTo(8L);
+        assertThat(reservation.getResourceType()).isEqualTo(ResourceType.PARKING);
+        assertThat(reservation.getResourceId()).isEqualTo(8L);
         assertThat(reservation.getReservationDate()).isEqualTo(DATE);
         assertThat(reservation.getNotes()).isEqualTo("Puerta norte");
         assertThat(reservation.getCreatedById()).isEqualTo(1L);
@@ -33,9 +35,9 @@ class VisitorReservationTest {
     @Test
     void shouldBeEqualById_whenSameIdentifier() throws Exception {
         // Arrange
-        VisitorReservation a = withId(VisitorReservation.create(42L, 8L, DATE, null, 1L, NOW), 7L);
-        VisitorReservation b = withId(VisitorReservation.create(43L, 9L, DATE, "x", 1L, NOW), 7L);
-        VisitorReservation other = withId(VisitorReservation.create(42L, 8L, DATE, null, 1L, NOW), 8L);
+        VisitorReservation a = withId(VisitorReservation.create(42L, ResourceType.PARKING, 8L, DATE, null, 1L, NOW), 7L);
+        VisitorReservation b = withId(VisitorReservation.create(43L, ResourceType.PARKING, 9L, DATE, "x", 1L, NOW), 7L);
+        VisitorReservation other = withId(VisitorReservation.create(42L, ResourceType.PARKING, 8L, DATE, null, 1L, NOW), 8L);
 
         // Assert
         assertThat(a)
@@ -50,8 +52,8 @@ class VisitorReservationTest {
     @Test
     void shouldNotBeEqual_whenIdIsNull() {
         // Arrange: dos entidades transitorias (id null) nunca son iguales entre si
-        VisitorReservation a = VisitorReservation.create(42L, 8L, DATE, null, 1L, NOW);
-        VisitorReservation b = VisitorReservation.create(42L, 8L, DATE, null, 1L, NOW);
+        VisitorReservation a = VisitorReservation.create(42L, ResourceType.PARKING, 8L, DATE, null, 1L, NOW);
+        VisitorReservation b = VisitorReservation.create(42L, ResourceType.PARKING, 8L, DATE, null, 1L, NOW);
 
         // Assert
         assertThat(a).isNotEqualTo(b);

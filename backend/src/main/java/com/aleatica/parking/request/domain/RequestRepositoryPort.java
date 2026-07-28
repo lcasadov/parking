@@ -2,6 +2,7 @@ package com.aleatica.parking.request.domain;
 
 import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -83,6 +84,35 @@ public interface RequestRepositoryPort {
     Page<Request> findByEmployeeIdAndStatus(Long employeeId, RequestStatus status, Pageable pageable);
 
     /**
+     * Pagina de las solicitudes de un empleado cuyo {@code requestedDate} cae en el intervalo
+     * (extremos inclusive), para el filtro por mes de "mis solicitudes" (change
+     * {@code reservas-employee-admin-reassign}, Feature D).
+     *
+     * @param employeeId empleado propietario
+     * @param from       fecha de recurso minima (inclusive)
+     * @param to         fecha de recurso maxima (inclusive)
+     * @param pageable   pagina, tamano y orden solicitados
+     * @return pagina de solicitudes propias del intervalo
+     */
+    Page<Request> findByEmployeeIdAndRequestedDateBetween(
+            Long employeeId, LocalDate from, LocalDate to, Pageable pageable);
+
+    /**
+     * Pagina de las solicitudes de un empleado filtradas por estado cuyo {@code requestedDate} cae
+     * en el intervalo (extremos inclusive), para el filtro por mes de "mis solicitudes" combinado
+     * con el filtro de estado (change {@code reservas-employee-admin-reassign}, Feature D).
+     *
+     * @param employeeId empleado propietario
+     * @param status     estado por el que filtrar
+     * @param from       fecha de recurso minima (inclusive)
+     * @param to         fecha de recurso maxima (inclusive)
+     * @param pageable   pagina, tamano y orden solicitados
+     * @return pagina de solicitudes propias del intervalo en ese estado
+     */
+    Page<Request> findByEmployeeIdAndStatusAndRequestedDateBetween(
+            Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable);
+
+    /**
      * Pagina de solicitudes en un estado, en orden FIFO por fecha de creacion
      * (listado admin de pendientes).
      *
@@ -110,4 +140,19 @@ public interface RequestRepositoryPort {
      * @return pagina de solicitudes de dominio ordenadas por {@code created_at DESC}
      */
     Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    /**
+     * Candidatas a la <strong>lista de espera</strong> (change {@code waitlist-requests}) de un
+     * dia y tipo de recurso: solicitudes {@code PENDING} marcadas {@code waitlisted}, en orden
+     * FIFO ({@code created_at ASC}). El motor de promocion ({@code RequestService#promoteWaitlist})
+     * reordena en memoria por categoria del empleado antes de FIFO (la categoria no vive en este
+     * agregado).
+     *
+     * @param status        estado a comprobar (siempre {@code PENDING})
+     * @param resourceType  tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha del dia liberado
+     * @return las solicitudes en espera de ese dia/tipo en orden FIFO (posiblemente vacia)
+     */
+    List<Request> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+            RequestStatus status, ResourceType resourceType, LocalDate requestedDate);
 }

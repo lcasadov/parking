@@ -6,6 +6,8 @@ import com.aleatica.parking.desk.dto.DeskCreateRequest;
 import com.aleatica.parking.desk.dto.DeskResponse;
 import com.aleatica.parking.desk.dto.DeskUpdateRequest;
 import com.aleatica.parking.employee.dto.PageResponse;
+import com.aleatica.parking.resource.ResourceDeactivationGuard;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,12 +33,15 @@ public class DeskService {
     private static final String MSG_NOT_FOUND = "Puesto no encontrado: ";
 
     private final DeskRepository deskRepository;
+    private final ResourceDeactivationGuard deactivationGuard;
 
     /**
-     * @param deskRepository repositorio de puestos
+     * @param deskRepository    repositorio de puestos
+     * @param deactivationGuard guarda que impide desactivar un puesto con asignaciones futuras
      */
-    public DeskService(DeskRepository deskRepository) {
+    public DeskService(DeskRepository deskRepository, ResourceDeactivationGuard deactivationGuard) {
         this.deskRepository = deskRepository;
+        this.deactivationGuard = deactivationGuard;
     }
 
     /**
@@ -117,6 +122,11 @@ public class DeskService {
     @Transactional
     public DeskResponse setActivation(Long id, boolean active) {
         Desk desk = findOrThrow(id);
+        // Al pasar de activo a inactivo, no desactivar en silencio si el puesto tiene
+        // asignaciones vigentes o futuras (tarea 16): avisar con 409 y su desglose.
+        if (desk.isActive() && !active) {
+            deactivationGuard.assertCanDeactivate(id, ResourceType.DESK);
+        }
         desk.setActive(active);
         return DeskResponse.from(deskRepository.save(desk));
     }

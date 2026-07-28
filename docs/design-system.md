@@ -11,6 +11,89 @@
 
 ---
 
+# RESTYLE 2026 — Lenguaje visual PREMIUM (norte: Stripe / Apple)
+
+> **Autoridad vigente del lenguaje visual.** Esta sección **prevalece** sobre la
+> tipografía y la paleta descritas más abajo (§2–§3, redacción ALEATICA original).
+> Objetivo: acabado "caro y profesional" — neutro cálido, tipografía muy cuidada,
+> profundidad sutil en capas, acento restringido, micro-motion pulido. Fuente única
+> de verdad de tokens: [`frontend/src/styles/tokens.css`](../frontend/src/styles/tokens.css).
+
+## R.1 Tipografía — **Geist** (auto-alojada, sin CDN)
+
+- **Familia única**: **Geist Variable** (Vercel) para cuerpo, UI **y** titulares —
+  grotesca contemporánea con carácter técnico-premium. Sustituye a la serif editorial
+  Cormorant Garamond (desentonaba con el norte) y a Mulish.
+- **Numerales / KPI**: **Geist Mono Variable**, cifras **tabulares** (`tnum`, `zero`)
+  — sabor técnico/financiero Stripe, columnas perfectamente alineadas.
+- **Auto-alojamiento**: `@fontsource-variable/geist` + `@fontsource-variable/geist-mono`
+  importados en `src/main.tsx` (npm, woff2 empaquetados por Vite; **jamás** `<link>` a
+  Google Fonts). Tokens: `--font-sans`, `--font-display`, `--font-mono` (alias
+  `--font-serif` → display, por retrocompatibilidad).
+- **Tracking óptico** (clave del look): titulares con tracking **negativo**
+  (`--tracking-display: -0.022em`), cuerpo casi neutro (`-0.006em`), labels uppercase
+  con tracking amplio (`--tracking-label: 0.14em`). Leading ceñido en display.
+- **Pesos**: cuerpo 400, énfasis 500, titulares 600. Botones **550–560** (se abandona
+  el 700/800 anterior). `font-optical-sizing: auto`.
+- **Escala**: `--fs-h1 40px`, `--fs-h2 27px`, `--fs-body 15px`, `--fs-num 32/40px`.
+
+## R.2 Color — acento **restringido** + neutro cálido
+
+**Acento (único acento fuerte de la app):** el verde ALEATICA se reinterpreta como
+**verde pino profundo desaturado** — mismo hue de marca, sobriedad Stripe/Linear.
+
+| Token | Light | Dark | Uso |
+|---|---|---|---|
+| `--brand-green` | `#1a7548` | `#34a86a` | Primario: botones, nav activo, foco |
+| `--brand-green-hover` | `#155f3a` | `#3cb976` | Hover del primario |
+| `--brand-green-active` | `#0f4730` | `#2c8f5a` | Pulsado del primario |
+| `--brand-green-deep` | `#124e30` | `#a7e0bd` | Tinta de acento (eyebrow, numerales) |
+| `--brand-green-soft` | `#e8efe9` | `rgba(119,184,41,.22)` | Fondo suave (nav activo / ocupado) |
+
+**Neutros cálidos** (Stripe/Apple): `--bg #f4f3ef` · `--panel #ffffff` ·
+`--panel-2 #faf9f5` · `--ink #1b1a17` · `--ink-soft #5f5c56` · `--ink-faint #918d84`.
+Hairlines discretas: `--line rgba(27,26,23,.10)`. Dark: neutros cálidos oscuros
+(no negro puro): `--bg #1c1c19` · `--panel #26261f` · `--ink #e9e7df`.
+
+**Estado (desaturado, mismo hue):** ocupado=verde · liberado=`--brand-blue #1f88bd`
+(cian calmado) · pendiente=`--brand-yellow #e8c34a` (oro suave, se abandona el lima
+neón) · solicitud=`--brand-orange #e08a1e` (ámbar contenido). Destructivo:
+`--red #c1392f` (contenido, se abandona `#e24b4a`).
+
+## R.3 Superficies y profundidad
+
+- **Sombras suaves EN CAPAS** (nunca planas ni duras): `--shadow-card` combina
+  contacto fino + halo ambiental amplio; `--shadow-card-hover` levanta un punto.
+  Cards, tablas, `auth-card` y KPI usan `--shadow-card`.
+- **Radios**: controles `--radius-md 8px`, tarjetas/paneles `--radius-panel 14px`,
+  pills `--radius-pill 20px`.
+
+## R.4 Componentes núcleo (antes → después)
+
+- **Tablas**: cabecera negra (`background: --ink`) **→** cabecera Stripe **quieta**
+  (fondo `--panel-2`, etiqueta versalita 11px `letter-spacing .07em`, tinta
+  `--ink-faint`, hairline inferior). Filas con separador hairline + hover cálido sutil,
+  padding `13px 18px`, card con `--shadow-card`.
+- **Botones**: saturación bootstrap + peso 800 **→** primario verde pino con doble
+  sombra en capas + filete interior superior claro ("atrapa la luz"), peso 560;
+  secundario **ghost** (panel + hairline); destructivo rojo contenido. Se conserva el
+  pulsado táctil (`whileTap` + `--press-scale`), afinado (hover oscurece el tono, sin
+  `filter: brightness`; active con sombra interior).
+- **Modales**: barra de cabecera de color saturado **→** cabecera **quieta** (título
+  Geist sobre `--panel-2` + hairline) con **filete de acento superior** + icono teñido
+  según semántica (`green`/`red`/`amber`); overlay con `backdrop-filter: blur(3px)` y
+  scrim cálido; superficie con `--shadow-4` y radio `--radius-panel`.
+- **Pills**: peso 700 **→** 600, tracking ceñido.
+
+## R.5 Motion
+
+Sin cambios de arquitectura: se reutilizan los tokens `--dur-*` / `--ease-*` y los
+resortes de `theme/motion.ts` (Ola A). Regla vigente: animar solo `transform`/`opacity`,
+UI < 300 ms, entradas `ease-out`, resortes sin rebote salvo momentum; todo respeta
+`prefers-reduced-motion`.
+
+---
+
 ## 1. Identidad de marca
 
 - **Familia QRIA (ALEATICA)**: conjunto de aplicaciones corporativas. `parking` es una de ellas.
@@ -356,3 +439,126 @@ body.theme-dark{ --bg-page:#1c1c19; --bg-card:#26261f; --text:#e9e7df; /* …§1
 4. **Drawer móvil** del sidebar (alternativa a la barra horizontal) si el número de items crece.
 
 > **Ya resueltos** (antes en esta lista): el **focus ring de accesibilidad** está implementado en `frontend/src/styles/base.css` (§9); las **variables de espaciado y tipografía** (`--space-1…8`, `--text-xs…2xl`, `--radius-*`) están definidas en `frontend/src/styles/tokens.css` (§3, §4), así que los tamaños/paddings ya no viven inline.
+
+---
+
+# OLA A — Fundaciones + Shell (rediseño 2026)
+
+> **Autoridad de esta sección.** Documenta las fundaciones del rediseño completo:
+> tokens de motion/elevación, el **shell fijo** (header + menú), el **efecto de
+> pulsado táctil** de los botones y el **catálogo de primitivas** (DS propio +
+> **Radix UI** headless + **Framer Motion**). Los agentes de rollout de pantallas
+> DEBEN construir sobre estas piezas y no reinventar overlays, menús ni animaciones.
+>
+> **Stack de la Ola A**: CSS propio (variables) + Tabler Icons + **Radix UI**
+> (`@radix-ui/react-*`, primitivas headless accesibles) + **Framer Motion** (`framer-motion`).
+> **Sigue prohibido** Material UI / Tailwind / shadcn. Se **preserva** el branding
+> ALEATICA y el tema claro/oscuro existentes (esta ola los evoluciona, no los sustituye).
+
+## A.1 Dependencias añadidas
+
+| Paquete | Versión | Uso |
+|---|---|---|
+| `framer-motion` | `^11.18.2` | Pulsado táctil de botones, entrada de modales, drawer off-canvas |
+| `@radix-ui/react-dialog` | `^1.1.21` | Primitiva `Dialog` |
+| `@radix-ui/react-alert-dialog` | `^1.1.21` | Primitiva `ConfirmDialog` |
+| `@radix-ui/react-dropdown-menu` | `^2.1.22` | Primitiva `Menu` |
+| `@radix-ui/react-popover` | `^1.1.21` | (disponible para rollout) |
+| `@radix-ui/react-tooltip` | `^1.2.14` | Primitiva `Tooltip` |
+| `@radix-ui/react-select` | `^2.3.5` | Primitiva `SelectField` |
+| `@radix-ui/react-tabs` | `^1.1.19` | (disponible para rollout; `Tabs` propio sigue vigente) |
+| `@radix-ui/react-visually-hidden` | `^1.2.9` | Etiquetas accesibles ocultas |
+
+## A.2 Tokens de MOTION (`styles/tokens.css` + `theme/motion.ts`)
+
+Dos fuentes en sync: CSS (`--dur-*`, `--ease-*`, `--press-scale`, `--shadow-*`,
+`--glass-*`, `--safe-*`) y JS (`theme/motion.ts`: `DUR`, `EASE`, `SPRING`,
+`SPRING_PRESS`, `PRESS_SCALE`). **Regla de craft**: animar solo `transform`/`opacity`;
+UI < 300 ms; entradas con `ease-out`; resortes sin rebote por defecto (rebote SOLO
+cuando la interacción llevó momento). Todo respeta `prefers-reduced-motion`.
+
+| Token CSS | Valor | JS equivalente | Uso |
+|---|---|---|---|
+| `--dur-instant` | `90ms` | `DUR.instant` | Feedback de pulsado / hover |
+| `--dur-fast` | `140ms` | `DUR.fast` | Micro-transiciones de color/fondo, salidas |
+| `--dur-base` | `200ms` | `DUR.base` | Entradas de popover/dropdown/overlay |
+| `--dur-slow` | `280ms` | `DUR.slow` | Modal, drawer |
+| `--ease-out` | `cubic-bezier(0.22,1,0.36,1)` | `EASE.out` | Entradas (respuesta inmediata) |
+| `--ease-in` | `cubic-bezier(0.4,0,1,1)` | `EASE.in` | Salidas |
+| `--ease-standard` | `cubic-bezier(0.4,0,0.2,1)` | `EASE.standard` | Transiciones neutras |
+| `--press-scale` | `0.96` | `PRESS_SCALE` | Hundimiento del pulsado táctil |
+| `SPRING_PRESS` | — | `{stiffness:620,damping:30,mass:0.7}` | Resorte del `whileTap` del botón |
+
+### Elevación (materiales / profundidad)
+`--shadow-1` (chips) · `--shadow-2` (cards flotantes, tooltip) · `--shadow-3`
+(menús, selects, popovers) · `--shadow-4` (modales, drawer). Recalibradas en oscuro.
+
+### Cristal y safe-areas iOS
+`--glass-bg` + `--glass-blur` (`saturate(180%) blur(20px)`) para el chrome fijo
+translúcido. `--safe-top/-bottom/-left/-right` = `env(safe-area-inset-*)`.
+`--topbar-h` (56px) y `--sidebar-w` (252px) definen el chrome.
+
+## A.3 Shell FIJO (`components/AppShell.tsx`)
+
+El shell es único y responsive; re-viste los 3 layouts (`AdminLayout`,
+`EmployeeLayout`, `AgencyLayout`) **sin cambiar sus destinos**. Cada layout pasa
+sus `NavLink`s por la prop `nav`; `AppShell` los coloca en el sidebar (desktop) y
+en el drawer (móvil) reutilizando el mismo `<Sidebar>` + `<SidebarUserCard>`.
+
+- **Desktop (≥769px)**: `.shell-sidebar` = sidebar ALEATICA **fijo** (`position:fixed`,
+  100dvh, `z-index:40`); `.main` reserva `margin-left:var(--sidebar-w)` y desplaza.
+  El header/menú permanecen anclados (antes desplazaban).
+- **Móvil (≤768px)**: el sidebar se oculta; aparece `.shell-topbar` = **header de
+  cristal fijo** (`--glass-bg` + `backdrop-filter`, safe-area de iOS) con
+  hamburguesa + wordmark ALEATICA + avatar. La navegación vive en un **drawer
+  off-canvas** (`.shell-drawer`, `min(86vw,320px)`) que entra desde la izquierda
+  con resorte (Framer Motion) + scrim (`.shell-scrim`). Cierre por: scrim, botón X,
+  `Escape`, o navegar (efecto sobre `location.pathname`). Bloquea el scroll del
+  body y hace focus al abrir. `.main` reserva `padding-top` = topbar + safe-top.
+- Bajo `prefers-reduced-motion` el drawer aparece sin deslizamiento.
+
+**Regla de rollout**: las páginas NO gestionan header ni navegación; solo renderizan
+su contenido dentro del `<Outlet/>`. No usar `position:fixed`/`sticky` propios que
+compitan con el chrome del shell.
+
+## A.4 Botón con pulsado táctil (`components/Button.tsx`)
+
+Misma API (`variant` green|blue|red|white, `icon`, `submit`) — **todo `<Button>`
+existente adopta el efecto sin tocar el call-site**. Al presionar:
+`whileTap → scale(0.96)` con `SPRING_PRESS` (Framer Motion, nace en pointer-down)
++ `box-shadow: inset …` y `brightness(0.92)` en `:active` (CSS). Hover gateado a
+`@media (hover:hover) and (pointer:fine)`. Anulado bajo `prefers-reduced-motion`
+y cuando `disabled`. **Framer Motion controla `transform`**: no añadir `transition:
+transform` en CSS a `.btn`.
+
+## A.5 Catálogo de primitivas
+
+| Primitiva | Fichero | Base | Notas de uso |
+|---|---|---|---|
+| `Button` | `Button.tsx` | Framer Motion | Pulsado táctil. API sin cambios. |
+| `Modal` | `Modal.tsx` | propio + Framer | **Legacy vigente**: overlay atenúa + panel materializa desde `scale(0.96)` (centrado). Todas las llamadas existentes lo heredan. |
+| `Dialog` | `Dialog.tsx` | Radix Dialog | Alternativa de rollout al `Modal`: mismo look (cabecera con tono+icono, body, footer) con trap de foco/scroll/Escape de Radix. Migración: `open`/`onOpenChange` sustituye al montaje condicional; `onOpenChange(false)` = antiguo `onClose`. |
+| `ConfirmDialog` | `ConfirmDialog.tsx` | Radix AlertDialog | Confirmaciones (tone `green`/`red`, `busy`, `icon`). `onConfirm` es el mismo callback de mutación de los modales de confirmación actuales. |
+| `Menu` | `Menu.tsx` | Radix DropdownMenu | Menú contextual (`items` con `icon`/`danger`/`disabled`). Escala desde el disparador. Teclado completo. |
+| `Tooltip` + `TooltipProvider` | `Tooltip.tsx` | Radix Tooltip | Solo contenido no esencial. Montar `TooltipProvider` una vez cerca de la raíz. |
+| `SelectField` | `SelectField.tsx` | Radix Select | Reemplazo de `<select>` con look ALEATICA; `onValueChange` = value. |
+| `Tabs` | `Tabs.tsx` | propio | Sin cambios (tablist accesible). Radix Tabs disponible si se necesita. |
+| `Toast` | `Toast.tsx` | propio | Sin cambios (suscrito a errores 403/5xx). |
+| `Popover` | `Popover.tsx` | propio | Sin cambios (usado por `SidebarUserCard`). |
+
+### Estilos Radix (`styles/components.css`, namespace `.rx-*`)
+`.rx-overlay`, `.rx-dialog(.rx-dialog-narrow)`, `.rx-dialog-header{.green|.red|.amber}`,
+`.rx-menu`/`.rx-menu-item(.danger)`, `.rx-tooltip`, `.rx-select-*`. Animaciones de
+entrada/salida vía `data-state` (Radix retiene el nodo hasta terminar la de cierre);
+`transform-origin` anclado al disparador con `var(--radix-*-transform-origin)`.
+Bloque final `@media (prefers-reduced-motion: reduce)` desactiva estas animaciones.
+
+## A.6 Checklist de accesibilidad / móvil (aplicar en rollout)
+
+- Touch targets ≥ 44px (topbar/drawer ya cumplen; botones de acción móvil ≥44px).
+- Contraste AA: usar tokens de tinta `--*-deep`/`--ink` sobre soft/panel (ya validados
+  en el contrato §1–2; los `deep` se aclaran en oscuro para conservar AA).
+- `focus-visible` global en `base.css`; no eliminar outlines.
+- `prefers-reduced-motion`: toda animación nueva debe degradar (opacidad/color sí,
+  desplazamiento no) — patrón ya aplicado en Button/Modal/AppShell/`.rx-*`.
+- Breakpoint del shell: **768px** (móvil) / **769px+** (desktop). Mantenerlo coherente.

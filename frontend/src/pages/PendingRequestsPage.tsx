@@ -14,7 +14,10 @@ import { usePendingRequestsQuery, useRequestsByStatusQuery } from '../hooks/useR
 import { weekdayIndex } from '../utils/calendar';
 import { initialsOf } from '../utils/initials';
 import type { Employee } from '../types/employee';
-import type { Request, RequestStatus } from '../types/request';
+import type { Request, RequestStatus, ResourceType } from '../types/request';
+
+// Filtro por recurso (plaza/puesto) + "todos".
+const RESOURCE_FILTERS: (ResourceType | 'ALL')[] = ['ALL', 'PARKING', 'DESK'];
 
 const PAGE_SIZE = 20;
 const LOOKUP_SIZE = 100;
@@ -142,7 +145,7 @@ function RequestsTable({
 }: RequestsTableProps) {
   const { t } = useTranslation();
   return (
-    <div className="table-scroll">
+    <div className="table-scroll table-cards-mobile">
       <table className="table">
         <thead>
           <tr className="table-header">
@@ -164,22 +167,22 @@ function RequestsTable({
           ) : (
             requests.map((request) => (
               <tr key={request.id} className="table-row">
-                <td>
+                <td data-label={t('requests.inbox.columns.employee')}>
                   <EmployeeCell request={request} employee={employeeMap.get(request.employeeId)} />
                 </td>
-                <td>
+                <td data-label={t('requests.inbox.columns.date')}>
                   <span className="request-date">{request.requestedDate}</span>
                 </td>
-                <td className="request-weekday">
+                <td className="request-weekday" data-label={t('requests.inbox.columns.day')}>
                   {t(`calendar.weekdaysShort.${weekdayIndex(request.requestedDate)}`)}
                 </td>
-                <td>{request.createdAt}</td>
-                <td>
+                <td data-label={t('requests.inbox.columns.created')}>{request.createdAt}</td>
+                <td data-label={t('requests.inbox.columns.status')}>
                   <span className={`status-badge status-${request.status.toLowerCase()}`}>
                     {t(`requests.status.${request.status}`)}
                   </span>
                 </td>
-                <td className="table-actions">
+                <td className="table-actions" data-label={t('requests.inbox.columns.actions')}>
                   <RowActions
                     request={request}
                     onApprove={onApprove}
@@ -348,6 +351,7 @@ export function PendingRequestsPage() {
   const [page, setPage] = useState(0);
   const [activeTab, setActiveTab] = useState<RequestTab>(PENDING_TAB);
   const [search, setSearch] = useState('');
+  const [resourceFilter, setResourceFilter] = useState<ResourceType | 'ALL'>('ALL');
   const [approveId, setApproveId] = useState<number | null>(null);
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [cancelId, setCancelId] = useState<number | null>(null);
@@ -378,10 +382,12 @@ export function PendingRequestsPage() {
 
   const visibleRequests = useMemo(
     () =>
-      requests.filter((request) =>
-        matchesSearch(request, employeeMap.get(request.employeeId), search),
+      requests.filter(
+        (request) =>
+          matchesSearch(request, employeeMap.get(request.employeeId), search) &&
+          (resourceFilter === 'ALL' || (request.resourceType ?? 'PARKING') === resourceFilter),
       ),
-    [requests, employeeMap, search],
+    [requests, employeeMap, search, resourceFilter],
   );
 
   const approveTarget = requests.find((request) => request.id === approveId) ?? null;
@@ -426,6 +432,22 @@ export function PendingRequestsPage() {
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
+        <label className="mr-status-filter">
+          <span className="sr-only">{t('requests.mine.filterResource')}</span>
+          <select
+            className="field-input"
+            value={resourceFilter}
+            onChange={(event) => setResourceFilter(event.target.value as ResourceType | 'ALL')}
+          >
+            {RESOURCE_FILTERS.map((value) => (
+              <option key={value} value={value}>
+                {value === 'ALL'
+                  ? t('requests.mine.filterAllResources')
+                  : t(`requests.resourceType.${value}`)}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <InboxBody

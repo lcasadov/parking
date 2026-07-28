@@ -39,8 +39,32 @@ describe('ResourceAvailabilityBanner', () => {
     );
     renderWithProviders(<ResourceAvailabilityBanner date={todayIso()} resourceType="DESK" />);
 
-    expect(await screen.findByText(/0 disponible|0 available/i)).toBeInTheDocument();
+    // Sin disponibilidad (0), el banner ya no muestra "0 disponible(s)": comunica
+    // con honestidad que suele liberarse (capability request-waitlist).
+    expect(
+      await screen.findByText(/no quedan puestos libres este día|there are no desks left today/i),
+    ).toBeInTheDocument();
     expect(seenType).toBe('DESK');
+  });
+
+  it('should_show_the_honest_waitlist_hint_without_a_cta_when_resource_is_not_selected', async () => {
+    server.use(
+      http.get(AVAILABILITY_URL, ({ request }) =>
+        HttpResponse.json({
+          date: new URL(request.url).searchParams.get('date'),
+          availableResources: [],
+        }),
+      ),
+    );
+    renderWithProviders(<ResourceAvailabilityBanner date={todayIso()} resourceType="PARKING" />);
+
+    expect(
+      await screen.findByText(/no quedan plazas libres este día|there are no spaces left today/i),
+    ).toBeInTheDocument();
+    // Sin `selected`/`onJoinWaitlist` no se ofrece el CTA de apuntarse.
+    expect(
+      screen.queryByRole('button', { name: /apuntarme a la lista de espera|join the waitlist/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('should_render_nothing_when_date_is_in_the_past', () => {

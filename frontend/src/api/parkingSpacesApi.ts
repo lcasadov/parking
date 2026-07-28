@@ -38,6 +38,14 @@ export async function listParkingSpaces(
   return data;
 }
 
+// GET /parking-spaces/{id} (ADMIN o EMPLOYEE): detalle de una plaza. A diferencia
+// del catalogo (ADMIN-only), este endpoint es accesible a EMPLOYEE, lo que permite
+// resolver el numero real de una plaza fija (simetrico a getDesk en desksApi.ts).
+export async function getParkingSpace(id: number): Promise<ParkingSpace> {
+  const { data } = await apiClient.get<ParkingSpace>(`${PARKING_SPACES}/${id}`);
+  return data;
+}
+
 export async function createParkingSpace(body: ParkingSpaceCreate): Promise<ParkingSpace> {
   const { data } = await apiClient.post<ParkingSpace>(PARKING_SPACES, body);
   return data;

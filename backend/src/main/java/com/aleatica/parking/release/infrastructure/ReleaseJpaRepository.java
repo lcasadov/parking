@@ -1,5 +1,6 @@
 package com.aleatica.parking.release.infrastructure;
 
+import com.aleatica.parking.release.domain.ReleaseType;
 import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
 import java.util.List;
@@ -103,4 +104,18 @@ public interface ReleaseJpaRepository extends JpaRepository<ReleaseEntity, Long>
      */
     List<ReleaseEntity> findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
             Long employeeId, ResourceType resourceType, LocalDate start, LocalDate end);
+
+    /**
+     * Pagina de las liberaciones de un tipo ejecutadas por un actor concreto, en orden de
+     * actividad reciente ({@code created_at DESC}): historial de "mis liberaciones
+     * administrativas" para {@code ADMIN}/{@code AGENCIA} (change
+     * {@code restructure-admin-workflows}, capability {@code releases}, design §D5).
+     *
+     * @param releasedById empleado (ADMIN/AGENCIA) que ejecuto la liberacion
+     * @param type         tipo de liberacion ({@code ADMINISTRATIVE} para este historial)
+     * @param pageable     pagina y tamano solicitados
+     * @return pagina de liberaciones ejecutadas por el actor
+     */
+    Page<ReleaseEntity> findByReleasedByIdAndTypeOrderByCreatedAtDesc(
+            Long releasedById, ReleaseType type, Pageable pageable);
 }

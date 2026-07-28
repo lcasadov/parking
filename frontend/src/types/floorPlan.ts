@@ -16,6 +16,11 @@ export interface FloorPlanDesk {
   coordX: number | null;
   coordY: number | null;
   state: DeskState;
+  // Nombre del titular cuando el puesto está ocupado/asignado (opcional; el
+  // contrato base no lo incluye todavía). Cuando llega, el pin de ocupante y el
+  // tooltip muestran sus iniciales y su nombre; en su ausencia se degradan a una
+  // etiqueta genérica. Puramente informativo: no altera ninguna lógica.
+  occupantName?: string | null;
 }
 
 // GET /floor-plan?date={ISO} → estado y posición de los 65 puestos para una fecha.

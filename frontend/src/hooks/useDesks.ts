@@ -1,11 +1,12 @@
 import {
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
   type UseMutationResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { createDesk, listDesks, setDeskActivation, updateDesk } from '../api/desksApi';
+import { createDesk, getDesk, listDesks, setDeskActivation, updateDesk } from '../api/desksApi';
 import type { Desk, DeskCreate, DeskListParams, PageDesk } from '../types/desk';
 
 // Clave raíz de la caché de puestos (S1192: sin literales repetidos).
@@ -21,6 +22,25 @@ export function useDesksQuery(params: DeskListParams): UseQueryResult<PageDesk> 
     queryFn: () => listDesks(params),
     placeholderData: (previous) => previous,
   });
+}
+
+// Resuelve el detalle (numero) de varios puestos por id en paralelo. Usado por
+// vistas EMPLOYEE que solo conocen el resource_id de su puesto fijo (bug #1.7):
+// GET /desks/{id} es accesible a EMPLOYEE, a diferencia del catalogo de plazas.
+export function useDesksByIdsQuery(ids: number[]): Record<number, Desk> {
+  const results = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: [DESKS_KEY, 'detail', id],
+      queryFn: () => getDesk(id),
+    })),
+  });
+  const byId: Record<number, Desk> = {};
+  results.forEach((result, index) => {
+    if (result.data) {
+      byId[ids[index]] = result.data;
+    }
+  });
+  return byId;
 }
 
 // Invalida toda la caché de puestos tras una mutación con éxito.

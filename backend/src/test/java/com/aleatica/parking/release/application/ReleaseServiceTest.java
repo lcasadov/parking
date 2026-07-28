@@ -23,6 +23,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -384,6 +385,26 @@ class ReleaseServiceTest {
         assertThat(page.content()).hasSize(2);
     }
 
+    // ---- Historial de liberaciones administrativas propias (design D5) ----
+
+    @Test
+    void shouldListOnlyOwnAdministrativeReleases_whenActorRequestsMine() {
+        // Arrange: dos administrativas del actor, una voluntaria propia y una administrativa ajena
+        givenActor(ADMIN_LOGIN, ADMIN_ID);
+        releaseRepository.seed(administrativeReleaseWithId(1L, SPACE_ID, EMP_ID, FUTURE, ADMIN_ID));
+        releaseRepository.seed(administrativeReleaseWithId(2L, OTHER_SPACE_ID, OTHER_ID, FUTURE, ADMIN_ID));
+        releaseRepository.seed(releaseWithId(3L, SPACE_ID, ADMIN_ID, FUTURE));
+        releaseRepository.seed(administrativeReleaseWithId(4L, SPACE_ID, EMP_ID, FUTURE, OTHER_ID));
+
+        // Act
+        var page = newService().listMyAdministrativeReleases(ADMIN_LOGIN, Pageable.unpaged());
+
+        // Assert: solo las ADMINISTRATIVE cuyo releasedById es el actor
+        assertThat(page.content()).extracting(ReleaseResponse::releasedById).containsOnly(ADMIN_ID);
+        assertThat(page.content()).extracting(ReleaseResponse::type).containsOnly(ReleaseType.ADMINISTRATIVE);
+        assertThat(page.content()).hasSize(2);
+    }
+
     // ---- Helpers ----
 
     private FixedAssignmentEntity assignment(Long resourceId) {
@@ -407,6 +428,13 @@ class ReleaseServiceTest {
         return Release.restore(
                 id, resourceId, ResourceType.PARKING, employeeId, date, ReleaseType.VOLUNTARY,
                 null, employeeId, NOW);
+    }
+
+    private static Release administrativeReleaseWithId(
+            Long id, Long resourceId, Long employeeId, LocalDate date, Long releasedById) {
+        return Release.restore(
+                id, resourceId, ResourceType.PARKING, employeeId, date, ReleaseType.ADMINISTRATIVE,
+                REASON, releasedById, NOW);
     }
 
     private void verifyEventKind(ReleaseAuditEvent.Kind kind) {
@@ -476,6 +504,14 @@ class ReleaseServiceTest {
         public Page<Release> findByEmployeeId(Long employeeId, Pageable pageable) {
             return new PageImpl<>(store.values().stream()
                     .filter(r -> employeeId.equals(r.getEmployeeId()))
+                    .toList());
+        }
+
+        @Override
+        public Page<Release> findByReleasedByIdAndType(Long releasedById, ReleaseType type, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> releasedById.equals(r.getReleasedById()) && type == r.getType())
+                    .sorted(Comparator.comparing(Release::getCreatedAt).reversed())
                     .toList());
         }
     }

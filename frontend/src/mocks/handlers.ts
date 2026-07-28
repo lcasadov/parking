@@ -106,6 +106,12 @@ export const handlers = [
   // ---- ParkingSpaces (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/parking-spaces`, () => HttpResponse.json(defaultParkingSpacePage)),
 
+  // GET /parking-spaces/:id (ADMIN o EMPLOYEE): detalle EMPLOYEE-safe usado por
+  // MyFixedAssignmentsPage para resolver el numero real de una plaza fija.
+  http.get(`${BASE}/parking-spaces/:id`, ({ params }) =>
+    HttpResponse.json({ ...spaceP01, id: Number(params.id) }),
+  ),
+
   http.post(`${BASE}/parking-spaces/configure`, async ({ request }) => {
     const body = (await request.json()) as { total: number };
     const spaces = Array.from({ length: body.total }, (_, index) => ({
@@ -128,6 +134,12 @@ export const handlers = [
 
   // ---- Desks (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/desks`, () => HttpResponse.json(defaultDeskPage)),
+
+  // GET /desks/:id (ADMIN o EMPLOYEE): detalle EMPLOYEE-safe usado por
+  // MyFixedAssignmentsPage para resolver el numero real de un puesto fijo.
+  http.get(`${BASE}/desks/:id`, ({ params }) =>
+    HttpResponse.json({ ...deskStandard, id: Number(params.id) }),
+  ),
 
   http.post(`${BASE}/desks`, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
@@ -200,13 +212,40 @@ export const handlers = [
   http.get(`${BASE}/requests/mine`, () => HttpResponse.json(defaultMyRequestsPage)),
 
   http.post(`${BASE}/requests`, async ({ request }) => {
-    const body = (await request.json()) as { requestedDate: string; resourceType?: string };
+    const body = (await request.json()) as {
+      requestedDate: string;
+      resourceType?: string;
+      waitlist?: boolean;
+    };
     return HttpResponse.json(
       {
         ...requestPending1,
         id: 999,
         requestedDate: body.requestedDate,
         resourceType: body.resourceType ?? 'PARKING',
+        waitlisted: body.waitlist === true,
+      },
+      { status: 201 },
+    );
+  }),
+
+  // POST /requests/admin (ADMIN): asignacion puntual; nace APPROVED.
+  http.post(`${BASE}/requests/admin`, async ({ request }) => {
+    const body = (await request.json()) as {
+      employeeId: number;
+      requestedDate: string;
+      resourceType?: string;
+      resourceId?: number;
+    };
+    return HttpResponse.json(
+      {
+        ...requestApproved,
+        id: 990,
+        employeeId: body.employeeId,
+        requestedDate: body.requestedDate,
+        resourceType: body.resourceType ?? 'PARKING',
+        parkingSpaceId: body.resourceId ?? requestApproved.parkingSpaceId,
+        status: 'APPROVED',
       },
       { status: 201 },
     );
@@ -269,8 +308,22 @@ export const handlers = [
     });
   }),
 
+  // POST /requests/:id/resend (EMPLOYEE, dueño, PENDING): re-notifica a los admins.
+  http.post(`${BASE}/requests/:id/resend`, ({ params }) =>
+    HttpResponse.json({
+      ...requestPending1,
+      id: Number(params.id),
+      lastRemindedAt: new Date().toISOString(),
+    }),
+  ),
+
   // ---- Releases (defaults; cada test los sobrescribe con server.use) ----
   http.get(`${BASE}/releases/mine`, () => HttpResponse.json(defaultMyReleasesPage)),
+
+  // GET /releases/administrative/mine (ADMIN/AGENCIA): historial propio.
+  http.get(`${BASE}/releases/administrative/mine`, () =>
+    HttpResponse.json(defaultMyReleasesPage),
+  ),
 
   http.post(`${BASE}/releases`, async ({ request }) => {
     const body = (await request.json()) as ReleaseCreateRequest;
@@ -363,7 +416,8 @@ export const handlers = [
         ...reservationFuture,
         id: 999,
         visitorId: body.visitorId,
-        parkingSpaceId: body.parkingSpaceId,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
         reservationDate: body.reservationDate,
         notes: body.notes ?? null,
       },
@@ -428,6 +482,11 @@ export const handlers = [
     HttpResponse.json({ approvalMode: 'MANUAL', updatedById: null, updatedAt: null }),
   ),
 
+  // GET /settings/approval-mode (cualquier autenticado): modo vigente, sin 403 para EMPLOYEE.
+  http.get(`${BASE}/settings/approval-mode`, () =>
+    HttpResponse.json({ approvalMode: 'MANUAL' }),
+  ),
+
   http.put(`${BASE}/admin/settings`, async ({ request }) => {
     const body = (await request.json()) as { approvalMode: string };
     return HttpResponse.json({
@@ -437,5 +496,36 @@ export const handlers = [
     });
   }),
 ];
+
+// Handler reutilizable (capability request-waitlist): simula el modo AUTOMATICO
+// sin hueco -> 409 NO_AVAILABILITY, salvo que el body incluya `waitlist: true`,
+// en cuyo caso crea la solicitud PENDING con `waitlisted: true`. Los tests lo
+// activan con `server.use(waitlistConflictThenSuccessHandler())` para cubrir el
+// flujo "sin hueco -> apuntarse -> en espera" (tasks §6.5).
+export function waitlistConflictThenSuccessHandler() {
+  return http.post(`${BASE}/requests`, async ({ request }) => {
+    const body = (await request.json()) as {
+      requestedDate: string;
+      resourceType?: string;
+      waitlist?: boolean;
+    };
+    if (body.waitlist !== true) {
+      return HttpResponse.json(
+        { error: 'NO_AVAILABILITY', message: 'no free space', timestamp: '2026-03-02T10:00:00Z' },
+        { status: 409 },
+      );
+    }
+    return HttpResponse.json(
+      {
+        ...requestPending1,
+        id: 999,
+        requestedDate: body.requestedDate,
+        resourceType: body.resourceType ?? 'PARKING',
+        waitlisted: true,
+      },
+      { status: 201 },
+    );
+  });
+}
 
 export { BASE as MSW_BASE };

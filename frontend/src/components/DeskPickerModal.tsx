@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { FloorPlanStatus } from './FloorPlanStatus';
 import { FloorPlanSurface } from './FloorPlanSurface';
 import { FloorPlanZoom } from './FloorPlanZoom';
+import { useBackClose } from '../hooks/useBackClose';
 import { useFloorPlanViewport } from '../hooks/useFloorPlanViewport';
 import { useFloorPlanQuery } from '../hooks/useFloorPlan';
 import { isValidIsoDate } from '../utils/calendar';
@@ -32,6 +33,8 @@ interface DeskPickerModalProps {
 // mensaje role=status) para que la selección sea perceptible (bug de percepción).
 export function DeskPickerModal({ date, onPick, onClose }: DeskPickerModalProps) {
   const { t } = useTranslation();
+  // Anidado sobre el modal de solicitud: "atrás" cierra primero este selector.
+  useBackClose(onClose);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [picked, setPicked] = useState<PickedDesk | null>(null);
 
@@ -56,7 +59,17 @@ export function DeskPickerModal({ date, onPick, onClose }: DeskPickerModalProps)
   );
 
   return (
-    <Modal title={t('floorPlan.select.title')} onClose={onClose} footer={footer}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t('floorPlan.select.title')}
+      icon="map-pin"
+      footer={footer}
+    >
       <p className="hint">{t('floorPlan.select.hint')}</p>
 
       {picked ? (
@@ -95,6 +108,6 @@ export function DeskPickerModal({ date, onPick, onClose }: DeskPickerModalProps)
           />
         </>
       ) : null}
-    </Modal>
+    </Dialog>
   );
 }

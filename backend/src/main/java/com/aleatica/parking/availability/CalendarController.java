@@ -4,6 +4,7 @@ import com.aleatica.parking.availability.application.AvailabilityService;
 import com.aleatica.parking.availability.dto.AdminWeeklyCalendarResponse;
 import com.aleatica.parking.availability.dto.MyWeekResponse;
 import com.aleatica.parking.exception.ApiError;
+import com.aleatica.parking.resource.ResourceType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -50,13 +51,18 @@ public class CalendarController {
     }
 
     /**
-     * Devuelve el calendario semanal completo de todas las plazas activas con su estado y
-     * titular por dia (solo {@code ADMIN}).
+     * Devuelve el calendario semanal completo de todos los recursos activos de un tipo (plazas
+     * por defecto, o puestos) con su estado y titular por dia (solo {@code ADMIN}); change
+     * {@code restructure-admin-workflows}, design §D4.
      *
-     * @param weekStart lunes de la semana a mostrar (se normaliza al lunes de esa semana)
-     * @return {@code 200} con el calendario semanal admin
+     * @param weekStart    lunes de la semana a mostrar (se normaliza al lunes de esa semana)
+     * @param resourceType tipo de recurso a mostrar; {@code null} = {@code PARKING} por defecto
+     *                     (retrocompatibilidad)
+     * @return {@code 200} con el calendario semanal admin del tipo de recurso solicitado
      */
     @Operation(summary = "Calendario semanal completo (ADMIN)",
+            description = "Cubre ambos tipos de recurso segun `resourceType` (por defecto PARKING, "
+                    + "retrocompatible).",
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Calendario semanal admin"),
@@ -72,8 +78,11 @@ public class CalendarController {
     public ResponseEntity<AdminWeeklyCalendarResponse> getAdminCalendar(
             @Parameter(description = "Lunes de la semana (ISO-8601)", required = true, example = "2026-07-06")
             @RequestParam(name = "weekStart")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
-        return ResponseEntity.ok(availabilityService.adminCalendar(weekStart));
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart,
+            @Parameter(description = "Tipo de recurso a mostrar; por defecto PARKING", example = "DESK")
+            @RequestParam(name = "resourceType", required = false) ResourceType resourceType) {
+        ResourceType effectiveType = resourceType == null ? ResourceType.PARKING : resourceType;
+        return ResponseEntity.ok(availabilityService.adminCalendar(weekStart, effectiveType));
     }
 
     /**

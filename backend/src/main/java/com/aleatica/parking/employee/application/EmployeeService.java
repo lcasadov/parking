@@ -83,13 +83,14 @@ public class EmployeeService {
     }
 
     /**
-     * Lista los empleados activos como opciones minimas (id + nombre) para poblar el selector
-     * del flujo de liberacion administrativa, accesible a {@code ADMIN} y {@code AGENCIA}.
+     * Lista los empleados activos como opciones minimas (id + nombre + categoria) para poblar el
+     * selector del flujo de liberacion administrativa, accesible a {@code ADMIN} y {@code AGENCIA}.
      *
      * <p>Es una proyeccion de solo lectura independiente del CRUD de empleados (reservado a
-     * {@code ADMIN}): no expone datos de contacto ni credenciales, solo {@code id} y nombre, lo
-     * imprescindible para elegir a quien liberar. El RBAC del endpoint concede el acceso a ambos
-     * roles sin relajar el resto de la gestion de empleados.</p>
+     * {@code ADMIN}): no expone datos de contacto ni credenciales, solo {@code id}, nombre y
+     * categoria (esta ultima permite al frontend mostrar el rango del empleado en el selector).
+     * El RBAC del endpoint concede el acceso a ambos roles sin relajar el resto de la gestion de
+     * empleados.</p>
      *
      * @return empleados activos (DTO minimo) en orden alfabetico, posiblemente vacia
      */

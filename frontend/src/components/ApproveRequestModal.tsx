@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { FieldRow } from './FieldRow';
 import { FieldValue } from './FieldValue';
 import { InfoBanner } from './InfoBanner';
-import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useApprovalAvailabilityQuery } from '../hooks/useCalendar';
@@ -126,7 +126,17 @@ export function ApproveRequestModal({
   );
 
   return (
-    <Modal title={t(labels.title)} icon="calendar-check" onClose={onClose} footer={footer}>
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
+      title={t(labels.title)}
+      icon="calendar-check"
+      footer={footer}
+    >
       <FieldRow>
         <div>
           <span className="field-label">{t('requests.approve.context.employee')}</span>
@@ -221,6 +231,6 @@ export function ApproveRequestModal({
           ? t('requests.approve.emailNotice', { email: employee.email })
           : t('requests.approve.emailNoticeGeneric')}
       </InfoBanner>
-    </Modal>
+    </Dialog>
   );
 }

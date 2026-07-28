@@ -193,12 +193,12 @@ class VisitorManagementIT extends BaseIntegrationTest {
 
     private long insertReservation(long visitorId, long spaceId, LocalDate date, String notes) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.visitor_reservations (visitor_id, parking_space_id, reservation_date, "
-                        + "notes, created_by_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO dbo.visitor_reservations (visitor_id, resource_type, resource_id, reservation_date, "
+                        + "notes, created_by_id, created_at) VALUES (?, 'PARKING', ?, ?, ?, ?, ?)",
                 visitorId, spaceId, Date.valueOf(date), notes, idOfEmployee(ADMIN_LOGIN),
                 Timestamp.from(Instant.now()));
         Long id = jdbcTemplate.queryForObject(
-                "SELECT id FROM dbo.visitor_reservations WHERE parking_space_id = ? AND reservation_date = ?",
+                "SELECT id FROM dbo.visitor_reservations WHERE resource_id = ? AND reservation_date = ?",
                 Long.class, spaceId, Date.valueOf(date));
         return id == null ? 0L : id;
     }

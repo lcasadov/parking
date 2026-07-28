@@ -13,6 +13,7 @@ import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.desk.dto.DeskCreateRequest;
 import com.aleatica.parking.desk.dto.DeskResponse;
 import com.aleatica.parking.desk.dto.DeskUpdateRequest;
+import com.aleatica.parking.resource.ResourceDeactivationGuard;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -37,8 +38,11 @@ class DeskServiceTest {
     @Mock
     private DeskRepository deskRepository;
 
+    @Mock
+    private ResourceDeactivationGuard deactivationGuard;
+
     private DeskService newService() {
-        return new DeskService(deskRepository);
+        return new DeskService(deskRepository, deactivationGuard);
     }
 
     @Test
@@ -140,6 +144,22 @@ class DeskServiceTest {
 
         // Assert
         assertThat(updated.active()).isFalse();
+    }
+
+    @Test
+    void shouldBlockDeactivation_whenDeskHasFutureAssignments() {
+        // Arrange: puesto activo con asignaciones futuras → el guard bloquea (tarea 16).
+        Desk desk = Desk.create(NUMBER, DeskCategory.STANDARD, X, Y);
+        given(deskRepository.findById(ID)).willReturn(Optional.of(desk));
+        org.mockito.BDDMockito
+                .willThrow(new com.aleatica.parking.exception.ResourceDeactivationBlockedException(1L, 0L, 0L))
+                .given(deactivationGuard)
+                .assertCanDeactivate(ID, com.aleatica.parking.resource.ResourceType.DESK);
+
+        // Act + Assert: se propaga y NO se guarda la desactivacion.
+        assertThatThrownBy(() -> newService().setActivation(ID, false))
+                .isInstanceOf(com.aleatica.parking.exception.ResourceDeactivationBlockedException.class);
+        verify(deskRepository, never()).save(any());
     }
 
     @Test

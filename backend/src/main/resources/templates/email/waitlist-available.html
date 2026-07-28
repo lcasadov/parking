@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Recurso liberado con lista de espera</title>
+</head>
+<body>
+<p>Hola <span th:text="${recipientName}">Administrador</span>,</p>
+<p>
+    Se ha liberado un recurso para la fecha <strong th:text="${requestedDate}">2026-01-01</strong>
+    y hay solicitudes en lista de espera para ese día.
+</p>
+<p>Accede a la bandeja de pendientes de parking para asignarlo.</p>
+<p>— parking ALEATICA</p>
+</body>
+</html>

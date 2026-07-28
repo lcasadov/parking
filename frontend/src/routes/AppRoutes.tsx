@@ -4,25 +4,28 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { AgencyLayout } from '../layouts/AgencyLayout';
 import { EmployeeLayout } from '../layouts/EmployeeLayout';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
+import { DashboardPage } from '../pages/DashboardPage';
 import { EmployeesPage } from '../pages/EmployeesPage';
-import { ParkingSpacesPage } from '../pages/ParkingSpacesPage';
-import { DesksPage } from '../pages/DesksPage';
+import { ResourcesPage } from '../pages/ResourcesPage';
 import { FloorPlanPage } from '../pages/FloorPlanPage';
-import { MyFixedAssignmentsPage } from '../pages/MyFixedAssignmentsPage';
+import { MyResourcesPage } from '../pages/MyResourcesPage';
 import { PendingRequestsPage } from '../pages/PendingRequestsPage';
 import { MyRequestsPage } from '../pages/MyRequestsPage';
-import { AdministrativeReleasesPage } from '../pages/AdministrativeReleasesPage';
-import { ReleaseByDatePage } from '../pages/ReleaseByDatePage';
-import { MyReleasesPage } from '../pages/MyReleasesPage';
+import { ReleaseHubPage } from '../pages/ReleaseHubPage';
 import { VisitorsPage } from '../pages/VisitorsPage';
-import { AdminCalendarPage } from '../pages/AdminCalendarPage';
-import { AvailabilityPage } from '../pages/AvailabilityPage';
-import { AuditPage } from '../pages/AuditPage';
-import { LoginLogsPage } from '../pages/LoginLogsPage';
+import { OccupancyPage } from '../pages/OccupancyPage';
+import { RecordsPage } from '../pages/RecordsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { MyWeekPage } from '../pages/MyWeekPage';
 import { LoginPage } from '../pages/LoginPage';
 import { ROUTES } from './paths';
+
+// Redirige una ruta antigua fusionada en pestañas a su destino nuevo,
+// preseleccionando la pestaña correspondiente via `?tab=` (tasks §1.11: URLs
+// viejas -> nuevas con redireccion donde sea barato, sin duplicar contenido).
+function LegacyTabRedirect({ to, tab }: { to: string; tab?: string }) {
+  return <Navigate to={tab ? `${to}?tab=${tab}` : to} replace />;
+}
 
 export function AppRoutes() {
   return (
@@ -44,20 +47,58 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to={ROUTES.adminEmployees} replace />} />
-        <Route path="employees" element={<EmployeesPage />} />
-        <Route path="parking-spaces" element={<ParkingSpacesPage />} />
-        <Route path="desks" element={<DesksPage />} />
-        <Route path="floor-plan" element={<FloorPlanPage />} />
+        {/* Indice ADMIN: Panel/Dashboard de inicio (rediseño 2026). Empleados deja
+            de ser el índice y conserva su sitio en el menú de Gestión. */}
+        <Route index element={<DashboardPage />} />
+
+        {/* Operativa */}
         <Route path="requests" element={<PendingRequestsPage />} />
-        <Route path="releases" element={<AdministrativeReleasesPage />} />
-        <Route path="release-by-date" element={<ReleaseByDatePage />} />
+        <Route path="occupancy" element={<OccupancyPage />} />
+        <Route path="floor-plan" element={<FloorPlanPage />} />
+        <Route path="release" element={<ReleaseHubPage />} />
         <Route path="visitors" element={<VisitorsPage />} />
-        <Route path="calendar" element={<AdminCalendarPage />} />
-        <Route path="availability" element={<AvailabilityPage />} />
-        <Route path="audit" element={<AuditPage />} />
-        <Route path="login-logs" element={<LoginLogsPage />} />
+
+        {/* Gestión */}
+        <Route path="employees" element={<EmployeesPage />} />
+        <Route path="resources" element={<ResourcesPage />} />
+        <Route path="records" element={<RecordsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+
+        {/* Rutas antiguas: redirigen al destino fusionado con la pestaña correcta. */}
+        <Route
+          path="parking-spaces"
+          element={<LegacyTabRedirect to={ROUTES.adminResources} tab="parking" />}
+        />
+        <Route
+          path="desks"
+          element={<LegacyTabRedirect to={ROUTES.adminResources} tab="desks" />}
+        />
+        {/* "Disponibilidad" se fusionó en la rejilla como filtro rápido "Solo
+            libres": ambas rutas antiguas caen en la Ocupación (rejilla única). */}
+        <Route
+          path="calendar"
+          element={<LegacyTabRedirect to={ROUTES.adminOccupancy} />}
+        />
+        <Route
+          path="availability"
+          element={<LegacyTabRedirect to={ROUTES.adminOccupancy} />}
+        />
+        <Route
+          path="releases"
+          element={<LegacyTabRedirect to={ROUTES.adminReleaseHub} tab="byEmployee" />}
+        />
+        <Route
+          path="release-by-date"
+          element={<LegacyTabRedirect to={ROUTES.adminReleaseHub} tab="byDate" />}
+        />
+        <Route
+          path="audit"
+          element={<LegacyTabRedirect to={ROUTES.adminRecords} tab="audit" />}
+        />
+        <Route
+          path="login-logs"
+          element={<LegacyTabRedirect to={ROUTES.adminRecords} tab="loginLogs" />}
+        />
       </Route>
       <Route
         path={ROUTES.employee}
@@ -67,12 +108,22 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to={ROUTES.employeeRequests} replace />} />
-        <Route path="requests" element={<MyRequestsPage />} />
-        <Route path="fixed-assignments" element={<MyFixedAssignmentsPage />} />
-        <Route path="releases" element={<MyReleasesPage />} />
+        {/* "Mi Semana" es la ruta indice del empleado (app-shell spec). */}
+        <Route index element={<Navigate to={ROUTES.employeeMyWeek} replace />} />
         <Route path="my-week" element={<MyWeekPage />} />
         <Route path="floor-plan" element={<FloorPlanPage />} />
+        <Route path="requests" element={<MyRequestsPage />} />
+        <Route path="my-resources" element={<MyResourcesPage />} />
+
+        {/* Rutas antiguas: redirigen a "Mis plazas" con la pestaña correcta. */}
+        <Route
+          path="fixed-assignments"
+          element={<LegacyTabRedirect to={ROUTES.employeeMyResources} tab="fixed" />}
+        />
+        <Route
+          path="releases"
+          element={<LegacyTabRedirect to={ROUTES.employeeMyResources} tab="releases" />}
+        />
       </Route>
       <Route
         path={ROUTES.agency}
@@ -82,8 +133,11 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
+        {/* AGENCIA: destino "Liberar" con ambos pivotes (por-empleado/por-fecha) e
+            historial de sus propias liberaciones administrativas (design §D5). El
+            backend ya autoriza a AGENCIA en /occupancy, los pivotes y admin-cancel. */}
         <Route index element={<Navigate to={ROUTES.agencyReleases} replace />} />
-        <Route path="releases" element={<AdministrativeReleasesPage />} />
+        <Route path="releases" element={<ReleaseHubPage />} />
       </Route>
       <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
     </Routes>

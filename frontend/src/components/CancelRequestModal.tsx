@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCancelRequest } from '../hooks/useRequests';
@@ -10,6 +10,10 @@ interface CancelRequestModalProps {
   requestedDate: string;
   onClose: () => void;
   onCancelled: () => void;
+  // 'cancel' (por defecto): renunciar a una solicitud aún PENDIENTE.
+  // 'release': liberar una reserva que YA tienes (aprobada) → recurso disponible
+  // para otra persona ese día. Solo cambia el texto; la operación es la misma.
+  mode?: 'cancel' | 'release';
 }
 
 const HTTP_CONFLICT = 409;
@@ -29,9 +33,12 @@ export function CancelRequestModal({
   requestedDate,
   onClose,
   onCancelled,
+  mode = 'cancel',
 }: CancelRequestModalProps) {
   const { t } = useTranslation();
   const cancelMutation = useCancelRequest();
+  // Prefijo i18n según el modo: liberar (aprobada) vs cancelar (pendiente).
+  const keys = mode === 'release' ? 'requests.releaseRequest' : 'requests.cancel';
 
   function handleConfirm(): void {
     cancelMutation.mutate(requestId, {
@@ -43,17 +50,28 @@ export function CancelRequestModal({
   const footer = (
     <>
       <Button variant="white" onClick={onClose}>
-        {t('requests.cancel.keep')}
+        {t(`${keys}.keep`)}
       </Button>
-      <Button variant="red" onClick={handleConfirm} disabled={cancelMutation.isPending}>
-        {t('requests.cancel.confirm')}
+      <Button variant="red" onClick={handleConfirm} loading={cancelMutation.isPending}>
+        {t(`${keys}.confirm`)}
       </Button>
     </>
   );
 
   return (
-    <Modal title={t('requests.cancel.title')} onClose={onClose} variant="red" footer={footer}>
-      <p>{t('requests.cancel.body', { date: requestedDate })}</p>
-    </Modal>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t(`${keys}.title`)}
+      tone="green"
+      narrow
+      footer={footer}
+    >
+      <p>{t(`${keys}.body`, { date: requestedDate })}</p>
+    </Dialog>
   );
 }

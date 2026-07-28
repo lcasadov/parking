@@ -107,9 +107,13 @@ public abstract class BaseIntegrationTest {
                 SEED_ADMIN_LOGIN);
         // El modo de aprobacion global es un singleton persistente: se restaura al defecto MANUAL
         // para que ningun IT herede el AUTOMATIC de otro segun el orden (change request-desk-selection).
+        // Ademas se HABILITA weekend_reservable (change reservas-employee-admin-reassign) para que
+        // los ITs que crean solicitudes en fechas relativas (now()+N) sean agnosticos al dia de la
+        // semana; el IT dedicado al fin de semana alterna el flag explicitamente para probar la
+        // regla. Tambien se limpia parking_address para no filtrar estado entre ITs.
         baseJdbcTemplate.update(
-                "UPDATE dbo.system_settings SET approval_mode = 'MANUAL', updated_by_id = NULL, "
-                        + "updated_at = NULL WHERE id = 1");
+                "UPDATE dbo.system_settings SET approval_mode = 'MANUAL', weekend_reservable = 1, "
+                        + "parking_address = NULL, updated_by_id = NULL, updated_at = NULL WHERE id = 1");
         // El limitador de exportaciones mantiene estado por usuario en memoria: se vacia entre
         // tests para que el conteo de un IT no filtre a otro segun el orden (issue #29 / exports).
         exportRateLimiter.reset();

@@ -52,6 +52,7 @@ const CALENDAR_STATE_CLASS: Record<CalendarCellState, string> = {
   RELEASED: 'state-released',
   REQUEST_PENDING: 'state-pending',
   REQUEST_APPROVED: 'state-request',
+  VISITOR_RESERVATION: 'state-occupied',
   FREE: 'state-free',
 };
 
@@ -65,10 +66,43 @@ export function weekdayIndex(dateIso: string): number {
   return new Date(`${dateIso}T00:00:00`).getDay();
 }
 
+// Dia de la semana ISO-8601 (1 lunes .. 7 domingo) de una fecha ISO. Lo usan las
+// asignaciones fijas, cuyo `dayOfWeek` sigue el estandar ISO (no el 0..6 de JS).
+export function isoWeekday(dateIso: string): number {
+  const jsDay = weekdayIndex(dateIso);
+  return jsDay === 0 ? 7 : jsDay;
+}
+
 // Formato corto dia/mes (DD/MM) sin depender de la zona horaria.
 export function dayMonth(dateIso: string): string {
   const [, month, day] = dateIso.split('-');
   return `${day}/${month}`;
+}
+
+// Formato corto localizado día + mes abreviado (p. ej. "28 jul" / "Jul 28") a
+// partir de un ISO date, sin desfase de zona horaria. Para listar fechas en avisos.
+export function shortDayMonth(dateIso: string, locale: string): string {
+  const parsed = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateIso;
+  }
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(parsed);
+}
+
+// Formato compacto con día de la semana abreviado (p. ej. "lun, 27 jul 2026" /
+// "Mon, Jul 27, 2026"): más corto que longDate pero manteniendo contexto. Sin
+// desfase de zona horaria.
+export function mediumDate(dateIso: string, locale: string): string {
+  const parsed = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateIso;
+  }
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
 }
 
 // Numero de semana ISO-8601 (lunes como primer dia; semana 1 = la del primer

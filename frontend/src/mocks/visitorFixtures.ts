@@ -53,7 +53,8 @@ const PAST_DATE = '2020-01-01';
 export const reservationFuture: VisitorReservation = {
   id: 40,
   visitorId: 30,
-  parkingSpaceId: 1,
+  resourceType: 'PARKING',
+  resourceId: 1,
   reservationDate: todayIso(),
   notes: 'Aparcar cerca de recepcion',
   createdById: 1,
@@ -63,7 +64,8 @@ export const reservationFuture: VisitorReservation = {
 export const reservationPast: VisitorReservation = {
   id: 41,
   visitorId: 31,
-  parkingSpaceId: 2,
+  resourceType: 'PARKING',
+  resourceId: 2,
   reservationDate: PAST_DATE,
   notes: null,
   createdById: 1,

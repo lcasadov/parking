@@ -1,0 +1,1018 @@
+/* =====================================================================
+   TEMA "WAYFINDING / SEÑALIZACIÓN VIVA"
+   ---------------------------------------------------------------------
+   ALCANCE (importante para mantenimiento):
+   · TOKENS (paleta) y la rejilla `.main`: GLOBALES → `:root` (claro) y
+     `body.theme-dark` (oscuro). Afectan a TODA la app: empleado, ADMIN, agencia
+     y los MODALES (que se renderizan por portal fuera del shell). Al probar
+     cambios de token, revisa también pantallas de admin.
+   · FIRMAS de componente (shield, línea de tránsito, mfa-card, badges con
+     lámpara, etc.): scoped a `.portal-way` (el AppShell añade la clase en TODOS
+     los roles), pero solo casan donde existe el markup correspondiente → hoy en
+     páginas de empleado. Admin hereda la paleta; sus firmas propias están por hacer.
+   ACENTO POR TEMA: CLARO = ESMERALDA (#0f9e68, limpio sobre blanco); OSCURO = ÁMBAR
+   señal (#ffb020, panel de autopista de noche — más distintivo). Pendiente/solicitado
+   sigue en ÁMBAR (--rel/--pend) por semántica.
+
+   Lenguaje: superficie (blanco/asfalto) + acento, semántica de semáforo
+   (verde=positivo/ocupado, azul=liberado, ámbar=pendiente/solicitado, rojo=stop),
+   numerales tipo marcador kilométrico. Dos temas: claro (señalización de día) y
+   oscuro (panel de noche), enganchados al toggle existente (`body.theme-dark`).
+   ===================================================================== */
+
+/* ---------- CLARO (señalización de día) — GLOBAL (toda la app + modales) ---------- */
+:root {
+  color-scheme: light;
+
+  /* superficies — BLANCO (fondo) con papel de ingeniería muy sutil; tarjetas
+     definidas por keyline + sombra. */
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f2f4f6;
+  --elev: #ffffff;
+  --ink: #14181c;
+  --ink-soft: #4e5a62;
+  --ink-faint: #58636b;
+  --ink-2: #4e5a62;
+  --ink-3: #58636b;
+  --line: rgba(18, 24, 28, 0.12);
+  --line-soft: rgba(18, 24, 28, 0.06);
+  --line-strong: rgba(18, 24, 28, 0.22); /* keyline nítida de señalización */
+  --line-2: rgba(18, 24, 28, 0.22);
+  --highlight: #f0f1eb;
+  --field-bg: #ffffff;
+  --frame-bg: #d6d9d1;
+
+  /* acento ESMERALDA en tema claro (preferencia): botones/selectores/nav/foco/
+     marcadores en verde. El tema OSCURO mantiene el ámbar señal. */
+  --accent: #0f9e68;
+  --accent-2: #0c8557;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(15, 158, 104, 0.12);
+  --accent-line: rgba(15, 158, 104, 0.4);
+  --brand-green-deep: #0a6b45; /* "acento como texto" legible sobre blanco */
+  --brand-green-hover: #0c8557;
+  --brand-green-active: #0a6b45;
+  --green-focus: #0f9e68;
+
+  /* semáforo PLANO de señalización (colores densos, sin neón) */
+  --ok: #0fa968;
+  --ok-soft: rgba(15, 169, 104, 0.12);
+  --busy: #e03b3b;
+  --busy-soft: rgba(224, 59, 59, 0.12);
+  --rel: #d9820a;
+  --rel-soft: rgba(217, 130, 10, 0.14);
+  --pend: #d9820a;
+  --pend-soft: rgba(217, 130, 10, 0.14);
+  --info: #1877d2;
+  --red-text: #bf2626;
+
+  /* estado plaza/puesto: libre/positivo=verde, liberado=azul, pend/solicitud=ámbar */
+  --state-occupied-bg: rgba(15, 169, 104, 0.12);
+  --state-occupied-ink: #0a7a4c;
+  --state-occupied-border: rgba(15, 169, 104, 0.36);
+  --state-released-bg: rgba(24, 119, 210, 0.12);
+  --state-released-ink: #135a9e;
+  --state-released-border: rgba(24, 119, 210, 0.36);
+  --state-pending-bg: rgba(217, 130, 10, 0.14);
+  --state-pending-ink: #855207;
+  --state-pending-border: rgba(217, 130, 10, 0.42);
+  --state-request-bg: rgba(217, 130, 10, 0.14);
+  --state-request-ink: #855207;
+  --state-request-border: rgba(217, 130, 10, 0.42);
+  --state-free-bg: var(--panel-2);
+  --state-free-ink: var(--ink-soft);
+  --state-free-border: var(--line-strong);
+
+  /* numerales tipo marcador (mono real; stacks sin cero tachado en macOS) */
+  --font-mono: ui-monospace, "SF Mono", Menlo, "Roboto Mono", Consolas, monospace;
+
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* El toggle `.theme-dark` vive en <body>, pero el LIENZO (overscroll/rubber-band y el
+   flash de refresco) lo pinta <html>, que no hereda tokens de body. Fijamos el fondo y
+   el color-scheme del lienzo según el tema para que el rebote no muestre blanco en
+   oscuro (y el scrollbar salga oscuro). */
+html:has(body.theme-dark) {
+  background-color: #0a0e13;
+  color-scheme: dark;
+}
+
+/* ---------- Firma DÍA (solo tema claro): papel de ingeniería + esmalte ---------- */
+/* Rejilla técnica sutil sobre el hormigón (blueprint/graph-paper) — global. */
+.main {
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba(18, 24, 28, 0.04) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(18, 24, 28, 0.04) 39px 40px);
+  background-attachment: local;
+}
+body.theme-dark .main { background-image: none; }
+
+/* Paneles con keyline nítida (precisión de señalización) en día. */
+body:not(.theme-dark) .portal-way .week-day-card,
+body:not(.theme-dark) .portal-way .mw-shield-side,
+body:not(.theme-dark) .portal-way .panel {
+  border-color: var(--line-strong);
+}
+
+/* Shield = PLACA ESMALTADA en día: cara marfil, keyline ámbar gruesa, brillo
+   diagonal estático (reflejo de esmalte) en vez del escaneo electrónico. */
+body:not(.theme-dark) .portal-way .mw-shield {
+  background: linear-gradient(158deg, #ffffff, #f1f8f4);
+  box-shadow:
+    0 0 0 4px var(--accent-soft),
+    0 24px 46px -28px rgba(15, 158, 104, 0.45),
+    inset 0 1px 0 #ffffff;
+}
+body:not(.theme-dark) .portal-way .mw-shield::after {
+  top: 0;
+  height: 100%;
+  background: linear-gradient(122deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 36%);
+  animation: none;
+}
+
+/* ---------- OSCURO (panel de mensaje variable) — GLOBAL ---------- */
+body.theme-dark {
+  color-scheme: dark;
+
+  --bg: #0a0e13;
+  --panel: #0f141c;
+  --panel-2: #151d28;
+  --elev: #1a2431;
+  --ink: #eaf0f7;
+  --ink-soft: #8a97a8;
+  --ink-faint: #93a0b0;
+  --ink-2: #8a97a8;
+  --ink-3: #93a0b0;
+  --line: rgba(255, 255, 255, 0.075);
+  --line-soft: rgba(255, 255, 255, 0.05);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --line-2: rgba(255, 255, 255, 0.14);
+  --highlight: rgba(255, 255, 255, 0.05);
+  --field-bg: #151d28;
+  --frame-bg: #06090d;
+
+  --accent: #ffb020;
+  --accent-2: #e89a10;
+  --accent-ink: #1b1204;
+  --accent-soft: rgba(255, 176, 32, 0.13);
+  --accent-line: rgba(255, 176, 32, 0.32);
+  --brand-green-deep: #ffd27a;
+  --brand-green-hover: #ffc24d;
+  --brand-green-active: #e89a10;
+  --green-focus: #ffb020;
+
+  --ok: #22e0a1;
+  --ok-soft: rgba(34, 224, 161, 0.14);
+  --busy: #ff5c6c;
+  --busy-soft: rgba(255, 92, 108, 0.15);
+  --rel: #ffb020;
+  --rel-soft: rgba(255, 176, 32, 0.15);
+  --pend: #ffb020;
+  --pend-soft: rgba(255, 176, 32, 0.15);
+  --info: #54b7ff;
+  --red-text: #ff98a3;
+
+  --state-occupied-bg: rgba(34, 224, 161, 0.13);
+  --state-occupied-ink: #7fefc4;
+  --state-occupied-border: rgba(34, 224, 161, 0.4);
+  --state-released-bg: rgba(84, 183, 255, 0.16);
+  --state-released-ink: #bee0ff;
+  --state-released-border: rgba(84, 183, 255, 0.4);
+  --state-pending-bg: rgba(255, 176, 32, 0.15);
+  --state-pending-ink: #ffd98a;
+  --state-pending-border: rgba(255, 176, 32, 0.4);
+  --state-request-bg: rgba(255, 176, 32, 0.15);
+  --state-request-ink: #ffd98a;
+  --state-request-border: rgba(255, 176, 32, 0.4);
+  --state-free-bg: var(--panel-2);
+  --state-free-ink: var(--ink-soft);
+  --state-free-border: var(--line-strong);
+
+  /* halo de acento sobre superficie oscura */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 34px rgba(0, 0, 0, 0.42);
+}
+
+/* =====================================================================
+   PIEZAS DE FIRMA (scoped a .portal-way) — se aplican sin cambiar el markup
+   ===================================================================== */
+
+/* Numerales/KPIs y etiquetas mono → tabulares tipo marcador. */
+.portal-way .mono,
+.portal-way .kpi-num,
+.portal-way [class*="-num"] {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Botón primario = señal: relleno ámbar con halo. */
+.portal-way .btn-green {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 14px 30px -14px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+.portal-way .btn-green:hover {
+  box-shadow: 0 0 0 1px var(--accent),
+    0 18px 40px -14px color-mix(in srgb, var(--accent) 90%, transparent);
+}
+
+/* Nav activo: filo iluminado (riel de acento con glow). */
+.portal-way .nav-link.active::before,
+.portal-way a.active .nav-rail {
+  box-shadow: 0 0 14px var(--accent);
+}
+
+/* Foco global: anillo ámbar señal. */
+.portal-way :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Mi Semana: transit-line / marcadores / lámparas ---------- */
+
+/* Día de la semana como etiqueta de señalización (mono, uppercase, tracking). */
+.portal-way .week-day-head .week-day-abbr {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: var(--text-base);
+  color: var(--ink-soft);
+}
+.portal-way .week-day-head .week-day-date {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- "Próximos días" como LÍNEA DE TRÁNSITO (estaciones sobre un carril) ----- */
+/* El SCROLLER envuelve la lista (scroll horizontal aquí). La lista es max-content,
+   así el carril y el pulso abarcan TODA la semana; el padding vertical deja sitio a
+   la sombra del día HOY para que no se recorte. */
+.portal-way .mw-week-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  margin: var(--space-4) 0 var(--space-3);
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.portal-way .mw-week-scroll .my-week-list {
+  display: flex;
+  grid-template-columns: none;
+  width: max-content;
+  min-width: 100%;
+  gap: var(--space-4);
+  position: relative;
+  padding: 64px 6px 40px;
+  margin: 0;
+}
+/* Carril: línea de marcas viales que conecta las estaciones. Scoped al scroller para
+   NO pintarse sobre el esqueleto de carga (que no está en .mw-week-scroll). */
+.portal-way .mw-week-scroll .my-week-list::before {
+  content: "";
+  position: absolute;
+  left: 26px;
+  right: 26px;
+  top: 38px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--line-strong) 0 22px, transparent 22px 44px);
+  z-index: 0;
+}
+.portal-way .mw-station {
+  position: relative;
+  flex: 0 0 clamp(248px, 30vw, 340px);
+  scroll-snap-align: start;
+  margin-top: 0;
+}
+/* Nodo de estación. */
+.portal-way .mw-station-node {
+  position: absolute;
+  top: -33px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  border: 2px solid var(--line-strong);
+  z-index: 1;
+}
+.portal-way .mw-station.is-today .mw-station-node {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 5px var(--accent-soft), 0 0 18px var(--accent);
+  animation: wayNode 2.6s ease-in-out infinite;
+}
+/* "HOY" iluminado: halo ámbar CONTENIDO (sombra pequeña que no se recorta). */
+.portal-way .week-day-card.is-today {
+  box-shadow: 0 0 0 1px var(--accent-line), 0 10px 22px -14px var(--accent);
+  overflow: visible;
+}
+@keyframes wayNode {
+  0%, 100% { box-shadow: 0 0 0 5px var(--accent-soft), 0 0 14px var(--accent); }
+  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 5%, transparent), 0 0 26px var(--accent); }
+}
+/* Cabecera de estación: día en señalización. */
+.portal-way .mw-station .week-day-head {
+  justify-content: center;
+  gap: var(--space-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .portal-way .mw-station.is-today .mw-station-node { animation: none; }
+}
+
+/* Numerales de recurso (P-08 / D-02) en mono tipo marcador. */
+.portal-way .mw-res-state,
+.portal-way .week-resource-state {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lámpara de estado en el icono del recurso (glow por semáforo). */
+.portal-way .mw-res.assigned .mw-res-icon,
+.portal-way .week-resource.assigned .week-resource-icon {
+  box-shadow: 0 0 0 1px var(--state-occupied-border), 0 0 16px -3px var(--ok);
+}
+.portal-way .mw-res.released .mw-res-icon,
+.portal-way .week-resource.released .week-resource-icon {
+  box-shadow: 0 0 0 1px var(--state-released-border), 0 0 16px -3px var(--info);
+}
+.portal-way .mw-res.request .mw-res-icon,
+.portal-way .week-resource.request .week-resource-icon {
+  box-shadow: 0 0 0 1px var(--state-request-border), 0 0 16px -3px var(--pend);
+}
+
+/* Hero "HOY": marcador tipo shield con filo ámbar y barrido de escaneo. */
+.portal-way .mw-hero-card.is-today {
+  position: relative;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-2), 0 0 0 1px var(--accent-line), 0 30px 70px -42px var(--accent);
+  overflow: hidden;
+}
+.portal-way .mw-hero-card.is-today::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    color-mix(in srgb, var(--accent) 9%, transparent) 50%,
+    transparent 58%
+  );
+  background-size: 250% 100%;
+  animation: wayScan 5.5s linear infinite;
+}
+@keyframes wayScan {
+  from { background-position: 130% 0; }
+  to { background-position: -130% 0; }
+}
+
+/* Numerales grandes del hero en mono. */
+.portal-way .mw-hero-when {
+  letter-spacing: -0.02em;
+}
+
+/* ---------- HÉROE "HOY" como MARCADOR (shield) ---------- */
+.portal-way .mw-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.portal-way .mw-hero-card.mw-hero-shield {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  overflow: visible;
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: stretch;
+}
+/* El shield tiene su propio filo ámbar → el contenedor NO lleva anillo ni barrido
+   (mata la "línea naranja" del hero is-today genérico). */
+.portal-way .mw-hero-card.mw-hero-shield.is-today {
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.portal-way .mw-hero-card.mw-hero-shield.is-today::after,
+.portal-way .mw-hero-card.mw-hero-shield.is-today::before {
+  content: none;
+  display: none;
+}
+.portal-way .mw-shield {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-panel);
+  padding: 22px 20px 18px;
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+  box-shadow: 0 0 0 5px var(--accent-soft), 0 30px 70px -44px var(--accent);
+}
+.portal-way .mw-shield::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid var(--accent-line);
+  border-radius: 13px;
+  pointer-events: none;
+}
+.portal-way .mw-shield::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -60px;
+  height: 60px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent) 12%, transparent), transparent);
+  animation: mwShieldScan 4.6s linear infinite;
+}
+@keyframes mwShieldScan {
+  from { transform: translateY(0); }
+  to { transform: translateY(360px); }
+}
+.portal-way .mw-shield-tag {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--brand-green-deep);
+}
+.portal-way .mw-shield-num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2.7rem, 6vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 12px 0 6px;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.portal-way .mw-shield-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.portal-way .mw-shield-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.portal-way .mw-shield-state i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+.portal-way .mw-hero-shield.assigned .mw-shield-state { color: var(--state-occupied-ink); }
+.portal-way .mw-hero-shield.assigned .mw-shield-state i { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+.portal-way .mw-hero-shield.released .mw-shield-state { color: var(--state-released-ink); }
+.portal-way .mw-hero-shield.released .mw-shield-state i { background: var(--info); box-shadow: 0 0 10px var(--info); }
+.portal-way .mw-hero-shield.request .mw-shield-state { color: var(--state-request-ink); }
+.portal-way .mw-hero-shield.request .mw-shield-state i { background: var(--pend); box-shadow: 0 0 10px var(--pend); }
+
+/* Panel de recursos a la derecha del shield. */
+.portal-way .mw-hero-shield .mw-hero-resources {
+  margin: 0;
+  list-style: none;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+}
+.portal-way .mw-hero-shield .mw-res + .mw-res {
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .portal-way .mw-hero-card.mw-hero-shield { grid-template-columns: 1fr; }
+}
+
+/* ---------- Slots compactos de la línea de tránsito ---------- */
+.portal-way .mw-station .week-day-resources {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.portal-way .mw-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(127, 127, 127, 0.05);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.14s var(--ease-out), border-color 0.14s;
+}
+.portal-way button.mw-slot:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-line);
+}
+.portal-way .mw-slot.is-static { cursor: default; }
+.portal-way .mw-slot.free { border-style: dashed; color: var(--ink-soft); }
+.portal-way .mw-slot-lamp {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--ink-faint);
+}
+.portal-way .mw-slot.assigned .mw-slot-lamp { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+.portal-way .mw-slot.released .mw-slot-lamp { background: var(--info); box-shadow: 0 0 10px var(--info); }
+.portal-way .mw-slot.request .mw-slot-lamp { background: var(--pend); box-shadow: 0 0 10px var(--pend); }
+.portal-way .mw-slot-icon {
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink-faint);
+  font-size: 15px;
+  flex: 0 0 auto;
+}
+.portal-way .mw-slot-marker {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.portal-way .mw-slot-act {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+.portal-way .mw-slot-act i { font-size: 15px; }
+.portal-way button.mw-slot:hover .mw-slot-act { color: var(--accent); }
+/* La acción de reservar sugiere en ámbar (positiva); liberar en tinta suave. */
+.portal-way .mw-slot.free .mw-slot-act,
+.portal-way .mw-slot.released .mw-slot-act { color: var(--brand-green-deep); }
+
+/* Panel derecho del shield: filas compactas + pie de acciones único. */
+.portal-way .mw-shield-side {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.portal-way .mw-srows {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+}
+.portal-way .mw-srow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+}
+.portal-way .mw-srow + .mw-srow { border-top: 1px solid var(--line); }
+.portal-way .mw-srow-ic {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  color: var(--ink-soft);
+  font-size: 20px;
+  flex: 0 0 auto;
+}
+.portal-way .mw-srow-dot {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
+  background: var(--ink-faint);
+}
+.portal-way .mw-srow.assigned .mw-srow-dot { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+.portal-way .mw-srow.released .mw-srow-dot { background: var(--info); box-shadow: 0 0 10px var(--info); }
+.portal-way .mw-srow.request .mw-srow-dot { background: var(--pend); box-shadow: 0 0 10px var(--pend); }
+.portal-way .mw-srow-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.portal-way .mw-srow-kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.portal-way .mw-srow-marker {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+/* Sin recurso hoy (liberado / libre): texto de estado suave, no numeral. */
+.portal-way .mw-srow.is-empty .mw-srow-marker {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+}
+.portal-way .mw-srow-tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  padding: 5px 11px;
+  border-radius: 999px;
+  color: var(--ink-soft);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  text-transform: uppercase;
+  flex: 0 0 auto;
+}
+.portal-way .mw-srow-tag.is-fixed {
+  color: var(--brand-green-deep);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.portal-way .mw-shield-acts {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel-2) 55%, transparent);
+}
+
+/* ----- Línea de tiempo: "HOY" marcado con fuerza + pulso viajero ----- */
+.portal-way .mw-station-hoy {
+  position: absolute;
+  top: -52px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+  z-index: 2;
+  animation: wayBob 2.8s ease-in-out infinite;
+}
+.portal-way .mw-station.is-today .mw-station-node {
+  width: 18px;
+  height: 18px;
+  top: -35px;
+}
+/* MAÑANA marcado en azul (paralelo a HOY en ámbar). */
+.portal-way .mw-station.is-tomorrow .mw-station-node {
+  background: var(--info);
+  border-color: var(--info);
+  box-shadow: 0 0 0 4px var(--brand-blue-soft), 0 0 14px var(--info);
+}
+.portal-way .mw-station-manana {
+  position: absolute;
+  top: -52px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--info);
+  white-space: nowrap;
+  z-index: 2;
+}
+.portal-way .week-day-tomorrow-badge {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--info);
+  color: #06243a;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+/* Pulso que viaja por el carril marcando el paso del tiempo. */
+.portal-way .mw-week-scroll .my-week-list::after {
+  content: "";
+  position: absolute;
+  top: 34px;
+  left: 26px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--accent);
+  z-index: 0;
+  animation: wayTravel 6s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+@keyframes wayTravel {
+  0% { left: 26px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: calc(100% - 34px); opacity: 0; }
+}
+@keyframes wayBob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-way .mw-shield::after,
+  .portal-way .mw-station-hoy,
+  .portal-way .mw-week .my-week-list::after { animation: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-way .week-day-card.is-today::before,
+  .portal-way .mw-hero-card.is-today::after {
+    animation: none;
+  }
+}
+
+/* =====================================================================
+   MIS SITIOS FIJOS — tarjetas-marcador de señalización
+   ===================================================================== */
+.portal-way .mfa-cards {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-4);
+}
+.portal-way .mfa-card {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.14s var(--ease-out), border-color 0.14s, box-shadow 0.2s;
+}
+.portal-way .mfa-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-card-hover);
+}
+/* Marcador (mini-shield) con filo ámbar. */
+.portal-way .mfa-card-marker {
+  position: relative;
+  min-width: 96px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--accent);
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.portal-way .mfa-card-lamp {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 9px var(--ok);
+}
+.portal-way .mfa-card-num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.6rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.portal-way .mfa-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+.portal-way .mfa-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.portal-way .mfa-card-kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.portal-way .mfa-card-tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--brand-green-deep);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+}
+.portal-way .mfa-card-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+/* Día-chips iluminados (los días que tienes el recurso). */
+.portal-way .mfa-card .day-badges {
+  display: flex;
+  gap: 6px;
+}
+.portal-way .mfa-card .day-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border: 1px solid var(--line-strong);
+}
+.portal-way .mfa-card .day-chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  box-shadow: 0 0 12px -2px var(--accent);
+}
+.portal-way .mfa-card .day-chip.off {
+  color: var(--ink-faint);
+  background: transparent;
+}
+
+/* CTA de ausencia = SEÑAL sólida (fondo acento del base). El texto usa --accent-ink
+   para ser legible en ambos temas (blanco sobre verde en claro / tinta oscura sobre
+   ámbar en oscuro): el color:#fff del base fallaba sobre el ámbar. */
+.portal-way .absence-cta {
+  color: var(--accent-ink);
+}
+
+/* Panel de liberados = azul (OPEN); fechas en mono. */
+.portal-way .released-panel {
+  border-color: var(--state-released-border);
+}
+.portal-way .released-count {
+  background: var(--state-released-bg);
+  color: var(--state-released-ink);
+}
+.portal-way .released-item-info span {
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+/* =====================================================================
+   MIS SOLICITUDES — tabla con firma (numerales mono + lámpara de estado)
+   ===================================================================== */
+.portal-way .my-requests-table .mr-date-main,
+.portal-way .my-requests-table .mr-cell-space {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+/* Badge de estado con lámpara de señal (color = color del estado). */
+.portal-way .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.portal-way .status-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  flex: 0 0 auto;
+}
+
+/* Mis sitios fijos — tarjeta MÁS COMPACTA: título y días en una línea, plano como
+   icono a la derecha (el "FIJA" se retira: ya estamos en la sección de fijas). */
+.portal-way .mfa-card {
+  padding: var(--space-3) var(--space-4);
+  align-items: center;
+}
+.portal-way .mfa-card-marker {
+  min-width: 84px;
+  padding: 10px 14px;
+}
+.portal-way .mfa-card-num {
+  font-size: 1.4rem;
+}
+.portal-way .mfa-card-body {
+  gap: 8px;
+}
+.portal-way .mfa-card-kind {
+  white-space: nowrap;
+  letter-spacing: 0.16em;
+}
+.portal-way .mfa-card .day-badges {
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+.portal-way .mfa-card .day-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+/* Plano icon-only pegado a la derecha. */
+.portal-way .mfa-card-actions {
+  margin-left: auto;
+}
+.portal-way .mfa-card-actions .btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* =====================================================================
+   CORRECCIONES DE CONTRASTE (auditoría WCAG) — tema CLARO
+   No pintar texto pequeño con --accent/--info puros (fallan AA sobre claro).
+   ===================================================================== */
+/* "HOY" (label línea de tiempo): ámbar legible en claro; en oscuro sigue --accent. */
+body:not(.theme-dark) .mw-station-hoy { color: var(--brand-green-deep); }
+/* "MAÑANA": azul legible sobre hormigón en claro; en oscuro sigue --info. */
+body:not(.theme-dark) .mw-station-manana { color: #1560ac; }
+/* Badge MAÑANA: texto blanco sobre el azul en claro (dark text falla). */
+body:not(.theme-dark) .week-day-tomorrow-badge { color: #ffffff; }
+/* Badge HOY: tinta oscura sobre el ámbar (el blanco sobre ámbar fallaba en ambos). */
+.portal-way .week-day-today-badge { color: var(--accent-ink); }
+/* Acción del slot en hover: ámbar legible en claro. */
+body:not(.theme-dark) button.mw-slot:hover .mw-slot-act { color: var(--brand-green-deep); }
+
+/* =====================================================================
+   Calibración de GLOW por tema (auditoría UI #9): el neón es firma de NOCHE.
+   En DÍA (claro) las lámparas van planas (sin halo turbio sobre blanco); se
+   conserva el halo de los nodos HOY/MAÑANA como énfasis puntual.
+   ===================================================================== */
+body:not(.theme-dark) .portal-way .mw-slot.assigned .mw-slot-lamp,
+body:not(.theme-dark) .portal-way .mw-slot.released .mw-slot-lamp,
+body:not(.theme-dark) .portal-way .mw-slot.request .mw-slot-lamp,
+body:not(.theme-dark) .portal-way .mw-srow.assigned .mw-srow-dot,
+body:not(.theme-dark) .portal-way .mw-srow.released .mw-srow-dot,
+body:not(.theme-dark) .portal-way .mw-srow.request .mw-srow-dot,
+body:not(.theme-dark) .portal-way .mfa-card-lamp,
+body:not(.theme-dark) .portal-way .mw-shield-state i,
+body:not(.theme-dark) .portal-way .status-badge::before {
+  box-shadow: none;
+}
+
+/* =====================================================================
+   Tema CLARO: botones PRIMARIOS en VERDE ESMERALDA con texto blanco
+   (preferencia del usuario). El tema oscuro mantiene el ámbar señal.
+   ===================================================================== */
+body:not(.theme-dark) .btn-green {
+  background: #0f9e68;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(15, 158, 104, 0.5), 0 12px 26px -14px rgba(15, 158, 104, 0.55);
+}
+body:not(.theme-dark) .btn-green:hover {
+  background: #0c8557;
+  box-shadow: 0 0 0 1px rgba(15, 158, 104, 0.7), 0 16px 34px -14px rgba(15, 158, 104, 0.65);
+}

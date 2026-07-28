@@ -30,6 +30,8 @@ public class EmailContentRenderer {
     private static final String TEMPLATE_REQUEST_CANCELLED = "email/request-cancelled";
     private static final String TEMPLATE_ASSIGNMENT_REVOKED = "email/assignment-revoked";
     private static final String TEMPLATE_PASSWORD_RESET = "email/password-reset";
+    private static final String TEMPLATE_REQUEST_ADMIN_ASSIGNED = "email/request-admin-assigned";
+    private static final String TEMPLATE_WAITLIST_AVAILABLE = "email/waitlist-available";
 
     /**
      * Plantillas de asunto parametrizadas por la palabra del recurso ({@code %s} = "plaza"/"puesto",
@@ -44,6 +46,10 @@ public class EmailContentRenderer {
             "Un empleado ha cancelado una solicitud de %s aprobada (recurso liberado)";
     private static final String SUBJECT_ASSIGNMENT_REVOKED = "Tu asignacion fija ha sido revocada";
     private static final String SUBJECT_PASSWORD_RESET = "Tu contrasena temporal de parking";
+    private static final String SUBJECT_REQUEST_ADMIN_ASSIGNED_FMT =
+            "Un administrador te ha asignado una %s";
+    private static final String SUBJECT_WAITLIST_AVAILABLE_FMT =
+            "Se ha liberado una %s con solicitudes en lista de espera";
 
     /** Palabra humana del recurso segun su tipo, para componer los asuntos (evita literales sueltos). */
     private static final String RESOURCE_WORD_PARKING = "plaza";
@@ -185,6 +191,51 @@ public class EmailContentRenderer {
     public EmailMessage renderAssignmentRevoked(Employee employee) {
         Context ctx = baseContext(employee);
         return render(employee, SUBJECT_ASSIGNMENT_REVOKED, TEMPLATE_ASSIGNMENT_REVOKED, ctx);
+    }
+
+    /**
+     * Renderiza el email de "asignacion puntual del admin" dirigido al empleado destino: un
+     * {@code ADMIN} le ha asignado un recurso (plaza o puesto) para una fecha concreta sin que el
+     * empleado lo haya solicitado. Usa una plantilla PROPIA, distinta de
+     * {@link #renderRequestApproved}, porque el tono y el motivo del correo son otros (el
+     * empleado no inicio la peticion). Degrada con elegancia: si {@code resolved} es
+     * {@code null} (recurso no localizado) se omite el bloque del numero.
+     *
+     * @param employee empleado destino de la asignacion
+     * @param request  asignacion puntual, ya {@code APPROVED}
+     * @param resolved recurso resuelto a su numero/planta; {@code null} si no se localizo
+     * @return el mensaje renderizado
+     */
+    public EmailMessage renderRequestAdminAssigned(
+            Employee employee, RequestResponse request, ResolvedResource resolved) {
+        Context ctx = baseContext(employee);
+        ctx.setVariable(VAR_REQUESTED_DATE, request.requestedDate());
+        if (resolved != null) {
+            ctx.setVariable(VAR_RESOURCE_TYPE, resolved.type().name());
+            ctx.setVariable(VAR_RESOURCE_NUMBER, resolved.number());
+            ctx.setVariable(VAR_FLOOR, resolved.floor());
+        }
+        return render(
+                employee, subjectFor(SUBJECT_REQUEST_ADMIN_ASSIGNED_FMT, request),
+                TEMPLATE_REQUEST_ADMIN_ASSIGNED, ctx);
+    }
+
+    /**
+     * Renderiza el aviso de "recurso liberado con lista de espera" dirigido a un administrador,
+     * en modo {@code MANUAL} (change {@code waitlist-requests}): el sistema no auto-asigna, por
+     * lo que el admin debe resolver desde la bandeja de pendientes. No nombra a ningun empleado
+     * concreto (el destinatario de la promocion lo decide el admin al aprobar), solo la fecha y
+     * el tipo de recurso liberado.
+     *
+     * @param admin              administrador destinatario
+     * @param topWaitlistedRequest solicitud en cabeza de la cola (referencia de fecha/tipo)
+     * @return el mensaje renderizado
+     */
+    public EmailMessage renderWaitlistAvailable(Employee admin, RequestResponse topWaitlistedRequest) {
+        Context ctx = baseContext(admin);
+        ctx.setVariable(VAR_REQUESTED_DATE, topWaitlistedRequest.requestedDate());
+        return render(admin, subjectFor(SUBJECT_WAITLIST_AVAILABLE_FMT, topWaitlistedRequest),
+                TEMPLATE_WAITLIST_AVAILABLE, ctx);
     }
 
     /**

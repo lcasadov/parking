@@ -49,3 +49,14 @@ export async function createAdministrativeRelease(
   const { data } = await apiClient.post<Release>(`${RELEASES}/administrative`, body);
   return data;
 }
+
+// GET /releases/administrative/mine (ADMIN/AGENCIA, paginado): historial de las
+// liberaciones administrativas creadas por el propio actor de la sesion.
+export async function listMyAdministrativeReleases(
+  params: ReleaseListParams = {},
+): Promise<PageRelease> {
+  const { data } = await apiClient.get<PageRelease>(`${RELEASES}/administrative/mine`, {
+    params: buildListParams(params),
+  });
+  return data;
+}

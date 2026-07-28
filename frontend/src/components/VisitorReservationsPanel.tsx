@@ -4,7 +4,7 @@ import { Button } from './Button';
 import { TableEmpty, TableError, TableSkeleton } from './TableStates';
 import { Toolbar } from './Toolbar';
 import { CancelVisitorReservationModal } from './CancelVisitorReservationModal';
-import { VisitorReservationModal } from './VisitorReservationModal';
+import { ReservationWizard } from './wizard/ReservationWizard';
 import { useVisitorReservationsQuery } from '../hooks/useVisitorReservations';
 import { canCancelReservation } from '../utils/visitors';
 
@@ -34,9 +34,11 @@ export function VisitorReservationsPanel() {
   return (
     <div className="visitor-reservations-panel">
       <Toolbar ariaLabel={t('visitors.tabs.reservations')}>
-        <Button variant="green" icon="calendar-plus" onClick={() => setIsCreateOpen(true)}>
-          {t('visitors.newReservation')}
-        </Button>
+        <div className="toolbar-end">
+          <Button variant="green" icon="calendar-plus" onClick={() => setIsCreateOpen(true)}>
+            {t('visitors.newReservation')}
+          </Button>
+        </div>
       </Toolbar>
 
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={5} /> : null}
@@ -62,7 +64,7 @@ export function VisitorReservationsPanel() {
       ) : null}
 
       {ready && reservations.length > 0 ? (
-        <div className="table-scroll">
+        <div className="table-scroll table-cards-mobile">
           <table className="table">
             <thead>
               <tr className="table-header">
@@ -76,11 +78,19 @@ export function VisitorReservationsPanel() {
             <tbody>
               {reservations.map((reservation) => (
                 <tr key={reservation.id} className="table-row">
-                  <td>{reservation.reservationDate}</td>
-                  <td>{`#${reservation.visitorId}`}</td>
-                  <td>{`#${reservation.parkingSpaceId}`}</td>
-                  <td>{reservation.notes ?? t('visitors.detail.none')}</td>
-                  <td className="table-actions">
+                  <td data-label={t('visitors.reservations.columns.date')}>
+                    {reservation.reservationDate}
+                  </td>
+                  <td data-label={t('visitors.reservations.columns.visitor')}>
+                    {`#${reservation.visitorId}`}
+                  </td>
+                  <td data-label={t('visitors.reservations.columns.space')}>
+                    {`#${reservation.resourceId}`}
+                  </td>
+                  <td data-label={t('visitors.reservations.columns.notes')}>
+                    {reservation.notes ?? t('visitors.detail.none')}
+                  </td>
+                  <td className="table-actions" data-label={t('visitors.reservations.columns.actions')}>
                     <Button
                       variant="red"
                       icon="x"
@@ -117,9 +127,9 @@ export function VisitorReservationsPanel() {
       ) : null}
 
       {isCreateOpen ? (
-        <VisitorReservationModal
+        <ReservationWizard
+          initialBeneficiaryType="VISITOR"
           onClose={() => setIsCreateOpen(false)}
-          onCreated={() => setIsCreateOpen(false)}
         />
       ) : null}
 

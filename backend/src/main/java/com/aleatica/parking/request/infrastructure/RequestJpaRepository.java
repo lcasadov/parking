@@ -53,6 +53,35 @@ public interface RequestJpaRepository extends JpaRepository<RequestEntity, Long>
     Page<RequestEntity> findByEmployeeIdAndStatus(Long employeeId, RequestStatus status, Pageable pageable);
 
     /**
+     * Pagina de las solicitudes de un empleado cuyo {@code requested_date} cae en el intervalo
+     * (extremos inclusive), para el filtro por mes de "mis solicitudes" (change
+     * {@code reservas-employee-admin-reassign}, Feature D).
+     *
+     * @param employeeId empleado propietario
+     * @param from       fecha de recurso minima (inclusive)
+     * @param to         fecha de recurso maxima (inclusive)
+     * @param pageable   pagina, tamano y orden solicitados
+     * @return pagina de solicitudes propias del intervalo
+     */
+    Page<RequestEntity> findByEmployeeIdAndRequestedDateBetween(
+            Long employeeId, LocalDate from, LocalDate to, Pageable pageable);
+
+    /**
+     * Pagina de las solicitudes de un empleado filtradas por estado cuyo {@code requested_date}
+     * cae en el intervalo (extremos inclusive), para el filtro por mes combinado con el estado
+     * (change {@code reservas-employee-admin-reassign}, Feature D).
+     *
+     * @param employeeId empleado propietario
+     * @param status     estado por el que filtrar
+     * @param from       fecha de recurso minima (inclusive)
+     * @param to         fecha de recurso maxima (inclusive)
+     * @param pageable   pagina, tamano y orden solicitados
+     * @return pagina de solicitudes propias del intervalo en ese estado
+     */
+    Page<RequestEntity> findByEmployeeIdAndStatusAndRequestedDateBetween(
+            Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable);
+
+    /**
      * Pagina de solicitudes en un estado, en orden FIFO por fecha de creacion
      * (listado admin de pendientes).
      *
@@ -119,6 +148,20 @@ public interface RequestJpaRepository extends JpaRepository<RequestEntity, Long>
             Long resourceId, ResourceType resourceType, LocalDate requestedDate, RequestStatus status);
 
     /**
+     * Cuenta las solicitudes de un recurso en un estado para HOY o fechas futuras (soporte del
+     * bloqueo de desactivacion: un recurso con reservas aprobadas futuras no debe desactivarse
+     * silenciosamente; change {@code admin-improvements}, tarea 16).
+     *
+     * @param resourceId   recurso a comprobar
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param status       estado a contar (p. ej. {@code APPROVED})
+     * @param from         fecha minima inclusive (hoy)
+     * @return numero de solicitudes de ese recurso/estado con fecha &gt;= {@code from}
+     */
+    long countByResourceIdAndResourceTypeAndStatusAndRequestedDateGreaterThanEqual(
+            Long resourceId, ResourceType resourceType, RequestStatus status, LocalDate from);
+
+    /**
      * Solicitudes en un estado cuyo {@code requested_date} cae dentro del intervalo
      * (extremos inclusive).
      *
@@ -167,4 +210,17 @@ public interface RequestJpaRepository extends JpaRepository<RequestEntity, Long>
      */
     List<RequestEntity> findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
             Long employeeId, ResourceType resourceType, LocalDate start, LocalDate end);
+
+    /**
+     * Candidatas a la lista de espera (change {@code waitlist-requests}) de un dia y tipo de
+     * recurso: solicitudes en un estado marcadas {@code waitlisted}, en orden FIFO
+     * ({@code created_at ASC}).
+     *
+     * @param status        estado a comprobar (siempre {@code PENDING})
+     * @param resourceType  tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha del dia liberado
+     * @return las solicitudes en espera de ese dia/tipo en orden FIFO (posiblemente vacia)
+     */
+    List<RequestEntity> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+            RequestStatus status, ResourceType resourceType, LocalDate requestedDate);
 }

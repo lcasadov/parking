@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,6 +15,7 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.parkingspace.ParkingSpace;
+import com.aleatica.parking.desk.DeskRepository;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.release.infrastructure.ReleaseJpaRepository;
 import com.aleatica.parking.request.domain.RequestStatus;
@@ -62,6 +64,8 @@ class VisitorReservationServiceTest {
     @Mock
     private ParkingSpaceRepository parkingSpaceRepository;
     @Mock
+    private DeskRepository deskRepository;
+    @Mock
     private FixedAssignmentJpaRepository fixedAssignmentRepository;
     @Mock
     private RequestJpaRepository requestRepository;
@@ -76,7 +80,7 @@ class VisitorReservationServiceTest {
 
     private VisitorReservationService service() {
         return new VisitorReservationService(reservationRepository, visitorRepository,
-                parkingSpaceRepository, fixedAssignmentRepository, requestRepository, releaseRepository,
+                parkingSpaceRepository, deskRepository, fixedAssignmentRepository, requestRepository, releaseRepository,
                 employeeRepository, eventPublisher, clock);
     }
 
@@ -92,7 +96,7 @@ class VisitorReservationServiceTest {
                 .willReturn(false);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, FUTURE, RequestStatus.APPROVED)).willReturn(false);
-        given(reservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, FUTURE))
+        given(reservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, FUTURE))
                 .willReturn(false);
         given(clock.now()).willReturn(NOW);
         given(reservationRepository.saveAndFlush(any(VisitorReservation.class)))
@@ -102,7 +106,7 @@ class VisitorReservationServiceTest {
         VisitorReservationResponse created = service().create(ADMIN_LOGIN, request());
 
         // Assert
-        assertThat(created.parkingSpaceId()).isEqualTo(SPACE_ID);
+        assertThat(created.resourceId()).isEqualTo(SPACE_ID);
         assertThat(created.createdById()).isEqualTo(ADMIN_ID);
         verify(eventPublisher).publishEvent(any(VisitorReservationAuditEvent.class));
     }
@@ -171,7 +175,7 @@ class VisitorReservationServiceTest {
                 .willReturn(false);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, FUTURE, RequestStatus.APPROVED)).willReturn(false);
-        given(reservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, FUTURE))
+        given(reservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, FUTURE))
                 .willReturn(true);
 
         // Act / Assert
@@ -194,7 +198,7 @@ class VisitorReservationServiceTest {
                 SPACE_ID, ResourceType.PARKING, FUTURE)).willReturn(true);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, FUTURE, RequestStatus.APPROVED)).willReturn(false);
-        given(reservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, FUTURE))
+        given(reservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, FUTURE))
                 .willReturn(false);
         given(clock.now()).willReturn(NOW);
         given(reservationRepository.saveAndFlush(any(VisitorReservation.class)))
@@ -204,7 +208,7 @@ class VisitorReservationServiceTest {
         VisitorReservationResponse created = service().create(ADMIN_LOGIN, request());
 
         // Assert
-        assertThat(created.parkingSpaceId()).isEqualTo(SPACE_ID);
+        assertThat(created.resourceId()).isEqualTo(SPACE_ID);
     }
 
     @Test
@@ -263,23 +267,23 @@ class VisitorReservationServiceTest {
     }
 
     private VisitorReservationCreateRequest request() {
-        return new VisitorReservationCreateRequest(VISITOR_ID, SPACE_ID, FUTURE, "Puerta norte");
+        return new VisitorReservationCreateRequest(VISITOR_ID, ResourceType.PARKING, SPACE_ID, FUTURE, "Puerta norte");
     }
 
     private VisitorReservation reservation(LocalDate date) {
-        return VisitorReservation.create(VISITOR_ID, SPACE_ID, date, null, ADMIN_ID, NOW);
+        return VisitorReservation.create(VISITOR_ID, ResourceType.PARKING, SPACE_ID, date, null, ADMIN_ID, NOW);
     }
 
     private ParkingSpace activeSpace() {
         ParkingSpace space = mock(ParkingSpace.class);
-        given(space.getId()).willReturn(SPACE_ID);
-        given(space.isActive()).willReturn(true);
+        lenient().when(space.getId()).thenReturn(SPACE_ID);
+        lenient().when(space.isActive()).thenReturn(true);
         return space;
     }
 
     private ParkingSpace inactiveSpace() {
         ParkingSpace space = mock(ParkingSpace.class);
-        given(space.isActive()).willReturn(false);
+        lenient().when(space.isActive()).thenReturn(false);
         return space;
     }
 }

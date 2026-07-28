@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { Input } from './Input';
-import { Modal } from './Modal';
 import { getFieldErrors } from '../api/apiError';
 import { useCreateVisitor, useUpdateVisitor } from '../hooks/useVisitors';
 import type { Visitor, VisitorCreateRequest } from '../types/visitor';
@@ -61,6 +61,8 @@ function toRequestBody(values: FormState): VisitorCreateRequest {
     usualReason: values.usualReason.trim() || undefined,
   };
 }
+
+const FORM_ID = 'visitor-form';
 
 // Modal ADMIN: alta/edicion de ficha de visitante. nationalId unico -> 409
 // mostrado inline (tasks §4.2); campos obligatorios validados en cliente.
@@ -129,12 +131,29 @@ export function VisitorFormModal({ visitor, onClose, onSaved }: VisitorFormModal
     persist();
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('visitors.form.cancel')}
+      </Button>
+      <Button variant="green" submit form={FORM_ID} disabled={isSaving}>
+        {t('visitors.form.save')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
       title={t(isEdit ? 'visitors.form.editTitle' : 'visitors.form.createTitle')}
-      onClose={onClose}
+      footer={footer}
     >
-      <form id="visitor-form" onSubmit={handleSubmit} noValidate>
+      <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
         <Input
           label={t('visitors.form.firstName')}
           value={values.firstName}
@@ -176,15 +195,7 @@ export function VisitorFormModal({ visitor, onClose, onSaved }: VisitorFormModal
             {errors.form}
           </p>
         ) : null}
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('visitors.form.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={isSaving}>
-            {t('visitors.form.save')}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

@@ -79,6 +79,18 @@ public class RequestEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @JdbcTypeCode(SqlTypes.TIMESTAMP)
+    @Column(name = "last_reminded_at")
+    private Instant lastRemindedAt;
+
+    /**
+     * Marca de lista de espera (change {@code waitlist-requests}, migracion {@code V27}):
+     * {@code true} si esta {@code PENDING} nace o queda registrada como "en lista de espera"
+     * para su (fecha, tipo de recurso), candidata a {@code promoteWaitlist}.
+     */
+    @Column(name = "waitlisted", nullable = false)
+    private boolean waitlisted;
+
     /** Constructor sin argumentos requerido por JPA. */
     protected RequestEntity() {
         // JPA
@@ -100,12 +112,15 @@ public class RequestEntity {
      * @param resolvedById        empleado (ADMIN) que resolvio
      * @param resolvedAt          instante de resolucion (UTC)
      * @param createdAt           instante de creacion (UTC)
+     * @param lastRemindedAt      instante del ultimo reenvio de aviso (change
+     *                            {@code request-resend-notice}); {@code null} si nunca
+     * @param waitlisted          marca de lista de espera (change {@code waitlist-requests})
      */
     public RequestEntity(
             Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
             Long resourceId, ResourceType resourceType, String approvalNote,
             RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
-            Instant resolvedAt, Instant createdAt) {
+            Instant resolvedAt, Instant createdAt, Instant lastRemindedAt, boolean waitlisted) {
         this.id = id;
         this.employeeId = employeeId;
         this.requestedDate = requestedDate;
@@ -118,6 +133,8 @@ public class RequestEntity {
         this.resolvedById = resolvedById;
         this.resolvedAt = resolvedAt;
         this.createdAt = createdAt;
+        this.lastRemindedAt = lastRemindedAt;
+        this.waitlisted = waitlisted;
     }
 
     /**
@@ -266,6 +283,14 @@ public class RequestEntity {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getLastRemindedAt() {
+        return lastRemindedAt;
+    }
+
+    public boolean isWaitlisted() {
+        return waitlisted;
     }
 
     @Override

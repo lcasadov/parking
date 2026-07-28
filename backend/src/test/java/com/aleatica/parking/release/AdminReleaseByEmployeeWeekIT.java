@@ -96,7 +96,8 @@ class AdminReleaseByEmployeeWeekIT extends BaseIntegrationTest {
     void shouldListSelectableEmployees_whenAdmin() throws Exception {
         mockMvc.perform(get(EMPLOYEES_URL).cookie(adminSession))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].id").value(hasItem((int) targetId)));
+                .andExpect(jsonPath("$[*].id").value(hasItem((int) targetId)))
+                .andExpect(jsonPath("$[*].category").value(hasItem("EMPLEADO")));
     }
 
     @Test

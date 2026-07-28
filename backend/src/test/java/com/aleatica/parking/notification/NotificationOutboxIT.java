@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.aleatica.parking.notification.application.EmailDeliveryException;
@@ -263,7 +264,7 @@ class NotificationOutboxIT extends BaseIntegrationTest {
         long visitorId = insertVisitor("87654321X");
 
         // Act: el admin crea una reserva de visitante (plaza disponible ese dia)
-        String body = "{\"visitorId\":" + visitorId + ",\"parkingSpaceId\":" + spaceId
+        String body = "{\"visitorId\":" + visitorId + ",\"resourceType\":\"PARKING\",\"resourceId\":" + spaceId
                 + ",\"reservationDate\":\"" + WITHIN + "\"}";
         mockMvc.perform(post("/api/v1/visitor-reservations").cookie(adminSession)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -289,6 +290,52 @@ class NotificationOutboxIT extends BaseIntegrationTest {
         ArgumentCaptor<EmailMessage> captor = ArgumentCaptor.forClass(EmailMessage.class);
         verify(emailSenderPort, times(1)).send(captor.capture());
         assertThat(captor.getValue().to()).isEqualTo(emailOf(EMP_LOGIN));
+    }
+
+    // ---- restructure-admin-workflows: asignacion puntual del admin -> plantilla propia ----
+
+    @Test
+    void shouldSendAdminAssignedEmailToTargetEmployee_whenAdminAssignsPunctually() throws Exception {
+        // Arrange
+        int spaceNumber = spaceNumber(spaceId);
+        String body = "{\"employeeId\":" + empId + ",\"requestedDate\":\"" + WITHIN
+                + "\",\"resourceType\":\"PARKING\",\"resourceId\":" + spaceId + "}";
+
+        // Act: el admin asigna puntualmente la plaza al empleado (nace APPROVED sin que el
+        // empleado la solicitara)
+        mockMvc.perform(post("/api/v1/requests/admin").cookie(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+
+        // Assert: un unico email al empleado destino, con la plantilla PROPIA de asignacion
+        // puntual (no la de "solicitud aprobada": no dice APROBADA ni el saludo formal)
+        ArgumentCaptor<EmailMessage> captor = ArgumentCaptor.forClass(EmailMessage.class);
+        verify(emailSenderPort, times(1)).send(captor.capture());
+        EmailMessage message = captor.getValue();
+        assertThat(message.to()).isEqualTo(emailOf(EMP_LOGIN));
+        assertThat(message.subject()).isEqualTo("Un administrador te ha asignado una plaza");
+        assertThat(message.htmlBody())
+                .contains("Un administrador te ha asignado")
+                .contains(String.valueOf(spaceNumber))
+                .doesNotContain("APROBADA");
+    }
+
+    @Test
+    void shouldKeepAssignmentApproved_whenAdminAssignedEmailFails() throws Exception {
+        // Arrange: el SMTP rechaza cualquier envio
+        willThrow(new EmailDeliveryException("smtp down", new RuntimeException()))
+                .given(emailSenderPort).send(any());
+        String body = "{\"employeeId\":" + empId + ",\"requestedDate\":\"" + WITHIN
+                + "\",\"resourceType\":\"PARKING\",\"resourceId\":" + spaceId + "}";
+
+        // Act: la asignacion se crea con exito (201) pese al fallo de email (resiliente)
+        mockMvc.perform(post("/api/v1/requests/admin").cookie(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        // Assert: el envio fallido queda encolado en email_outbox para reintento
+        assertThat(pendingOutboxCount()).isEqualTo(1);
     }
 
     // ---- helpers ----

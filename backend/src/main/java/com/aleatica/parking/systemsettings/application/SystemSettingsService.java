@@ -6,7 +6,9 @@ import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.systemsettings.domain.ApprovalMode;
 import com.aleatica.parking.systemsettings.domain.SystemSettings;
 import com.aleatica.parking.systemsettings.domain.SystemSettingsRepositoryPort;
+import com.aleatica.parking.systemsettings.dto.ParkingAddressResponse;
 import com.aleatica.parking.systemsettings.dto.SystemSettingsResponse;
+import com.aleatica.parking.systemsettings.dto.WeekendReservableResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -87,6 +89,88 @@ public class SystemSettingsService {
         Long actorId = resolveEmployeeId(adminLogin);
         SystemSettings settings = settingsRepository.find().orElseGet(SystemSettings::defaults);
         settings.changeMode(mode, actorId, clock.now());
+        SystemSettingsResponse response =
+                SystemSettingsResponse.from(settingsRepository.save(settings));
+        eventPublisher.publishEvent(new SystemSettingsAuditEvent(response));
+        return response;
+    }
+
+    /**
+     * Devuelve la direccion del parking vigente, sin trazabilidad, para el boton "Ir al parking"
+     * de "Mi Semana" (legible por cualquier empleado autenticado; change
+     * {@code reservas-employee-admin-reassign}).
+     *
+     * @return la direccion vigente (DTO), con {@code parkingAddress = null} si sin configurar
+     */
+    @Transactional(readOnly = true)
+    public ParkingAddressResponse parkingAddress() {
+        return ParkingAddressResponse.from(settingsRepository.find().orElseGet(SystemSettings::defaults));
+    }
+
+    /**
+     * Cambia la direccion postal del parking, registra el actor y el instante y dispara la
+     * auditoria del cambio (change {@code reservas-employee-admin-reassign}). Un valor
+     * {@code null} o en blanco borra la direccion configurada.
+     *
+     * @param parkingAddress nueva direccion postal; {@code null}/blanco para borrarla
+     * @param parkingLat     latitud del punto exacto (mapa); {@code null} si sin punto
+     * @param parkingLng     longitud del punto exacto; {@code null} si sin punto
+     * @param adminLogin     login del administrador que ejecuta el cambio (principal de la sesion)
+     * @return el ajuste actualizado (DTO)
+     * @throws EntityNotFoundException si el login de sesion no corresponde a ningun empleado
+     */
+    @Transactional
+    public SystemSettingsResponse updateParkingAddress(
+            String parkingAddress, Double parkingLat, Double parkingLng, String adminLogin) {
+        Long actorId = resolveEmployeeId(adminLogin);
+        SystemSettings settings = settingsRepository.find().orElseGet(SystemSettings::defaults);
+        settings.changeParkingAddress(parkingAddress, parkingLat, parkingLng, actorId, clock.now());
+        SystemSettingsResponse response =
+                SystemSettingsResponse.from(settingsRepository.save(settings));
+        eventPublisher.publishEvent(new SystemSettingsAuditEvent(response));
+        return response;
+    }
+
+    /**
+     * Indica si estan permitidas las reservas en fin de semana (sabado/domingo). Si la fila unica
+     * aun no existiera, devuelve {@code false} (por defecto retrocompatible: sin fines de semana).
+     *
+     * @return {@code true} si se permiten reservas de fin de semana
+     */
+    @Transactional(readOnly = true)
+    public boolean weekendReservable() {
+        return settingsRepository.find()
+                .map(SystemSettings::isWeekendReservable)
+                .orElse(false);
+    }
+
+    /**
+     * Devuelve el permiso de reservas de fin de semana vigente, sin trazabilidad, para que la UI
+     * decida si ofrecer sabado/domingo (legible por cualquier empleado autenticado; change
+     * {@code reservas-employee-admin-reassign}).
+     *
+     * @return el flag vigente (DTO)
+     */
+    @Transactional(readOnly = true)
+    public WeekendReservableResponse weekendReservableView() {
+        return WeekendReservableResponse.from(
+                settingsRepository.find().orElseGet(SystemSettings::defaults));
+    }
+
+    /**
+     * Cambia el permiso de reservas en fin de semana, registra el actor y el instante y dispara la
+     * auditoria del cambio (change {@code reservas-employee-admin-reassign}).
+     *
+     * @param weekendReservable {@code true} para permitir reservas de fin de semana
+     * @param adminLogin        login del administrador que ejecuta el cambio (principal de la sesion)
+     * @return el ajuste actualizado (DTO)
+     * @throws EntityNotFoundException si el login de sesion no corresponde a ningun empleado
+     */
+    @Transactional
+    public SystemSettingsResponse updateWeekendReservable(boolean weekendReservable, String adminLogin) {
+        Long actorId = resolveEmployeeId(adminLogin);
+        SystemSettings settings = settingsRepository.find().orElseGet(SystemSettings::defaults);
+        settings.changeWeekendReservable(weekendReservable, actorId, clock.now());
         SystemSettingsResponse response =
                 SystemSettingsResponse.from(settingsRepository.save(settings));
         eventPublisher.publishEvent(new SystemSettingsAuditEvent(response));

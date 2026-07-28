@@ -25,12 +25,15 @@ export async function getAvailability(
   return data;
 }
 
-// GET /calendar/admin?weekStart=YYYY-MM-DD (ADMIN): calendario semanal completo.
+// GET /calendar/admin?weekStart=YYYY-MM-DD[&resourceType] (ADMIN): calendario
+// semanal completo. `resourceType` opcional (default PARKING en el backend,
+// retrocompatible); solo se envia cuando es DESK para no cambiar el contrato.
 export async function getAdminCalendar(
   weekStart: string,
+  resourceType?: ResourceType,
 ): Promise<AdminWeeklyCalendarResponse> {
   const { data } = await apiClient.get<AdminWeeklyCalendarResponse>(CALENDAR_ADMIN, {
-    params: { weekStart },
+    params: resourceType === 'DESK' ? { weekStart, resourceType } : { weekStart },
   });
   return data;
 }

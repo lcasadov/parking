@@ -67,7 +67,8 @@ class SystemSettingsServiceTest {
     void shouldReturnPersistedMode_whenRowExists() {
         // Arrange
         settingsRepository.seed(SystemSettings.restore(
-                SystemSettings.SINGLETON_ID, ApprovalMode.AUTOMATIC, ADMIN_ID, NOW));
+                SystemSettings.SINGLETON_ID, ApprovalMode.AUTOMATIC, null, null, null, false,
+                ADMIN_ID, NOW));
 
         // Act / Assert
         assertThat(newService().approvalMode()).isEqualTo(ApprovalMode.AUTOMATIC);
@@ -101,6 +102,91 @@ class SystemSettingsServiceTest {
         // Assert
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().settings().approvalMode()).isEqualTo(ApprovalMode.AUTOMATIC);
+    }
+
+    @Test
+    void shouldReturnNullParkingAddress_whenRowDoesNotExist() {
+        // Arrange (store vacio)
+
+        // Act / Assert: sin configurar
+        assertThat(newService().parkingAddress().parkingAddress()).isNull();
+    }
+
+    @Test
+    void shouldReturnPersistedParkingAddress_whenRowExists() {
+        // Arrange
+        settingsRepository.seed(SystemSettings.restore(
+                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, "Av. de Europa 18, Alcobendas",
+                null, null, false, ADMIN_ID, NOW));
+
+        // Act / Assert
+        assertThat(newService().parkingAddress().parkingAddress())
+                .isEqualTo("Av. de Europa 18, Alcobendas");
+    }
+
+    @Test
+    void shouldPersistParkingAddressAndTrace_whenUpdating() {
+        // Arrange
+        givenAdmin();
+
+        // Act
+        SystemSettingsResponse result =
+                newService().updateParkingAddress("  Av. de Europa 18  ", null, null, ADMIN_LOGIN);
+
+        // Assert: se normaliza (trim) y se registra la trazabilidad
+        assertThat(result.parkingAddress()).isEqualTo("Av. de Europa 18");
+        assertThat(result.updatedById()).isEqualTo(ADMIN_ID);
+        assertThat(result.updatedAt()).isEqualTo(NOW);
+        assertThat(settingsRepository.find().orElseThrow().getParkingAddress())
+                .isEqualTo("Av. de Europa 18");
+    }
+
+    @Test
+    void shouldClearParkingAddress_whenUpdatingWithBlank() {
+        // Arrange: habia una direccion configurada
+        settingsRepository.seed(SystemSettings.restore(
+                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, "Direccion previa", null, null,
+                false, ADMIN_ID, NOW));
+        givenAdmin();
+
+        // Act: enviar blanco la borra
+        SystemSettingsResponse result = newService().updateParkingAddress("   ", null, null, ADMIN_LOGIN);
+
+        // Assert
+        assertThat(result.parkingAddress()).isNull();
+    }
+
+    @Test
+    void shouldReturnFalseWeekend_whenRowDoesNotExist() {
+        // Act / Assert: default retrocompatible (sin fines de semana)
+        assertThat(newService().weekendReservable()).isFalse();
+        assertThat(newService().weekendReservableView().weekendReservable()).isFalse();
+    }
+
+    @Test
+    void shouldReturnPersistedWeekend_whenRowExists() {
+        // Arrange
+        settingsRepository.seed(SystemSettings.restore(
+                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, null, null, null, true,
+                ADMIN_ID, NOW));
+
+        // Act / Assert
+        assertThat(newService().weekendReservable()).isTrue();
+    }
+
+    @Test
+    void shouldPersistWeekendAndTrace_whenUpdating() {
+        // Arrange
+        givenAdmin();
+
+        // Act
+        SystemSettingsResponse result = newService().updateWeekendReservable(true, ADMIN_LOGIN);
+
+        // Assert
+        assertThat(result.weekendReservable()).isTrue();
+        assertThat(result.updatedById()).isEqualTo(ADMIN_ID);
+        assertThat(result.updatedAt()).isEqualTo(NOW);
+        assertThat(settingsRepository.find().orElseThrow().isWeekendReservable()).isTrue();
     }
 
     @Test

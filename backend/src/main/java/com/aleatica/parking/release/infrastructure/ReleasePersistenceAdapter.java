@@ -2,6 +2,7 @@ package com.aleatica.parking.release.infrastructure;
 
 import com.aleatica.parking.release.domain.Release;
 import com.aleatica.parking.release.domain.ReleaseRepositoryPort;
+import com.aleatica.parking.release.domain.ReleaseType;
 import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -58,5 +59,11 @@ public class ReleasePersistenceAdapter implements ReleaseRepositoryPort {
     @Override
     public Page<Release> findByEmployeeId(Long employeeId, Pageable pageable) {
         return jpaRepository.findByEmployeeId(employeeId, pageable).map(ReleaseMapper::toDomain);
+    }
+
+    @Override
+    public Page<Release> findByReleasedByIdAndType(Long releasedById, ReleaseType type, Pageable pageable) {
+        return jpaRepository.findByReleasedByIdAndTypeOrderByCreatedAtDesc(releasedById, type, pageable)
+                .map(ReleaseMapper::toDomain);
     }
 }

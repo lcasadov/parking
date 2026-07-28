@@ -53,11 +53,14 @@ class ReleaseControllerTest {
     private static final String BASE_URL = "/api/v1/releases";
     private static final String MINE_URL = BASE_URL + "/mine";
     private static final String ADMIN_URL = BASE_URL + "/administrative";
+    private static final String ADMIN_MINE_URL = ADMIN_URL + "/mine";
     private static final String ID_URL = BASE_URL + "/42";
 
     private static final String ADMIN = "admin";
+    private static final String AGENCY = "agencia";
     private static final String EMP = "empleado";
     private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_AGENCIA = "AGENCIA";
     private static final String ROLE_EMPLOYEE = "EMPLOYEE";
 
     private static final String CREATE_BODY = "{\"releaseDate\":\"2026-07-10\"}";
@@ -277,6 +280,44 @@ class ReleaseControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(ADMIN_BODY))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath(ERROR_PATH).value("NOT_FOUND"));
+    }
+
+    // ---- Historial de liberaciones administrativas propias (GET /releases/administrative/mine) ----
+
+    @Test
+    void shouldReturn401_whenListingMyAdministrativeReleasesWithoutSession() throws Exception {
+        mockMvc.perform(get(ADMIN_MINE_URL)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn403_whenEmployeeListsMyAdministrativeReleases() throws Exception {
+        mockMvc.perform(get(ADMIN_MINE_URL).with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath(ERROR_PATH).value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldReturn200_whenAdminListsMyAdministrativeReleases() throws Exception {
+        // Arrange
+        given(releaseService.listMyAdministrativeReleases(anyString(), any()))
+                .willReturn(new PageResponse<>(List.of(sample(ReleaseType.ADMINISTRATIVE)), 1, 1, 20, 0, true, true));
+
+        // Act / Assert
+        mockMvc.perform(get(ADMIN_MINE_URL).with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].type").value("ADMINISTRATIVE"));
+    }
+
+    @Test
+    void shouldReturn200_whenAgencyListsMyAdministrativeReleases() throws Exception {
+        // Arrange (change restructure-admin-workflows, design D5): AGENCIA ve su propio historial
+        given(releaseService.listMyAdministrativeReleases(anyString(), any()))
+                .willReturn(new PageResponse<>(List.of(sample(ReleaseType.ADMINISTRATIVE)), 1, 1, 20, 0, true, true));
+
+        // Act / Assert
+        mockMvc.perform(get(ADMIN_MINE_URL).with(user(AGENCY).roles(ROLE_AGENCIA)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].type").value("ADMINISTRATIVE"));
     }
 
     private ReleaseResponse sample(ReleaseType type) {

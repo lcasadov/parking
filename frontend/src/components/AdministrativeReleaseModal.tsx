@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateAdministrativeRelease } from '../hooks/useReleases';
@@ -24,6 +24,7 @@ interface AdministrativeReleaseModalProps {
   onCreated: () => void;
 }
 
+const FORM_ID = 'administrative-release-form';
 const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
 
@@ -53,12 +54,16 @@ export function AdministrativeReleaseModal({
   const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
   const createMutation = useCreateAdministrativeRelease();
 
   function handleSubmit(event: FormEvent): void {
     event.preventDefault();
     if (reason.trim() === '') {
       setError(t('releases.admin.requiredReason'));
+      // Sin motivo: lleva la vista y el foco al campo (obligatorio).
+      reasonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      reasonRef.current?.focus();
       return;
     }
     setError(null);
@@ -77,9 +82,30 @@ export function AdministrativeReleaseModal({
     );
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('releases.admin.cancel')}
+      </Button>
+      <Button variant="green" submit form={FORM_ID} disabled={createMutation.isPending}>
+        {t('releases.admin.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t('releases.admin.title')} onClose={onClose} variant="red">
-      <form id="administrative-release-form" onSubmit={handleSubmit} noValidate>
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
+      title={t('releases.admin.title')}
+      tone="green"
+      footer={footer}
+    >
+      <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
         <dl className="release-prefill" aria-label={t('releases.byDate.summary')}>
           <div className="release-prefill-row">
             <dt>{t('releases.admin.employee')}</dt>
@@ -100,6 +126,7 @@ export function AdministrativeReleaseModal({
         </label>
         <textarea
           id="administrative-release-reason"
+          ref={reasonRef}
           className="field-input"
           value={reason}
           onChange={(event) => setReason(event.target.value)}
@@ -111,16 +138,7 @@ export function AdministrativeReleaseModal({
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('releases.admin.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={createMutation.isPending}>
-            {t('releases.admin.submit')}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

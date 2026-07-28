@@ -1,6 +1,7 @@
 package com.aleatica.parking.systemsettings;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -36,8 +37,12 @@ class SystemSettingsControllerTest {
     private static final String EMP = "empleado";
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_EMPLOYEE = "EMPLOYEE";
+    private static final String ADDRESS_URL = "/api/v1/admin/settings/parking-address";
+    private static final String WEEKEND_URL = "/api/v1/admin/settings/weekend-reservable";
     private static final String VALID_BODY = "{\"approvalMode\":\"AUTOMATIC\"}";
     private static final String INVALID_BODY = "{\"approvalMode\":\"SOMETIMES\"}";
+    private static final String ADDRESS_BODY = "{\"parkingAddress\":\"Av. de Europa 18\"}";
+    private static final String WEEKEND_BODY = "{\"weekendReservable\":true}";
     private static final String ERROR_PATH = "$.error";
 
     @Autowired
@@ -80,7 +85,8 @@ class SystemSettingsControllerTest {
     @Test
     void shouldReturnSettings_whenAdminGets() throws Exception {
         given(systemSettingsService.current())
-                .willReturn(new SystemSettingsResponse(ApprovalMode.MANUAL, null, null));
+                .willReturn(new SystemSettingsResponse(
+                        ApprovalMode.MANUAL, null, null, null, false, null, null));
 
         mockMvc.perform(get(URL).with(user(ADMIN).roles(ROLE_ADMIN)))
                 .andExpect(status().isOk())
@@ -90,7 +96,8 @@ class SystemSettingsControllerTest {
     @Test
     void shouldUpdateSettings_whenAdminUpdatesWithValidMode() throws Exception {
         given(systemSettingsService.updateApprovalMode(any(ApprovalMode.class), anyString()))
-                .willReturn(new SystemSettingsResponse(ApprovalMode.AUTOMATIC, 1L, Instant.now()));
+                .willReturn(new SystemSettingsResponse(
+                        ApprovalMode.AUTOMATIC, null, null, null, false, 1L, Instant.now()));
 
         mockMvc.perform(put(URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
@@ -105,5 +112,67 @@ class SystemSettingsControllerTest {
         mockMvc.perform(put(URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON).content(INVALID_BODY))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---- Direccion del parking ----
+
+    @Test
+    void shouldReturn401_whenUpdatingParkingAddressWithoutSession() throws Exception {
+        mockMvc.perform(put(ADDRESS_URL).contentType(MediaType.APPLICATION_JSON).content(ADDRESS_BODY))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn403_whenEmployeeUpdatesParkingAddress() throws Exception {
+        mockMvc.perform(put(ADDRESS_URL).with(user(EMP).roles(ROLE_EMPLOYEE))
+                        .contentType(MediaType.APPLICATION_JSON).content(ADDRESS_BODY))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldUpdateParkingAddress_whenAdminUpdates() throws Exception {
+        given(systemSettingsService.updateParkingAddress(anyString(), any(), any(), anyString()))
+                .willReturn(new SystemSettingsResponse(
+                        ApprovalMode.MANUAL, "Av. de Europa 18", null, null, false, 1L, Instant.now()));
+
+        mockMvc.perform(put(ADDRESS_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(ADDRESS_BODY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.parkingAddress").value("Av. de Europa 18"));
+    }
+
+    // ---- Reservas en fin de semana ----
+
+    @Test
+    void shouldReturn401_whenUpdatingWeekendWithoutSession() throws Exception {
+        mockMvc.perform(put(WEEKEND_URL).contentType(MediaType.APPLICATION_JSON).content(WEEKEND_BODY))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn403_whenEmployeeUpdatesWeekend() throws Exception {
+        mockMvc.perform(put(WEEKEND_URL).with(user(EMP).roles(ROLE_EMPLOYEE))
+                        .contentType(MediaType.APPLICATION_JSON).content(WEEKEND_BODY))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldReturn400_whenWeekendValueMissing() throws Exception {
+        mockMvc.perform(put(WEEKEND_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath(ERROR_PATH).value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldUpdateWeekend_whenAdminUpdates() throws Exception {
+        given(systemSettingsService.updateWeekendReservable(anyBoolean(), anyString()))
+                .willReturn(new SystemSettingsResponse(
+                        ApprovalMode.MANUAL, null, null, null, true, 1L, Instant.now()));
+
+        mockMvc.perform(put(WEEKEND_URL).with(user(ADMIN).roles(ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(WEEKEND_BODY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weekendReservable").value(true));
     }
 }

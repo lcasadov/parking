@@ -1,6 +1,7 @@
 package com.aleatica.parking.request.domain;
 
 import com.aleatica.parking.resource.ResourceType;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -34,6 +35,24 @@ public class Request {
      */
     public static final String AUTO_APPROVAL_NOTE = "auto";
 
+    /**
+     * Nota de resolucion que identifica una asignacion puntual del {@code ADMIN} (change
+     * {@code restructure-admin-workflows}, capability {@code admin-punctual-assignment}): la
+     * solicitud nace {@code APPROVED} con {@code resolvedById} = admin actuante y esta nota,
+     * distinguiendola de la auto-aprobacion del sistema ({@link #AUTO_APPROVAL_NOTE}) y de una
+     * aprobacion clasica sobre una {@code PENDING} previa.
+     */
+    public static final String ADMIN_ASSIGNMENT_NOTE = "admin-assignment";
+
+    /**
+     * Nota de resolucion que identifica una reasignacion o intercambio (swap) de recurso por el
+     * {@code ADMIN} (change {@code reservas-employee-admin-reassign}, capability
+     * {@code admin-resource-reassignment}): la solicitud sigue {@code APPROVED} pero cambia de
+     * recurso, distinguiendola de una asignacion puntual ({@link #ADMIN_ASSIGNMENT_NOTE}) y de la
+     * auto-aprobacion del sistema ({@link #AUTO_APPROVAL_NOTE}).
+     */
+    public static final String ADMIN_REASSIGNMENT_NOTE = "admin-reassignment";
+
     private Long id;
     private Long employeeId;
     private LocalDate requestedDate;
@@ -46,6 +65,8 @@ public class Request {
     private Long resolvedById;
     private Instant resolvedAt;
     private Instant createdAt;
+    private Instant lastRemindedAt;
+    private boolean waitlisted;
 
     /** Constructor privado; las instancias se obtienen por las factorias estaticas. */
     private Request() {
@@ -54,7 +75,7 @@ public class Request {
 
     /**
      * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin plaza,
-     * de tipo {@code PARKING} por defecto.
+     * de tipo {@code PARKING} por defecto, no en lista de espera.
      *
      * @param employeeId    empleado solicitante
      * @param requestedDate fecha solicitada
@@ -67,7 +88,8 @@ public class Request {
 
     /**
      * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin recurso,
-     * para un tipo de recurso concreto ({@code PARKING} plaza / {@code DESK} puesto).
+     * para un tipo de recurso concreto ({@code PARKING} plaza / {@code DESK} puesto), no en
+     * lista de espera.
      *
      * <p>Nace con {@code resourceId = null}; el recurso concreto se asigna al aprobar. El
      * {@code resourceType} se fija desde la creacion para que la unicidad {@code PENDING}
@@ -81,6 +103,26 @@ public class Request {
      */
     public static Request create(
             Long employeeId, ResourceType resourceType, LocalDate requestedDate, Instant now) {
+        return create(employeeId, resourceType, requestedDate, now, false);
+    }
+
+    /**
+     * Da de alta una solicitud nueva en estado {@link RequestStatus#PENDING} sin recurso, para
+     * un tipo de recurso concreto, marcando explicitamente si nace en <strong>lista de
+     * espera</strong> (change {@code waitlist-requests}): en modo {@code AUTOMATIC} sin
+     * disponibilidad y opt-in del empleado, o en modo {@code MANUAL} cuando no habia
+     * disponibilidad para ese dia/tipo en el momento de la creacion.
+     *
+     * @param employeeId    empleado solicitante
+     * @param resourceType  tipo del recurso solicitado ({@code PARKING}/{@code DESK})
+     * @param requestedDate fecha solicitada
+     * @param now           instante de creacion (UTC)
+     * @param waitlisted    {@code true} si la solicitud nace en lista de espera
+     * @return la solicitud nueva, aun no persistida
+     */
+    public static Request create(
+            Long employeeId, ResourceType resourceType, LocalDate requestedDate, Instant now,
+            boolean waitlisted) {
         Request request = new Request();
         request.employeeId = employeeId;
         request.requestedDate = requestedDate;
@@ -88,6 +130,7 @@ public class Request {
         request.resourceId = null;
         request.resourceType = resourceType;
         request.createdAt = now;
+        request.waitlisted = waitlisted;
         return request;
     }
 
@@ -127,13 +170,79 @@ public class Request {
      * @param resolvedById        empleado (ADMIN) que resolvio
      * @param resolvedAt          instante de resolucion (UTC)
      * @param createdAt           instante de creacion (UTC)
-     * @return la solicitud reconstituida
+     * @return la solicitud reconstituida, con {@code lastRemindedAt = null}
      */
     public static Request restore(
             Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
             Long resourceId, ResourceType resourceType, String approvalNote,
             RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
             Instant resolvedAt, Instant createdAt) {
+        return restore(id, employeeId, requestedDate, status, resourceId, resourceType,
+                approvalNote, rejectionReasonCode, rejectionReason, resolvedById, resolvedAt,
+                createdAt, null);
+    }
+
+    /**
+     * Reconstituye una solicitud a partir de su estado persistido, incluyendo el instante del
+     * ultimo reenvio de aviso, sin marca de lista de espera ({@code waitlisted = false}; uso
+     * exclusivo del mapper de infraestructura {@code RequestMapper}; no aplica reglas de
+     * transicion). Delega en el canonico {@link #restore(Long, Long, LocalDate, RequestStatus,
+     * Long, ResourceType, String, RejectionReasonCode, String, Long, Instant, Instant, Instant,
+     * boolean)} para no romper los llamantes previos al change {@code waitlist-requests}.
+     *
+     * @param id                  identificador
+     * @param employeeId          empleado solicitante
+     * @param requestedDate       fecha solicitada
+     * @param status              estado del ciclo de vida
+     * @param resourceId          recurso asignado; {@code null} mientras {@code PENDING}
+     * @param resourceType        tipo de recurso solicitado
+     * @param approvalNote        nota del administrador al aprobar
+     * @param rejectionReasonCode codigo del catalogo de rechazo
+     * @param rejectionReason     texto libre del rechazo
+     * @param resolvedById        empleado (ADMIN) que resolvio
+     * @param resolvedAt          instante de resolucion (UTC)
+     * @param createdAt           instante de creacion (UTC)
+     * @param lastRemindedAt      instante del ultimo reenvio de aviso; {@code null} si nunca
+     * @return la solicitud reconstituida, con {@code waitlisted = false}
+     */
+    public static Request restore(
+            Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
+            Long resourceId, ResourceType resourceType, String approvalNote,
+            RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
+            Instant resolvedAt, Instant createdAt, Instant lastRemindedAt) {
+        return restore(id, employeeId, requestedDate, status, resourceId, resourceType,
+                approvalNote, rejectionReasonCode, rejectionReason, resolvedById, resolvedAt,
+                createdAt, lastRemindedAt, false);
+    }
+
+    /**
+     * Reconstituye una solicitud a partir de su estado persistido, incluyendo el instante del
+     * ultimo reenvio de aviso y la marca de lista de espera (change {@code waitlist-requests};
+     * uso exclusivo del mapper de infraestructura {@code RequestMapper}; no aplica reglas de
+     * transicion). Es la factoria canonica de reconstitucion: el resto de sobrecargas de
+     * {@code restore} delegan aqui con los valores por defecto retrocompatibles.
+     *
+     * @param id                  identificador
+     * @param employeeId          empleado solicitante
+     * @param requestedDate       fecha solicitada
+     * @param status              estado del ciclo de vida
+     * @param resourceId          recurso asignado; {@code null} mientras {@code PENDING}
+     * @param resourceType        tipo de recurso solicitado
+     * @param approvalNote        nota del administrador al aprobar
+     * @param rejectionReasonCode codigo del catalogo de rechazo
+     * @param rejectionReason     texto libre del rechazo
+     * @param resolvedById        empleado (ADMIN) que resolvio
+     * @param resolvedAt          instante de resolucion (UTC)
+     * @param createdAt           instante de creacion (UTC)
+     * @param lastRemindedAt      instante del ultimo reenvio de aviso; {@code null} si nunca
+     * @param waitlisted          {@code true} si la solicitud esta en lista de espera
+     * @return la solicitud reconstituida
+     */
+    public static Request restore(
+            Long id, Long employeeId, LocalDate requestedDate, RequestStatus status,
+            Long resourceId, ResourceType resourceType, String approvalNote,
+            RejectionReasonCode rejectionReasonCode, String rejectionReason, Long resolvedById,
+            Instant resolvedAt, Instant createdAt, Instant lastRemindedAt, boolean waitlisted) {
         Request request = new Request();
         request.id = id;
         request.employeeId = employeeId;
@@ -147,6 +256,8 @@ public class Request {
         request.resolvedById = resolvedById;
         request.resolvedAt = resolvedAt;
         request.createdAt = createdAt;
+        request.lastRemindedAt = lastRemindedAt;
+        request.waitlisted = waitlisted;
         return request;
     }
 
@@ -218,6 +329,38 @@ public class Request {
     }
 
     /**
+     * Indica si el propio empleado puede reenviar el aviso de esta solicitud al {@code ADMIN}
+     * en el instante {@code now} (change {@code request-resend-notice}): solo tiene sentido
+     * reavisar de una solicitud aun {@link RequestStatus#PENDING}, y solo si ha transcurrido al
+     * menos {@code cooldown} desde la referencia mas reciente entre su creacion y su ultimo
+     * reenvio (un reenvio previo siempre es posterior a la creacion, por lo que basta con
+     * preferir {@code lastRemindedAt} cuando existe).
+     *
+     * @param now      instante de referencia ("ahora"), del mismo reloj inyectable que el resto
+     *                 del caso de uso
+     * @param cooldown periodo minimo exigido desde la referencia mas reciente
+     * @return {@code true} si el estado es {@code PENDING} y ha transcurrido el periodo minimo
+     */
+    public boolean canBeResent(Instant now, Duration cooldown) {
+        if (status != RequestStatus.PENDING) {
+            return false;
+        }
+        Instant reference = lastRemindedAt != null ? lastRemindedAt : createdAt;
+        return !now.isBefore(reference.plus(cooldown));
+    }
+
+    /**
+     * Registra el instante del reenvio de aviso, avanzando la referencia que usara la proxima
+     * comprobacion de {@link #canBeResent(Instant, Duration)} (change
+     * {@code request-resend-notice}). No cambia el estado ni ningun otro campo de la solicitud.
+     *
+     * @param now instante del reenvio (UTC)
+     */
+    public void markReminded(Instant now) {
+        this.lastRemindedAt = now;
+    }
+
+    /**
      * Aprueba la solicitud asignando recurso, resolutor y nota opcional.
      *
      * @param resourceId   recurso asignado (plaza en el nucleo de parking)
@@ -229,6 +372,32 @@ public class Request {
         this.status = RequestStatus.APPROVED;
         this.resourceId = resourceId;
         this.approvalNote = approvalNote;
+        this.resolvedById = resolvedById;
+        this.resolvedAt = now;
+    }
+
+    /**
+     * Reasigna el recurso de una solicitud ya {@code APPROVED} a otro recurso, conservando el
+     * estado {@code APPROVED} (change {@code reservas-employee-admin-reassign}, capability
+     * {@code admin-resource-reassignment}). Registra el {@code ADMIN} actuante como resolutor, marca
+     * la nota {@link #ADMIN_REASSIGNMENT_NOTE} y actualiza el instante de resolucion. El recurso
+     * anterior queda libre implicitamente: la disponibilidad se recalcula solo sobre filas
+     * {@code APPROVED} por {@code resource_id}, de modo que al cambiar el {@code resource_id} el
+     * recurso previo reaparece en disponibilidad. La guarda de estado/fecha ({@code APPROVED} de
+     * fecha futura) la impone el caso de uso antes de invocar este metodo.
+     *
+     * @param newResourceId nuevo recurso asignado (del mismo tipo, ya validado como libre)
+     * @param resolvedById  empleado (ADMIN) que ejecuta la reasignacion
+     * @param now           instante de la reasignacion (UTC)
+     * @throws IllegalStateException si la solicitud no esta {@code APPROVED}
+     */
+    public void reassign(Long newResourceId, Long resolvedById, Instant now) {
+        if (status != RequestStatus.APPROVED) {
+            throw new IllegalStateException(
+                    "Solo se puede reasignar una solicitud APPROVED; estado actual: " + status);
+        }
+        this.resourceId = newResourceId;
+        this.approvalNote = ADMIN_REASSIGNMENT_NOTE;
         this.resolvedById = resolvedById;
         this.resolvedAt = now;
     }
@@ -329,6 +498,19 @@ public class Request {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getLastRemindedAt() {
+        return lastRemindedAt;
+    }
+
+    /**
+     * @return {@code true} si la solicitud esta marcada en <strong>lista de espera</strong>
+     *         (change {@code waitlist-requests}): una {@code PENDING} para un dia/tipo sin
+     *         disponibilidad, candidata a promocion cuando se libere un recurso.
+     */
+    public boolean isWaitlisted() {
+        return waitlisted;
     }
 
     @Override

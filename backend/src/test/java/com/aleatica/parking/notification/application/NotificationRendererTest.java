@@ -191,6 +191,44 @@ class NotificationRendererTest {
     }
 
     @Test
+    void shouldResolveResourceForAdminAssignedRecipient_whenCommandIsRequestAdminAssigned() {
+        // Arrange: el destinatario es el empleado destino de la asignacion puntual del admin
+        employee();
+        given(parkingSpaceRepository.findById(PARKING_RESOURCE_ID))
+                .willReturn(Optional.of(ParkingSpace.create(3005)));
+        given(renderer.renderRequestAdminAssigned(any(), any(), any())).willReturn(RENDERED);
+
+        // Act
+        Optional<EmailMessage> message = notificationRenderer().render(
+                new NotificationCommand(NotificationEventType.REQUEST_ADMIN_ASSIGNED, EMP_ID, approvedParking()));
+
+        // Assert: el renderer recibe el recurso resuelto (numero 3005, planta 3)
+        assertThat(message).contains(RENDERED);
+        ArgumentCaptor<ResolvedResource> captor = ArgumentCaptor.forClass(ResolvedResource.class);
+        verify(renderer).renderRequestAdminAssigned(any(), any(), captor.capture());
+        ResolvedResource resolved = captor.getValue();
+        assertThat(resolved.type()).isEqualTo(ResourceType.PARKING);
+        assertThat(resolved.number()).isEqualTo(3005);
+        assertThat(resolved.floor()).isEqualTo(3);
+    }
+
+    @Test
+    void shouldDegradeWithoutResolvedResource_whenAdminAssignedResourceNotFound() {
+        // Arrange: el recurso asignado ya no existe (borrado/carrera)
+        employee();
+        given(parkingSpaceRepository.findById(PARKING_RESOURCE_ID)).willReturn(Optional.empty());
+        given(renderer.renderRequestAdminAssigned(any(), any(), isNull())).willReturn(RENDERED);
+
+        // Act
+        Optional<EmailMessage> message = notificationRenderer().render(
+                new NotificationCommand(NotificationEventType.REQUEST_ADMIN_ASSIGNED, EMP_ID, approvedParking()));
+
+        // Assert: no lanza excepcion, renderiza con recurso resuelto null
+        assertThat(message).contains(RENDERED);
+        verify(renderer).renderRequestAdminAssigned(any(), any(), isNull());
+    }
+
+    @Test
     void shouldRenderAssignmentRevoked_whenCommandIsAssignmentRevoked() {
         // Arrange
         Employee employee = employee();

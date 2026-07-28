@@ -15,12 +15,20 @@ import com.aleatica.parking.audit.AuditEntry;
 import com.aleatica.parking.audit.AuditRecorder;
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.application.AvailabilityService;
+import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
+import com.aleatica.parking.availability.dto.AvailabilityResponse;
+import com.aleatica.parking.desk.Desk;
+import com.aleatica.parking.desk.DeskCategory;
 import com.aleatica.parking.employee.Employee;
+import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
+import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
+import com.aleatica.parking.notification.event.WaitlistAvailableEvent;
+import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.request.domain.RejectionReasonCode;
 import com.aleatica.parking.request.domain.Request;
 import com.aleatica.parking.request.domain.RequestRepositoryPort;
@@ -35,6 +43,7 @@ import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import com.aleatica.parking.systemsettings.domain.ApprovalMode;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -49,6 +58,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -96,6 +106,9 @@ class RequestServiceTest {
     private SystemSettingsService systemSettingsService;
 
     @Mock
+    private FixedAssignmentJpaRepository fixedAssignmentRepository;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
@@ -112,11 +125,30 @@ class RequestServiceTest {
     private RequestService newService() {
         return new RequestService(
                 requestRepository, employeeRepository, resourceResolvers,
-                availabilityService, systemSettingsService, eventPublisher, auditRecorder, clock);
+                availabilityService, systemSettingsService, fixedAssignmentRepository,
+                eventPublisher, auditRecorder, clock);
     }
 
     private void givenManualMode() {
         given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
+        // waitlisted se computa por disponibilidad al crear (change waitlist-requests); por
+        // defecto "hay hueco" para no alterar el comportamiento de los tests de creacion clasica
+        // que no versan sobre la lista de espera. lenient(): no todos los tests que llaman a este
+        // helper llegan a evaluarlo (p. ej. si fallan antes por BOLA/estado).
+        lenient().when(availabilityService.availabilityForDate(any(), any())).thenReturn(available());
+        // Permite reservas de fin de semana por defecto (change reservas-employee-admin-reassign):
+        // algunos tests de creacion usan fechas que pueden caer en sabado/domingo (p. ej. hoy o
+        // hoy+400). lenient(): solo se evalua cuando la fecha es fin de semana. La regla de rechazo
+        // se cubre en tests dedicados que estuban el flag en false.
+        lenient().when(systemSettingsService.weekendReservable()).thenReturn(true);
+    }
+
+    private static AvailabilityResponse available() {
+        return new AvailabilityResponse(WITHIN, List.of(new AvailabilityItemResponse(SPACE_ID, "P-01")));
+    }
+
+    private static AvailabilityResponse unavailable() {
+        return new AvailabilityResponse(WITHIN, List.of());
     }
 
     // ---- Creacion: ventana + unicidad ----
@@ -161,6 +193,33 @@ class RequestServiceTest {
                 .isEqualTo(RequestStatus.PENDING);
     }
 
+    // ---- Feature: enforcement de reservas en fin de semana ----
+
+    @Test
+    void shouldRejectWeekend_whenWeekendNotReservable() {
+        // Arrange: fecha en sabado (2026-07-11) con reservas de fin de semana deshabilitadas
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.weekendReservable()).willReturn(false);
+        LocalDate saturday = TODAY.plusDays(7);
+
+        // Act / Assert: 400 WEEKEND_NOT_RESERVABLE, no se crea la solicitud
+        assertThatThrownBy(() -> newService().create(
+                EMP_LOGIN, new RequestCreateRequest(saturday, null)))
+                .isInstanceOf(WeekendNotReservableException.class);
+    }
+
+    @Test
+    void shouldAllowWeekend_whenWeekendReservable() {
+        // Arrange: mismo sabado, pero con reservas de fin de semana habilitadas
+        givenActor(EMP_LOGIN, EMP_ID);
+        givenManualMode(); // estuba weekendReservable = true
+        LocalDate saturday = TODAY.plusDays(7);
+
+        // Act / Assert: se permite y nace PENDING (modo manual)
+        assertThat(newService().create(EMP_LOGIN, new RequestCreateRequest(saturday, null)).status())
+                .isEqualTo(RequestStatus.PENDING);
+    }
+
     @Test
     void shouldThrowOutsideWindow_whenDateBeforeToday() {
         // Arrange (unica fecha rechazada: anterior a hoy)
@@ -192,6 +251,223 @@ class RequestServiceTest {
         // Act / Assert
         assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null)))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    // ---- Lista de espera: creacion (change waitlist-requests) ----
+
+    @Test
+    void shouldMarkWaitlisted_whenManualCreationHasNoAvailability() {
+        // Arrange: modo MANUAL y ningun recurso libre ese dia/tipo
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
+        given(availabilityService.availabilityForDate(WITHIN, ResourceType.PARKING)).willReturn(unavailable());
+
+        // Act
+        RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null));
+
+        // Assert: PENDING sin recurso, marcada en lista de espera sin necesidad de opt-in
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.waitlisted()).isTrue();
+        verifyEventPublished(RequestCreatedEvent.class);
+    }
+
+    @Test
+    void shouldNotMarkWaitlisted_whenManualCreationHasAvailability() {
+        // Arrange: modo MANUAL con algun recurso libre ese dia/tipo
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
+        given(availabilityService.availabilityForDate(WITHIN, ResourceType.PARKING)).willReturn(available());
+
+        // Act
+        RequestResponse result = newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.waitlisted()).isFalse();
+    }
+
+    @Test
+    void shouldCreateWaitlistedPending_whenAutomaticParkingNoSpaceAndOptIn() {
+        // Arrange: modo AUTOMATIC, ninguna plaza libre, empleado opta por la lista de espera
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        given(availabilityService.freeParkingSpacesForDate(WITHIN)).willReturn(List.of());
+
+        // Act
+        RequestResponse result = newService().create(
+                EMP_LOGIN, new RequestCreateRequest(WITHIN, null, null, true));
+
+        // Assert: PENDING waitlisted, NO 409 y NO se auto-aprueba
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.waitlisted()).isTrue();
+        assertThat(result.parkingSpaceId()).isNull();
+        verifyEventPublished(RequestCreatedEvent.class);
+    }
+
+    @Test
+    void shouldThrowNoAvailability_whenAutomaticParkingNoSpaceWithoutOptIn() {
+        // Arrange: mismo escenario, pero SIN el opt-in -> se preserva el 409 clasico
+        givenActor(EMP_LOGIN, EMP_ID);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        given(availabilityService.freeParkingSpacesForDate(WITHIN)).willReturn(List.of());
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().create(EMP_LOGIN, new RequestCreateRequest(WITHIN, null)))
+                .isInstanceOf(NoAvailabilityException.class);
+        assertThat(requestRepository.saves()).isZero();
+    }
+
+    // ---- Lista de espera: promocion (change waitlist-requests) ----
+
+    @Test
+    void shouldPromoteHighestCategory_whenAutomaticPromotionWithMultipleWaitlisted() {
+        // Arrange: reqLow (EMPLEADO, mas antigua) y reqHigh (GERENTE, mas reciente) en espera
+        Request reqLow = waitlistedPending(701L, EMP_ID, NOW.minusSeconds(10));
+        Request reqHigh = waitlistedPending(702L, OTHER_ID, NOW);
+        requestRepository.seed(reqLow);
+        requestRepository.seed(reqHigh);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        givenEmployeeCategories(EMP_ID, EmployeeCategory.EMPLEADO, OTHER_ID, EmployeeCategory.GERENTE);
+        ParkingSpace freedSpace = mockSpace(SPACE_ID);
+        given(availabilityService.freeParkingSpacesForDate(WITHIN)).willReturn(List.of(freedSpace));
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.PARKING);
+
+        // Assert: se promueve la de MAYOR categoria (GERENTE) aunque sea la mas reciente (FIFO
+        // solo desempata a igualdad de categoria)
+        assertThat(requestRepository.byId(702L).getStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(requestRepository.byId(702L).getResourceId()).isEqualTo(SPACE_ID);
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.PENDING);
+        verifyEventPublished(RequestApprovedEvent.class);
+    }
+
+    @Test
+    void shouldPromoteFifo_whenSameCategoryAndMultipleWaitlisted() {
+        // Arrange: misma categoria; la mas antigua (FIFO) debe promoverse primero
+        Request older = waitlistedPending(701L, EMP_ID, NOW.minusSeconds(10));
+        Request newer = waitlistedPending(702L, OTHER_ID, NOW);
+        requestRepository.seed(older);
+        requestRepository.seed(newer);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        givenEmployeeCategories(EMP_ID, EmployeeCategory.EMPLEADO, OTHER_ID, EmployeeCategory.EMPLEADO);
+        ParkingSpace freedSpace = mockSpace(SPACE_ID);
+        given(availabilityService.freeParkingSpacesForDate(WITHIN)).willReturn(List.of(freedSpace));
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.PARKING);
+
+        // Assert
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(requestRepository.byId(702L).getStatus()).isEqualTo(RequestStatus.PENDING);
+    }
+
+    @Test
+    void shouldNotAutoAssign_whenManualPromotion() {
+        // Arrange: modo MANUAL -> el sistema no decide, solo avisa a los admins
+        Request waiting = waitlistedPending(701L, EMP_ID, NOW);
+        requestRepository.seed(waiting);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.MANUAL);
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.PARKING);
+
+        // Assert: sigue PENDING (sin auto-asignar) y se avisa a los admins con esta referencia
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.PENDING);
+        assertThat(requestRepository.saves()).isZero();
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue()).isInstanceOfSatisfying(WaitlistAvailableEvent.class,
+                event -> assertThat(event.topWaitlistedRequest().id()).isEqualTo(701L));
+    }
+
+    @Test
+    void shouldNotPromoteNonHighToExecutiveDesk_whenOnlyExecutiveDeskFree() {
+        // Arrange (change desk-auto-assignment): candidata no-alto en espera de puesto; el unico
+        // puesto libre es EXECUTIVE -> no debe promoverse nunca a un no-alto
+        Request waiting = waitlistedDeskPending(701L, EMP_ID, NOW);
+        requestRepository.seed(waiting);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        givenEmployeeCategories(EMP_ID, EmployeeCategory.EMPLEADO, OTHER_ID, EmployeeCategory.EMPLEADO);
+        Desk executiveDesk = mockDesk(SPACE_ID, DeskCategory.EXECUTIVE);
+        given(availabilityService.freeDesksForDate(WITHIN)).willReturn(List.of(executiveDesk));
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.DESK);
+
+        // Assert: sigue PENDING, sin promocion ni escritura
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.PENDING);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void shouldPromoteHighToExecutiveDesk_whenAutomaticPromotionOfDeskWaitlist() {
+        // Arrange: candidata alta en espera de puesto; hay un EXECUTIVE libre
+        Request waiting = waitlistedDeskPending(701L, EMP_ID, NOW);
+        requestRepository.seed(waiting);
+        given(systemSettingsService.approvalMode()).willReturn(ApprovalMode.AUTOMATIC);
+        givenEmployeeCategories(EMP_ID, EmployeeCategory.DIRECTOR_N1, OTHER_ID, EmployeeCategory.EMPLEADO);
+        Desk executiveDesk = mockDesk(SPACE_ID, DeskCategory.EXECUTIVE);
+        given(availabilityService.freeDesksForDate(WITHIN)).willReturn(List.of(executiveDesk));
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.DESK);
+
+        // Assert: se promueve al EXECUTIVE
+        assertThat(requestRepository.byId(701L).getStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(requestRepository.byId(701L).getResourceId()).isEqualTo(SPACE_ID);
+        verifyEventPublished(RequestApprovedEvent.class);
+    }
+
+    @Test
+    void shouldDoNothing_whenNoWaitlistedCandidates() {
+        // Arrange (store vacio de waitlisted para esa fecha/tipo)
+
+        // Act
+        newService().promoteWaitlist(WITHIN, ResourceType.PARKING);
+
+        // Assert: sin candidatas no se consulta el modo ni se publica nada
+        verifyNoInteractions(eventPublisher);
+        assertThat(requestRepository.saves()).isZero();
+    }
+
+    private Request waitlistedPending(Long id, Long employeeId, Instant createdAt) {
+        return Request.restore(
+                id, employeeId, WITHIN, RequestStatus.PENDING, null, ResourceType.PARKING,
+                null, null, null, null, null, createdAt, null, true);
+    }
+
+    private Request waitlistedDeskPending(Long id, Long employeeId, Instant createdAt) {
+        return Request.restore(
+                id, employeeId, WITHIN, RequestStatus.PENDING, null, ResourceType.DESK,
+                null, null, null, null, null, createdAt, null, true);
+    }
+
+    private static Desk mockDesk(Long id, DeskCategory category) {
+        Desk desk = mock(Desk.class);
+        lenient().when(desk.getId()).thenReturn(id);
+        lenient().when(desk.getNumber()).thenReturn(1);
+        lenient().when(desk.getCategory()).thenReturn(category);
+        return desk;
+    }
+
+    private void givenEmployeeCategories(
+            Long empIdA, EmployeeCategory categoryA, Long empIdB, EmployeeCategory categoryB) {
+        Employee employeeA = mock(Employee.class);
+        given(employeeA.getId()).willReturn(empIdA);
+        given(employeeA.getCategory()).willReturn(categoryA);
+        Employee employeeB = mock(Employee.class);
+        given(employeeB.getId()).willReturn(empIdB);
+        given(employeeB.getCategory()).willReturn(categoryB);
+        given(employeeRepository.findAllById(any())).willReturn(List.of(employeeA, employeeB));
+    }
+
+    private static ParkingSpace mockSpace(Long id) {
+        ParkingSpace space = mock(ParkingSpace.class);
+        lenient().when(space.getId()).thenReturn(id);
+        lenient().when(space.floor()).thenReturn(1);
+        lenient().when(space.getNumber()).thenReturn(1001);
+        return space;
     }
 
     // ---- Cancelacion: BOLA + estado ----
@@ -324,6 +600,99 @@ class RequestServiceTest {
 
         // Act / Assert
         assertThatThrownBy(() -> newService().cancel(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    // ---- Reenvio de aviso: BOLA + estado + tiempo minimo (request-resend-notice) ----
+
+    @Test
+    void shouldResendNotice_whenPendingAndCooldownElapsed() {
+        // Arrange: PENDING creada hace >=24h (sin reenvio previo)
+        Request created24hAgo = pendingCreatedAt(NOW.minus(Duration.ofHours(24)));
+        requestRepository.seed(created24hAgo);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        RequestResponse result = newService().resend(REQUEST_ID, EMP_LOGIN);
+
+        // Assert: sigue PENDING, lastRemindedAt actualizado a NOW, y se reutiliza el evento de creacion
+        assertThat(result.status()).isEqualTo(RequestStatus.PENDING);
+        assertThat(result.lastRemindedAt()).isEqualTo(NOW);
+        verifyEventPublished(RequestCreatedEvent.class);
+    }
+
+    @Test
+    void shouldThrowForbidden_whenResendingOtherEmployeeRequest() {
+        // Arrange: la solicitud es del empleado 15; el solicitante resuelve a 99 (BOLA)
+        requestRepository.seed(pendingCreatedAt(NOW.minus(Duration.ofHours(24))));
+        givenActor(OTHER_LOGIN, OTHER_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, OTHER_LOGIN))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void shouldThrowRequestNotPending_whenResendingApprovedRequest() {
+        // Arrange: la solicitud ya fue resuelta (APPROVED); no admite reenvio
+        Request approved = pendingCreatedAt(NOW.minus(Duration.ofHours(24)));
+        approved.approve(SPACE_ID, ADMIN_ID, "auto", NOW);
+        requestRepository.seed(approved);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(RequestNotPendingException.class);
+        assertThat(requestRepository.saves()).isZero();
+    }
+
+    @Test
+    void shouldThrowResendTooSoon_whenLessThan24hSinceCreation() {
+        // Arrange: PENDING creada hace solo 1h (sin reenvio previo)
+        requestRepository.seed(pendingCreatedAt(NOW.minus(Duration.ofHours(1))));
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(ResendTooSoonException.class);
+        assertThat(requestRepository.saves()).isZero();
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void shouldThrowResendTooSoon_whenLessThan24hSinceLastReminder() {
+        // Arrange: creada hace 48h, pero reenviada hace solo 2h (la referencia es el ultimo reenvio)
+        Request request = pendingCreatedAt(NOW.minus(Duration.ofHours(48)));
+        request.markReminded(NOW.minus(Duration.ofHours(2)));
+        requestRepository.seed(request);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, EMP_LOGIN))
+                .isInstanceOf(ResendTooSoonException.class);
+        assertThat(requestRepository.saves()).isZero();
+    }
+
+    @Test
+    void shouldResendNotice_whenExactly24hSinceLastReminder() {
+        // Arrange: frontera inferior inclusive (>=24h desde el ultimo reenvio)
+        Request request = pendingCreatedAt(NOW.minus(Duration.ofHours(48)));
+        request.markReminded(NOW.minus(Duration.ofHours(24)));
+        requestRepository.seed(request);
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act / Assert
+        assertThat(newService().resend(REQUEST_ID, EMP_LOGIN).status()).isEqualTo(RequestStatus.PENDING);
+    }
+
+    @Test
+    void shouldThrowNotFound_whenResendingUnknownRequest() {
+        // Arrange (store vacio); loadRequest falla antes de resolver el actor
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().resend(REQUEST_ID, EMP_LOGIN))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -640,7 +1009,7 @@ class RequestServiceTest {
 
         // Act
         RequestResponse result = newService()
-                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+                .listMine(EMP_LOGIN, null, null, null, Pageable.unpaged()).content().get(0);
 
         // Assert: se muestra el NUMERO real de la plaza (3005) y su planta, no el id interno (8)
         assertThat(result.resourceNumber()).isEqualTo(3005);
@@ -661,7 +1030,7 @@ class RequestServiceTest {
 
         // Act
         RequestResponse result = newService()
-                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+                .listMine(EMP_LOGIN, null, null, null, Pageable.unpaged()).content().get(0);
 
         // Assert: numero del puesto sin planta (los puestos no tienen planta derivada)
         assertThat(result.resourceNumber()).isEqualTo(12);
@@ -676,11 +1045,47 @@ class RequestServiceTest {
 
         // Act
         RequestResponse result = newService()
-                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+                .listMine(EMP_LOGIN, null, null, null, Pageable.unpaged()).content().get(0);
 
         // Assert: sin numero (el frontend degrada a "—")
         assertThat(result.resourceNumber()).isNull();
         assertThat(result.floor()).isNull();
+    }
+
+    // ---- Feature D: filtro de "mis solicitudes" por rango de fechas (mes) ----
+
+    @Test
+    void shouldReturnOnlyRequestsWithinRange_whenListingByMonth() {
+        // Arrange: tres solicitudes en meses distintos; se consulta solo julio
+        requestRepository.seed(pendingWithId(101L, EMP_ID, LocalDate.of(2026, 6, 30)));
+        requestRepository.seed(pendingWithId(102L, EMP_ID, LocalDate.of(2026, 7, 5)));
+        requestRepository.seed(pendingWithId(103L, EMP_ID, LocalDate.of(2026, 7, 20)));
+        requestRepository.seed(pendingWithId(104L, EMP_ID, LocalDate.of(2026, 8, 1)));
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        List<RequestResponse> result = newService().listMine(
+                EMP_LOGIN, null, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31),
+                Pageable.unpaged()).content();
+
+        // Assert: solo las dos de julio, en orden ascendente por fecha de recurso
+        assertThat(result).extracting(RequestResponse::requestedDate)
+                .containsExactly(LocalDate.of(2026, 7, 5), LocalDate.of(2026, 7, 20));
+    }
+
+    @Test
+    void shouldReturnEmptyPage_whenMonthHasNoRequests() {
+        // Arrange: solo hay una solicitud en julio; se consulta septiembre (mes vacio)
+        requestRepository.seed(pendingWithId(201L, EMP_ID, LocalDate.of(2026, 7, 5)));
+        givenActor(EMP_LOGIN, EMP_ID);
+
+        // Act
+        List<RequestResponse> result = newService().listMine(
+                EMP_LOGIN, null, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30),
+                Pageable.unpaged()).content();
+
+        // Assert: pagina vacia, sin error
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -693,7 +1098,7 @@ class RequestServiceTest {
 
         // Act
         RequestResponse result = newService()
-                .listMine(EMP_LOGIN, null, Pageable.unpaged()).content().get(0);
+                .listMine(EMP_LOGIN, null, null, null, Pageable.unpaged()).content().get(0);
 
         // Assert
         assertThat(result.resourceNumber()).isNull();
@@ -768,6 +1173,12 @@ class RequestServiceTest {
                 null, null, null, null, null, NOW);
     }
 
+    private static Request pendingCreatedAt(Instant createdAt) {
+        return Request.restore(
+                REQUEST_ID, EMP_ID, WITHIN, RequestStatus.PENDING, null, ResourceType.PARKING,
+                null, null, null, null, null, createdAt);
+    }
+
     private void givenActor(String login, Long id) {
         Employee actor = mock(Employee.class);
         given(actor.getId()).willReturn(id);
@@ -799,6 +1210,10 @@ class RequestServiceTest {
             return saves;
         }
 
+        Request byId(Long id) {
+            return store.get(id);
+        }
+
         @Override
         public Optional<Request> findById(Long id) {
             return Optional.ofNullable(store.get(id));
@@ -821,7 +1236,8 @@ class RequestServiceTest {
                     id, request.getEmployeeId(), request.getRequestedDate(), request.getStatus(),
                     request.getResourceId(), request.getResourceType(), request.getApprovalNote(),
                     request.getRejectionReasonCode(), request.getRejectionReason(),
-                    request.getResolvedById(), request.getResolvedAt(), request.getCreatedAt());
+                    request.getResolvedById(), request.getResolvedAt(), request.getCreatedAt(),
+                    request.getLastRemindedAt(), request.isWaitlisted());
             store.put(id, stored);
             return stored;
         }
@@ -852,6 +1268,30 @@ class RequestServiceTest {
         }
 
         @Override
+        public Page<Request> findByEmployeeIdAndRequestedDateBetween(
+                Long employeeId, LocalDate from, LocalDate to, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> employeeId.equals(r.getEmployeeId()) && inRange(r, from, to))
+                    .sorted(Comparator.comparing(Request::getRequestedDate))
+                    .toList());
+        }
+
+        @Override
+        public Page<Request> findByEmployeeIdAndStatusAndRequestedDateBetween(
+                Long employeeId, RequestStatus status, LocalDate from, LocalDate to, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> employeeId.equals(r.getEmployeeId()) && status == r.getStatus()
+                            && inRange(r, from, to))
+                    .sorted(Comparator.comparing(Request::getRequestedDate))
+                    .toList());
+        }
+
+        private static boolean inRange(Request request, LocalDate from, LocalDate to) {
+            LocalDate date = request.getRequestedDate();
+            return !date.isBefore(from) && !date.isAfter(to);
+        }
+
+        @Override
         public Page<Request> findByStatusOrderByCreatedAtAsc(RequestStatus status, Pageable pageable) {
             return new PageImpl<>(store.values().stream()
                     .filter(r -> status == r.getStatus())
@@ -872,6 +1312,17 @@ class RequestServiceTest {
             return new PageImpl<>(store.values().stream()
                     .sorted(Comparator.comparing(Request::getCreatedAt).reversed())
                     .collect(java.util.stream.Collectors.toList()));
+        }
+
+        @Override
+        public List<Request> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
+                RequestStatus status, ResourceType resourceType, LocalDate requestedDate) {
+            return store.values().stream()
+                    .filter(r -> status == r.getStatus() && r.isWaitlisted()
+                            && resourceType == r.getResourceType()
+                            && requestedDate.equals(r.getRequestedDate()))
+                    .sorted(Comparator.comparing(Request::getCreatedAt))
+                    .toList();
         }
     }
 }

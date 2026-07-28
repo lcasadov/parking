@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { RESOURCE_ICON } from '../utils/resourceIcon';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { InfoBanner } from '../components/InfoBanner';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { StatusPill, type StatusTone } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import {
@@ -30,9 +31,9 @@ const WEEK_LENGTH = 7;
 const REASON_MIN = 5;
 
 // Icono Tabler por tipo de recurso (mismo mapa que el resto de la app: plaza ->
-// ti-parking, puesto -> ti-armchair). Solo presentacion.
+// icono unico via RESOURCE_ICON. Solo presentacion.
 function resourceIcon(type: ResourceType): string {
-  return type === 'DESK' ? 'armchair' : 'parking';
+  return RESOURCE_ICON[type];
 }
 
 // Tono de la pill de estado segun el origen de la reserva (mapa unico
@@ -54,7 +55,7 @@ function reservationKey(date: string, item: OccupancyItem): string {
 // lote con un unico motivo. Cada reserva se libera por su mecanismo (asignacion
 // fija -> liberacion administrativa; solicitud aprobada -> admin-cancel), resuelto
 // en useBatchRelease segun el `origin`.
-export function AdministrativeReleasesPage() {
+export function AdministrativeReleasesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const employeesQuery = useSelectableReleaseEmployeesQuery();
@@ -63,7 +64,8 @@ export function AdministrativeReleasesPage() {
 
   return (
     <section className="administrative-releases-page" aria-label={t('releases.admin.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('releases.admin.eyebrow')}
         title={t('releases.admin.title')}
         description={t('releases.employeeWeek.description')}
@@ -459,6 +461,14 @@ function ReleaseBatchForm({
   children,
 }: ReleaseBatchFormProps) {
   const { t } = useTranslation();
+  // Al fallar la liberación (motivo vacío / sin selección) el error se pinta encima
+  // de la barra de acción fija: se lleva la vista hasta él para que no pase inadvertido.
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [error]);
   return (
     <form
       className="release-form"
@@ -485,7 +495,7 @@ function ReleaseBatchForm({
           {t('releases.employeeWeek.reasonHint')}
         </p>
         {error ? (
-          <p className="form-error" role="alert">
+          <p className="form-error" role="alert" ref={errorRef}>
             {error}
           </p>
         ) : null}

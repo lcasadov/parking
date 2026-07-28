@@ -46,6 +46,9 @@ class AgencyRoleAuthorizationIT extends BaseIntegrationTest {
 
     private static final String RELEASES_URL = "/api/v1/releases";
     private static final String ADMIN_RELEASE_URL = RELEASES_URL + "/administrative";
+    private static final String ADMIN_RELEASE_MINE_URL = ADMIN_RELEASE_URL + "/mine";
+    private static final String OCCUPANCY_URL = "/api/v1/occupancy";
+    private static final String REQUESTS_ADMIN_URL = "/api/v1/requests/admin";
     private static final String LOGIN_URL = "/api/v1/auth/login";
     private static final String SESSION_COOKIE = "parking_SESSION";
 
@@ -102,6 +105,34 @@ class AgencyRoleAuthorizationIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.releasedById").value((int) idOfEmployee(AGENCY_LOGIN)))
                 .andExpect(jsonPath("$.reason").value("Ausencia justificada"));
         assertThat(releasesForSpaceDate(spaceX, FUTURE)).isEqualTo(1);
+    }
+
+    // ---- Inclusion ampliada (change restructure-admin-workflows, design D5) ----
+
+    @Test
+    void shouldAllowAgency_whenQueryingOccupancyByDate() throws Exception {
+        // Arrange: recurso ocupado por asignacion fija esa fecha (pivote por-fecha, solo lectura)
+        insertFixedAssignment(spaceX, targetId, FUTURE_DOW);
+
+        // Act / Assert
+        mockMvc.perform(get(OCCUPANCY_URL).param("date", FUTURE.toString()).cookie(agencySession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.occupiedResources[0].resourceId").value((int) spaceX));
+    }
+
+    @Test
+    void shouldAllowAgency_whenListingOwnAdministrativeReleaseHistory() throws Exception {
+        // Arrange: AGENCIA libera administrativamente (queda como releasedById = agencia)
+        insertFixedAssignment(spaceX, targetId, FUTURE_DOW);
+        administrativeRelease(agencySession, targetId, spaceX, FUTURE, "Ausencia justificada")
+                .andExpect(status().isCreated());
+
+        // Act / Assert: su propio historial lo ve; no incluye liberaciones ajenas
+        mockMvc.perform(get(ADMIN_RELEASE_MINE_URL).cookie(agencySession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].type").value("ADMINISTRATIVE"))
+                .andExpect(jsonPath("$.content[0].releasedById").value((int) idOfEmployee(AGENCY_LOGIN)))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     // ---- Regresion: ADMIN sigue liberando, EMPLOYEE sigue excluido ----
@@ -168,6 +199,16 @@ class AgencyRoleAuthorizationIT extends BaseIntegrationTest {
         mockMvc.perform(post("/api/v1/requests/1/reject").cookie(agencySession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reasonCode\":\"NO_AVAILABILITY\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldReturn403_whenAgencyUsesAdminPunctualAssignment() throws Exception {
+        // Act / Assert: la asignacion puntual (capability admin-punctual-assignment) es ADMIN-only
+        String body = "{\"employeeId\":" + targetId + ",\"requestedDate\":\"" + FUTURE
+                + "\",\"resourceType\":\"PARKING\",\"resourceId\":" + spaceX + "}";
+        mockMvc.perform(post(REQUESTS_ADMIN_URL).cookie(agencySession)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
     }
 

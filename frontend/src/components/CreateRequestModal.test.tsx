@@ -1,31 +1,39 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateRequestModal } from './CreateRequestModal';
 import { server } from '../mocks/server';
-import { MSW_BASE } from '../mocks/handlers';
-import { requestApproved, requestPending1 } from '../mocks/requestFixtures';
+import { MSW_BASE, waitlistConflictThenSuccessHandler } from '../mocks/handlers';
+import { pageOfRequests, requestApproved, requestPending1 } from '../mocks/requestFixtures';
+import { emptyAvailability } from '../mocks/calendarFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { addDaysIso } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
 import { API_ERROR_TOAST, type ApiErrorToastDetail } from '../api/events';
-import { floorPlanOf } from '../mocks/floorPlanFixtures';
-import type { FloorPlanDesk } from '../types/floorPlan';
 
 const REQUESTS_URL = `${MSW_BASE}/requests`;
-const FLOOR_PLAN_URL = `${MSW_BASE}/floor-plan`;
+const AVAILABILITY_URL = `${MSW_BASE}/availability`;
+const APPROVAL_MODE_URL = `${MSW_BASE}/settings/approval-mode`;
 
-// Puesto con id (55) distinto del número (12): permite verificar que el modal
-// muestra el NÚMERO y nunca el identificador interno (tasks §4.1).
-const pickableDesk: FloorPlanDesk = {
-  deskId: 55,
-  deskNumber: 12,
-  category: 'STANDARD',
-  coordX: 20,
-  coordY: 30,
-  state: 'FREE',
-};
+// Fuerza disponibilidad 0 para PARKING (deja DESK con la disponibilidad por
+// defecto), para probar el aviso honesto de lista de espera.
+function zeroParkingAvailability(): void {
+  server.use(
+    http.get(AVAILABILITY_URL, ({ request }) => {
+      const url = new URL(request.url);
+      const date = url.searchParams.get('date') ?? todayIso();
+      if (url.searchParams.get('resourceType') === 'PARKING') {
+        return HttpResponse.json({ ...emptyAvailability, date });
+      }
+      return HttpResponse.json({ ...emptyAvailability, date, availableResources: [{ parkingSpaceId: 1, label: 'D-01' }] });
+    }),
+  );
+}
+
+function useAutomaticApprovalMode(): void {
+  server.use(http.get(APPROVAL_MODE_URL, () => HttpResponse.json({ approvalMode: 'AUTOMATIC' })));
+}
 
 // Captura los mensajes (claves i18n) de los toasts emitidos por el modal.
 function captureToasts(): { messages: string[] } {
@@ -36,12 +44,22 @@ function captureToasts(): { messages: string[] } {
   return captured;
 }
 
-// Captura los cuerpos de cada POST /requests para comprobar resourceType/resourceId.
+// Captura los cuerpos de cada POST /requests para comprobar resourceType/resourceId/waitlist.
 function captureRequestBodies(): {
-  bodies: Array<{ requestedDate?: string; resourceType?: string; resourceId?: number }>;
+  bodies: Array<{
+    requestedDate?: string;
+    resourceType?: string;
+    resourceId?: number;
+    waitlist?: boolean;
+  }>;
 } {
   const captured = {
-    bodies: [] as Array<{ requestedDate?: string; resourceType?: string; resourceId?: number }>,
+    bodies: [] as Array<{
+      requestedDate?: string;
+      resourceType?: string;
+      resourceId?: number;
+      waitlist?: boolean;
+    }>,
   };
   server.use(
     http.post(REQUESTS_URL, async ({ request }) => {
@@ -49,10 +67,16 @@ function captureRequestBodies(): {
         requestedDate: string;
         resourceType?: string;
         resourceId?: number;
+        waitlist?: boolean;
       };
       captured.bodies.push(body);
       return HttpResponse.json(
-        { ...requestPending1, id: 999, requestedDate: body.requestedDate },
+        {
+          ...requestPending1,
+          id: 999,
+          requestedDate: body.requestedDate,
+          waitlisted: body.waitlist === true,
+        },
         { status: 201 },
       );
     }),
@@ -60,10 +84,31 @@ function captureRequestBodies(): {
   return captured;
 }
 
+// Selecciona una fecha en el CALENDARIO del modal (rediseño: ya no hay <input date>).
+// Por defecto HOY (celda con clase .is-today). Para fechas futuras navega meses
+// hacia delante y clica el día correspondiente en el mes destino.
 async function fillDate(value: string = todayIso()): Promise<void> {
   const user = userEvent.setup();
-  await user.clear(screen.getByLabelText(/fecha de la solicitud|request date/i));
-  await user.type(screen.getByLabelText(/fecha de la solicitud|request date/i), value);
+  if (value === todayIso()) {
+    fireEvent.click(document.querySelector('.rc-day.is-today') as HTMLElement);
+    return;
+  }
+  const target = new Date(`${value}T00:00:00`);
+  const now = new Date(`${todayIso()}T00:00:00`);
+  const months =
+    (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
+  const next = screen.getByRole('button', { name: /mes siguiente|next month/i });
+  for (let i = 0; i < months; i += 1) {
+    await user.click(next);
+  }
+  const day = String(target.getDate());
+  const cell = [...document.querySelectorAll('.rc-day')].find(
+    (el) =>
+      el.textContent === day &&
+      !el.classList.contains('is-out') &&
+      !(el as HTMLButtonElement).disabled,
+  ) as HTMLElement;
+  fireEvent.click(cell);
 }
 
 async function submit(): Promise<void> {
@@ -72,13 +117,33 @@ async function submit(): Promise<void> {
   await user.click(dialog.getByRole('button', { name: /enviar solicitud|submit request/i }));
 }
 
+// Ningún recurso viene marcado por defecto: el usuario elige qué reservar. Estos
+// helpers marcan cada recurso desde su tarjeta.
+async function selectParking(): Promise<void> {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /plaza de parking|parking space/i }));
+}
+
+async function selectDesk(): Promise<void> {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /puesto de trabajo|work desk/i }));
+}
+
 describe('CreateRequestModal (unified request)', () => {
+  // El marcador del calendario (GET /requests/mine) determina qué días ya tienes
+  // reservados (se omiten al enviar). Por defecto lo dejamos vacío para que solo
+  // los tests de duplicados lo controlen; el fixture global incluye una reserva HOY.
+  beforeEach(() => {
+    server.use(http.get(`${MSW_BASE}/requests/mine`, () => HttpResponse.json(pageOfRequests([]))));
+  });
+
   it('should_post_only_parking_request_when_only_parking_selected', async () => {
     const captured = captureRequestBodies();
     const onCreated = vi.fn();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
+    await selectParking();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -93,6 +158,7 @@ describe('CreateRequestModal (unified request)', () => {
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate(farFuture);
+    await selectParking();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -103,12 +169,10 @@ describe('CreateRequestModal (unified request)', () => {
   it('should_post_desk_request_when_only_desk_selected', async () => {
     const captured = captureRequestBodies();
     const onCreated = vi.fn();
-    const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/plaza de parking|parking space/i));
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
+    await selectDesk();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -119,11 +183,11 @@ describe('CreateRequestModal (unified request)', () => {
   it('should_post_both_requests_when_parking_and_desk_selected', async () => {
     const captured = captureRequestBodies();
     const onCreated = vi.fn();
-    const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
+    await selectParking();
+    await selectDesk();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -132,18 +196,16 @@ describe('CreateRequestModal (unified request)', () => {
     expect(types).toEqual(['DESK', 'PARKING']);
   });
 
-  it('should_show_error_when_no_resource_selected', async () => {
+  it('should_disable_submit_when_no_resource_selected', async () => {
     const captured = captureRequestBodies();
-    const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/plaza de parking|parking space/i));
-    await submit();
+    // Ningún recurso viene marcado por defecto → no hay nada que reservar.
 
-    expect(
-      await screen.findByText(/al menos un recurso|at least one resource/i),
-    ).toBeInTheDocument();
+    // El envío se BLOQUEA deshabilitando el botón (rediseño), sin POST.
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('button', { name: /enviar solicitud|submit request/i })).toBeDisabled();
     expect(captured.bodies).toHaveLength(0);
   });
 
@@ -158,6 +220,7 @@ describe('CreateRequestModal (unified request)', () => {
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
+    await selectParking();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
@@ -179,6 +242,7 @@ describe('CreateRequestModal (unified request)', () => {
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
+    await selectParking();
     await submit();
 
     await waitFor(() =>
@@ -187,60 +251,148 @@ describe('CreateRequestModal (unified request)', () => {
     expect(onCreated).not.toHaveBeenCalled();
   });
 
-  it('should_show_choose_desk_button_only_when_desk_is_selected', async () => {
+  it('should_not_offer_desk_picker_in_quick_reserve', async () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
 
-    // Sin PUESTO seleccionado no hay botón de selección de puesto.
+    await fillDate();
+    await user.click(screen.getByRole('button', { name: /puesto de trabajo|work desk/i }));
+
+    // Reserva rápida: el puesto se auto-asigna por categoría (capability
+    // desk-auto-assignment), no se elige en el plano.
     expect(
       screen.queryByRole('button', { name: /seleccionar puesto|select desk/i }),
     ).not.toBeInTheDocument();
-
-    await fillDate();
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
-
-    expect(
-      screen.getByRole('button', { name: /seleccionar puesto|select desk/i }),
-    ).toBeInTheDocument();
   });
 
-  it('should_show_chosen_desk_number_never_the_id_after_picking', async () => {
-    server.use(http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([pickableDesk]))));
-    const user = userEvent.setup();
-    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
-
-    await fillDate();
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
-    await user.click(screen.getByRole('button', { name: /seleccionar puesto|select desk/i }));
-
-    // El plano se abre como selector: pinchar el puesto libre (número 12).
-    const marker = await screen.findByRole('button', { name: /puesto 12|desk 12/i });
-    await user.click(marker);
-
-    // El modal muestra el NÚMERO (12), nunca el identificador interno (55).
-    expect(
-      await screen.findByText(/puesto elegido: 12|chosen desk: 12/i),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/55/)).not.toBeInTheDocument();
-  });
-
-  it('should_post_resourceId_of_chosen_desk_when_submitting_desk_request', async () => {
+  it('should_post_desk_request_without_resourceId_when_desk_selected', async () => {
     const captured = captureRequestBodies();
-    server.use(http.get(FLOOR_PLAN_URL, () => HttpResponse.json(floorPlanOf([pickableDesk]))));
     const onCreated = vi.fn();
-    const user = userEvent.setup();
     renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
 
     await fillDate();
-    await user.click(screen.getByLabelText(/plaza de parking|parking space/i)); // desmarca PLAZA
-    await user.click(screen.getByLabelText(/puesto de oficina|office desk/i));
-    await user.click(screen.getByRole('button', { name: /seleccionar puesto|select desk/i }));
-    await user.click(await screen.findByRole('button', { name: /puesto 12|desk 12/i }));
+    await selectDesk();
     await submit();
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
     expect(captured.bodies).toHaveLength(1);
     expect(captured.bodies[0].resourceType).toBe('DESK');
-    expect(captured.bodies[0].resourceId).toBe(55);
+    // Sin resourceId: el backend auto-asigna el puesto por categoría.
+    expect(captured.bodies[0].resourceId).toBeUndefined();
+  });
+
+  // Marca HOY como plaza ya reservada (reserva viva) en el calendario del modal.
+  function reservedParkingToday(): void {
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () =>
+        HttpResponse.json(
+          pageOfRequests([{ ...requestPending1, resourceType: 'PARKING', requestedDate: todayIso() }]),
+        ),
+      ),
+    );
+  }
+
+  it('should_lock_resource_card_when_single_day_already_reserved', async () => {
+    reservedParkingToday();
+    const captured = captureRequestBodies();
+    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
+
+    await fillDate();
+
+    // La tarjeta de plaza se bloquea (ya la tienes ese día) y no es seleccionable.
+    // Espera a que resuelva el marcador (GET /requests/mine) que marca el día.
+    await screen.findByText(/ya tienes plaza este día|you already have a space this day/i);
+    const parkingCard = screen.getByRole('button', {
+      name: /plaza de parking|parking space/i,
+    });
+    expect(parkingCard).toBeDisabled();
+    // No hay nada nuevo que crear → botón enviar deshabilitado, sin POST.
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('button', { name: /enviar solicitud|submit request/i })).toBeDisabled();
+    expect(captured.bodies).toHaveLength(0);
+  });
+
+  it('should_skip_reserved_day_and_only_post_the_free_one_on_multi_day', async () => {
+    reservedParkingToday();
+    const captured = captureRequestBodies();
+    const onCreated = vi.fn();
+    const free = addDaysIso(todayIso(), 3);
+    renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+    await fillDate(); // HOY: ya reservada → se omite
+    await fillDate(free); // día libre → se envía
+    await selectParking();
+    await submit();
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    // Solo se envía el día libre (el ya reservado se omite, sin 409 de ruido).
+    expect(captured.bodies).toHaveLength(1);
+    expect(captured.bodies[0].requestedDate).toBe(free);
+  });
+
+  describe('waitlist (capability request-waitlist)', () => {
+    it('should_offer_join_waitlist_when_availability_is_zero_without_blocking_submit', async () => {
+      zeroParkingAvailability();
+      renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={vi.fn()} />);
+
+      await fillDate();
+      await selectParking();
+
+      expect(
+        await screen.findByText(/sin disponibilidad|no availability/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /apuntarme a la lista de espera|join the waitlist/i }),
+      ).toBeInTheDocument();
+      // El aviso no bloquea el envío: el botón de enviar solicitud sigue habilitado.
+      const dialog = within(screen.getByRole('dialog'));
+      expect(dialog.getByRole('button', { name: /enviar solicitud|submit request/i })).toBeEnabled();
+    });
+
+    it('should_send_waitlist_true_when_employee_joins_before_submitting', async () => {
+      zeroParkingAvailability();
+      const captured = captureRequestBodies();
+      const onCreated = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+      await fillDate();
+      await selectParking();
+      await user.click(
+        await screen.findByRole('button', { name: /apuntarme a la lista de espera|join the waitlist/i }),
+      );
+      // Tras apuntarse, el banner confirma sin mostrar posición numérica.
+      expect(
+        await screen.findByText(/apuntado: te avisaremos|joined: we will notify you/i),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/posición|position/i)).not.toBeInTheDocument();
+
+      await submit();
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(captured.bodies).toHaveLength(1);
+      expect(captured.bodies[0].waitlist).toBe(true);
+    });
+
+    it('should_offer_waitlist_retry_after_409_no_availability_in_automatic_mode', async () => {
+      useAutomaticApprovalMode();
+      server.use(waitlistConflictThenSuccessHandler());
+      const onCreated = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(<CreateRequestModal onClose={vi.fn()} onCreated={onCreated} />);
+
+      await fillDate();
+      await selectParking();
+      await submit();
+
+      const retryButton = await screen.findByRole('button', {
+        name: /apuntarme a la lista de espera|join the waitlist/i,
+      });
+      expect(onCreated).not.toHaveBeenCalled();
+
+      await user.click(retryButton);
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    });
   });
 });

@@ -22,12 +22,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Endpoint de ocupacion por fecha (consulta-only): los recursos (plazas y puestos) OCUPADOS
- * una fecha con su titular y origen, base de la vista admin "Liberar por fecha".
+ * una fecha con su titular y origen, base del pivote por-fecha del destino "Liberar" (change
+ * {@code restructure-admin-workflows}, capability {@code releases}, design §D5).
  *
  * <p>El adaptador web no contiene logica de negocio: delega en {@link AvailabilityService} y
- * trabaja siempre con DTOs (nunca con la entidad JPA, S4684). Exige rol {@code ADMIN}
- * ({@code @PreAuthorize}) por exponer el titular de cada recurso; devuelve {@code 403} a los
- * demas roles.</p>
+ * trabaja siempre con DTOs (nunca con la entidad JPA, S4684). Accesible a {@code ADMIN} y
+ * {@code AGENCIA} (solo lectura, para orientarse en el pivote por-fecha de liberacion); cualquier
+ * otro rol recibe {@code 403} (fail closed).</p>
  */
 @Tag(name = "Occupancy", description = "Ocupacion de recursos por fecha (Liberar por fecha)")
 @RestController
@@ -47,12 +48,14 @@ public class OccupancyController {
 
     /**
      * Devuelve los recursos (plazas y puestos) ocupados para una fecha, cada uno con su titular
-     * y el origen de la ocupacion (solo {@code ADMIN}).
+     * y el origen de la ocupacion ({@code ADMIN} o {@code AGENCIA}, solo lectura).
      *
      * @param date fecha a consultar (ISO-8601)
      * @return {@code 200} con los recursos ocupados esa fecha
      */
-    @Operation(summary = "Ocupacion de recursos por fecha (ADMIN)",
+    @Operation(summary = "Ocupacion de recursos por fecha (ADMIN/AGENCIA)",
+            description = "Solo lectura. Base del pivote por-fecha del destino \"Liberar\"; "
+                    + "accesible a ADMIN y AGENCIA.",
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Recursos ocupados para la fecha"),
@@ -60,11 +63,11 @@ public class OccupancyController {
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "401", description = "No autenticado",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "403", description = "Sin permisos (rol no ADMIN)",
+            @ApiResponse(responseCode = "403", description = "Sin permisos (rol distinto de ADMIN/AGENCIA)",
                     content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','AGENCIA')")
     public ResponseEntity<OccupancyResponse> getOccupancy(
             @Parameter(description = "Fecha a consultar (ISO-8601)", required = true, example = "2026-07-10")
             @RequestParam(name = "date")

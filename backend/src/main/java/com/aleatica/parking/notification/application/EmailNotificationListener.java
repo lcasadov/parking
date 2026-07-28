@@ -1,10 +1,12 @@
 package com.aleatica.parking.notification.application;
 
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
+import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
+import com.aleatica.parking.notification.event.WaitlistAvailableEvent;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -70,5 +72,21 @@ public class EmailNotificationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onFixedAssignmentRevoked(FixedAssignmentRevokedEvent event) {
         dispatcher.assignmentRevoked(event.employeeId());
+    }
+
+    /**
+     * @param event evento de asignacion puntual del admin
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRequestAdminAssigned(RequestAdminAssignedEvent event) {
+        dispatcher.requestAdminAssigned(event.request());
+    }
+
+    /**
+     * @param event evento de recurso liberado con lista de espera en modo MANUAL
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onWaitlistAvailable(WaitlistAvailableEvent event) {
+        dispatcher.waitlistAvailable(event.topWaitlistedRequest());
     }
 }

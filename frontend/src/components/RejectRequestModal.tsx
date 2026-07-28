@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { InfoBanner } from './InfoBanner';
-import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useRejectRequest } from '../hooks/useRequests';
@@ -106,11 +106,16 @@ export function RejectRequestModal({
   );
 
   return (
-    <Modal
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
       title={t(`${copyKey}.title`)}
       icon="alert-triangle"
-      onClose={onClose}
-      variant="red"
+      tone="green"
       narrow
       footer={footer}
     >
@@ -163,6 +168,6 @@ export function RejectRequestModal({
       <InfoBanner variant="blue" icon="mail">
         {t(`${copyKey}.emailNotice`)}
       </InfoBanner>
-    </Modal>
+    </Dialog>
   );
 }

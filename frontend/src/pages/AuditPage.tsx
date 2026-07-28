@@ -4,7 +4,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { ExportMenu } from '../components/ExportMenu';
 import { Input } from '../components/Input';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
 import { getStatus } from '../api/apiError';
@@ -65,9 +65,14 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
     return <TableEmpty icon="history-off" message={t('audit.empty')} />;
   }
 
+  const totalElements = query.data?.totalElements ?? entries.length;
+
   return (
     <>
-      <div className="table-scroll">
+      <p className="records-meta">
+        {t('audit.eventsCount', { count: totalElements })}
+      </p>
+      <div className="table-scroll table-cards-mobile">
         <table className="table">
           <thead>
             <tr className="table-header">
@@ -81,13 +86,19 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
           <tbody>
             {entries.map((entry) => (
               <tr key={entry.id} className="table-row">
-                <td>{formatDateTime(entry.occurredAt)}</td>
-                <td>{entry.actorEmployeeId ?? t('audit.systemActor')}</td>
-                <td>
+                <td data-label={t('audit.columns.occurredAt')}>
+                  {formatDateTime(entry.occurredAt)}
+                </td>
+                <td data-label={t('audit.columns.actor')}>
+                  {entry.actorEmployeeId ?? t('audit.systemActor')}
+                </td>
+                <td data-label={t('audit.columns.action')}>
                   <span className={`pill ${auditPillClass(entry.action)}`}>{entry.action}</span>
                 </td>
-                <td>{entityLabel(entry)}</td>
-                <td>{entry.details ?? DASH}</td>
+                <td data-label={t('audit.columns.entity')}>
+                  <span className="mono-chip">{entityLabel(entry)}</span>
+                </td>
+                <td data-label={t('audit.columns.details')}>{entry.details ?? DASH}</td>
               </tr>
             ))}
           </tbody>
@@ -120,7 +131,7 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
 }
 
 // Panel ADMIN de consulta de auditoria funcional (GET /audit). tasks §4.1.
-export function AuditPage() {
+export function AuditPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [actorId, setActorId] = useState('');
   const [action, setAction] = useState('');
@@ -148,7 +159,8 @@ export function AuditPage() {
 
   return (
     <section className="audit-page" aria-label={t('audit.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('audit.eyebrow')}
         title={t('audit.title')}
         description={t('audit.description')}
@@ -157,37 +169,43 @@ export function AuditPage() {
 
       <p className="form-hint">{t('audit.retentionNote')}</p>
 
-      <Toolbar ariaLabel={t('audit.title')}>
-        <Input
-          id="audit-actor"
-          type="number"
-          min={1}
-          label={t('audit.filters.actor')}
-          value={actorId}
-          onChange={(event) => onFilterChange(setActorId, event.target.value)}
-        />
-        <Input
-          id="audit-action"
-          type="text"
-          label={t('audit.filters.action')}
-          value={action}
-          onChange={(event) => onFilterChange(setAction, event.target.value)}
-        />
-        <Input
-          id="audit-from"
-          type="date"
-          label={t('audit.filters.from')}
-          value={from}
-          onChange={(event) => onFilterChange(setFrom, event.target.value)}
-        />
-        <Input
-          id="audit-to"
-          type="date"
-          label={t('audit.filters.to')}
-          value={to}
-          onChange={(event) => onFilterChange(setTo, event.target.value)}
-        />
-      </Toolbar>
+      <div className="filter-card">
+        <div className="filter-card-head">
+          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
+          {t('common.filters')}
+        </div>
+        <Toolbar ariaLabel={t('audit.title')}>
+          <Input
+            id="audit-actor"
+            type="number"
+            min={1}
+            label={t('audit.filters.actor')}
+            value={actorId}
+            onChange={(event) => onFilterChange(setActorId, event.target.value)}
+          />
+          <Input
+            id="audit-action"
+            type="text"
+            label={t('audit.filters.action')}
+            value={action}
+            onChange={(event) => onFilterChange(setAction, event.target.value)}
+          />
+          <Input
+            id="audit-from"
+            type="date"
+            label={t('audit.filters.from')}
+            value={from}
+            onChange={(event) => onFilterChange(setFrom, event.target.value)}
+          />
+          <Input
+            id="audit-to"
+            type="date"
+            label={t('audit.filters.to')}
+            value={to}
+            onChange={(event) => onFilterChange(setTo, event.target.value)}
+          />
+        </Toolbar>
+      </div>
 
       <AuditResults query={query} windowValid={windowValid} page={page} onPageChange={setPage} />
     </section>

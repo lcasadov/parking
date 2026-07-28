@@ -3,7 +3,7 @@
 import type { ResourceType } from './request';
 
 // OccupancyOrigin: origen por el que un recurso queda ocupado una fecha.
-export type OccupancyOrigin = 'FIXED_ASSIGNMENT' | 'REQUEST_APPROVED';
+export type OccupancyOrigin = 'FIXED_ASSIGNMENT' | 'REQUEST_APPROVED' | 'VISITOR_RESERVATION';
 
 // OccupancyItem: recurso ocupado una fecha con su titular y origen.
 export interface OccupancyItem {

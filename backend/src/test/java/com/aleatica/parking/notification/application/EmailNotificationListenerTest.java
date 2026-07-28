@@ -3,6 +3,7 @@ package com.aleatica.parking.notification.application;
 import static org.mockito.Mockito.verify;
 
 import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
+import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
@@ -64,5 +65,11 @@ class EmailNotificationListenerTest {
     void shouldRouteToAssignmentRevoked_whenFixedAssignmentRevokedEvent() {
         listener().onFixedAssignmentRevoked(new FixedAssignmentRevokedEvent(EMP_ID));
         verify(dispatcher).assignmentRevoked(EMP_ID);
+    }
+
+    @Test
+    void shouldRouteToRequestAdminAssigned_whenRequestAdminAssignedEvent() {
+        listener().onRequestAdminAssigned(new RequestAdminAssignedEvent(REQUEST));
+        verify(dispatcher).requestAdminAssigned(REQUEST);
     }
 }

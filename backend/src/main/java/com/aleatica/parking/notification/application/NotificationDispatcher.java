@@ -97,4 +97,35 @@ public class NotificationDispatcher {
         deliveryService.dispatch(
                 new NotificationCommand(NotificationEventType.ASSIGNMENT_REVOKED, employeeId, null));
     }
+
+    /**
+     * Notifica al empleado destino que un {@code ADMIN} le ha asignado puntualmente un recurso
+     * para una fecha concreta (change {@code restructure-admin-workflows}, capability
+     * {@code admin-punctual-assignment}), con una plantilla propia (distinta de
+     * {@link #requestApproved(RequestResponse)}: el empleado no inicio la peticion).
+     *
+     * @param request asignacion puntual, ya {@code APPROVED}
+     */
+    public void requestAdminAssigned(RequestResponse request) {
+        deliveryService.dispatch(new NotificationCommand(
+                NotificationEventType.REQUEST_ADMIN_ASSIGNED, request.employeeId(), request));
+    }
+
+    /**
+     * Notifica a todos los administradores activos que un recurso (plaza/puesto) ha quedado
+     * libre para una fecha con solicitudes en lista de espera, estando el sistema en modo
+     * {@code MANUAL} (change {@code waitlist-requests}): el sistema no auto-asigna, por lo que
+     * un administrador debe resolver desde la bandeja de pendientes. Emite una orden
+     * {@code WAITLIST_AVAILABLE} por cada {@code Employee} con {@code role = ADMIN} y
+     * {@code active = true}; si no hay ninguno no se emite ninguna orden (el flujo no falla),
+     * igual que {@link #requestCreated(RequestResponse)}.
+     *
+     * @param topWaitlistedRequest solicitud en cabeza de la lista de espera de ese dia/tipo
+     */
+    public void waitlistAvailable(RequestResponse topWaitlistedRequest) {
+        for (Employee admin : employeeRepository.findByRoleAndActiveTrue(Role.ADMIN)) {
+            deliveryService.dispatch(new NotificationCommand(
+                    NotificationEventType.WAITLIST_AVAILABLE, admin.getId(), topWaitlistedRequest));
+        }
+    }
 }

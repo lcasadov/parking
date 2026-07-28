@@ -119,4 +119,15 @@ public interface FixedAssignmentJpaRepository extends JpaRepository<FixedAssignm
      */
     List<FixedAssignmentEntity> findByResourceIdInAndResourceTypeAndActiveTrue(
             Collection<Long> resourceIds, ResourceType resourceType);
+
+    /**
+     * Cuenta las asignaciones fijas activas de un recurso (cualquier dia de la semana). Una
+     * asignacion fija activa implica ocupacion recurrente futura, por lo que bloquea la
+     * desactivacion silenciosa del recurso (change {@code admin-improvements}, tarea 16).
+     *
+     * @param resourceId   recurso a comprobar
+     * @param resourceType tipo de recurso (PARKING/DESK)
+     * @return numero de asignaciones fijas activas del recurso
+     */
+    long countByResourceIdAndResourceTypeAndActiveTrue(Long resourceId, ResourceType resourceType);
 }

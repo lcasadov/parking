@@ -1,7 +1,10 @@
 package com.aleatica.parking.visitor;
 
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -37,8 +40,14 @@ public class VisitorReservation {
     @Column(name = "visitor_id", nullable = false)
     private Long visitorId;
 
-    @Column(name = "parking_space_id", nullable = false)
-    private Long parkingSpaceId;
+    // Recurso reservado (plaza o puesto): polimórfico por tipo + id (patrón de V12 en
+    // `requests`). Reemplaza la antigua `parking_space_id` para permitir reservar puestos.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "resource_type", nullable = false, length = 16)
+    private ResourceType resourceType;
+
+    @Column(name = "resource_id", nullable = false)
+    private Long resourceId;
 
     @Column(name = "reservation_date", nullable = false)
     private LocalDate reservationDate;
@@ -59,22 +68,24 @@ public class VisitorReservation {
     }
 
     /**
-     * Da de alta una reserva de plaza para un visitante en una fecha.
+     * Da de alta una reserva de un recurso (plaza o puesto) para un visitante en una fecha.
      *
-     * @param visitorId      visitante para el que se reserva
-     * @param parkingSpaceId plaza ocupada por la reserva
+     * @param visitorId       visitante para el que se reserva
+     * @param resourceType    tipo de recurso reservado ({@code PARKING}/{@code DESK})
+     * @param resourceId      identificador del recurso ocupado por la reserva
      * @param reservationDate fecha reservada
-     * @param notes          anotaciones opcionales; {@code null} si no aplica
-     * @param createdById    {@code ADMIN} que crea la reserva
-     * @param now            instante de creacion (UTC)
+     * @param notes           anotaciones opcionales; {@code null} si no aplica
+     * @param createdById     {@code ADMIN} que crea la reserva
+     * @param now             instante de creacion (UTC)
      * @return la reserva nueva, aun no persistida
      */
     public static VisitorReservation create(
-            Long visitorId, Long parkingSpaceId, LocalDate reservationDate, String notes,
-            Long createdById, Instant now) {
+            Long visitorId, ResourceType resourceType, Long resourceId, LocalDate reservationDate,
+            String notes, Long createdById, Instant now) {
         VisitorReservation reservation = new VisitorReservation();
         reservation.visitorId = visitorId;
-        reservation.parkingSpaceId = parkingSpaceId;
+        reservation.resourceType = resourceType;
+        reservation.resourceId = resourceId;
         reservation.reservationDate = reservationDate;
         reservation.notes = notes;
         reservation.createdById = createdById;
@@ -90,8 +101,12 @@ public class VisitorReservation {
         return visitorId;
     }
 
-    public Long getParkingSpaceId() {
-        return parkingSpaceId;
+    public ResourceType getResourceType() {
+        return resourceType;
+    }
+
+    public Long getResourceId() {
+        return resourceId;
     }
 
     public LocalDate getReservationDate() {

@@ -1,19 +1,64 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
-import { ConfigureParkingCard } from '../components/ConfigureParkingCard';
 import { Legend } from '../components/Legend';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { ParkingSpaceFormModal } from '../components/ParkingSpaceFormModal';
 import { SearchBox } from '../components/SearchBox';
+import { StatTile } from '../components/StatTile';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
 import { emitApiErrorToast } from '../api/events';
+import { deactivationErrorKey } from '../utils/resourceDeactivation';
 import { useParkingSpacesQuery, useUpdateParkingSpace } from '../hooks/useParkingSpaces';
 import type { ParkingSpace } from '../types/parkingSpace';
 
 const PAGE_SIZE = 20;
+const COUNT_SIZE = 1;
+
+// Fila de KPIs de inventario (total / activas / inactivas). Usa consultas de
+// recuento propias (size=1) contra el mismo endpoint para reflejar el inventario
+// GLOBAL con independencia del filtro/planta visible en la tabla. Aislada como
+// subcomponente para no cargar la complejidad de la vista (S3776).
+function ParkingStats() {
+  const { t } = useTranslation();
+  const totalQuery = useParkingSpacesQuery({ page: 0, size: COUNT_SIZE });
+  const activeQuery = useParkingSpacesQuery({ page: 0, size: COUNT_SIZE, active: true });
+  const total = totalQuery.data?.totalElements;
+  const active = activeQuery.data?.totalElements;
+  if (total === undefined || active === undefined) {
+    return null;
+  }
+  const inactive = Math.max(total - active, 0);
+  const unit = t('parkingSpaces.stats.unit');
+  return (
+    <div className="mgmt-stats">
+      <StatTile
+        dot="var(--ink-faint)"
+        icon="parking"
+        label={t('parkingSpaces.stats.total')}
+        value={total}
+        unit={unit}
+      />
+      <StatTile
+        dot="var(--accent)"
+        icon="circle-check"
+        label={t('parkingSpaces.stats.active')}
+        value={active}
+        unit={unit}
+        sub={t('parkingSpaces.stats.ofTotal', { total })}
+      />
+      <StatTile
+        dot="var(--rel)"
+        icon="circle-off"
+        label={t('parkingSpaces.stats.inactive')}
+        value={inactive}
+        unit={unit}
+      />
+    </div>
+  );
+}
 
 type ActiveFilter = 'all' | 'active' | 'inactive';
 
@@ -48,7 +93,10 @@ function buildFloorOptions(spaces: ParkingSpace[], selected: FloorFilter): numbe
   return Array.from(floors).sort((a, b) => a - b);
 }
 
-export function ParkingSpacesPage() {
+// `embedded`: cuando se monta dentro de la sección "Recursos", no pinta su propia
+// cabecera (el contenedor aporta el título de sección + el conmutador); solo la
+// acción de crear en una barra compacta, para evitar títulos duplicados.
+export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
   const [floor, setFloor] = useState<FloorFilter>(ALL_FLOORS);
@@ -80,7 +128,10 @@ export function ParkingSpacesPage() {
   function toggleActivation(space: ParkingSpace): void {
     updateMutation.mutate(
       { id: space.id, body: { number: space.number, active: !space.active } },
-      { onError: () => emitApiErrorToast('parkingSpaces.errors.toggle') },
+      {
+        onError: (error) =>
+          emitApiErrorToast(deactivationErrorKey(error, 'parkingSpaces')),
+      },
     );
   }
 
@@ -116,7 +167,8 @@ export function ParkingSpacesPage() {
 
   return (
     <section className="parking-spaces-page" aria-label={t('parkingSpaces.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('parkingSpaces.eyebrow')}
         title={t('parkingSpaces.title')}
         description={t('parkingSpaces.description')}
@@ -127,45 +179,51 @@ export function ParkingSpacesPage() {
         }
       />
 
-      <ConfigureParkingCard />
+      <ParkingStats />
 
-      <Toolbar ariaLabel={t('parkingSpaces.searchLabel')}>
-        <SearchBox
-          label={t('parkingSpaces.searchLabel')}
-          placeholder={t('parkingSpaces.searchPlaceholder')}
-          value={q}
-          onValueChange={setQ}
-        />
-        <label className="field-label" htmlFor="parking-spaces-filter">
-          {t('parkingSpaces.filterLabel')}
-        </label>
-        <select
-          id="parking-spaces-filter"
-          className="field-input"
-          value={filter}
-          onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
-        >
-          <option value="all">{t('parkingSpaces.filter.all')}</option>
-          <option value="active">{t('parkingSpaces.filter.active')}</option>
-          <option value="inactive">{t('parkingSpaces.filter.inactive')}</option>
-        </select>
-        <label className="field-label" htmlFor="parking-spaces-floor">
-          {t('parkingSpaces.filterFloorLabel')}
-        </label>
-        <select
-          id="parking-spaces-floor"
-          className="field-input"
-          value={floorSelectValue}
-          onChange={(event) => handleFloor(event.target.value)}
-        >
-          <option value={ALL_FLOORS}>{t('parkingSpaces.floorFilter.all')}</option>
-          {floorOptions.map((value) => (
-            <option key={value} value={String(value)}>
-              {t('parkingSpaces.floorOption', { floor: value })}
-            </option>
-          ))}
-        </select>
-      </Toolbar>
+      <div className="filter-card">
+        <div className="filter-card-head">
+          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
+          {t('common.filters')}
+        </div>
+        <Toolbar ariaLabel={t('parkingSpaces.searchLabel')}>
+          <SearchBox
+            label={t('parkingSpaces.searchLabel')}
+            placeholder={t('parkingSpaces.searchPlaceholder')}
+            value={q}
+            onValueChange={setQ}
+          />
+          <label className="field-label" htmlFor="parking-spaces-filter">
+            {t('parkingSpaces.filterLabel')}
+          </label>
+          <select
+            id="parking-spaces-filter"
+            className="field-input"
+            value={filter}
+            onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
+          >
+            <option value="all">{t('parkingSpaces.filter.all')}</option>
+            <option value="active">{t('parkingSpaces.filter.active')}</option>
+            <option value="inactive">{t('parkingSpaces.filter.inactive')}</option>
+          </select>
+          <label className="field-label" htmlFor="parking-spaces-floor">
+            {t('parkingSpaces.filterFloorLabel')}
+          </label>
+          <select
+            id="parking-spaces-floor"
+            className="field-input"
+            value={floorSelectValue}
+            onChange={(event) => handleFloor(event.target.value)}
+          >
+            <option value={ALL_FLOORS}>{t('parkingSpaces.floorFilter.all')}</option>
+            {floorOptions.map((value) => (
+              <option key={value} value={String(value)}>
+                {t('parkingSpaces.floorOption', { floor: value })}
+              </option>
+            ))}
+          </select>
+        </Toolbar>
+      </div>
 
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 
@@ -189,7 +247,7 @@ export function ParkingSpacesPage() {
             }
           />
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll table-cards-mobile">
             <table className="table">
               <thead>
                 <tr className="table-header">
@@ -202,9 +260,11 @@ export function ParkingSpacesPage() {
               <tbody>
                 {visibleSpaces.map((space) => (
                   <tr key={space.id} className="table-row">
-                    <td>{space.label}</td>
-                    <td>{t('parkingSpaces.floorValue', { floor: space.floor })}</td>
-                    <td>
+                    <td data-label={t('parkingSpaces.columns.label')}>{space.label}</td>
+                    <td data-label={t('parkingSpaces.columns.floor')}>
+                      {t('parkingSpaces.floorValue', { floor: space.floor })}
+                    </td>
+                    <td data-label={t('parkingSpaces.columns.status')}>
                       <StatusPill tone={space.active ? 'occupied' : 'free'}>
                         {t(
                           space.active

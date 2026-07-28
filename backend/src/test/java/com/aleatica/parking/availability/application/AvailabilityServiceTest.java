@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 
 import com.aleatica.parking.auth.domain.ClockPort;
 import com.aleatica.parking.availability.CalendarCellState;
@@ -37,6 +38,7 @@ import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.support.EmployeeTestFactory;
 import com.aleatica.parking.visitor.VisitorReservation;
 import com.aleatica.parking.visitor.VisitorReservationRepository;
+import com.aleatica.parking.visitor.VisitorRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -93,14 +95,16 @@ class AvailabilityServiceTest {
     @Mock
     private VisitorReservationRepository visitorReservationRepository;
     @Mock
+    private VisitorRepository visitorRepository;
+    @Mock
     private EmployeeRepository employeeRepository;
     @Mock
     private ClockPort clock;
 
     private AvailabilityService service() {
         return new AvailabilityService(parkingSpaceRepository, deskRepository, fixedAssignmentRepository,
-                releaseRepository, requestRepository, visitorReservationRepository, employeeRepository,
-                clock);
+                releaseRepository, requestRepository, visitorReservationRepository, visitorRepository,
+                employeeRepository, clock);
     }
 
     // ---- Tabla de verdad de disponibilidad puntual ----
@@ -227,7 +231,7 @@ class AvailabilityServiceTest {
                 .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(false);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
-        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+        given(visitorReservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, DATE))
                 .willReturn(true);
 
         // Act / Assert
@@ -242,7 +246,7 @@ class AvailabilityServiceTest {
         given(releaseRepository.existsByResourceIdAndResourceTypeAndReleaseDate(SPACE_ID, ResourceType.PARKING, DATE)).willReturn(true);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
-        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+        given(visitorReservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, DATE))
                 .willReturn(false);
 
         // Act / Assert
@@ -279,7 +283,7 @@ class AvailabilityServiceTest {
                 .existsByResourceIdAndResourceTypeAndDayOfWeekAndActiveTrue(SPACE_ID, ResourceType.PARKING, DATE_DOW)).willReturn(false);
         given(requestRepository.existsByResourceIdAndResourceTypeAndRequestedDateAndStatus(
                 SPACE_ID, ResourceType.PARKING, DATE, RequestStatus.APPROVED)).willReturn(false);
-        given(visitorReservationRepository.existsByParkingSpaceIdAndReservationDate(SPACE_ID, DATE))
+        given(visitorReservationRepository.existsByResourceTypeAndResourceIdAndReservationDate(ResourceType.PARKING, SPACE_ID, DATE))
                 .willReturn(false);
 
         // Act / Assert
@@ -320,6 +324,50 @@ class AvailabilityServiceTest {
         assertThat(cells.get(2).requestId()).isEqualTo(7L);
         assertThat(cells.get(2).employeeName()).isEqualTo("Grace Hopper");
         assertThat(cells.get(3).state()).isEqualTo(CalendarCellState.FREE);
+    }
+
+    @Test
+    void shouldReturnAdminCalendarOfDesks_whenResourceTypeIsDesk() {
+        // Arrange (change restructure-admin-workflows, design D4): un puesto, asignado el lunes
+        given(deskRepository.findByActiveTrueOrderByNumberAsc()).willReturn(List.of(desk(DESK_ID, DESK_NUMBER)));
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.DESK)))
+                .willReturn(List.of(deskAssignment(DESK_ID, EMP_ID, 1)));
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(
+                ResourceType.DESK, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.DESK, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(employeeRepository.findAllById(any()))
+                .willReturn(List.of(employee(EMP_ID, "Ada", "Lovelace")));
+
+        // Act
+        AdminWeeklyCalendarResponse response = service().adminCalendar(MONDAY, ResourceType.DESK);
+
+        // Assert: la fila es el puesto (no la plaza) y el lunes esta ASSIGNED
+        assertThat(response.rows()).singleElement().satisfies(row -> {
+            assertThat(row.parkingSpaceId()).isEqualTo(DESK_ID);
+            assertThat(row.cells().get(0).state()).isEqualTo(CalendarCellState.ASSIGNED);
+            assertThat(row.cells().get(0).employeeName()).isEqualTo("Ada Lovelace");
+        });
+    }
+
+    @Test
+    void shouldDefaultToParking_whenAdminCalendarCalledWithoutResourceType() {
+        // Arrange (retrocompatibilidad design D4): el atajo de un solo parametro sigue siendo PARKING
+        givenActiveSpaces(space(SPACE_ID, SPACE_LABEL));
+        given(fixedAssignmentRepository.findByResourceIdInAndResourceTypeAndActiveTrue(
+                anyCollection(), eq(ResourceType.PARKING))).willReturn(List.of());
+        given(releaseRepository.findByResourceTypeAndReleaseDateBetween(
+                ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(requestRepository.findByStatusAndResourceTypeAndRequestedDateBetween(
+                RequestStatus.APPROVED, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+
+        // Act
+        AdminWeeklyCalendarResponse response = service().adminCalendar(MONDAY);
+
+        // Assert: la fila es la plaza
+        assertThat(response.rows()).singleElement()
+                .satisfies(row -> assertThat(row.parkingSpaceId()).isEqualTo(SPACE_ID));
     }
 
     @Test
@@ -387,6 +435,41 @@ class AvailabilityServiceTest {
         assertThat(days.get(4).requestId()).isEqualTo(9L);
         // MyWeekResponse no expone ningun campo de identidad por diseno (privacidad)
         assertThat(response).hasNoNullFieldsOrProperties();
+    }
+
+    @Test
+    void shouldReturnDeskState_whenEmployeeHasApprovedDeskRequest() {
+        // Arrange (change restructure-admin-workflows, design D4): "Mi Semana" multi-recurso.
+        // Plaza: sin nada (FREE). Puesto: solicitud APPROVED el lunes.
+        LocalDate wednesday = MONDAY.plusDays(2);
+        givenActor();
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+                EMP_ID, ResourceType.PARKING)).willReturn(List.of());
+        given(requestRepository.findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
+                EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(releaseRepository.findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+                EMP_ID, ResourceType.PARKING, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+
+        given(fixedAssignmentRepository.findByEmployeeIdAndResourceTypeAndActiveTrueOrderByDayOfWeekAsc(
+                EMP_ID, ResourceType.DESK)).willReturn(List.of());
+        given(requestRepository.findByEmployeeIdAndResourceTypeAndRequestedDateBetween(
+                EMP_ID, ResourceType.DESK, MONDAY, MONDAY.plusDays(6)))
+                .willReturn(List.of(deskApprovedRequestWithId(11L, DESK_ID, EMP_ID, wednesday)));
+        given(releaseRepository.findByEmployeeIdAndResourceTypeAndReleaseDateBetween(
+                EMP_ID, ResourceType.DESK, MONDAY, MONDAY.plusDays(6))).willReturn(List.of());
+        given(deskRepository.findAllById(any())).willReturn(List.of(desk(DESK_ID, DESK_NUMBER)));
+
+        // Act
+        MyWeekResponse response = service().myWeek(EMP_LOGIN, MONDAY);
+
+        // Assert: la plaza esta libre (por defecto) pero el puesto esta ASSIGNED el miercoles
+        List<MyWeekDayResponse> days = response.days();
+        assertThat(days.get(2).state()).isEqualTo(MyWeekDayState.FREE);
+        assertThat(days.get(2).deskState()).isEqualTo(MyWeekDayState.ASSIGNED);
+        assertThat(days.get(2).deskRequestStatus()).isEqualTo(RequestStatus.APPROVED);
+        assertThat(days.get(2).deskRequestId()).isEqualTo(11L);
+        // Otros dias sin puesto -> FREE
+        assertThat(days.get(0).deskState()).isEqualTo(MyWeekDayState.FREE);
     }
 
     @Test
@@ -684,13 +767,17 @@ class AvailabilityServiceTest {
     }
 
     private void givenReservationsOnDate(VisitorReservation... reservations) {
-        given(visitorReservationRepository.findByReservationDateBetween(DATE, DATE))
+        given(visitorReservationRepository.findByResourceTypeAndReservationDateBetween(ResourceType.PARKING, DATE, DATE))
                 .willReturn(List.of(reservations));
     }
 
     private void givenActor() {
         given(employeeRepository.findByLogin(EMP_LOGIN))
                 .willReturn(Optional.of(employee(EMP_ID, "Test", "User")));
+        // "Mi Semana" consulta el reloj para decidir si un dia RELEASED sigue siendo cancelable
+        // (change reservas-employee-admin-reassign). lenient(): no todos los tests de myWeek tienen
+        // un dia RELEASED que lo evalue.
+        lenient().when(clock.now()).thenReturn(NOW);
     }
 
     // ---- Fabricas de entidades ----
@@ -756,7 +843,7 @@ class AvailabilityServiceTest {
     }
 
     private static VisitorReservation reservation(Long spaceId, LocalDate date) {
-        return VisitorReservation.create(1L, spaceId, date, null, 1L, NOW);
+        return VisitorReservation.create(1L, ResourceType.PARKING, spaceId, date, null, 1L, NOW);
     }
 
     private static Employee employee(Long id, String first, String last) {

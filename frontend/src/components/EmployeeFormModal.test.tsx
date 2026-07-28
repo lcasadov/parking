@@ -203,6 +203,18 @@ describe('EmployeeFormModal', () => {
     let assignmentBody: Record<string, unknown> | null = null;
     server.use(
       http.post(EMPLOYEES_URL, () => HttpResponse.json({ ...employeeAlice, id: 77 }, { status: 201 })),
+      // Sin asignaciones fijas de otros → la plaza 1 está libre el martes en el selector.
+      http.get(`${MSW_BASE}/fixed-assignments`, () =>
+        HttpResponse.json({
+          content: [],
+          totalElements: 0,
+          totalPages: 0,
+          size: 500,
+          number: 0,
+          first: true,
+          last: true,
+        }),
+      ),
       http.put(`${MSW_BASE}/fixed-assignments/employee/:id`, async ({ request }) => {
         assignmentBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json([]);
@@ -214,8 +226,8 @@ describe('EmployeeFormModal', () => {
 
     await fillValidCreateForm(user);
     await user.click(screen.getByRole('tab', { name: /plaza fija|fixed space/i }));
-    await user.selectOptions(screen.getByLabelText(/^plaza$|^space$/i), '1');
-    await user.click(screen.getByRole('button', { name: /martes|tuesday/i }));
+    // Editor por-día: en la fila "Martes" se elige la plaza directamente.
+    await user.selectOptions(screen.getByLabelText(/^martes$|^tuesday$/i), '1');
     await user.click(screen.getByRole('button', { name: /guardar|save/i }));
 
     await waitFor(() => {

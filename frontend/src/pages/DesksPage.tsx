@@ -1,19 +1,65 @@
+import { RESOURCE_ICON } from '../utils/resourceIcon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { DeskCategoryBadge } from '../components/DeskCategoryBadge';
 import { DeskFormModal } from '../components/DeskFormModal';
 import { Legend } from '../components/Legend';
-import { PageHeader } from '../components/PageHeader';
+import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { SearchBox } from '../components/SearchBox';
+import { StatTile } from '../components/StatTile';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
 import { Toolbar } from '../components/Toolbar';
 import { emitApiErrorToast } from '../api/events';
+import { deactivationErrorKey } from '../utils/resourceDeactivation';
 import { useDesksQuery, useSetDeskActivation } from '../hooks/useDesks';
 import type { Desk } from '../types/desk';
 
 const PAGE_SIZE = 20;
+const COUNT_SIZE = 1;
+
+// Fila de KPIs de inventario de puestos (total / activos / inactivos). Consultas
+// de recuento propias (size=1) sobre el mismo endpoint, reflejan el inventario
+// GLOBAL con independencia del filtro visible. Subcomponente aislado (S3776).
+function DeskStats() {
+  const { t } = useTranslation();
+  const totalQuery = useDesksQuery({ page: 0, size: COUNT_SIZE });
+  const activeQuery = useDesksQuery({ page: 0, size: COUNT_SIZE, active: true });
+  const total = totalQuery.data?.totalElements;
+  const active = activeQuery.data?.totalElements;
+  if (total === undefined || active === undefined) {
+    return null;
+  }
+  const inactive = Math.max(total - active, 0);
+  const unit = t('desks.stats.unit');
+  return (
+    <div className="mgmt-stats">
+      <StatTile
+        dot="var(--ink-faint)"
+        icon={RESOURCE_ICON.DESK}
+        label={t('desks.stats.total')}
+        value={total}
+        unit={unit}
+      />
+      <StatTile
+        dot="var(--accent)"
+        icon="circle-check"
+        label={t('desks.stats.active')}
+        value={active}
+        unit={unit}
+        sub={t('desks.stats.ofTotal', { total })}
+      />
+      <StatTile
+        dot="var(--rel)"
+        icon="circle-off"
+        label={t('desks.stats.inactive')}
+        value={inactive}
+        unit={unit}
+      />
+    </div>
+  );
+}
 
 type ActiveFilter = 'all' | 'active' | 'inactive';
 
@@ -31,7 +77,8 @@ function filterToActive(filter: ActiveFilter): boolean | undefined {
 // Vista de gestión de puestos (ADMIN): tabla paginada con filtro activo/inactivo,
 // alta/edición y activación/desactivación. Distingue EXECUTIVE visualmente
 // (init-desks §4.1/§4.3). El plano interactivo llega en floor-plan.
-export function DesksPage() {
+// `embedded`: montada dentro de "Recursos", sin su propia cabecera (ver ParkingSpacesPage).
+export function DesksPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
   const [q, setQ] = useState('');
@@ -71,7 +118,7 @@ export function DesksPage() {
     // actualización (PUT) NO modifica `active` (bug #83).
     activationMutation.mutate(
       { id: desk.id, active: !desk.active },
-      { onError: () => emitApiErrorToast('desks.errors.toggle') },
+      { onError: (error) => emitApiErrorToast(deactivationErrorKey(error, 'desks')) },
     );
   }
 
@@ -89,7 +136,8 @@ export function DesksPage() {
 
   return (
     <section className="desks-page" aria-label={t('desks.title')}>
-      <PageHeader
+      <EmbeddablePageHeader
+        embedded={embedded}
         eyebrow={t('desks.eyebrow')}
         title={t('desks.title')}
         description={t('desks.description')}
@@ -100,27 +148,35 @@ export function DesksPage() {
         }
       />
 
-      <Toolbar ariaLabel={t('desks.searchLabel')}>
-        <SearchBox
-          label={t('desks.searchLabel')}
-          placeholder={t('desks.searchPlaceholder')}
-          value={q}
-          onValueChange={setQ}
-        />
-        <label className="field-label" htmlFor="desks-filter">
-          {t('desks.filterLabel')}
-        </label>
-        <select
-          id="desks-filter"
-          className="field-input"
-          value={filter}
-          onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
-        >
-          <option value="all">{t('desks.filter.all')}</option>
-          <option value="active">{t('desks.filter.active')}</option>
-          <option value="inactive">{t('desks.filter.inactive')}</option>
-        </select>
-      </Toolbar>
+      <DeskStats />
+
+      <div className="filter-card">
+        <div className="filter-card-head">
+          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
+          {t('common.filters')}
+        </div>
+        <Toolbar ariaLabel={t('desks.searchLabel')}>
+          <SearchBox
+            label={t('desks.searchLabel')}
+            placeholder={t('desks.searchPlaceholder')}
+            value={q}
+            onValueChange={setQ}
+          />
+          <label className="field-label" htmlFor="desks-filter">
+            {t('desks.filterLabel')}
+          </label>
+          <select
+            id="desks-filter"
+            className="field-input"
+            value={filter}
+            onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
+          >
+            <option value="all">{t('desks.filter.all')}</option>
+            <option value="active">{t('desks.filter.active')}</option>
+            <option value="inactive">{t('desks.filter.inactive')}</option>
+          </select>
+        </Toolbar>
+      </div>
 
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 
@@ -134,7 +190,7 @@ export function DesksPage() {
 
       {ready && visibleDesks.length === 0 ? (
         <TableEmpty
-          icon="armchair"
+          icon={RESOURCE_ICON.DESK}
           message={t('desks.empty')}
           action={
             <Button variant="green" icon="plus" onClick={openCreate}>
@@ -145,7 +201,7 @@ export function DesksPage() {
       ) : null}
 
       {ready && visibleDesks.length > 0 ? (
-        <div className="table-scroll">
+        <div className="table-scroll table-cards-mobile">
           <table className="table">
             <thead>
               <tr className="table-header">
@@ -158,11 +214,11 @@ export function DesksPage() {
             <tbody>
               {visibleDesks.map((desk) => (
                 <tr key={desk.id} className="table-row">
-                  <td>{desk.number}</td>
-                  <td>
+                  <td data-label={t('desks.columns.number')}>{desk.number}</td>
+                  <td data-label={t('desks.columns.category')}>
                     <DeskCategoryBadge category={desk.category} />
                   </td>
-                  <td>
+                  <td data-label={t('desks.columns.status')}>
                     <StatusPill tone={desk.active ? 'occupied' : 'free'}>
                       {t(desk.active ? 'desks.status.active' : 'desks.status.inactive')}
                     </StatusPill>

@@ -58,15 +58,15 @@ public class ReleaseSelectionController {
     }
 
     /**
-     * Lista los empleados activos seleccionables (datos minimos: id y nombre) para el flujo de
-     * liberacion administrativa ({@code ADMIN} o {@code AGENCIA}).
+     * Lista los empleados activos seleccionables (datos minimos: id, nombre y categoria) para el
+     * flujo de liberacion administrativa ({@code ADMIN} o {@code AGENCIA}).
      *
-     * @return {@code 200} con las opciones de empleado (id + nombre)
+     * @return {@code 200} con las opciones de empleado (id + nombre + categoria)
      */
     @Operation(summary = "Empleados seleccionables para liberacion (ADMIN/AGENCIA)",
-            description = "Listado de solo lectura de empleados activos (id + nombre) para poblar "
-                    + "el selector de liberacion. No expone datos de contacto ni credenciales y es "
-                    + "independiente del CRUD de empleados (reservado a ADMIN).",
+            description = "Listado de solo lectura de empleados activos (id + nombre + categoria) "
+                    + "para poblar el selector de liberacion. No expone datos de contacto ni "
+                    + "credenciales y es independiente del CRUD de empleados (reservado a ADMIN).",
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Empleados seleccionables"),

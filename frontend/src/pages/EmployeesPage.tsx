@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
-import { DayBadges } from '../components/DayBadges';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Tooltip, TooltipProvider } from '../components/Tooltip';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { ExportMenu } from '../components/ExportMenu';
-import { Legend } from '../components/Legend';
+import { Menu } from '../components/Menu';
 import { PageHeader } from '../components/PageHeader';
 import { ResetPasswordModal } from '../components/ResetPasswordModal';
 import { SearchBox } from '../components/SearchBox';
@@ -24,9 +25,10 @@ import { useParkingSpacesQuery } from '../hooks/useParkingSpaces';
 import { buildDeskLabels } from '../utils/desks';
 import { initialsOf } from '../utils/initials';
 import {
-  indexFixedResourcesByEmployee,
-  type EmployeeFixedResources,
-  type FixedAssignmentGroup,
+  assignedWeekDays,
+  distinctWeekResources,
+  indexDayResourceMapsByEmployee,
+  type DayResourceMap,
 } from '../utils/fixedAssignments';
 import type { Employee } from '../types/employee';
 import type { ParkingSpace } from '../types/parkingSpace';
@@ -43,24 +45,84 @@ function buildSpaceLabels(spaces: ParkingSpace[]): Map<number, string> {
   return map;
 }
 
-// Celda de recurso fijo: etiqueta (verde) + chips de dias, o "—" si no tiene.
-function ResourceCell({
-  group,
-  labels,
-}: {
-  group: FixedAssignmentGroup | null;
-  labels: Map<number, string>;
-}) {
-  if (!group) {
+const EMPTY_MAP: DayResourceMap = {};
+
+// Celda de recurso fijo. Tres formas segun el dato (mockup 03):
+//  · sin recurso -> "—".
+//  · mismo recurso todos sus dias -> etiqueta (verde) + chips de dia (L-V).
+//  · recursos distintos por dia -> chips por dia con la etiqueta del recurso de
+//    ESE dia (p.ej. D-03 lunes, D-07 miercoles), respetando el dato real.
+// Celda de recurso fijo (plaza/puesto): RESUMEN compacto de una línea + tooltip con
+// el detalle por día (para que la fila del empleado no crezca en alto).
+function ResourceCell({ map, labels }: { map: DayResourceMap; labels: Map<number, string> }) {
+  const { t } = useTranslation();
+  const resourceIds = distinctWeekResources(map);
+  if (resourceIds.length === 0) {
     return <span className="text-muted">{NONE}</span>;
   }
+  const labelFor = (id: number): string => labels.get(id) ?? `#${id}`;
+  const days = assignedWeekDays(map);
+  const summary =
+    resourceIds.length === 1
+      ? `${labelFor(resourceIds[0])} · ${days.map((d) => t(`common.weekdayChip.${d}`)).join(' ')}`
+      : resourceIds.map(labelFor).join(', ');
+  const full = (
+    <ul className="fixed-tip-list">
+      {days.map((d) => (
+        <li key={d}>
+          <span className="fixed-tip-day">{t(`common.weekdayName.${d}`)}</span>
+          <span>{labelFor(map[d] as number)}</span>
+        </li>
+      ))}
+    </ul>
+  );
   return (
-    <div className="fixed-cell">
-      <span className="fixed-cell-label">
-        {labels.get(group.parkingSpaceId) ?? `#${group.parkingSpaceId}`}
-      </span>
-      <DayBadges days={group.days} />
-    </div>
+    <TooltipProvider>
+      <Tooltip content={full}>
+        <button type="button" className="fixed-cell-summary">
+          {summary}
+        </button>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+// Diálogo de confirmación de BAJA (acción sensible). Extraído a módulo para no
+// cargar la complejidad cognitiva de la página (S3776); guarda el null aquí.
+function DeactivateConfirm({
+  target,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  target: Employee | null;
+  busy: boolean;
+  onConfirm: (employee: Employee) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ConfirmDialog
+      open={target !== null}
+      onOpenChange={(open) => {
+        if (!open) onCancel();
+      }}
+      tone="green"
+      icon="user-off"
+      title={t('employees.deactivateConfirm.title')}
+      description={
+        target
+          ? t('employees.deactivateConfirm.body', {
+              name: `${target.firstName} ${target.lastName}`.trim(),
+            })
+          : ''
+      }
+      confirmLabel={t('employees.actions.deactivate')}
+      busy={busy}
+      onConfirm={() => {
+        if (target) onConfirm(target);
+      }}
+    />
   );
 }
 
@@ -73,6 +135,9 @@ export function EmployeesPage() {
   const [formEmployee, setFormEmployee] = useState<Employee | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [resetEmployee, setResetEmployee] = useState<Employee | null>(null);
+  // Empleado pendiente de confirmar la BAJA (acción sensible). La reactivación no
+  // pide confirmación.
+  const [deactivateTarget, setDeactivateTarget] = useState<Employee | null>(null);
 
   const query = useEmployeesQuery({ page, size: PAGE_SIZE, q });
   const assignmentsQuery = useFixedAssignmentsQuery({ page: 0, size: LOOKUP_SIZE });
@@ -90,7 +155,7 @@ export function EmployeesPage() {
     [desksQuery.data],
   );
   const resourcesByEmployee = useMemo(
-    () => indexFixedResourcesByEmployee(assignmentsQuery.data?.content ?? []),
+    () => indexDayResourceMapsByEmployee(assignmentsQuery.data?.content ?? []),
     [assignmentsQuery.data],
   );
 
@@ -116,14 +181,14 @@ export function EmployeesPage() {
 
   function toggleActive(employee: Employee): void {
     if (employee.active) {
-      deactivateMutation.mutate(employee.id);
+      setDeactivateTarget(employee); // baja → confirmar primero
     } else {
       reactivateMutation.mutate(employee.id);
     }
   }
 
-  function resourcesFor(employeeId: number): EmployeeFixedResources {
-    return resourcesByEmployee.get(employeeId) ?? { parking: null, desk: null };
+  function resourcesFor(employeeId: number): { parking: DayResourceMap; desk: DayResourceMap } {
+    return resourcesByEmployee.get(employeeId) ?? { parking: EMPTY_MAP, desk: EMPTY_MAP };
   }
 
   const employees = query.data?.content ?? [];
@@ -131,11 +196,6 @@ export function EmployeesPage() {
   const totalPages = query.data?.totalPages ?? 0;
   const isFirst = query.data?.first ?? true;
   const isLast = query.data?.last ?? true;
-
-  const legendItems = [
-    { color: 'var(--green)', label: t('employees.legend.assigned') },
-    { color: 'var(--border)', label: t('employees.legend.none') },
-  ];
 
   return (
     <section className="employees-page" aria-label={t('employees.title')}>
@@ -189,7 +249,7 @@ export function EmployeesPage() {
       ) : null}
 
       {ready && employees.length > 0 ? (
-        <div className="table-scroll">
+        <div className="table-scroll table-cards-mobile emp-table">
           <table className="table">
             <thead>
               <tr className="table-header">
@@ -209,7 +269,7 @@ export function EmployeesPage() {
                 const resources = resourcesFor(employee.id);
                 return (
                   <tr key={employee.id} className="table-row">
-                    <td>
+                    <td data-label={t('employees.columns.name')}>
                       <div className="employee-cell">
                         <Avatar
                           initials={initialsOf(employee)}
@@ -223,16 +283,22 @@ export function EmployeesPage() {
                         </div>
                       </div>
                     </td>
-                    <td>{employee.department ?? NONE}</td>
-                    <td>
-                      <ResourceCell group={resources.parking} labels={spaceLabels} />
+                    <td data-label={t('employees.columns.department')}>
+                      {employee.department ?? NONE}
                     </td>
-                    <td>
-                      <ResourceCell group={resources.desk} labels={deskLabels} />
+                    <td data-label={t('employees.columns.parkingFixed')}>
+                      <ResourceCell map={resources.parking} labels={spaceLabels} />
                     </td>
-                    <td>{t(`employees.role.${employee.role}`)}</td>
-                    <td>{t(`employees.category.${employee.category}`)}</td>
-                    <td>
+                    <td data-label={t('employees.columns.deskFixed')}>
+                      <ResourceCell map={resources.desk} labels={deskLabels} />
+                    </td>
+                    <td data-label={t('employees.columns.role')}>
+                      {t(`employees.role.${employee.role}`)}
+                    </td>
+                    <td data-label={t('employees.columns.category')}>
+                      {t(`employees.category.${employee.category}`)}
+                    </td>
+                    <td data-label={t('employees.columns.status')}>
                       <StatusPill tone={employee.active ? 'occupied' : 'free'}>
                         {t(
                           employee.active ? 'employees.status.active' : 'employees.status.inactive',
@@ -248,26 +314,43 @@ export function EmployeesPage() {
                       >
                         {t('employees.actions.edit')}
                       </Button>
-                      <Button
-                        variant={employee.active ? 'red' : 'green'}
-                        onClick={() => toggleActive(employee)}
-                      >
-                        {t(
-                          employee.active
-                            ? 'employees.actions.deactivate'
-                            : 'employees.actions.reactivate',
-                        )}
-                      </Button>
-                      <Button variant="blue" icon="key" onClick={() => setResetEmployee(employee)}>
-                        {t('employees.actions.resetPassword')}
-                      </Button>
+                      <Menu
+                        ariaLabel={t('employees.actions.more')}
+                        trigger={
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label={t('employees.actions.more')}
+                          >
+                            <i className="ti ti-dots-vertical" aria-hidden="true" />
+                          </button>
+                        }
+                        items={[
+                          {
+                            key: 'toggle',
+                            label: t(
+                              employee.active
+                                ? 'employees.actions.deactivate'
+                                : 'employees.actions.reactivate',
+                            ),
+                            icon: employee.active ? 'user-off' : 'user-check',
+                            danger: employee.active,
+                            onSelect: () => toggleActive(employee),
+                          },
+                          {
+                            key: 'reset',
+                            label: t('employees.actions.resetPassword'),
+                            icon: 'key',
+                            onSelect: () => setResetEmployee(employee),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          <Legend items={legendItems} />
         </div>
       ) : null}
 
@@ -292,6 +375,16 @@ export function EmployeesPage() {
       {resetEmployee ? (
         <ResetPasswordModal employee={resetEmployee} onClose={() => setResetEmployee(null)} />
       ) : null}
+
+      <DeactivateConfirm
+        target={deactivateTarget}
+        busy={deactivateMutation.isPending}
+        onCancel={() => setDeactivateTarget(null)}
+        onConfirm={(employee) => {
+          deactivateMutation.mutate(employee.id);
+          setDeactivateTarget(null);
+        }}
+      />
     </section>
   );
 }

@@ -15,8 +15,12 @@ import com.aleatica.parking.request.application.DuplicatePendingRequestException
 import com.aleatica.parking.request.application.NoAvailabilityException;
 import com.aleatica.parking.request.application.OutsideRequestWindowException;
 import com.aleatica.parking.request.application.RejectionReasonRequiredException;
+import com.aleatica.parking.request.application.RequestNotPendingException;
 import com.aleatica.parking.request.application.RequestStateException;
+import com.aleatica.parking.request.application.ResendTooSoonException;
+import com.aleatica.parking.request.application.ResourceSelectionRequiredException;
 import com.aleatica.parking.request.application.SpaceUnavailableException;
+import com.aleatica.parking.request.application.WeekendNotReservableException;
 import com.aleatica.parking.visitor.application.PastVisitorReservationCancellationException;
 import com.aleatica.parking.visitor.application.SpaceNotAvailableForReservationException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
@@ -62,6 +66,7 @@ public class GlobalExceptionHandler {
     private static final String CODE_PASSWORD_POLICY = "PASSWORD_POLICY_VIOLATION";
     private static final String CODE_CONFLICT = "CONFLICT";
     private static final String CODE_OUTSIDE_WINDOW = "OUTSIDE_REQUEST_WINDOW";
+    private static final String CODE_WEEKEND_NOT_RESERVABLE = "WEEKEND_NOT_RESERVABLE";
     private static final String CODE_REQUEST_PENDING = "REQUEST_ALREADY_PENDING";
     private static final String CODE_SPACE_UNAVAILABLE = "SPACE_NOT_AVAILABLE";
     private static final String CODE_NO_AVAILABILITY = "NO_AVAILABILITY";
@@ -71,6 +76,12 @@ public class GlobalExceptionHandler {
     private static final String CODE_RELEASE_NOT_CANCELLABLE = "RELEASE_NOT_CANCELLABLE";
     private static final String CODE_RESERVATION_NOT_CANCELLABLE = "VISITOR_RESERVATION_NOT_CANCELLABLE";
     private static final String CODE_RATE_LIMITED = "RATE_LIMIT_EXCEEDED";
+    private static final String CODE_REQUEST_NOT_PENDING = "REQUEST_NOT_PENDING";
+    private static final String CODE_RESEND_TOO_SOON = "RESEND_TOO_SOON";
+    private static final String CODE_RESOURCE_HAS_FUTURE = "RESOURCE_HAS_FUTURE_ASSIGNMENTS";
+    private static final String FIELD_FIXED_ASSIGNMENTS = "fixedAssignments";
+    private static final String FIELD_APPROVED_REQUESTS = "approvedRequests";
+    private static final String FIELD_VISITOR_RESERVATIONS = "visitorReservations";
     private static final String FIELD_FORMAT = "format";
     private static final String MSG_UNSUPPORTED_FORMAT =
             "Formato de exportacion no soportado; use csv o xlsx";
@@ -86,6 +97,7 @@ public class GlobalExceptionHandler {
     private static final String FIELD_EMPLOYEE_ID = "employeeId";
     private static final String FIELD_REQUESTED_DATE = "requestedDate";
     private static final String FIELD_REJECTION_REASON = "rejectionReason";
+    private static final String FIELD_RESOURCE_ID = "resourceId";
     private static final String FIELD_RELEASE_DATE = "releaseDate";
     private static final String FIELD_NATIONAL_ID = "nationalId";
     private static final String FIELD_DATE_WINDOW = "from";
@@ -102,7 +114,7 @@ public class GlobalExceptionHandler {
     private static final String INDEX_RELEASE_SPACE_DATE = "ux_releases_space_date";
     private static final String INDEX_VISITOR_NATIONAL_ID = "ux_visitors_national_id";
     private static final String INDEX_VISITOR_RESERVATION_SPACE_DATE =
-            "ux_visitor_reservations_space_date";
+            "ux_visitor_reservations_resource_date";
 
     private static final String MSG_VALIDATION = "La solicitud contiene datos invalidos";
     private static final String MSG_PARAM_MISSING = "El parametro es obligatorio";
@@ -163,7 +175,7 @@ public class GlobalExceptionHandler {
                     CODE_RESOURCE_RELEASED),
             new IndexRule(INDEX_VISITOR_NATIONAL_ID, FIELD_NATIONAL_ID, MSG_NATIONAL_ID_TAKEN,
                     CODE_CONFLICT),
-            new IndexRule(INDEX_VISITOR_RESERVATION_SPACE_DATE, FIELD_PARKING_SPACE_ID,
+            new IndexRule(INDEX_VISITOR_RESERVATION_SPACE_DATE, FIELD_RESOURCE_ID,
                     MSG_RESERVATION_SPACE_TAKEN, CODE_SPACE_UNAVAILABLE));
 
     /**
@@ -363,6 +375,27 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Traduce el bloqueo de desactivacion de un recurso con asignaciones vigentes o futuras a
+     * {@code 409} con el codigo {@code RESOURCE_HAS_FUTURE_ASSIGNMENTS} y el desglose por tipo
+     * (asignaciones fijas / solicitudes aprobadas / reservas de visitante) en {@code fields},
+     * para que el frontend avise indicando a quien/que afecta (change {@code admin-improvements},
+     * tarea 16).
+     *
+     * @param ex excepcion de bloqueo de desactivacion con el desglose de asignaciones
+     * @return {@link ApiError} con estado 409 y el conteo por tipo en {@code fields}
+     */
+    @ExceptionHandler(ResourceDeactivationBlockedException.class)
+    public ResponseEntity<ApiError> handleResourceDeactivationBlocked(
+            ResourceDeactivationBlockedException ex) {
+        Map<String, String> fields = Map.of(
+                FIELD_FIXED_ASSIGNMENTS, Long.toString(ex.getFixedAssignments()),
+                FIELD_APPROVED_REQUESTS, Long.toString(ex.getApprovedRequests()),
+                FIELD_VISITOR_RESERVATIONS, Long.toString(ex.getVisitorReservations()));
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_RESOURCE_HAS_FUTURE, ex.getMessage(), fields));
+    }
+
+    /**
      * Traduce una violacion de indice unico en BD a {@code 409} (red dura frente a
      * concurrencia). Deriva el campo en conflicto del nombre del indice
      * ({@code UX_employees_login} / {@code UX_employees_email}).
@@ -425,6 +458,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Traduce el intento de crear una solicitud para sabado/domingo con las reservas de fin de
+     * semana deshabilitadas a {@code 400} con {@code error = WEEKEND_NOT_RESERVABLE} y el detalle
+     * en {@code requestedDate} (change {@code reservas-employee-admin-reassign}).
+     *
+     * @param ex excepcion de fin de semana no reservable
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(WeekendNotReservableException.class)
+    public ResponseEntity<ApiError> handleWeekendNotReservable(WeekendNotReservableException ex) {
+        Map<String, String> fields = Map.of(FIELD_REQUESTED_DATE, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_WEEKEND_NOT_RESERVABLE, ex.getMessage(), fields));
+    }
+
+    /**
      * Traduce la comprobacion previa de solicitud {@code PENDING} duplicada a
      * {@code 409} con {@code error = REQUEST_ALREADY_PENDING}.
      *
@@ -451,6 +499,34 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Traduce el reenvio de aviso de una solicitud que ya no esta {@code PENDING} a
+     * {@code 409} con {@code error = REQUEST_NOT_PENDING} (change
+     * {@code request-resend-notice}).
+     *
+     * @param ex excepcion de solicitud no pendiente
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(RequestNotPendingException.class)
+    public ResponseEntity<ApiError> handleRequestNotPending(RequestNotPendingException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_REQUEST_NOT_PENDING, ex.getMessage()));
+    }
+
+    /**
+     * Traduce el reenvio de aviso antes del periodo minimo (24h desde la creacion o el
+     * ultimo reenvio) a {@code 409} con {@code error = RESEND_TOO_SOON} (change
+     * {@code request-resend-notice}).
+     *
+     * @param ex excepcion de reenvio demasiado pronto
+     * @return {@link ApiError} con estado 409
+     */
+    @ExceptionHandler(ResendTooSoonException.class)
+    public ResponseEntity<ApiError> handleResendTooSoon(ResendTooSoonException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(CODE_RESEND_TOO_SOON, ex.getMessage()));
+    }
+
+    /**
      * Traduce la indisponibilidad de plaza al aprobar (asignacion fija o solicitud ya
      * aprobada esa fecha) a {@code 409} con {@code error = SPACE_NOT_AVAILABLE}.
      *
@@ -466,7 +542,10 @@ public class GlobalExceptionHandler {
     /**
      * Traduce la ausencia de plaza libre en el alta automatica (modo {@code AUTOMATIC}) a
      * {@code 409} con {@code error = NO_AVAILABILITY}: no hay ninguna plaza libre para la fecha
-     * y la solicitud no se crea (design §D4).
+     * y la solicitud no se crea (design §D4). Condicionado al opt-in de lista de espera (change
+     * {@code waitlist-requests}): {@code RequestService} solo lanza esta excepcion cuando el
+     * empleado NO opto por {@code waitlist: true} en el cuerpo; con el opt-in, en su lugar se
+     * crea la solicitud {@code PENDING waitlisted = true} sin llegar a este manejador.
      *
      * @param ex excepcion de falta de disponibilidad en auto-asignacion
      * @return {@link ApiError} con estado 409
@@ -487,6 +566,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RejectionReasonRequiredException.class)
     public ResponseEntity<ApiError> handleRejectionReasonRequired(RejectionReasonRequiredException ex) {
         Map<String, String> fields = Map.of(FIELD_REJECTION_REASON, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
+    }
+
+    /**
+     * Traduce la ausencia del recurso obligatorio en la asignacion puntual del admin para
+     * {@code DESK} a {@code 400} con {@code error = VALIDATION_ERROR} y el detalle en
+     * {@code resourceId} (capability {@code admin-punctual-assignment}).
+     *
+     * @param ex excepcion de recurso obligatorio no indicado
+     * @return {@link ApiError} con estado 400 y detalle por campo
+     */
+    @ExceptionHandler(ResourceSelectionRequiredException.class)
+    public ResponseEntity<ApiError> handleResourceSelectionRequired(ResourceSelectionRequiredException ex) {
+        Map<String, String> fields = Map.of(FIELD_RESOURCE_ID, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(CODE_VALIDATION, ex.getMessage(), fields));
     }
@@ -560,7 +654,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SpaceNotAvailableForReservationException.class)
     public ResponseEntity<ApiError> handleReservationSpaceUnavailable(
             SpaceNotAvailableForReservationException ex) {
-        Map<String, String> fields = Map.of(FIELD_PARKING_SPACE_ID, ex.getMessage());
+        Map<String, String> fields = Map.of(FIELD_RESOURCE_ID, ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(CODE_SPACE_UNAVAILABLE, ex.getMessage(), fields));
     }

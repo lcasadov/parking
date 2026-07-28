@@ -6,29 +6,63 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  adminAssignRequest,
   adminCancelRequest,
+  adminReassignRequest,
+  adminSwapRequests,
   approveRequest,
   cancelRequest,
   createRequest,
+  getSuggestedResource,
   listMyRequests,
   listPendingRequests,
   listRequestsByStatus,
   rejectRequest,
+  resendRequest,
 } from '../api/requestsApi';
+import { isValidIsoDate } from '../utils/calendar';
+import { isTodayOrFuture } from '../utils/requests';
 import type {
   PageRequest,
   Request,
+  RequestAdminAssignRequest,
+  RequestAdminReassignRequest,
+  RequestAdminSwapRequest,
   RequestApproveRequest,
   RequestCreateRequest,
   RequestListParams,
   RequestRejectRequest,
+  RequestSwapResponse,
+  ResourceType,
+  SuggestedResource,
 } from '../types/request';
 
 // Claves raiz de cache (S1192: sin literales repetidos).
 const REQUESTS_KEY = 'requests';
+// Crear/cancelar una solicitud cambia el estado del dia en el calendario
+// (Mi Semana) y la disponibilidad, ambos bajo 'calendar'. Sin invalidarlo, el
+// modal de reserva leia un estado obsoleto (p.ej. ASSIGNED tras liberar) y no
+// dejaba volver a reservar el recurso liberado.
+const CALENDAR_KEY = 'calendar';
 const MINE_SCOPE = 'mine';
 const PENDING_SCOPE = 'pending';
 const BY_STATUS_SCOPE = 'byStatus';
+const SUGGESTED_SCOPE = 'suggested';
+
+// Preview EMPLOYEE-safe del recurso que la auto-asignación daría al empleado ese
+// día (Feature: feedback de auto-asignación). Solo consulta con fecha válida y
+// futura/hoy, y cuando `enabled` (el recurso está seleccionado en el modal).
+export function useSuggestedResourceQuery(
+  date: string,
+  resourceType: ResourceType,
+  enabled: boolean,
+): UseQueryResult<SuggestedResource> {
+  return useQuery({
+    queryKey: [REQUESTS_KEY, SUGGESTED_SCOPE, resourceType, date],
+    queryFn: () => getSuggestedResource(date, resourceType),
+    enabled: enabled && isValidIsoDate(date) && isTodayOrFuture(date),
+  });
+}
 
 export function myRequestsQueryKey(
   params: RequestListParams,
@@ -80,11 +114,14 @@ export function useRequestsByStatusQuery(
   });
 }
 
-// Invalida toda la cache de solicitudes tras una mutacion con exito.
+// Invalida la cache de solicitudes Y la del calendario (Mi Semana +
+// disponibilidad) tras una mutacion con exito: crear/cancelar una solicitud
+// cambia ambos dominios.
 function useInvalidateRequests(): () => void {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: [REQUESTS_KEY] });
+    void queryClient.invalidateQueries({ queryKey: [CALENDAR_KEY] });
   };
 }
 
@@ -93,6 +130,24 @@ export function useCreateRequest(): UseMutationResult<Request, unknown, RequestC
   return useMutation({
     mutationFn: (body: RequestCreateRequest) => createRequest(body),
     onSuccess: invalidate,
+  });
+}
+
+// Asignacion puntual del admin (capability admin-punctual-assignment): crea una
+// Request que nace APPROVED. Invalida solicitudes y calendario para reflejar la
+// ocupacion inmediatamente en la rejilla de Ocupacion.
+export function useAdminAssignRequest(): UseMutationResult<
+  Request,
+  unknown,
+  RequestAdminAssignRequest
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: RequestAdminAssignRequest) => adminAssignRequest(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [REQUESTS_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [CALENDAR_KEY] });
+    },
   });
 }
 
@@ -115,6 +170,36 @@ export function useAdminCancelRequest(): UseMutationResult<Request, unknown, Adm
   const invalidate = useInvalidateRequests();
   return useMutation({
     mutationFn: ({ id, reason }: AdminCancelRequestVars) => adminCancelRequest(id, reason),
+    onSuccess: invalidate,
+  });
+}
+
+// Reasignación administrativa del recurso de una solicitud APPROVED futura a otro
+// recurso libre (capability admin-resource-reassignment). Invalida solicitudes y
+// calendario para refrescar la rejilla de Ocupación con el nuevo recurso.
+export function useAdminReassignRequest(): UseMutationResult<
+  Request,
+  unknown,
+  RequestAdminReassignRequest
+> {
+  const invalidate = useInvalidateRequests();
+  return useMutation({
+    mutationFn: (body: RequestAdminReassignRequest) => adminReassignRequest(body),
+    onSuccess: invalidate,
+  });
+}
+
+// Intercambio (swap) administrativo de recursos entre dos solicitudes APPROVED de la
+// misma fecha y tipo (capability admin-resource-reassignment). Invalida ambos dominios
+// para reflejar las dos filas intercambiadas en la rejilla de Ocupación.
+export function useAdminSwapRequests(): UseMutationResult<
+  RequestSwapResponse,
+  unknown,
+  RequestAdminSwapRequest
+> {
+  const invalidate = useInvalidateRequests();
+  return useMutation({
+    mutationFn: (body: RequestAdminSwapRequest) => adminSwapRequests(body),
     onSuccess: invalidate,
   });
 }
@@ -142,5 +227,19 @@ export function useRejectRequest(): UseMutationResult<Request, unknown, RejectRe
   return useMutation({
     mutationFn: ({ id, body }: RejectRequestVars) => rejectRequest(id, body),
     onSuccess: invalidate,
+  });
+}
+
+// Reenvio de aviso a los admins (PendingConfirmationBanner, EMPLOYEE dueño de la
+// solicitud PENDING). Invalida "mis solicitudes" y el calendario ("Mi Semana"
+// consume CALENDAR_KEY) para reflejar el nuevo lastRemindedAt.
+export function useResendRequest(): UseMutationResult<Request, unknown, number> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => resendRequest(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [REQUESTS_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [CALENDAR_KEY] });
+    },
   });
 }

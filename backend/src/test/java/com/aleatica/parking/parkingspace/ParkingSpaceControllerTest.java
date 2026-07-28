@@ -91,6 +91,47 @@ class ParkingSpaceControllerTest {
     }
 
     @Test
+    void shouldReturn200_whenEmployeeGetsSpaceById() throws Exception {
+        // Arrange: excepcion al ADMIN-only de clase, EMPLOYEE puede leer el detalle
+        given(parkingSpaceService.get(5L)).willReturn(sample());
+
+        // Act / Assert
+        mockMvc.perform(get(BASE_URL + "/5").with(user(EMP).roles(ROLE_EMPLOYEE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.number").value(NUMBER))
+                .andExpect(jsonPath("$.label").value(LABEL));
+    }
+
+    @Test
+    void shouldReturn200_whenAdminGetsSpaceById() throws Exception {
+        // Arrange
+        given(parkingSpaceService.get(5L)).willReturn(sample());
+
+        // Act / Assert
+        mockMvc.perform(get(BASE_URL + "/5").with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.number").value(NUMBER));
+    }
+
+    @Test
+    void shouldReturn404_whenGettingNonExistentSpace() throws Exception {
+        // Arrange
+        willThrow(new EntityNotFoundException("Plaza no encontrada: 999"))
+                .given(parkingSpaceService).get(999L);
+
+        // Act / Assert
+        mockMvc.perform(get(BASE_URL + "/999").with(user(ADMIN).roles(ROLE_ADMIN)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+    }
+
+    @Test
+    void shouldReturn401_whenGettingSpaceByIdWithoutSession() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/5"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void shouldReturnPage_whenAdminListsSpaces() throws Exception {
         // Arrange
         given(parkingSpaceService.list(any(), any(), any()))

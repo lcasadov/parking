@@ -1,0 +1,15 @@
+[
+  {
+    "timestamp": "2026-07-23T19:58:02Z",
+    "operator": "orchestrator",
+    "action": "create_issue",
+    "payload": {
+      "title": "Reestructuración de navegación y funcionalidad operativa (pre-rediseño UI)",
+      "labels": "type:user-story,priority:should,area:frontend,area:backend",
+      "body": "Consolidar el análisis funcional de las 4 revisiones en un OpenSpec change: reorganizar IA (admin 13→9, empleado 5→4), hacer accionables las vistas de ocupación/disponibilidad, añadir asignación puntual del admin, completar generalización PARKING/DESK, fusionar secciones duplicadas. Branch: feat/fullstack/restructure-admin-workflows. FUERA DE ALCANCE: rediseño estético (fase UI posterior).",
+      "branch": "feat/fullstack/restructure-admin-workflows"
+    },
+    "tag": "GH_PROJECTS_OFFLINE_QUEUE",
+    "note": "gh CLI no instalado en el entorno local. Reintentar al restaurar gh autenticado como lcasadov."
+  }
+]

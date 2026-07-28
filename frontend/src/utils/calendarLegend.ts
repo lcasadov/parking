@@ -10,6 +10,7 @@ const STATE_COLOR: Record<CalendarCellState, string> = {
   RELEASED: 'var(--state-released-bg)',
   REQUEST_PENDING: 'var(--state-pending-bg)',
   REQUEST_APPROVED: 'var(--state-request-bg)',
+  VISITOR_RESERVATION: 'var(--state-occupied-bg)',
   FREE: 'var(--state-free-bg)',
 };
 
@@ -29,15 +30,25 @@ export function adminCalendarLegend(t: TFunction): LegendItem[] {
 }
 
 // Leyenda de "Mi Semana" (EMPLOYEE): comparte celdas pero sin solicitud aprobada.
+// Puntos de la leyenda de "Mi Semana": colores SATURADOS y bien diferenciados
+// (verde/cian/rosa/gris), no los tintes de fondo suaves (que se confunden entre
+// sí). Coinciden en tono con el fondo de cada fila de recurso.
+const MY_WEEK_LEGEND_COLOR: Record<'ASSIGNED' | 'RELEASED' | 'REQUEST_PENDING' | 'FREE', string> = {
+  ASSIGNED: 'var(--accent)', // verde — lo tienes
+  RELEASED: 'var(--brand-blue)', // cian — liberado
+  REQUEST_PENDING: 'var(--pink-text)', // rosa — pendiente de confirmación
+  FREE: 'var(--pend)', // naranja — sin reservar (llama la atención)
+};
+
 export function myWeekLegend(t: TFunction): LegendItem[] {
-  const states: Exclude<CalendarCellState, 'REQUEST_APPROVED'>[] = [
+  const states: (keyof typeof MY_WEEK_LEGEND_COLOR)[] = [
     'ASSIGNED',
     'RELEASED',
     'REQUEST_PENDING',
     'FREE',
   ];
   return states.map((state) => ({
-    color: STATE_COLOR[state],
+    color: MY_WEEK_LEGEND_COLOR[state],
     label: t(`calendar.myWeek.states.${state}`),
   }));
 }

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { Modal } from './Modal';
+import { Dialog } from './Dialog';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCancelVisitorReservation } from '../hooks/useVisitorReservations';
@@ -53,13 +53,19 @@ export function CancelVisitorReservationModal({
   );
 
   return (
-    <Modal
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
       title={t('visitors.reservations.cancelModal.title')}
-      onClose={onClose}
-      variant="red"
+      tone="green"
+      narrow
       footer={footer}
     >
       <p>{t('visitors.reservations.cancelModal.body', { date: reservationDate })}</p>
-    </Modal>
+    </Dialog>
   );
 }

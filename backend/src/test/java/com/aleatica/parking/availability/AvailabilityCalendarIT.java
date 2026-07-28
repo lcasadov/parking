@@ -11,8 +11,11 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.servlet.http.Cookie;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.temporal.TemporalAdjusters;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
@@ -209,6 +212,24 @@ class AvailabilityCalendarIT extends BaseIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void shouldExposeOwnReleaseId_whenMyWeekDayReleasedByOwnRelease() throws Exception {
+        // Arrange: A tiene plaza fija un miercoles FUTURO y ha liberado ESE dia (liberacion propia)
+        LocalDate futureWednesday = LocalDate.now(ZoneOffset.UTC).plusDays(7)
+                .with(TemporalAdjusters.nextOrSame(DayOfWeek.WEDNESDAY));
+        LocalDate futureWeekStart = futureWednesday.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        long space = insertSpace("P-AV-REL", true);
+        insertFixedAssignment(space, EMP_A_LOGIN, futureWednesday.getDayOfWeek().getValue());
+        insertRelease(space, EMP_A_LOGIN, futureWednesday);
+
+        // Act / Assert: el dia sale RELEASED y expone el releaseId propio (cancelable, futuro)
+        mockMvc.perform(get(MY_WEEK_URL).param("weekStart", futureWeekStart.toString())
+                        .cookie(empASession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.days[?(@.parkingSpaceLabel == 'P-AV-REL' "
+                        + "&& @.state == 'RELEASED' && @.releaseId)]").exists());
+    }
+
     // ---- Ausencia de N+1: numero de consultas constante frente al numero de plazas ----
 
     @Test
@@ -318,8 +339,8 @@ class AvailabilityCalendarIT extends BaseIntegrationTest {
 
     private void insertReservation(long visitor, long space, LocalDate date) {
         jdbcTemplate.update(
-                "INSERT INTO dbo.visitor_reservations (visitor_id, parking_space_id, reservation_date, "
-                        + "created_by_id, created_at) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO dbo.visitor_reservations (visitor_id, resource_type, resource_id, reservation_date, "
+                        + "created_by_id, created_at) VALUES (?, 'PARKING', ?, ?, ?, ?)",
                 visitor, space, Date.valueOf(date), idOfEmployee(ADMIN_LOGIN),
                 Timestamp.from(Instant.now()));
     }

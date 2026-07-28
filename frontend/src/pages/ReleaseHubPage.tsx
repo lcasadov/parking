@@ -1,0 +1,72 @@
+import { motion, useReducedMotion } from 'framer-motion';
+import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
+import { PageHeader } from '../components/PageHeader';
+import { SectionSwitch, type SectionSwitchItem } from '../components/SectionSwitch';
+import { DUR, EASE } from '../theme/motion';
+import { AdministrativeReleasesPage } from './AdministrativeReleasesPage';
+import { ReleaseByDatePage } from './ReleaseByDatePage';
+import { MyAdministrativeReleasesPage } from './MyAdministrativeReleasesPage';
+
+type ReleaseHubTab = 'byEmployee' | 'byDate' | 'history';
+const DEFAULT_TAB: ReleaseHubTab = 'byEmployee';
+
+function isReleaseHubTab(value: string | null): value is ReleaseHubTab {
+  return value === 'byEmployee' || value === 'byDate' || value === 'history';
+}
+
+// Destino "Liberar" (app-shell spec, fusion de secciones): pestañas Por empleado |
+// Por fecha | Historial, que montan las paginas ya existentes tal cual (D3: agrupacion
+// de UI, cero cambios de contrato). Disponible para ADMIN y AGENCIA (design §D5;
+// AGENCIA se orienta con "Historial" = sus propias liberaciones administrativas). La
+// pestaña activa se refleja en `?tab=` para que las rutas antiguas redirijan aqui.
+export function ReleaseHubPage() {
+  const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = searchParams.get('tab');
+  const tab: ReleaseHubTab = isReleaseHubTab(requested) ? requested : DEFAULT_TAB;
+
+  const items: SectionSwitchItem[] = [
+    { id: 'byEmployee', label: t('releases.hub.tabs.byEmployee'), icon: 'user' },
+    { id: 'byDate', label: t('releases.hub.tabs.byDate'), icon: 'calendar' },
+    { id: 'history', label: t('releases.hub.tabs.history'), icon: 'history' },
+  ];
+
+  function handleChange(id: string): void {
+    if (isReleaseHubTab(id)) {
+      setSearchParams(id === DEFAULT_TAB ? {} : { tab: id }, { replace: true });
+    }
+  }
+
+  function renderTab(): ReactNode {
+    if (tab === 'byDate') {
+      return <ReleaseByDatePage embedded />;
+    }
+    if (tab === 'history') {
+      return <MyAdministrativeReleasesPage embedded />;
+    }
+    return <AdministrativeReleasesPage embedded />;
+  }
+
+  return (
+    <section className="release-hub-page" aria-label={t('releases.hub.title')}>
+      <PageHeader
+        eyebrow={t('releases.hub.eyebrow')}
+        title={t('releases.hub.title')}
+        description={t('releases.hub.description')}
+      />
+      <SectionSwitch items={items} active={tab} onChange={handleChange} ariaLabel={t('releases.hub.title')} />
+      <motion.div
+        key={tab}
+        className="tab-fade-panel"
+        initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: DUR.fast, ease: EASE.standard }}
+      >
+        {renderTab()}
+      </motion.div>
+    </section>
+  );
+}

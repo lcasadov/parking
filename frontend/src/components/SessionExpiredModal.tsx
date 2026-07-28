@@ -5,8 +5,8 @@ import { SESSION_EXPIRED } from '../api/events';
 import { useAuth } from '../auth/useAuth';
 import { ROUTES } from '../routes/paths';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { InfoBanner } from './InfoBanner';
-import { Modal } from './Modal';
 
 // Suscrita al evento del interceptor 401: muestra el modal (mockup 19) y, al
 // cerrar, limpia la sesion y vuelve a /login. Cabecera ambar (no roja).
@@ -35,12 +35,17 @@ export function SessionExpiredModal() {
   }
 
   return (
-    <Modal
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          handleClose();
+        }
+      }}
       title={t('auth.sessionExpiredTitle')}
-      variant="amber"
+      tone="amber"
       icon="clock-exclamation"
       narrow
-      onClose={handleClose}
       footer={
         <div className="footer-center">
           <Button variant="green" icon="login-2" onClick={handleClose}>
@@ -57,6 +62,6 @@ export function SessionExpiredModal() {
           {t('auth.sessionExpiredPhaseNote')}
         </InfoBanner>
       </div>
-    </Modal>
+    </Dialog>
   );
 }

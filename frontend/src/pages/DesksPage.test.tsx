@@ -19,8 +19,10 @@ describe('DesksPage', () => {
   it('should_render_desk_rows_when_list_loads', async () => {
     renderWithProviders(<DesksPage />);
 
-    expect(await screen.findByText('1')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
+    // El numero de puesto vive en una celda de la tabla; las StatCards de
+    // recuento tambien muestran cifras, asi que acotamos la busqueda a role=cell.
+    expect(await screen.findByRole('cell', { name: '1' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '2' })).toBeInTheDocument();
   });
 
   it('should_show_executive_badge_when_desk_is_executive', async () => {
@@ -72,7 +74,7 @@ describe('DesksPage', () => {
     );
     const user = userEvent.setup();
     renderWithProviders(<DesksPage />);
-    const row = (await screen.findByText('1')).closest('tr') as HTMLElement;
+    const row = (await screen.findByRole('cell', { name: '1' })).closest('tr') as HTMLElement;
 
     await user.click(within(row).getByRole('button', { name: /desactivar|deactivate/i }));
 
@@ -105,14 +107,16 @@ describe('DesksPage', () => {
     );
     const user = userEvent.setup();
     renderWithProviders(<DesksPage />);
-    await screen.findByText('1');
+    await screen.findByRole('cell', { name: '1' });
 
     await user.type(screen.getByRole('searchbox'), String(deskExecutive.number));
 
     await waitFor(() => {
-      expect(screen.queryByText('1')).not.toBeInTheDocument();
+      expect(screen.queryByRole('cell', { name: '1' })).not.toBeInTheDocument();
     });
-    expect(screen.getByText(String(deskExecutive.number))).toBeInTheDocument();
+    expect(
+      screen.getByRole('cell', { name: String(deskExecutive.number) }),
+    ).toBeInTheDocument();
   });
 
   it('should_request_inactive_filter_when_selecting_inactive', async () => {

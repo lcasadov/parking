@@ -1,18 +1,24 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { FieldValue } from './FieldValue';
 import { InfoBanner } from './InfoBanner';
-import { Modal } from './Modal';
 import { getStatus } from '../api/apiError';
 import { emitApiErrorToast } from '../api/events';
 import { useCreateRelease } from '../hooks/useReleases';
 import { todayIso } from '../utils/releases';
 import { longDate } from '../utils/calendar';
+import type { ResourceType } from '../types/request';
 
 interface ReleaseResourceModalProps {
   parkingSpaceId: number;
   spaceLabel: string;
+  // Tipo del recurso fijo a liberar. Default PARKING (retrocompatible): el bug
+  // #1.8 hacia que el puesto fijo se liberase siempre como PARKING porque el
+  // resourceType nunca se enviaba. Solo se incluye en el envio cuando es DESK
+  // (PARKING es el default del backend, se omite para no cambiar el contrato).
+  resourceType?: ResourceType;
   // Cuando se libera un dia concreto (vista "Mi Semana" por-dia) la fecha ya esta
   // fijada: se muestra bloqueada y sin selector. Omitido, el empleado elige la fecha.
   presetDate?: string;
@@ -42,6 +48,7 @@ function toastKeyForError(error: unknown): string {
 export function ReleaseResourceModal({
   parkingSpaceId,
   spaceLabel,
+  resourceType = 'PARKING',
   presetDate,
   onClose,
   onReleased,
@@ -60,7 +67,11 @@ export function ReleaseResourceModal({
     }
     setError(null);
     releaseMutation.mutate(
-      { releaseDate: date, parkingSpaceId },
+      {
+        releaseDate: date,
+        parkingSpaceId,
+        ...(resourceType === 'DESK' ? { resourceType } : {}),
+      },
       {
         onSuccess: onReleased,
         onError: (mutationError) => emitApiErrorToast(toastKeyForError(mutationError)),
@@ -68,8 +79,34 @@ export function ReleaseResourceModal({
     );
   }
 
+  const footer = (
+    <>
+      <Button variant="white" onClick={onClose}>
+        {t('releases.release.cancel')}
+      </Button>
+      <Button
+        variant="green"
+        submit
+        form="release-resource-form"
+        loading={releaseMutation.isPending}
+      >
+        {t('releases.release.submit')}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title={t('releases.release.title')} onClose={onClose}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={t('releases.release.title')}
+      icon="calendar-off"
+      footer={footer}
+    >
       <form id="release-resource-form" onSubmit={handleSubmit} noValidate>
         <InfoBanner variant="green" icon="parking">
           {t('releases.release.fixedResource', { label: spaceLabel })}
@@ -123,16 +160,7 @@ export function ReleaseResourceModal({
             {error}
           </p>
         ) : null}
-
-        <div className="modal-footer-inline">
-          <Button variant="white" onClick={onClose}>
-            {t('releases.release.cancel')}
-          </Button>
-          <Button variant="green" submit disabled={releaseMutation.isPending}>
-            {t('releases.release.submit')}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

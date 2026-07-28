@@ -15,6 +15,7 @@ import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.parkingspace.dto.ParkingSpaceRequest;
 import com.aleatica.parking.parkingspace.dto.ParkingSpaceResponse;
+import com.aleatica.parking.resource.ResourceDeactivationGuard;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,8 +44,34 @@ class ParkingSpaceServiceTest {
     @Mock
     private ParkingSpaceRepository parkingSpaceRepository;
 
+    @Mock
+    private ResourceDeactivationGuard deactivationGuard;
+
     private ParkingSpaceService newService() {
-        return new ParkingSpaceService(parkingSpaceRepository);
+        return new ParkingSpaceService(parkingSpaceRepository, deactivationGuard);
+    }
+
+    @Test
+    void shouldReturnSpace_whenGettingExistingSpace() {
+        // Arrange
+        given(parkingSpaceRepository.findById(ID))
+                .willReturn(java.util.Optional.of(ParkingSpace.create(NUMBER)));
+
+        // Act
+        ParkingSpaceResponse found = newService().get(ID);
+
+        // Assert
+        assertThat(found.number()).isEqualTo(NUMBER);
+        assertThat(found.label()).isEqualTo("1007");
+    }
+
+    @Test
+    void shouldThrowNotFound_whenGettingNonExistentSpace() {
+        // Arrange
+        given(parkingSpaceRepository.findById(ID)).willReturn(java.util.Optional.empty());
+
+        // Act / Assert
+        assertThatThrownBy(() -> newService().get(ID)).isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
@@ -108,6 +135,23 @@ class ParkingSpaceServiceTest {
 
         // Assert
         assertThat(updated.active()).isFalse();
+    }
+
+    @Test
+    void shouldBlockDeactivation_whenSpaceHasFutureAssignments() {
+        // Arrange: plaza activa con asignaciones futuras → el guard bloquea (tarea 16).
+        ParkingSpace space = ParkingSpace.create(NUMBER);
+        given(parkingSpaceRepository.findById(ID)).willReturn(java.util.Optional.of(space));
+        given(parkingSpaceRepository.existsByNumberAndIdNot(NUMBER, ID)).willReturn(false);
+        org.mockito.BDDMockito
+                .willThrow(new com.aleatica.parking.exception.ResourceDeactivationBlockedException(0L, 3L, 0L))
+                .given(deactivationGuard)
+                .assertCanDeactivate(ID, com.aleatica.parking.resource.ResourceType.PARKING);
+
+        // Act + Assert: se propaga y NO se guarda la desactivacion.
+        assertThatThrownBy(() -> newService().update(ID, new ParkingSpaceRequest(NUMBER, false)))
+                .isInstanceOf(com.aleatica.parking.exception.ResourceDeactivationBlockedException.class);
+        verify(parkingSpaceRepository, never()).save(any());
     }
 
     @Test

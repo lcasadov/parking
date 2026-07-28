@@ -5,6 +5,8 @@ import com.aleatica.parking.parkingspace.ParkingSpace;
 import com.aleatica.parking.parkingspace.ParkingSpaceRepository;
 import com.aleatica.parking.parkingspace.dto.ParkingSpaceRequest;
 import com.aleatica.parking.parkingspace.dto.ParkingSpaceResponse;
+import com.aleatica.parking.resource.ResourceDeactivationGuard;
+import com.aleatica.parking.resource.ResourceType;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -33,12 +35,17 @@ public class ParkingSpaceService {
     private static final Sort BY_ID = Sort.by(Sort.Direction.ASC, "id");
 
     private final ParkingSpaceRepository parkingSpaceRepository;
+    private final ResourceDeactivationGuard deactivationGuard;
 
     /**
      * @param parkingSpaceRepository repositorio de plazas
+     * @param deactivationGuard      guarda que impide desactivar una plaza con asignaciones futuras
      */
-    public ParkingSpaceService(ParkingSpaceRepository parkingSpaceRepository) {
+    public ParkingSpaceService(
+            ParkingSpaceRepository parkingSpaceRepository,
+            ResourceDeactivationGuard deactivationGuard) {
         this.parkingSpaceRepository = parkingSpaceRepository;
+        this.deactivationGuard = deactivationGuard;
     }
 
     /**
@@ -59,6 +66,22 @@ public class ParkingSpaceService {
         Integer maxNumber = floor == null ? null : floor * FLOOR_RANGE + (FLOOR_RANGE - 1);
         Page<ParkingSpace> page = parkingSpaceRepository.search(active, minNumber, maxNumber, pageable);
         return PageResponse.from(page, ParkingSpaceResponse::from);
+    }
+
+    /**
+     * Devuelve el detalle de una plaza por su id.
+     *
+     * <p>Lectura EMPLOYEE-safe (a diferencia del resto de operaciones de este
+     * servicio, reservadas a ADMIN): permite resolver el numero/etiqueta real de
+     * una plaza fija propia sin exponer el catalogo completo.</p>
+     *
+     * @param id identificador de la plaza
+     * @return la plaza (DTO)
+     * @throws EntityNotFoundException si la plaza no existe
+     */
+    @Transactional(readOnly = true)
+    public ParkingSpaceResponse get(Long id) {
+        return ParkingSpaceResponse.from(findOrThrow(id));
     }
 
     /**
@@ -95,6 +118,11 @@ public class ParkingSpaceService {
         ParkingSpace space = findOrThrow(id);
         if (parkingSpaceRepository.existsByNumberAndIdNot(request.number(), id)) {
             throw new ParkingSpaceConflictException(FIELD_NUMBER, MSG_NUMBER_TAKEN);
+        }
+        // Al pasar de activa a inactiva, no desactivar en silencio si la plaza tiene
+        // asignaciones vigentes o futuras (tarea 16): avisar con 409 y su desglose.
+        if (space.isActive() && !request.activeOrDefault()) {
+            deactivationGuard.assertCanDeactivate(id, ResourceType.PARKING);
         }
         space.setNumber(request.number());
         space.setActive(request.activeOrDefault());

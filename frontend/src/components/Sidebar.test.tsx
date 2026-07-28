@@ -25,9 +25,9 @@ describe('Sidebar', () => {
 
     // Logo oficial ALEATICA (imagen real) en la cabecera del sidebar.
     const logo = screen.getByRole('img', { name: 'ALEATICA' });
-    expect(logo).toHaveClass('sidebar-logo');
+    expect(logo).toHaveClass('sidebar-mark');
     expect(logo.tagName).toBe('IMG');
-    expect(container.querySelector('.sidebar-tagline')).toBeInTheDocument();
+    expect(container.querySelector('.sidebar-brand-sub')).toBeInTheDocument();
     // Etiqueta de seccion y slot de pie renderizados.
     expect(screen.getByText('Gestión')).toHaveClass('nav-section');
     expect(screen.getByText('user-card')).toBeInTheDocument();

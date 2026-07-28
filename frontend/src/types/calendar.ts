@@ -6,6 +6,7 @@ export type CalendarCellState =
   | 'RELEASED'
   | 'REQUEST_PENDING'
   | 'REQUEST_APPROVED'
+  | 'VISITOR_RESERVATION'
   | 'FREE';
 
 // MyWeekDayState: schema #/components/schemas/MyWeekDayState (mi-semana).
@@ -13,6 +14,7 @@ export type MyWeekDayState = 'ASSIGNED' | 'RELEASED' | 'REQUEST_PENDING' | 'FREE
 
 // RequestStatus se reutiliza en MyWeekDay.requestStatus.
 import type { RequestStatus } from './request';
+// ResourceType no se importa aqui: MyWeekDay lleva ambos recursos en campos paralelos.
 
 // AvailabilityItem: schema #/components/schemas/AvailabilityItem.
 export interface AvailabilityItem {
@@ -50,14 +52,32 @@ export interface AdminWeeklyCalendarResponse {
 }
 
 // MyWeekDay: schema #/components/schemas/MyWeekDay.
+// Change restructure-admin-workflows (design §D4): estado diario de AMBOS recursos.
+// Los campos base (state/parkingSpaceLabel/requestStatus/requestId) describen la
+// PLAZA (PARKING); los `desk*` describen el PUESTO (DESK), en paralelo e independientes.
 export interface MyWeekDay {
   date: string;
   state: MyWeekDayState;
   parkingSpaceLabel?: string | null;
   requestStatus?: RequestStatus | null;
-  // Id de la solicitud propia de ese dia; null si el dia no proviene de una
+  // Id de la solicitud de plaza propia de ese dia; null si el dia no proviene de una
   // solicitud (asignacion fija o libre). Permite "Liberar" cancelando la solicitud.
   requestId?: number | null;
+  // true si la solicitud de plaza propia de ese dia esta en lista de espera
+  // (capability request-waitlist): PENDING sin disponibilidad al crearla.
+  waitlisted?: boolean;
+  // Estado del PUESTO ese dia (paralelo a los campos de plaza). Opcional para
+  // retrocompatibilidad con respuestas anteriores a la generalizacion DESK.
+  deskState?: MyWeekDayState;
+  deskLabel?: string | null;
+  deskRequestStatus?: RequestStatus | null;
+  deskRequestId?: number | null;
+  // Igual que `waitlisted`, para la solicitud de PUESTO propia de ese dia.
+  deskWaitlisted?: boolean;
+  // Id de la liberación PROPIA cancelable de ese día (RELEASED por el empleado, hoy
+  // o futuro) → habilita "Deshacer". Null si no es una liberación propia cancelable.
+  releaseId?: number | null;
+  deskReleaseId?: number | null;
 }
 
 // MyWeekResponse: schema #/components/schemas/MyWeekResponse.

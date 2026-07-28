@@ -18,16 +18,19 @@ describe('Calendar / Availability RBAC', () => {
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminCalendar });
 
     expect(
-      await screen.findByRole('heading', { name: /asignación semanal|weekly assignment/i }),
+      await screen.findByRole('heading', { name: /plazas de parking|parking spaces/i }),
     ).toBeInTheDocument();
   });
 
-  it('should_renderAvailability_when_adminOpensAvailabilityRoute', async () => {
+  it('should_redirectAvailabilityRouteToOccupancyGrid_when_adminOpensAvailabilityRoute', async () => {
+    // "Disponibilidad" se retiró: su ruta antigua redirige a la Ocupación (rejilla
+    // semanal), donde su función vive como filtro rápido "Solo libres". Los filtros
+    // rápidos están siempre visibles, así que su grupo prueba que cargó la rejilla.
     useSession(adminUser);
     renderWithProviders(<AppRoutes />, { route: ROUTES.adminAvailability });
 
     expect(
-      await screen.findByRole('heading', { name: /disponibilidad por fecha|availability by date/i }),
+      await screen.findByRole('group', { name: /filtrar por estado|filter by state/i }),
     ).toBeInTheDocument();
   });
 
@@ -39,7 +42,7 @@ describe('Calendar / Availability RBAC', () => {
       expect(screen.getByRole('button', { name: /entrar|sign in/i })).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /asignación semanal|weekly assignment/i }),
+      screen.queryByRole('heading', { name: /plazas de parking|parking spaces/i }),
     ).not.toBeInTheDocument();
   });
 

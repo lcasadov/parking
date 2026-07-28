@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 import { InfoBanner } from './InfoBanner';
-import { Modal } from './Modal';
 import { useResetEmployeePassword } from '../hooks/useEmployees';
 import type { Employee } from '../types/employee';
 
@@ -11,14 +11,21 @@ interface ResetPasswordModalProps {
   onClose: () => void;
 }
 
-// Modal de reset de contraseña (mockup 15). Fase 1: tras confirmar, muestra la
-// contraseña temporal UNA sola vez. Fase 2: llega sin temporal (email).
+// Modal de reset de contraseña (mockup 15), sobre la primitiva Dialog (Ola A).
+// Fase 1: tras confirmar, muestra la contraseña temporal UNA sola vez. Fase 2:
+// llega sin temporal (email).
 export function ResetPasswordModal({ employee, onClose }: ResetPasswordModalProps) {
   const { t } = useTranslation();
   const resetMutation = useResetEmployeePassword();
   const [copied, setCopied] = useState(false);
   const fullName = `${employee.firstName} ${employee.lastName}`.trim();
   const result = resetMutation.data;
+
+  function onOpenChange(next: boolean): void {
+    if (!next) {
+      onClose();
+    }
+  }
 
   function handleConfirm(): void {
     resetMutation.mutate(employee.id);
@@ -37,19 +44,22 @@ export function ResetPasswordModal({ employee, onClose }: ResetPasswordModalProp
     const tempPassword = result.temporaryPassword;
     const doneFooter = (
       <>
-        <button type="button" className="btn-back" onClick={onClose}>
+        <Button variant="white" onClick={onClose}>
           {t('employees.reset.close')}
-        </button>
+        </Button>
         <Button variant="green" icon="check" onClick={onClose}>
           {t('employees.reset.done')}
         </Button>
       </>
     );
     return (
-      <Modal
+      <Dialog
+        open
+        onOpenChange={onOpenChange}
         title={t('employees.reset.title')}
         icon="key"
-        onClose={onClose}
+        tone="green"
+        narrow
         footer={doneFooter}
       >
         <p className="muted">{t('employees.reset.intro', { name: fullName })}</p>
@@ -72,28 +82,31 @@ export function ResetPasswordModal({ employee, onClose }: ResetPasswordModalProp
             {t('employees.reset.phase2Note')}
           </InfoBanner>
         )}
-      </Modal>
+      </Dialog>
     );
   }
 
   const footer = (
     <>
-      <button type="button" className="btn-back" onClick={onClose}>
+      <Button variant="white" onClick={onClose}>
         {t('employees.reset.close')}
-      </button>
-      <Button
-        variant="green"
-        icon="key"
-        onClick={handleConfirm}
-        disabled={resetMutation.isPending}
-      >
+      </Button>
+      <Button variant="green" icon="key" onClick={handleConfirm} disabled={resetMutation.isPending}>
         {t('employees.reset.confirm')}
       </Button>
     </>
   );
 
   return (
-    <Modal title={t('employees.reset.title')} icon="key" onClose={onClose} footer={footer}>
+    <Dialog
+      open
+      onOpenChange={onOpenChange}
+      title={t('employees.reset.title')}
+      icon="key"
+      tone="green"
+      narrow
+      footer={footer}
+    >
       <p>{t('employees.reset.confirmBody', { name: fullName })}</p>
       <InfoBanner variant="blue" icon="info-circle">
         {t('employees.reset.phase2Note')}
@@ -103,6 +116,6 @@ export function ResetPasswordModal({ employee, onClose }: ResetPasswordModalProp
           {t('employees.reset.error')}
         </p>
       ) : null}
-    </Modal>
+    </Dialog>
   );
 }

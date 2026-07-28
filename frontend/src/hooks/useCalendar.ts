@@ -23,19 +23,26 @@ export function resourceAvailabilityQueryKey(date: string, resourceType: Resourc
   return [CALENDAR_KEY, AVAILABILITY_SCOPE, resourceType, date];
 }
 
-export function adminCalendarQueryKey(weekStart: string): string[] {
-  return [CALENDAR_KEY, ADMIN_SCOPE, weekStart];
+export function adminCalendarQueryKey(weekStart: string, resourceType: ResourceType): string[] {
+  return [CALENDAR_KEY, ADMIN_SCOPE, resourceType, weekStart];
 }
 
 export function myWeekQueryKey(weekStart?: string): string[] {
   return [CALENDAR_KEY, MY_WEEK_SCOPE, weekStart ?? 'current'];
 }
 
-// Disponibilidad por fecha; solo consulta cuando la fecha ISO es valida.
-export function useAvailabilityQuery(date: string): UseQueryResult<AvailabilityResponse> {
+// Disponibilidad por fecha (y opcionalmente tipo de recurso); solo consulta
+// cuando la fecha ISO es valida. Sin restriccion de ventana: el ADMIN puede
+// consultar cualquier fecha (vista Ocupacion > Disponibilidad).
+export function useAvailabilityQuery(
+  date: string,
+  resourceType?: ResourceType,
+): UseQueryResult<AvailabilityResponse> {
   return useQuery({
-    queryKey: availabilityQueryKey(date),
-    queryFn: () => getAvailability(date),
+    queryKey: resourceType
+      ? resourceAvailabilityQueryKey(date, resourceType)
+      : availabilityQueryKey(date),
+    queryFn: () => getAvailability(date, resourceType),
     enabled: isValidIsoDate(date),
   });
 }
@@ -68,13 +75,15 @@ export function useApprovalAvailabilityQuery(
   });
 }
 
-// Calendario semanal admin; solo consulta con un weekStart valido.
+// Calendario semanal admin por tipo de recurso (plaza/puesto); solo consulta con
+// un weekStart valido. `resourceType` default PARKING (retrocompatible).
 export function useAdminCalendarQuery(
   weekStart: string,
+  resourceType: ResourceType = 'PARKING',
 ): UseQueryResult<AdminWeeklyCalendarResponse> {
   return useQuery({
-    queryKey: adminCalendarQueryKey(weekStart),
-    queryFn: () => getAdminCalendar(weekStart),
+    queryKey: adminCalendarQueryKey(weekStart, resourceType),
+    queryFn: () => getAdminCalendar(weekStart, resourceType),
     enabled: isValidIsoDate(weekStart),
     placeholderData: (previous) => previous,
   });

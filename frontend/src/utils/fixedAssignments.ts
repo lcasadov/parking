@@ -4,6 +4,9 @@ import type { ResourceType } from '../types/request';
 // Dias ISO validos: 1 (lunes) .. 7 (domingo).
 export const WEEK_DAYS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
 
+// Dias laborables L-V (los que se pintan en la tabla de empleados / chips de dia).
+export const WEEK_LV: readonly number[] = [1, 2, 3, 4, 5];
+
 // Grupo de asignaciones fijas de un empleado sobre un mismo recurso, con sus dias.
 // `parkingSpaceId` transporta el resource_id generico; `resourceType` lo discrimina.
 export interface FixedAssignmentGroup {
@@ -59,6 +62,36 @@ export function toggleDay(days: number[], day: number): number[] {
   return [...days, day].sort((a, b) => a - b);
 }
 
+// CRITICO (design §Risk D): el PUT /fixed-assignments/employee/{id} REEMPLAZA el
+// conjunto de dias del empleado para ese tipo de recurso. Al asignar inline un dia
+// nuevo desde una celda, hay que PRECARGAR los dias actuales y reenviar el conjunto
+// COMPLETO; si solo se enviara el dia nuevo, se BORRARIAN los demas dias del empleado.
+//
+// CRITICO (fix 7.1): un empleado puede tener MAS DE UN recurso del mismo tipo en
+// dias distintos (p.ej. puesto 1 el lunes y puesto 3 el miercoles) porque cada fila
+// de asignacion fija es independiente. Emparejar solo por `resourceType` (como hacia
+// la version anterior via groupFixedAssignments) coge el PRIMER grupo de ese tipo y
+// consolida mal: asignar el puesto 3 el miercoles heredaria y sobrescribiria los dias
+// del puesto 1. Por eso esta funcion filtra por `resourceType` **y** `resourceId`
+// (el recurso de la PROPIA celda que se esta asignando), y devuelve la union
+// ordenada de esos dias con `dayToAdd`.
+export function mergeFixedAssignmentDays(
+  rows: FixedAssignment[],
+  resourceType: ResourceType,
+  resourceId: number,
+  dayToAdd: number,
+): number[] {
+  const existing = rows
+    .filter(
+      (row) => (row.resourceType ?? 'PARKING') === resourceType && row.parkingSpaceId === resourceId,
+    )
+    .map((row) => row.dayOfWeek);
+  if (existing.includes(dayToAdd)) {
+    return [...existing].sort((a, b) => a - b);
+  }
+  return [...existing, dayToAdd].sort((a, b) => a - b);
+}
+
 // Une una lista con comas y un conector final localizado ("y" / "and"), p.ej.
 // ["Lunes","Martes","Jueves"] -> "Lunes, Martes y Jueves".
 export function joinWithAnd(items: string[], and: string): string {
@@ -84,6 +117,142 @@ export function toEmployeeFixedResources(rows: FixedAssignment[]): EmployeeFixed
     parking: groups.find((group) => group.resourceType === 'PARKING') ?? null,
     desk: groups.find((group) => group.resourceType === 'DESK') ?? null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Mapa día→recurso (tarea 7.3): el modal de empleado permite asignar, por cada
+// día de la semana y por cada tipo de recurso, QUÉ recurso concreto se asigna;
+// pueden ser recursos distintos en días distintos (puesto 1 el lunes, puesto 3
+// el miércoles). El índice único (empleado, tipo, día) garantiza un único recurso
+// por día y tipo, así que un mapa `día → resourceId` es una representación fiel.
+// ---------------------------------------------------------------------------
+
+// Día ISO (1-7) -> resource_id asignado ese día para un tipo de recurso.
+export type DayResourceMap = Record<number, number>;
+
+// Reconstruye, a partir de las filas activas del empleado, el mapa día→recurso
+// de cada tipo. Es el prefill del modal: refleja recursos distintos por día sin
+// colapsarlos a un único recurso por tipo.
+export function toEmployeeDayResourceMaps(
+  rows: FixedAssignment[],
+): { parking: DayResourceMap; desk: DayResourceMap } {
+  const parking: DayResourceMap = {};
+  const desk: DayResourceMap = {};
+  for (const row of rows) {
+    if (row.active === false) {
+      continue;
+    }
+    const target = (row.resourceType ?? 'PARKING') === 'DESK' ? desk : parking;
+    target[row.dayOfWeek] = row.parkingSpaceId;
+  }
+  return { parking, desk };
+}
+
+// Agrupa un mapa día→recurso por recurso, devolviendo para cada resource_id sus
+// días ordenados. Es la base del guardado: un PUT por recurso con sus días.
+export function groupDaysByResource(map: DayResourceMap): Map<number, number[]> {
+  const groups = new Map<number, number[]>();
+  for (const dayKey of Object.keys(map)) {
+    const day = Number(dayKey);
+    const resourceId = map[day];
+    const days = groups.get(resourceId);
+    if (days) {
+      days.push(day);
+    } else {
+      groups.set(resourceId, [day]);
+    }
+  }
+  for (const days of groups.values()) {
+    days.sort((a, b) => a - b);
+  }
+  return groups;
+}
+
+// Días (ordenados) asignados a un recurso concreto dentro del mapa.
+export function daysForResource(map: DayResourceMap, resourceId: number): number[] {
+  return Object.keys(map)
+    .map(Number)
+    .filter((day) => map[day] === resourceId)
+    .sort((a, b) => a - b);
+}
+
+// ¿`target` conserva TODOS los pares (día→recurso) de `prev`? Si es así, del
+// estado previo al nuevo solo se han AÑADIDO días/recursos (ningún día cambió de
+// recurso ni se retiró), luego basta con emitir PUTs incrementales sin revocar.
+// Si NO es superset, hubo reasignaciones/retiradas que exigen limpiar el tipo
+// antes de recrear (evita el 409 del índice único al mover un día entre recursos).
+export function isDayResourceSuperset(target: DayResourceMap, prev: DayResourceMap): boolean {
+  return Object.keys(prev).every((dayKey) => target[Number(dayKey)] === prev[Number(dayKey)]);
+}
+
+// Igualdad de dos listas de días ya ordenadas (para omitir PUTs redundantes).
+export function sameDayList(a: number[] | undefined, b: number[]): boolean {
+  if (!a || a.length !== b.length) {
+    return false;
+  }
+  return a.every((value, index) => value === b[index]);
+}
+
+// Reescribe el mapa fijando el conjunto de días de `resourceId` a `days`,
+// preservando los días asignados a OTROS recursos; si un día de `days` pertenecía
+// a otro recurso, pasa a `resourceId` (un único recurso por día y tipo).
+export function setResourceDays(
+  map: DayResourceMap,
+  resourceId: number,
+  days: number[],
+): DayResourceMap {
+  const next: DayResourceMap = {};
+  for (const dayKey of Object.keys(map)) {
+    const day = Number(dayKey);
+    if (map[day] !== resourceId) {
+      next[day] = map[day];
+    }
+  }
+  for (const day of days) {
+    next[day] = resourceId;
+  }
+  return next;
+}
+
+// Indexa TODAS las asignaciones fijas por empleado como mapas día→recurso (uno por
+// tipo). A diferencia de indexFixedResourcesByEmployee, conserva QUÉ recurso concreto
+// tiene cada día, de modo que la tabla de empleados puede pintar recursos distintos
+// por día (p.ej. puesto D-03 el lunes y D-07 el miércoles) tal como el mockup.
+export function indexDayResourceMapsByEmployee(
+  rows: FixedAssignment[],
+): Map<number, { parking: DayResourceMap; desk: DayResourceMap }> {
+  const byEmployee = new Map<number, FixedAssignment[]>();
+  for (const row of rows) {
+    const bucket = byEmployee.get(row.employeeId);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      byEmployee.set(row.employeeId, [row]);
+    }
+  }
+  const result = new Map<number, { parking: DayResourceMap; desk: DayResourceMap }>();
+  for (const [employeeId, employeeRows] of byEmployee) {
+    result.set(employeeId, toEmployeeDayResourceMaps(employeeRows));
+  }
+  return result;
+}
+
+// Recursos distintos (resource_id) presentes en un mapa día→recurso, restringido a
+// los días laborables L-V (que son los que pinta la tabla).
+export function distinctWeekResources(map: DayResourceMap): number[] {
+  const ids = new Set<number>();
+  for (const day of WEEK_LV) {
+    const id = map[day];
+    if (id !== undefined) {
+      ids.add(id);
+    }
+  }
+  return Array.from(ids);
+}
+
+// Días laborables (L-V) que tienen recurso asignado en el mapa, en orden.
+export function assignedWeekDays(map: DayResourceMap): number[] {
+  return WEEK_LV.filter((day) => map[day] !== undefined);
 }
 
 // Indexa TODAS las asignaciones fijas por empleado, separando plaza y puesto.

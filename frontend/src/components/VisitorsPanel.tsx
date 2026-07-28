@@ -4,9 +4,8 @@ import { Button } from './Button';
 import { SearchBox } from './SearchBox';
 import { TableEmpty, TableError, TableSkeleton } from './TableStates';
 import { Toolbar } from './Toolbar';
-import { VisitorDetailModal } from './VisitorDetailModal';
 import { VisitorFormModal } from './VisitorFormModal';
-import { VisitorReservationModal } from './VisitorReservationModal';
+import { ReservationWizard } from './wizard/ReservationWizard';
 import { useVisitorsQuery } from '../hooks/useVisitors';
 import type { Visitor } from '../types/visitor';
 
@@ -20,7 +19,6 @@ export function VisitorsPanel() {
   const [page, setPage] = useState(0);
   const [formVisitor, setFormVisitor] = useState<Visitor | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [detailId, setDetailId] = useState<number | null>(null);
   const [reserveVisitor, setReserveVisitor] = useState<Visitor | null>(null);
 
   const query = useVisitorsQuery({ page, size: PAGE_SIZE, q });
@@ -60,9 +58,11 @@ export function VisitorsPanel() {
           value={q}
           onValueChange={handleSearch}
         />
-        <Button variant="green" icon="plus" onClick={openCreate}>
-          {t('visitors.newVisitor')}
-        </Button>
+        <div className="toolbar-end">
+          <Button variant="green" icon="plus" onClick={openCreate}>
+            {t('visitors.newVisitor')}
+          </Button>
+        </div>
       </Toolbar>
 
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={6} /> : null}
@@ -87,7 +87,7 @@ export function VisitorsPanel() {
             }
           />
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll table-cards-mobile">
             <table className="table">
               <thead>
                 <tr className="table-header">
@@ -102,15 +102,18 @@ export function VisitorsPanel() {
               <tbody>
                 {visitors.map((visitor) => (
                   <tr key={visitor.id} className="table-row">
-                    <td>{`${visitor.firstName} ${visitor.lastName}`}</td>
-                    <td>{visitor.nationalId}</td>
-                    <td>{visitor.licensePlate ?? none}</td>
-                    <td>{visitor.company ?? none}</td>
-                    <td>{visitor.usualReason ?? none}</td>
-                    <td className="table-actions">
-                      <Button variant="white" icon="eye" onClick={() => setDetailId(visitor.id)}>
-                        {t('visitors.actions.view')}
-                      </Button>
+                    <td data-label={t('visitors.columns.name')}>
+                      {`${visitor.firstName} ${visitor.lastName}`}
+                    </td>
+                    <td data-label={t('visitors.columns.nationalId')}>{visitor.nationalId}</td>
+                    <td data-label={t('visitors.columns.licensePlate')}>
+                      {visitor.licensePlate ?? none}
+                    </td>
+                    <td data-label={t('visitors.columns.company')}>{visitor.company ?? none}</td>
+                    <td data-label={t('visitors.columns.usualReason')}>
+                      {visitor.usualReason ?? none}
+                    </td>
+                    <td className="table-actions" data-label={t('visitors.columns.actions')}>
                       <Button variant="white" icon="pencil" onClick={() => openEdit(visitor)}>
                         {t('visitors.actions.edit')}
                       </Button>
@@ -148,15 +151,11 @@ export function VisitorsPanel() {
         <VisitorFormModal visitor={formVisitor} onClose={closeForm} onSaved={closeForm} />
       ) : null}
 
-      {detailId !== null ? (
-        <VisitorDetailModal visitorId={detailId} onClose={() => setDetailId(null)} />
-      ) : null}
-
       {reserveVisitor ? (
-        <VisitorReservationModal
-          visitor={reserveVisitor}
+        <ReservationWizard
+          initialBeneficiaryType="VISITOR"
+          initialVisitorId={reserveVisitor.id}
           onClose={() => setReserveVisitor(null)}
-          onCreated={() => setReserveVisitor(null)}
         />
       ) : null}
     </div>

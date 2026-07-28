@@ -74,7 +74,7 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     expect(cell).not.toHaveClass('cell-released');
   });
 
-  it('should_showSummaryCards_when_calendarLoaded', async () => {
+  it('should_showModeKpis_when_calendarLoaded', async () => {
     server.use(
       http.get(`${MSW_BASE}/calendar/admin`, ({ request }) =>
         HttpResponse.json(
@@ -85,13 +85,17 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     renderWithProviders(<AdminCalendarPage />);
 
     await screen.findByRole('table');
-    const assignments = screen.getByText(/asignaciones|assignments/i).closest('.summary-card');
-    expect(assignments).not.toBeNull();
-    // ASSIGNED (1) + REQUEST_APPROVED (1) = 2 asignaciones en la semana fixture.
-    expect(within(assignments as HTMLElement).getByText('2')).toBeInTheDocument();
+    // La fila de KPIs del modo activo se refiere al primer dia visible del fixture
+    // (2026-05-11): P-01 ASSIGNED => 1 ocupado; P-02 FREE => 1 libre. El texto
+    // "Ocupados" tambien aparece en el chip de filtro, asi que acotamos la
+    // busqueda al contenedor de KPIs (.occ-kpis).
+    const kpis = document.querySelector('.occ-kpis') as HTMLElement;
+    const occupied = within(kpis).getByText(/ocupados|occupied/i).closest('.occ-kpi');
+    expect(occupied).not.toBeNull();
+    expect(within(occupied as HTMLElement).getByText('1')).toBeInTheDocument();
   });
 
-  it('should_toggleStateFilter_when_filterButtonClicked', async () => {
+  it('should_filterGridByQuickFilter_when_chipSelected', async () => {
     server.use(
       http.get(`${MSW_BASE}/calendar/admin`, ({ request }) =>
         HttpResponse.json(
@@ -103,15 +107,18 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     renderWithProviders(<AdminCalendarPage />);
 
     await screen.findByRole('table');
-    expect(screen.queryByRole('group', { name: /filtrar|filter/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /filtrar|filter/i }));
-    const group = screen.getByRole('group', { name: /filtrar|filter/i });
-    const freeChip = within(group).getByRole('button', { name: /libre|free/i });
-    expect(freeChip).toHaveAttribute('aria-pressed', 'true');
-
-    await user.click(freeChip);
+    // Los filtros rápidos están SIEMPRE visibles (sin botón "Filtrar" que los abra).
+    const group = screen.getByRole('group', { name: /filtrar por estado|filter by state/i });
+    const allChip = within(group).getByRole('button', { name: /todos|all/i });
+    const freeChip = within(group).getByRole('button', { name: /solo libres|only free/i });
+    // "Todos" es la selección por defecto.
+    expect(allChip).toHaveAttribute('aria-pressed', 'true');
     expect(freeChip).toHaveAttribute('aria-pressed', 'false');
+
+    // Selección única: al elegir "Solo libres" se activa ese chip y se desactiva "Todos".
+    await user.click(freeChip);
+    expect(freeChip).toHaveAttribute('aria-pressed', 'true');
+    expect(allChip).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('should_enableExport_when_rowsPresent', async () => {

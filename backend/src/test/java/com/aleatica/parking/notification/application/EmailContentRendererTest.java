@@ -297,6 +297,62 @@ class EmailContentRendererTest {
     }
 
     @Test
+    void shouldRenderParkingAssignmentWithNumberFloorAndDate_whenRenderingRequestAdminAssigned() {
+        // Arrange: asignacion puntual del admin de una plaza (empleado no inicio la peticion)
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = approvedRequest(com.aleatica.parking.request.domain.Request.ADMIN_ASSIGNMENT_NOTE);
+        ResolvedResource resolved = new ResolvedResource(ResourceType.PARKING, 3005, 3);
+
+        // Act
+        EmailMessage message = renderer.renderRequestAdminAssigned(employee, request, resolved);
+
+        // Assert: distinta de "solicitud aprobada" (no dice APROBADA ni saludo formal)
+        assertThat(message.to()).isEqualTo(EMP_EMAIL);
+        assertThat(message.subject()).isEqualTo("Un administrador te ha asignado una plaza");
+        assertThat(message.htmlBody())
+                .contains("Un administrador te ha asignado")
+                .contains("plaza n")
+                .contains("3005")
+                .contains("planta")
+                .contains(REQUESTED_DATE.toString())
+                .doesNotContain("APROBADA")
+                .doesNotContain("Estimado/a");
+    }
+
+    @Test
+    void shouldRenderDeskAssignmentWithoutFloor_whenRenderingRequestAdminAssignedForDesk() {
+        // Arrange
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = approvedDeskRequest();
+        ResolvedResource resolved = new ResolvedResource(ResourceType.DESK, 12, null);
+
+        // Act
+        EmailMessage message = renderer.renderRequestAdminAssigned(employee, request, resolved);
+
+        // Assert
+        assertThat(message.subject()).isEqualTo("Un administrador te ha asignado una puesto");
+        assertThat(message.htmlBody())
+                .contains("puesto n")
+                .contains("12")
+                .doesNotContain("en la planta");
+    }
+
+    @Test
+    void shouldDegradeWithoutResourceNumber_whenAdminAssignedResourceNotResolved() {
+        // Arrange: recurso no localizado (resolved null) -> se degrada sin numero
+        Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);
+        RequestResponse request = approvedRequest(com.aleatica.parking.request.domain.Request.ADMIN_ASSIGNMENT_NOTE);
+
+        // Act
+        EmailMessage message = renderer.renderRequestAdminAssigned(employee, request, null);
+
+        // Assert: sigue comunicando la asignacion (sin romper) aunque sin numero de recurso
+        assertThat(message.htmlBody())
+                .contains("Un administrador te ha asignado un recurso")
+                .contains(REQUESTED_DATE.toString());
+    }
+
+    @Test
     void shouldAddressRevokedEmailToAffectedEmployee_whenRenderingAssignmentRevoked() {
         // Arrange
         Employee employee = EmployeeTestFactory.active(EMP_ID, "emp", EMP_EMAIL, null, Role.EMPLOYEE);

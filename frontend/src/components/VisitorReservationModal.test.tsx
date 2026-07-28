@@ -42,7 +42,8 @@ describe('VisitorReservationModal', () => {
     await waitFor(() => expect(created).toBe(true));
     expect(sentBody).toMatchObject({
       visitorId: visitorCarla.id,
-      parkingSpaceId: 1,
+      resourceType: 'PARKING',
+      resourceId: 1,
       reservationDate: todayIso(),
     });
   });

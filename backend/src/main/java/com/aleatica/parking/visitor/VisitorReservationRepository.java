@@ -1,5 +1,6 @@
 package com.aleatica.parking.visitor;
 
+import com.aleatica.parking.resource.ResourceType;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -13,10 +14,10 @@ import org.springframework.data.repository.query.Param;
  *
  * <p>Las consultas usan parametros vinculados (sin concatenacion), eliminando la
  * inyeccion SQL por construccion (OWASP API / security-design §4). La unicidad
- * plaza+fecha la garantiza el indice unico de la BD
- * ({@code UX_visitor_reservations_space_date}); {@link #existsByParkingSpaceIdAndReservationDate}
- * es la primera capa (disponibilidad y mensaje claro), no la red dura frente a
- * concurrencia.</p>
+ * recurso+fecha la garantiza el indice unico de la BD
+ * ({@code UX_visitor_reservations_resource_date}, migracion V25);
+ * {@link #existsByResourceTypeAndResourceIdAndReservationDate} es la primera capa
+ * (disponibilidad y mensaje claro), no la red dura frente a concurrencia.</p>
  */
 public interface VisitorReservationRepository extends JpaRepository<VisitorReservation, Long> {
 
@@ -28,7 +29,21 @@ public interface VisitorReservationRepository extends JpaRepository<VisitorReser
      * @param reservationDate fecha reservada
      * @return {@code true} si ya existe una reserva para esa plaza y fecha
      */
-    boolean existsByParkingSpaceIdAndReservationDate(Long parkingSpaceId, LocalDate reservationDate);
+    boolean existsByResourceTypeAndResourceIdAndReservationDate(
+            ResourceType resourceType, Long resourceId, LocalDate reservationDate);
+
+    /**
+     * Cuenta las reservas de visitante de un recurso para HOY o fechas futuras (soporte del
+     * bloqueo de desactivacion: un recurso con reservas de visitante futuras no debe
+     * desactivarse silenciosamente; change {@code admin-improvements}, tarea 16).
+     *
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param resourceId   recurso a comprobar
+     * @param from         fecha minima inclusive (hoy)
+     * @return numero de reservas de ese recurso con fecha &gt;= {@code from}
+     */
+    long countByResourceTypeAndResourceIdAndReservationDateGreaterThanEqual(
+            ResourceType resourceType, Long resourceId, LocalDate from);
 
     /**
      * Reservas de visitante cuyo {@code reservation_date} cae dentro del intervalo
@@ -45,6 +60,19 @@ public interface VisitorReservationRepository extends JpaRepository<VisitorReser
     List<VisitorReservation> findByReservationDateBetween(LocalDate start, LocalDate end);
 
     /**
+     * Reservas de visitante de un tipo de recurso concreto cuyo {@code reservation_date} cae
+     * en el intervalo (extremos inclusive). Base para descontar la ocupación por visitante en
+     * la disponibilidad/ocupación de plazas o puestos por separado.
+     *
+     * @param resourceType tipo de recurso ({@code PARKING}/{@code DESK})
+     * @param start        fecha inicial (inclusive)
+     * @param end          fecha final (inclusive)
+     * @return reservas del tipo y rango (posiblemente vacía)
+     */
+    List<VisitorReservation> findByResourceTypeAndReservationDateBetween(
+            ResourceType resourceType, LocalDate start, LocalDate end);
+
+    /**
      * Busqueda paginada de reservas con filtros opcionales por fecha y plaza. Cuando un
      * parametro es {@code null} ese filtro no se aplica; ambos van vinculados.
      *
@@ -56,10 +84,10 @@ public interface VisitorReservationRepository extends JpaRepository<VisitorReser
     @Query("""
             SELECT r FROM VisitorReservation r
             WHERE (:reservationDate IS NULL OR r.reservationDate = :reservationDate)
-              AND (:parkingSpaceId IS NULL OR r.parkingSpaceId = :parkingSpaceId)
+              AND (:resourceId IS NULL OR r.resourceId = :resourceId)
             """)
     Page<VisitorReservation> search(
             @Param("reservationDate") LocalDate reservationDate,
-            @Param("parkingSpaceId") Long parkingSpaceId,
+            @Param("resourceId") Long resourceId,
             Pageable pageable);
 }

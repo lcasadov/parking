@@ -30,6 +30,14 @@ export async function listDesks(params: DeskListParams = {}): Promise<PageDesk> 
   return data;
 }
 
+// GET /desks/{id} (ADMIN o EMPLOYEE): detalle de un puesto. A diferencia del
+// catalogo de plazas (ADMIN-only), este endpoint es accesible a EMPLOYEE, lo que
+// permite resolver el numero real de un puesto fijo propio.
+export async function getDesk(id: number): Promise<Desk> {
+  const { data } = await apiClient.get<Desk>(`${DESKS}/${id}`);
+  return data;
+}
+
 export async function createDesk(body: DeskCreate): Promise<Desk> {
   const { data } = await apiClient.post<Desk>(DESKS, body);
   return data;
