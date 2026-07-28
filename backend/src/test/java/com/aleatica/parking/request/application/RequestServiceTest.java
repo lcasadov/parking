@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -24,6 +25,7 @@ import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestAdminCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
@@ -731,13 +733,17 @@ class RequestServiceTest {
         // Act
         newService().adminCancel(REQUEST_ID, ADMIN_LOGIN, VALID_REASON);
 
-        // Assert
-        verify(eventPublisher).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getValue()).isInstanceOfSatisfying(RequestCancelledEvent.class,
-                event -> {
-                    assertThat(event.request().id()).isEqualTo(REQUEST_ID);
-                    assertThat(event.request().status()).isEqualTo(RequestStatus.CANCELLED);
-                });
+        // Assert: adminCancel publica DOS eventos — aviso a admins (RequestCancelledEvent, recurso
+        // liberado) y aviso al empleado afectado (RequestAdminCancelledEvent, design D12).
+        verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
+        RequestCancelledEvent cancelled = eventCaptor.getAllValues().stream()
+                .filter(RequestCancelledEvent.class::isInstance)
+                .map(RequestCancelledEvent.class::cast)
+                .findFirst()
+                .orElseThrow();
+        assertThat(cancelled.request().id()).isEqualTo(REQUEST_ID);
+        assertThat(cancelled.request().status()).isEqualTo(RequestStatus.CANCELLED);
+        assertThat(eventCaptor.getAllValues()).anyMatch(RequestAdminCancelledEvent.class::isInstance);
     }
 
     @Test
