@@ -886,18 +886,11 @@ body.theme-dark {
   background: transparent;
 }
 
-/* CTA de ausencia = panel SEÑAL. */
+/* CTA de ausencia = SEÑAL sólida (fondo acento del base). El texto usa --accent-ink
+   para ser legible en ambos temas (blanco sobre verde en claro / tinta oscura sobre
+   ámbar en oscuro): el color:#fff del base fallaba sobre el ámbar. */
 .portal-way .absence-cta {
-  border: 1px solid var(--accent-line);
-  background: linear-gradient(180deg, var(--accent-soft), transparent);
-  transition: transform 0.14s var(--ease-out), box-shadow 0.2s;
-}
-.portal-way .absence-cta:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 0 1px var(--accent-line), 0 12px 28px -16px var(--accent);
-}
-.portal-way .absence-cta-icon {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* Panel de liberados = azul (OPEN); fechas en mono. */
