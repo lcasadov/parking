@@ -13,9 +13,9 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 ## 2. Dominio y persistencia (backend)
 
 - [x] 2.1 `SystemSettings`: campos `emailNotificationsEnabled`/`pushNotificationsEnabled` (+ restore/defaults/getters/método de cambio), entidad JPA, mapper, DTOs `SystemSettingsResponse`/nuevo `UpdateNotificationChannelsRequest`.
-- [ ] 2.2 `PushSubscription` (dominio + puerto `PushSubscriptionRepositoryPort`) + entidad JPA + adaptador + mapper. Upsert por `endpoint`.
+- [x] 2.2 `PushSubscription` (dominio + puerto `PushSubscriptionRepositoryPort`) + entidad JPA + adaptador + mapper. Upsert por `endpoint`.
 - [ ] 2.3 `NotificationRecipientResolver` reutilizable: resuelve destinatario(s) por evento (empleado del evento; admins activos para `RequestCreated` en modo MANUAL) — consumido por ambos listeners. Aplica la **regla de entrega efectiva** por canal y destinatario: `global.<canal> ∧ empleado.<canal>` (y suscripción para push).
-- [ ] 2.4 `Employee`: campos `emailNotificationsEnabled`/`pushNotificationsEnabled` (default `true`) en dominio, entidad JPA, mapper y DTOs de empleado (respuesta + create/update); RBAC: solo `ADMIN` los cambia.
+- [x] 2.4 `Employee`: campos `emailNotificationsEnabled`/`pushNotificationsEnabled` (default `true`) en dominio, entidad JPA, mapper y DTOs de empleado (respuesta + create/update); RBAC: solo `ADMIN` los cambia.
 
 ## 3. Envío push (backend)
 

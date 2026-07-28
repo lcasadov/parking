@@ -124,6 +124,8 @@ public class EmployeeService {
         employee.setMobilePhone(request.mobilePhone());
         employee.setLicensePlate(request.licensePlate());
         employee.setCorporate(request.corporate());
+        employee.setEmailNotificationsEnabled(request.emailNotificationsEnabledOrDefault());
+        employee.setPushNotificationsEnabled(request.pushNotificationsEnabledOrDefault());
         return EmployeeResponse.from(employeeRepository.save(employee));
     }
 
@@ -152,6 +154,8 @@ public class EmployeeService {
         employee.setCorporate(request.corporate());
         employee.setRole(request.role());
         employee.setCategory(request.category());
+        employee.setEmailNotificationsEnabled(request.emailNotificationsEnabledOrDefault());
+        employee.setPushNotificationsEnabled(request.pushNotificationsEnabledOrDefault());
         employee.setUpdatedAt(clock.now());
         return EmployeeResponse.from(employeeRepository.save(employee));
     }

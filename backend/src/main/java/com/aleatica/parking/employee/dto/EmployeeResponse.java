@@ -51,6 +51,10 @@ public record EmployeeResponse(
         @Schema(description = "Cuenta habilitada para login") boolean enabled,
         @Schema(description = "No dado de baja logicamente") boolean active,
         @Schema(description = "Debe cambiar la contrasena al acceder") boolean passwordMustChange,
+        @Schema(description = "Recibe avisos por email (change push-notifications)")
+        @JsonProperty("emailNotificationsEnabled") boolean emailNotificationsEnabled,
+        @Schema(description = "Recibe avisos por push (change push-notifications)")
+        @JsonProperty("pushNotificationsEnabled") boolean pushNotificationsEnabled,
         @Schema(description = "Instante de alta (ISO-8601)") Instant createdAt,
         @Schema(description = "Instante de ultima modificacion (ISO-8601)") Instant updatedAt) {
 
@@ -77,6 +81,8 @@ public record EmployeeResponse(
                 employee.isEnabled(),
                 employee.isActive(),
                 employee.isPasswordMustChange(),
+                employee.isEmailNotificationsEnabled(),
+                employee.isPushNotificationsEnabled(),
                 employee.getCreatedAt(),
                 employee.getUpdatedAt());
     }
