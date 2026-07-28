@@ -240,7 +240,7 @@ export function ReleaseByDatePage({ embedded = false }: { embedded?: boolean } =
         onOpenChange={(open) => {
           if (!open) setBatchOpen(false);
         }}
-        tone="red"
+        tone="green"
         icon="arrow-back-up"
         title={t('releases.byDate.batchTitle', { count: selected.size })}
         description={

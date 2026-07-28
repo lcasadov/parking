@@ -68,7 +68,7 @@ export function CancelReleaseModal({
         }
       }}
       title={t('releases.cancel.title')}
-      tone="red"
+      tone="green"
       narrow
       footer={footer}
     >

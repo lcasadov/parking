@@ -90,7 +90,7 @@ export function AdminCancelRequestModal({
         }
       }}
       title={t('requests.adminCancel.title')}
-      tone="red"
+      tone="green"
       footer={footer}
     >
       <form id={FORM_ID} onSubmit={handleSubmit} noValidate>

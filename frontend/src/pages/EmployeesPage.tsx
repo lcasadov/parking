@@ -107,7 +107,7 @@ function DeactivateConfirm({
       onOpenChange={(open) => {
         if (!open) onCancel();
       }}
-      tone="red"
+      tone="green"
       icon="user-off"
       title={t('employees.deactivateConfirm.title')}
       description={

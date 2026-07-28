@@ -115,7 +115,7 @@ export function RejectRequestModal({
       }}
       title={t(`${copyKey}.title`)}
       icon="alert-triangle"
-      tone="red"
+      tone="green"
       narrow
       footer={footer}
     >

@@ -56,7 +56,7 @@ export function SidebarUserCard() {
         <Dialog
           open
           narrow
-          tone="red"
+          tone="green"
           icon="logout"
           title={t('account.logoutConfirm.title')}
           onOpenChange={(open) => {

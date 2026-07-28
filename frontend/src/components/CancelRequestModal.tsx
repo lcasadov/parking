@@ -67,7 +67,7 @@ export function CancelRequestModal({
         }
       }}
       title={t(`${keys}.title`)}
-      tone="red"
+      tone="green"
       narrow
       footer={footer}
     >

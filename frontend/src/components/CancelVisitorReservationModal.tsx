@@ -61,7 +61,7 @@ export function CancelVisitorReservationModal({
         }
       }}
       title={t('visitors.reservations.cancelModal.title')}
-      tone="red"
+      tone="green"
       narrow
       footer={footer}
     >

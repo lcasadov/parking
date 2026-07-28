@@ -102,7 +102,7 @@ export function AdministrativeReleaseModal({
         }
       }}
       title={t('releases.admin.title')}
-      tone="red"
+      tone="green"
       footer={footer}
     >
       <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
