@@ -15,6 +15,17 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+
+# Variables VITE_ (build-time): Vite las hornea en el bundle al compilar. Llegan como
+# build-args (desde el .env del servidor, ver docker-compose.app.yml) y se materializan en
+# un .env.production que `vite build` carga en modo producción. Sin esto, en producción el
+# token de Mapbox y la clave pública VAPID (Web Push) quedarían vacíos.
+ARG VITE_API_URL=""
+ARG VITE_MAPBOX_TOKEN=""
+ARG VITE_VAPID_PUBLIC_KEY=""
+RUN printf 'VITE_API_URL=%s\nVITE_MAPBOX_TOKEN=%s\nVITE_VAPID_PUBLIC_KEY=%s\n' \
+      "$VITE_API_URL" "$VITE_MAPBOX_TOKEN" "$VITE_VAPID_PUBLIC_KEY" > .env.production
+
 # El script "build" ya ejecuta `tsc --noEmit && vite build` (ver package.json).
 RUN npm run build
 

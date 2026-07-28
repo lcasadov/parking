@@ -95,6 +95,12 @@ services:
   frontend:
     build:
       context: ./frontend
+      # Variables VITE_ (build-time) interpoladas desde el .env de la raiz (gitignored):
+      # el token de Mapbox y la clave PUBLICA VAPID se hornean en el bundle al construir.
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
+        VITE_VAPID_PUBLIC_KEY: ${VITE_VAPID_PUBLIC_KEY:-}
     container_name: parking-app-frontend
     depends_on:
       - backend
