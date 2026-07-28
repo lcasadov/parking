@@ -6,6 +6,7 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 
 - [ ] 1.1 Migración `V__push_subscription.sql`: tabla `push_subscription` (`id`, `employee_id` FK→employees, `endpoint` UNIQUE, `p256dh`, `auth`, `user_agent` NULL, `created_at`), índice por `employee_id`; FK con borrado en cascada al desactivar/eliminar empleado (o borrado explícito en el servicio).
 - [ ] 1.2 Migración `V__system_settings_notification_channels.sql`: añadir `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1`.
+- [ ] 1.2b Migración `V__employees_notification_prefs.sql`: añadir `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1` a `employees` (por defecto activos).
 - [ ] 1.3 Config VAPID: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` vía entorno (`.env` gitignored, junto a SMTP); arranque tolerante si falta la privada (push desactivado de facto, solo email). Documentar en `.env.example`.
 - [ ] 1.4 Dependencia `nl.martijndwars:web-push` (o equivalente) en `backend/pom.xml`.
 
@@ -13,7 +14,8 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 
 - [ ] 2.1 `SystemSettings`: campos `emailNotificationsEnabled`/`pushNotificationsEnabled` (+ restore/defaults/getters/método de cambio), entidad JPA, mapper, DTOs `SystemSettingsResponse`/nuevo `UpdateNotificationChannelsRequest`.
 - [ ] 2.2 `PushSubscription` (dominio + puerto `PushSubscriptionRepositoryPort`) + entidad JPA + adaptador + mapper. Upsert por `endpoint`.
-- [ ] 2.3 `NotificationRecipientResolver` reutilizable: resuelve destinatario(s) por evento (empleado del evento; admins activos para `RequestCreated` en modo MANUAL) — consumido por ambos listeners.
+- [ ] 2.3 `NotificationRecipientResolver` reutilizable: resuelve destinatario(s) por evento (empleado del evento; admins activos para `RequestCreated` en modo MANUAL) — consumido por ambos listeners. Aplica la **regla de entrega efectiva** por canal y destinatario: `global.<canal> ∧ empleado.<canal>` (y suscripción para push).
+- [ ] 2.4 `Employee`: campos `emailNotificationsEnabled`/`pushNotificationsEnabled` (default `true`) en dominio, entidad JPA, mapper y DTOs de empleado (respuesta + create/update); RBAC: solo `ADMIN` los cambia.
 
 ## 3. Envío push (backend)
 
@@ -43,25 +45,28 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 - [ ] 6.3 `VITE_VAPID_PUBLIC_KEY` en entorno; helper de suscripción (`requestPermission` → `pushManager.subscribe` → `POST /push/subscriptions`).
 - [ ] 6.4 Manejo de `pushsubscriptionchange` / 410 → re-suscribir (upsert en backend).
 - [ ] 6.5 `settingsApi`/hooks para suscripción y para los flags de canal.
+- [ ] 6.6 Detección de estado/plataforma (`standalone`, iOS vs Android, `pushSupported`, `Notification.permission`) y captura del evento `beforeinstallprompt` (guardar el `deferredPrompt`).
 
 ## 7. Frontend — UI
 
-- [ ] 7.1 `SettingsPage` (ADMIN): dos checkboxes independientes **Email** y **Push** (guardado por `PUT /admin/settings/notification-channels`).
+- [ ] 7.1 `SettingsPage` (ADMIN): dos checkboxes independientes **Email** y **Push** globales (guardado por `PUT /admin/settings/notification-channels`).
+- [ ] 7.1b `EmployeeFormModal` (ADMIN): dos checkboxes independientes **Email** y **Push** por empleado (activos por defecto), guardados con el resto del formulario del empleado.
 - [ ] 7.2 Perfil de usuario: toggle "Notificaciones push" con estados (no soportado / denegado / iOS sin instalar / activo + dispositivo) y baja.
-- [ ] 7.3 i18n (es/en) de checkboxes, toggle, estados y textos de las notificaciones.
+- [ ] 7.3 **Tarjetas de onboarding en la página principal** (sin auto-prompt), llamativas y descartables, según D14: "Activar notificaciones" (botón → prompt nativo), "Instalar la app" iOS (instrucciones), "Instalar la app" Android (botón → `deferredPrompt.prompt()`); ocultar cuando no aplican; recordar el descarte.
+- [ ] 7.4 i18n (es/en) de checkboxes, toggle, tarjetas de onboarding, estados y textos de las notificaciones.
 
 ## 8. Docs
 
-- [ ] 8.1 `docs/openapi.yaml`: endpoints de suscripción + VAPID + `notification-channels`; schemas `PushSubscriptionRequest`, flags en `SystemSettings`.
-- [ ] 8.2 `docs/data-model.md`: tabla `push_subscription` y columnas nuevas de `system_settings`.
+- [ ] 8.1 `docs/openapi.yaml`: endpoints de suscripción + VAPID + `notification-channels`; schemas `PushSubscriptionRequest`, flags en `SystemSettings` y en el schema de `Employee` (respuesta + create/update).
+- [ ] 8.2 `docs/data-model.md`: tabla `push_subscription`, columnas nuevas de `system_settings` y de `employees`.
 - [ ] 8.3 `docs/security-design.md`: VAPID (secretos), autenticación del alta de suscripción, RGPD del `endpoint`.
 
 ## 9. Tests
 
-- [ ] 9.1 Backend unit: resolver de destinatarios (empleado / fan-out admins en MANUAL / no-admin en AUTOMATIC); flags de canal (4 combinaciones); borrado ante 410.
-- [ ] 9.2 Backend web (`@WebMvcTest`): RBAC de los endpoints (401/403), alta idempotente, baja, cambio de flags solo ADMIN.
+- [ ] 9.1 Backend unit: resolver de destinatarios (empleado / fan-out admins en MANUAL / no-admin en AUTOMATIC); regla de entrega efectiva `global ∧ empleado` por canal (incl. empleado silenciado); aviso al empleado en cancelación admin y no-autoaviso en cancelación propia; borrado ante 410.
+- [ ] 9.2 Backend web (`@WebMvcTest`): RBAC de los endpoints (401/403), alta idempotente, baja, cambio de flags globales solo ADMIN, flags por empleado en el formulario solo ADMIN.
 - [ ] 9.3 Backend IT (Testcontainers): persistencia y upsert de `push_subscription`; borrado en cascada al desactivar empleado.
-- [ ] 9.4 Frontend: flujo de permiso (mock `Notification`/`PushManager`), estados de la UI, checkboxes de canal (guardan por separado), toggle push.
+- [ ] 9.4 Frontend: flujo de permiso (mock `Notification`/`PushManager`), estados de la UI, checkboxes de canal global (guardan por separado), checkboxes por empleado en `EmployeeFormModal`, toggle push, y **tarjetas de onboarding** por plataforma/estado (mock de `standalone`/UA/`beforeinstallprompt`; verificar que no hay auto-prompt).
 - [ ] 9.5 Cobertura ≥ umbrales (líneas ≥80 / branches ≥75 / funciones ≥80) y sin regresión.
 
 ## 10. Gates (verificación final)

@@ -35,3 +35,35 @@ La app SHALL ofrecer al usuario un control para activar/desactivar las notificac
 
 - **GIVEN** un navegador sin `PushManager` o un iPhone con la web sin instalar
 - **THEN** la app muestra el estado correspondiente y no ofrece la suscripción (el email cubre el aviso)
+
+### Requirement: Onboarding contextual en la página principal, sin auto-prompt
+
+La app NO SHALL solicitar el permiso de notificaciones automáticamente al cargar. El permiso SHALL pedirse únicamente tras un gesto explícito del usuario (botón). En la página principal la app SHALL mostrar tarjetas contextuales y descartables según la plataforma y el estado detectado, para guiar a activar las notificaciones y, cuando proceda, a instalar la app.
+
+#### Scenario: Android/escritorio compatible con push aún no activo
+
+- **GIVEN** un dispositivo compatible con push y el permiso en estado por defecto (no concedido ni denegado)
+- **WHEN** el usuario abre la página principal
+- **THEN** ve una tarjeta explicativa con un botón "Activar notificaciones" que, al pulsarlo, dispara el prompt nativo de permiso
+
+#### Scenario: iOS con la web sin instalar
+
+- **GIVEN** un iPhone con la web abierta en Safari (no instalada como PWA)
+- **WHEN** el usuario abre la página principal
+- **THEN** ve una tarjeta que explica cómo instalar la app (Compartir → Añadir a pantalla de inicio) antes de poder activar las notificaciones
+
+#### Scenario: Android instalable
+
+- **GIVEN** un navegador Android/Chromium que ha ofrecido instalar la app (`beforeinstallprompt` capturado) y la app no está instalada
+- **WHEN** el usuario abre la página principal
+- **THEN** ve una tarjeta para instalar la app con un botón que dispara el prompt de instalación
+
+#### Scenario: No mostrar la tarjeta cuando no aplica
+
+- **GIVEN** que las notificaciones ya están activas, el permiso está denegado, la app ya está instalada, o el navegador no soporta push
+- **THEN** la app no muestra la tarjeta de activar/instalar correspondiente (o muestra el mensaje adecuado sin reintentar el prompt), y no bloquea el uso de la app
+
+#### Scenario: Tarjeta descartable
+
+- **WHEN** el usuario descarta una tarjeta de onboarding
+- **THEN** la tarjeta no reaparece en la sesión y el usuario conserva el control equivalente en su perfil

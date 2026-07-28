@@ -1,24 +1,30 @@
 ## ADDED Requirements
 
-### Requirement: Entrega multi-canal gobernada por canal habilitado
+### Requirement: Entrega multi-canal gobernada por preferencia global y por empleado
 
-El sistema SHALL entregar cada notificación de dominio por los canales **habilitados globalmente** (email y/o push), de forma independiente por canal. Cada canal SHALL comprobar su propio flag antes de enviar; deshabilitar un canal NO SHALL afectar al otro. El email SHALL permanecer como canal y fallback.
+El sistema SHALL entregar cada notificación por un canal (email/push) solo si **el flag global del canal Y el flag del mismo canal del empleado destino** están activos (para push, además, el empleado debe tener alguna suscripción activa). Los dos canales son independientes entre sí; el flag global manda sobre el del empleado. El email SHALL permanecer como canal y fallback.
 
-#### Scenario: Ambos canales habilitados
+#### Scenario: Ambos canales habilitados (global y empleado)
 
-- **GIVEN** `emailNotificationsEnabled = true` y `pushNotificationsEnabled = true`
-- **WHEN** se dispara una notificación dirigida a un usuario con suscripción push
-- **THEN** el usuario recibe email y push
+- **GIVEN** los flags globales y los del empleado en `true` y el empleado con suscripción push
+- **WHEN** se dispara una notificación dirigida a ese empleado
+- **THEN** el empleado recibe email y push
 
-#### Scenario: Solo push habilitado
+#### Scenario: Global de push apagado
 
-- **GIVEN** `emailNotificationsEnabled = false` y `pushNotificationsEnabled = true`
+- **GIVEN** `system.pushNotificationsEnabled = false` (aunque el empleado lo tenga en `true`)
 - **WHEN** se dispara una notificación
-- **THEN** el sistema envía solo push y no envía email
+- **THEN** no se envía push a nadie; el email se envía si su global y el del empleado están activos
 
-#### Scenario: Ambos canales deshabilitados
+#### Scenario: Empleado silenciado por el admin en un canal
 
-- **GIVEN** `emailNotificationsEnabled = false` y `pushNotificationsEnabled = false`
+- **GIVEN** los globales en `true` pero el empleado con `pushNotificationsEnabled = false`
+- **WHEN** se dispara una notificación dirigida a ese empleado
+- **THEN** ese empleado no recibe push (sí email si su flag de email está activo); el resto de empleados sí reciben push
+
+#### Scenario: Ambos canales deshabilitados globalmente
+
+- **GIVEN** `system.emailNotificationsEnabled = false` y `system.pushNotificationsEnabled = false`
 - **WHEN** se dispara una notificación
 - **THEN** el sistema no envía ninguna notificación (silencio asumido por el ADMIN)
 

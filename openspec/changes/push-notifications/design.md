@@ -22,8 +22,18 @@ El backend ya tiene un pipeline de notificaciones dirigido por eventos: los serv
 ### D1 — Segundo listener en paralelo, no reescribir el de email
 `PushNotificationListener` (`@TransactionalEventListener(AFTER_COMMIT)`) consume los mismos eventos que `EmailNotificationListener`. Ambos son independientes: si push falla, el email sigue, y viceversa. Se evita acoplar canales en un único listener. La resolución de destinatario(s) por evento se factoriza a un colaborador reutilizable (`NotificationRecipientResolver`) que ambos listeners consultan, para no duplicar la lógica de "a quién va cada evento".
 
-### D2 — Toggles de canal en `system_settings` (global), no por usuario
-Dos columnas `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1`. Antes de enviar, cada listener comprueba su flag; si está `false`, no envía. Son **independientes**: (on,on)=ambos, (on,off)/(off,on)=uno, (off,off)=ninguno (permitido; el admin asume el silencio). Se resuelven desde `SystemSettings` (fila única, con default retrocompatible si la fila no existe).
+### D2 — Toggles de canal en `system_settings` (global)
+Dos columnas `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1`. Antes de enviar, cada listener comprueba su flag; si está `false`, no envía a nadie. Son **independientes**: (on,on)=ambos, (on,off)/(off,on)=uno, (off,off)=ninguno (permitido; el admin asume el silencio). Se resuelven desde `SystemSettings` (fila única, con default retrocompatible si la fila no existe).
+
+### D13 — Preferencia por empleado (segunda capa) + precedencia
+Además del interruptor global, cada empleado tiene sus propios flags en la tabla `employees`: `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1` (por defecto **activos** → retrocompatible). El ADMIN los edita en el **formulario de empleado** (EmployeeFormModal); el empleado no los cambia (su opt‑in propio es la suscripción de dispositivo). **Regla de entrega efectiva por canal y destinatario:**
+
+```
+enviar_email(E)  ⇔  system.emailNotificationsEnabled ∧ E.emailNotificationsEnabled
+enviar_push(E)   ⇔  system.pushNotificationsEnabled  ∧ E.pushNotificationsEnabled ∧ E tiene suscripción activa
+```
+
+El global manda (si el admin apaga un canal, nadie lo recibe aunque el empleado lo tenga on); el del empleado permite **silenciar a uno concreto** sin afectar a los demás. Aplica igual cuando el destinatario es un admin (un admin con su push por‑empleado en off no recibe los avisos de fan‑out por push, pero sí por email si procede). La comprobación vive en un único punto (el `NotificationRecipientResolver`/los listeners), no dispersa.
 
 ### D3 — Push condicionado a suscripción del usuario
 Un push a un empleado se envía a **todas** sus suscripciones activas. Si el empleado no tiene suscripción (no concedió permiso, navegador no soportado, o se dio de baja), simplemente no recibe push — el email cubre el aviso si está habilitado. No es un error.
@@ -63,6 +73,22 @@ Un único par por instalación (por entorno). Pública expuesta al cliente (`GET
 | Cancelación por el propio empleado (`RequestCancelled`) | admins activos | el empleado cancela su solicitud (recurso liberado) — comportamiento actual; el empleado NO se auto-notifica |
 | `WaitlistAvailableEvent` | **admins activos** | se libera un hueco con lista de espera; el admin lo resuelve desde pendientes (comportamiento actual; **no** al empleado) |
 | `RequestCreatedEvent` | admins activos | nueva solicitud pendiente (modo `MANUAL`) |
+
+### D14 — Onboarding contextual de activación/instalación (sin auto-prompt)
+No se llama a `Notification.requestPermission()` en la carga: pedir permiso sin contexto dispara rechazos y en algunos navegadores bloquea el dominio. El permiso se pide **solo tras un gesto** del usuario (botón de una tarjeta). En la **página principal** se muestran tarjetas llamativas y **descartables**, elegidas según un estado detectado:
+
+Detección (cliente): `standalone` = `matchMedia('(display-mode: standalone)')` o `navigator.standalone`; `platform` = iOS vs Android/otros (user-agent); `pushSupported` = existe `PushManager` + Service Worker; `permission` = `Notification.permission`; `installable` = se capturó el evento `beforeinstallprompt` (Android/Chromium).
+
+| Estado | Tarjeta en la home |
+|---|---|
+| Compatible, push soportado, `permission = default` | **"Activa las notificaciones"** — explicación + botón que dispara `requestPermission()` → si `granted`, suscribe y registra |
+| `permission = denied` | Tarjeta con instrucciones para reactivar el permiso en los ajustes del navegador (sin botón que reintente el prompt: el navegador ya no lo mostraría) |
+| iOS, no `standalone` | **"Instala la app"** — instrucciones (Compartir → *Añadir a pantalla de inicio*); Web Push en iOS exige la PWA instalada. Tras instalar (relanzada en `standalone`) aparece la tarjeta de activar |
+| Android/Chromium `installable`, no `standalone` | **"Instala la app"** — botón que llama a `deferredPrompt.prompt()` (el `beforeinstallprompt` guardado); tras instalar, la tarjeta de activar |
+| `standalone`/soportado y `permission = granted` con suscripción | (ninguna: ya está todo activo) |
+| Push no soportado (navegador viejo) | (ninguna tarjeta de push; el email cubre) |
+
+Las tarjetas son **descartables** (no reaparecen en la sesión / se recuerda el descarte) y no bloquean el uso de la app. El mismo control de activar/desactivar vive también en el perfil (D9), para quien descartó la tarjeta.
 
 ### D12 — Aviso al empleado cuando el admin cancela su reserva aprobada
 Hoy tanto la cancelación del propio empleado como `adminCancel` publican `RequestCancelledEvent`, que solo hace fan-out a **admins**; el empleado al que un admin le cancela una aprobada **no se entera**. Este change añade ese aviso **al empleado afectado**. Como hay que distinguir el iniciador (el empleado que cancela lo suyo NO debe auto-notificarse; el admin que cancela lo de otro SÍ debe avisar a ese otro), se resuelve con un **evento dedicado** para la cancelación administrativa (p. ej. `RequestAdminCancelledEvent`, dirigido al empleado), análogo a cómo `RequestAdminAssignedEvent` distingue la asignación iniciada por el admin. Se mantiene el fan-out a admins existente para la liberación del recurso. Aplica a ambos canales (email y push).
