@@ -32,11 +32,11 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 
 ## 5. Endpoints (backend)
 
-- [ ] 5.1 `POST /push/subscriptions` (autenticado; solo la propia) — upsert por endpoint.
-- [ ] 5.2 `DELETE /push/subscriptions` (por endpoint del propio usuario).
-- [ ] 5.3 `GET /push/vapid-public-key` (o exponer por build).
-- [ ] 5.4 `PUT /admin/settings/notification-channels` (ADMIN) — cambia los dos flags; `GET /admin/settings` los devuelve.
-- [ ] 5.5 Borrado de suscripciones al desactivar un empleado (cascada o en `EmployeeService`).
+- [x] 5.1 `POST /push/subscriptions` (autenticado; solo la propia) — upsert por endpoint.
+- [x] 5.2 `DELETE /push/subscriptions` (por endpoint del propio usuario).
+- [x] 5.3 `GET /push/vapid-public-key` (o exponer por build).
+- [x] 5.4 `PUT /admin/settings/notification-channels` (ADMIN) — cambia los dos flags; `GET /admin/settings` los devuelve.
+- [x] 5.5 Borrado de suscripciones al desactivar un empleado (cascada o en `EmployeeService`).
 
 ## 6. Frontend — PWA y suscripción
 

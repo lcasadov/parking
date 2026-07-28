@@ -203,6 +203,28 @@ public class SystemSettingsService {
         return response;
     }
 
+    /**
+     * Cambia los interruptores globales de canal de notificacion (email/push), de forma
+     * independiente (change {@code push-notifications}), registrando el actor y disparando la
+     * auditoria del cambio.
+     *
+     * @param emailEnabled si el canal email envia a nivel global
+     * @param pushEnabled  si el canal push envia a nivel global
+     * @param adminLogin   login del administrador que ejecuta el cambio
+     * @return el ajuste actualizado (DTO)
+     */
+    @Transactional
+    public SystemSettingsResponse updateNotificationChannels(
+            boolean emailEnabled, boolean pushEnabled, String adminLogin) {
+        Long actorId = resolveEmployeeId(adminLogin);
+        SystemSettings settings = settingsRepository.find().orElseGet(SystemSettings::defaults);
+        settings.changeNotificationChannels(emailEnabled, pushEnabled, actorId, clock.now());
+        SystemSettingsResponse response =
+                SystemSettingsResponse.from(settingsRepository.save(settings));
+        eventPublisher.publishEvent(new SystemSettingsAuditEvent(response));
+        return response;
+    }
+
     private Long resolveEmployeeId(String login) {
         return employeeRepository.findByLogin(login)
                 .map(Employee::getId)
