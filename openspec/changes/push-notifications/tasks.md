@@ -57,9 +57,9 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 
 ## 8. Docs
 
-- [ ] 8.1 `docs/openapi.yaml`: endpoints de suscripción + VAPID + `notification-channels`; schemas `PushSubscriptionRequest`, flags en `SystemSettings` y en el schema de `Employee` (respuesta + create/update).
-- [ ] 8.2 `docs/data-model.md`: tabla `push_subscription`, columnas nuevas de `system_settings` y de `employees`.
-- [ ] 8.3 `docs/security-design.md`: VAPID (secretos), autenticación del alta de suscripción, RGPD del `endpoint`.
+- [x] 8.1 `docs/openapi.yaml`: endpoints de suscripción + VAPID + `notification-channels`; schemas `PushSubscriptionRequest`, flags en `SystemSettings` y en el schema de `Employee` (respuesta + create/update).
+- [x] 8.2 `docs/data-model.md`: tabla `push_subscription`, columnas nuevas de `system_settings` y de `employees`.
+- [x] 8.3 `docs/security-design.md`: VAPID (secretos), autenticación del alta de suscripción, RGPD del `endpoint`.
 
 ## 9. Tests
 
