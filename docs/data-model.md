@@ -462,6 +462,32 @@ GO
 - `created_at` / `last_attempt_at` / `sent_at` are set in code via the injectable `ClockPort` (no DB default), so retry-window behaviour is testable with a fixed clock.
 - **RGPD:** the row holds a recipient email + a rendered body (may contain personal data). It is transient (deleted on success/terminal failure by the app; a periodic purge of terminal rows can be added if volume warrants) and out of scope of the 2-year historical purge of section 9 unless later reclassified.
 
+### 3.12 `system_settings`
+**Purpose:** single-row (`id = 1`) global configuration for the whole installation. Introduced by migration **`V22__system_settings.sql`** (change `request-auto-assignment`) with the `approval_mode` parameter, then extended incrementally: **`V28`** adds `parking_address`, **`V29`** adds `weekend_reservable` (change `reservas-employee-admin-reassign`), and **`V30__system_settings_parking_coords.sql`** adds `parking_lat`/`parking_lng` (change `admin-improvements`, task 18). No FK to business tables; `updated_by_id` traces the last ADMIN who changed it.
+
+```sql
+CREATE TABLE dbo.system_settings (
+    id                 TINYINT      NOT NULL CONSTRAINT DF_system_settings_id DEFAULT 1,
+    approval_mode      VARCHAR(10)  NOT NULL CONSTRAINT DF_system_settings_mode DEFAULT 'MANUAL',
+    parking_address    VARCHAR(500) NULL,                 -- V28: destino textual de "Ir al parking"
+    parking_lat        DECIMAL(9,6) NULL,                 -- V30: latitud del punto exacto (mapa)
+    parking_lng        DECIMAL(9,6) NULL,                 -- V30: longitud del punto exacto
+    weekend_reservable BIT          NOT NULL CONSTRAINT DF_system_settings_weekend DEFAULT 0,  -- V29
+    updated_by_id      BIGINT       NULL,                 -- último ADMIN que modificó (trazabilidad)
+    updated_at         DATETIME2    NULL,
+    CONSTRAINT PK_system_settings PRIMARY KEY (id),
+    CONSTRAINT CK_system_settings_singleton CHECK (id = 1),
+    CONSTRAINT CK_system_settings_mode CHECK (approval_mode IN ('MANUAL', 'AUTOMATIC'))
+);
+GO
+```
+
+**Notes**
+- **Singleton:** `CHECK (id = 1)` garantiza una única fila de configuración global (no hay ajustes por departamento ni por empleado). Si la fila no existe aún, el dominio usa valores por defecto (`MANUAL`, sin dirección/coordenadas, sin fines de semana).
+- `parking_lat`/`parking_lng` son `DECIMAL(9,6)` (precisión ~0.1 m; rango suficiente para lat `[-90, 90]` y lng `[-180, 180]`), nullable. En la entidad JPA se mapean como `BigDecimal`; el dominio y los DTOs los exponen como `Double` (JSON limpio para el mapa). Solo se persisten junto a una `parking_address` no vacía: borrar la dirección descarta las coordenadas.
+- `weekend_reservable` gobierna si `POST /requests` acepta sábados/domingos (400 `WEEKEND_NOT_RESERVABLE` cuando es `0`).
+- `approval_mode` es leíble por cualquier autenticado en `GET /settings/approval-mode`; `parking_address`+coordenadas en `GET /settings/parking-address`; el ajuste completo (con trazabilidad) solo por `ADMIN` en `GET /admin/settings`.
+
 ---
 
 ## 4. Critical constraints (filtered indexes)

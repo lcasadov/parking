@@ -179,7 +179,7 @@ su área, descripción y (cuando se conozca) endpoints/ficheros afectados.
       Afecta: `src/pages/SettingsPage.tsx` (form de modo aprobación, `WeekendReservableCard`),
       estilos en `components.css`.
 
-- [ ] 18. (fullstack) **Dirección del parking con mapa (Mapbox) para elegir el punto exacto.**
+- [x] 18. (fullstack) **Dirección del parking con mapa (Mapbox) para elegir el punto exacto.**
       Añadir un mapa Mapbox en la card "Dirección del parking" para seleccionar el punto
       exacto (marcador arrastrable / clic). El botón "Ir al parking" del empleado usaría esas
       coordenadas.

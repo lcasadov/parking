@@ -2843,6 +2843,25 @@ components:
             Dirección postal del parking usada por el botón "Ir al parking" del empleado (abre
             Google Maps); null si aún no se ha configurado (change `reservas-employee-admin-reassign`).
           example: 'Av. de Europa 18, 28108 Alcobendas, Madrid'
+        parkingLat:
+          type: number
+          format: double
+          nullable: true
+          minimum: -90
+          maximum: 90
+          description: >
+            Latitud del punto exacto del parking fijado en el mapa (change `admin-improvements`,
+            tarea 18); null si sin fijar. Si está presente junto a `parkingLng`, el botón "Ir al
+            parking" navega a las coordenadas; si no, cae a la dirección postal.
+          example: 40.5405
+        parkingLng:
+          type: number
+          format: double
+          nullable: true
+          minimum: -180
+          maximum: 180
+          description: Longitud del punto exacto del parking; null si sin fijar.
+          example: -3.6510
         weekendReservable:
           type: boolean
           description: >
@@ -2856,18 +2875,38 @@ components:
       type: object
       description: >
         Dirección del parking, legible por cualquier empleado autenticado (schema de
-        `GET /settings/parking-address`); sin el modo de aprobación ni la trazabilidad.
+        `GET /settings/parking-address`); sin el modo de aprobación ni la trazabilidad. Incluye las
+        coordenadas del punto exacto (change `admin-improvements`, tarea 18): si están presentes,
+        "Ir al parking" navega a ellas; si no, cae a la dirección postal.
       properties:
         parkingAddress:
           type: string
           nullable: true
           description: Dirección postal del parking; null si sin configurar.
           example: 'Av. de Europa 18, 28108 Alcobendas, Madrid'
+        parkingLat:
+          type: number
+          format: double
+          nullable: true
+          minimum: -90
+          maximum: 90
+          description: Latitud del punto exacto del parking; null si sin fijar.
+          example: 40.5405
+        parkingLng:
+          type: number
+          format: double
+          nullable: true
+          minimum: -180
+          maximum: 180
+          description: Longitud del punto exacto del parking; null si sin fijar.
+          example: -3.6510
     UpdateParkingAddressRequest:
       type: object
       description: >
-        Cambio de la dirección del parking (change `reservas-employee-admin-reassign`). La
-        dirección es opcional: `null` o cadena en blanco la borra (el servicio recorta espacios).
+        Cambio de la ubicación del parking (change `reservas-employee-admin-reassign`; coordenadas
+        en `admin-improvements`, tarea 18). La dirección es opcional: `null` o cadena en blanco la
+        borra (el servicio recorta espacios). Las coordenadas solo se persisten junto a una
+        dirección no vacía; borrar la dirección descarta las coordenadas.
       properties:
         parkingAddress:
           type: string
@@ -2875,6 +2914,22 @@ components:
           maxLength: 500
           description: Nueva dirección postal; null o blanco para borrarla.
           example: 'Av. de Europa 18, 28108 Alcobendas, Madrid'
+        parkingLat:
+          type: number
+          format: double
+          nullable: true
+          minimum: -90
+          maximum: 90
+          description: Latitud del punto exacto ([-90, 90]); null si sin punto.
+          example: 40.5405
+        parkingLng:
+          type: number
+          format: double
+          nullable: true
+          minimum: -180
+          maximum: 180
+          description: Longitud del punto exacto ([-180, 180]); null si sin punto.
+          example: -3.6510
     WeekendReservableResponse:
       type: object
       description: >
