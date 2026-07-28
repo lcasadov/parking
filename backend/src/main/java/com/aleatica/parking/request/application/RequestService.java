@@ -15,6 +15,7 @@ import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRep
 import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
+import com.aleatica.parking.notification.event.RequestAdminCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import com.aleatica.parking.notification.event.WaitlistAvailableEvent;
@@ -1263,6 +1264,10 @@ public class RequestService {
         // La cancelacion admin siempre parte de una APPROVED: libera recurso y avisa a los admins
         // (design §Decisions); AFTER_COMMIT garantiza que el aviso solo sale si el commit tiene exito.
         eventPublisher.publishEvent(new RequestCancelledEvent(response));
+        // Ademas, avisa al EMPLEADO afectado de que su reserva ha sido cancelada por un admin
+        // (change push-notifications, design D12) — evento dedicado para no auto-notificar al
+        // empleado en su propia cancelacion.
+        eventPublisher.publishEvent(new RequestAdminCancelledEvent(response));
         return response;
     }
 

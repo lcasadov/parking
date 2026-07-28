@@ -145,6 +145,32 @@ public class SystemSettingsService {
     }
 
     /**
+     * Interruptor global del canal email (change {@code push-notifications}); por defecto
+     * {@code true} si la fila unica aun no existe (retrocompatible).
+     *
+     * @return {@code true} si el canal email envia a nivel global
+     */
+    @Transactional(readOnly = true)
+    public boolean emailNotificationsEnabled() {
+        return settingsRepository.find()
+                .map(SystemSettings::isEmailNotificationsEnabled)
+                .orElse(true);
+    }
+
+    /**
+     * Interruptor global del canal push (change {@code push-notifications}); por defecto
+     * {@code true} si la fila unica aun no existe.
+     *
+     * @return {@code true} si el canal push envia a nivel global
+     */
+    @Transactional(readOnly = true)
+    public boolean pushNotificationsEnabled() {
+        return settingsRepository.find()
+                .map(SystemSettings::isPushNotificationsEnabled)
+                .orElse(true);
+    }
+
+    /**
      * Devuelve el permiso de reservas de fin de semana vigente, sin trazabilidad, para que la UI
      * decida si ofrecer sabado/domingo (legible por cualquier empleado autenticado; change
      * {@code reservas-employee-admin-reassign}).

@@ -4,6 +4,7 @@ import com.aleatica.parking.notification.event.FixedAssignmentRevokedEvent;
 import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
+import com.aleatica.parking.notification.event.RequestAdminCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import com.aleatica.parking.notification.event.WaitlistAvailableEvent;
@@ -64,6 +65,17 @@ public class EmailNotificationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRequestCancelled(RequestCancelledEvent event) {
         dispatcher.requestCancelled(event.request());
+    }
+
+    /**
+     * Cancelacion administrativa de una reserva aprobada -> aviso al empleado afectado
+     * (change {@code push-notifications}, design D12).
+     *
+     * @param event evento de cancelacion administrativa
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRequestAdminCancelled(RequestAdminCancelledEvent event) {
+        dispatcher.requestAdminCancelled(event.request());
     }
 
     /**

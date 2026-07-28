@@ -14,21 +14,21 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 
 - [x] 2.1 `SystemSettings`: campos `emailNotificationsEnabled`/`pushNotificationsEnabled` (+ restore/defaults/getters/método de cambio), entidad JPA, mapper, DTOs `SystemSettingsResponse`/nuevo `UpdateNotificationChannelsRequest`.
 - [x] 2.2 `PushSubscription` (dominio + puerto `PushSubscriptionRepositoryPort`) + entidad JPA + adaptador + mapper. Upsert por `endpoint`.
-- [ ] 2.3 `NotificationRecipientResolver` reutilizable: resuelve destinatario(s) por evento (empleado del evento; admins activos para `RequestCreated` en modo MANUAL) — consumido por ambos listeners. Aplica la **regla de entrega efectiva** por canal y destinatario: `global.<canal> ∧ empleado.<canal>` (y suscripción para push).
+- [x] 2.3 `NotificationRecipientResolver` reutilizable: resuelve destinatario(s) por evento (empleado del evento; admins activos para `RequestCreated` en modo MANUAL) — consumido por ambos listeners. Aplica la **regla de entrega efectiva** por canal y destinatario: `global.<canal> ∧ empleado.<canal>` (y suscripción para push).
 - [x] 2.4 `Employee`: campos `emailNotificationsEnabled`/`pushNotificationsEnabled` (default `true`) en dominio, entidad JPA, mapper y DTOs de empleado (respuesta + create/update); RBAC: solo `ADMIN` los cambia.
 
 ## 3. Envío push (backend)
 
-- [ ] 3.1 `WebPushSenderPort` + adaptador con la librería web-push (firma VAPID, cifrado del payload).
-- [ ] 3.2 Borrado de suscripciones muertas ante `404/410`; log WARN (sin borrar) ante `5xx`/red.
-- [ ] 3.3 `PushContentRenderer` (título+cuerpo cortos por tipo de evento, i18n del destino, `data.url` de deep-link). Reutilizar `NotificationRenderer` donde aplique.
+- [x] 3.1 `WebPushSenderPort` + adaptador con la librería web-push (firma VAPID, cifrado del payload).
+- [x] 3.2 Borrado de suscripciones muertas ante `404/410`; log WARN (sin borrar) ante `5xx`/red.
+- [x] 3.3 `PushContentRenderer` (título+cuerpo cortos por tipo de evento, i18n del destino, `data.url` de deep-link). Reutilizar `NotificationRenderer` donde aplique.
 
 ## 4. Orquestación por eventos (backend)
 
-- [ ] 4.1 `PushNotificationListener` (`@TransactionalEventListener(AFTER_COMMIT)`) para `RequestApproved`, `RequestRejected`, `RequestAdminAssigned`, `RequestCancelled`, `WaitlistAvailable`; comprueba `pushNotificationsEnabled` antes de enviar.
-- [ ] 4.2 `onRequestCreated`: si `approvalMode == MANUAL`, fan-out a admins activos (push + email según flags); si `AUTOMATIC`, no avisar al admin.
-- [ ] 4.3 El `EmailNotificationListener` pasa a comprobar `emailNotificationsEnabled`; añadir el fan-out a admins en modo MANUAL para email también (coherencia de canal).
-- [ ] 4.4 **Aviso al empleado en cancelación admin** (design D12): `adminCancel` publica un evento dedicado (p. ej. `RequestAdminCancelledEvent`) dirigido al **empleado afectado**; ambos listeners (email + push) lo notifican al empleado. Se mantiene el fan-out a admins de `RequestCancelled` para la liberación del recurso; la cancelación del propio empleado NO se auto-notifica.
+- [x] 4.1 `PushNotificationListener` (`@TransactionalEventListener(AFTER_COMMIT)`) para `RequestApproved`, `RequestRejected`, `RequestAdminAssigned`, `RequestCancelled`, `WaitlistAvailable`; comprueba `pushNotificationsEnabled` antes de enviar.
+- [x] 4.2 `onRequestCreated`: si `approvalMode == MANUAL`, fan-out a admins activos (push + email según flags); si `AUTOMATIC`, no avisar al admin.
+- [x] 4.3 El `EmailNotificationListener` pasa a comprobar `emailNotificationsEnabled`; añadir el fan-out a admins en modo MANUAL para email también (coherencia de canal).
+- [x] 4.4 **Aviso al empleado en cancelación admin** (design D12): `adminCancel` publica un evento dedicado (p. ej. `RequestAdminCancelledEvent`) dirigido al **empleado afectado**; ambos listeners (email + push) lo notifican al empleado. Se mantiene el fan-out a admins de `RequestCancelled` para la liberación del recurso; la cancelación del propio empleado NO se auto-notifica.
 
 ## 5. Endpoints (backend)
 
