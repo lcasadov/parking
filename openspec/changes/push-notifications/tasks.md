@@ -26,6 +26,7 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 - [ ] 4.1 `PushNotificationListener` (`@TransactionalEventListener(AFTER_COMMIT)`) para `RequestApproved`, `RequestRejected`, `RequestAdminAssigned`, `RequestCancelled`, `WaitlistAvailable`; comprueba `pushNotificationsEnabled` antes de enviar.
 - [ ] 4.2 `onRequestCreated`: si `approvalMode == MANUAL`, fan-out a admins activos (push + email según flags); si `AUTOMATIC`, no avisar al admin.
 - [ ] 4.3 El `EmailNotificationListener` pasa a comprobar `emailNotificationsEnabled`; añadir el fan-out a admins en modo MANUAL para email también (coherencia de canal).
+- [ ] 4.4 **Aviso al empleado en cancelación admin** (design D12): `adminCancel` publica un evento dedicado (p. ej. `RequestAdminCancelledEvent`) dirigido al **empleado afectado**; ambos listeners (email + push) lo notifican al empleado. Se mantiene el fan-out a admins de `RequestCancelled` para la liberación del recurso; la cancelación del propio empleado NO se auto-notifica.
 
 ## 5. Endpoints (backend)
 

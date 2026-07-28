@@ -53,15 +53,19 @@ Toggle "Notificaciones push" en el perfil del usuario: al activar → `Notificat
 Un único par por instalación (por entorno). Pública expuesta al cliente (`GET /push/vapid-public-key` o `VITE_VAPID_PUBLIC_KEY`), privada + subject secretas en backend (`.env` gitignored, junto a SMTP). Rotar la privada invalida todas las suscripciones (se documenta como operación excepcional).
 
 ### D11 — Eventos cubiertos (matriz)
-| Evento | Destinatario | Condición |
+| Evento / caso | Destinatario | Condición |
 |---|---|---|
-| `RequestApprovedEvent` | empleado | siempre |
-| `RequestRejectedEvent` | empleado | siempre |
-| `RequestAdminAssignedEvent` | empleado | siempre (reasignación/swap/asignación puntual) |
-| `RequestCancelledEvent` | empleado | cancelación admin de aprobada |
-| `WaitlistAvailableEvent` | empleado | se libera hueco de su lista de espera |
-| `RequestCreatedEvent` | **admins activos** | solo si `approvalMode == MANUAL` |
-| `FixedAssignmentRevokedEvent` | empleado | (opcional; ya tiene email — se puede incluir) |
+| `RequestApprovedEvent` | empleado | aprobación por admin o nace aprobada (AUTOMATIC) |
+| `RequestRejectedEvent` | empleado | el admin rechaza su solicitud pendiente |
+| `RequestAdminAssignedEvent` | empleado | asignación puntual / reasignación / intercambio (swap) |
+| `FixedAssignmentRevokedEvent` (`AssignmentRevoked`) | empleado | el admin revoca su asignación fija |
+| **Cancelación admin de una aprobada** | **empleado afectado (NUEVO)** + admins activos | el admin cancela la reserva aprobada del empleado (ver D12) |
+| Cancelación por el propio empleado (`RequestCancelled`) | admins activos | el empleado cancela su solicitud (recurso liberado) — comportamiento actual; el empleado NO se auto-notifica |
+| `WaitlistAvailableEvent` | **admins activos** | se libera un hueco con lista de espera; el admin lo resuelve desde pendientes (comportamiento actual; **no** al empleado) |
+| `RequestCreatedEvent` | admins activos | nueva solicitud pendiente (modo `MANUAL`) |
+
+### D12 — Aviso al empleado cuando el admin cancela su reserva aprobada
+Hoy tanto la cancelación del propio empleado como `adminCancel` publican `RequestCancelledEvent`, que solo hace fan-out a **admins**; el empleado al que un admin le cancela una aprobada **no se entera**. Este change añade ese aviso **al empleado afectado**. Como hay que distinguir el iniciador (el empleado que cancela lo suyo NO debe auto-notificarse; el admin que cancela lo de otro SÍ debe avisar a ese otro), se resuelve con un **evento dedicado** para la cancelación administrativa (p. ej. `RequestAdminCancelledEvent`, dirigido al empleado), análogo a cómo `RequestAdminAssignedEvent` distingue la asignación iniciada por el admin. Se mantiene el fan-out a admins existente para la liberación del recurso. Aplica a ambos canales (email y push).
 
 ## Risks / Trade-offs
 

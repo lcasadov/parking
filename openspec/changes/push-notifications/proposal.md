@@ -5,7 +5,9 @@ Hoy las notificaciones del sistema (solicitud aprobada/rechazada, reasignación,
 ## What Changes
 
 - **Nuevo canal Web Push** en paralelo al email, enganchado a los **mismos eventos de dominio** ya publicados (`RequestApproved`, `RequestRejected`, `RequestAdminAssigned`, `RequestCancelled`, `RequestCreated`, `WaitlistAvailable`). No cambia la lógica de negocio: un segundo listener `AFTER_COMMIT`.
-- **Avisos al EMPLEADO** (a sus dispositivos suscritos): recurso confirmado (aprobada / auto‑asignada / asignación puntual admin), rechazada, **cambiada** (reasignación o intercambio), y cancelación admin de una aprobada.
+- **Avisos al EMPLEADO** (a sus dispositivos suscritos): recurso confirmado (aprobada / auto‑asignada / asignación puntual admin), rechazada, **cambiada** (reasignación o intercambio), y **cancelación admin de una aprobada**.
+- **NUEVO respecto a hoy**: cuando un ADMIN cancela la reserva **aprobada** de un empleado, hoy solo se avisa a los admins; este change añade el aviso **al empleado afectado** (por email y push). El empleado que cancela lo suyo no se auto‑notifica (ver design D12).
+- **Lista de espera** (`WaitlistAvailable`): el aviso se mantiene **a los admins** (lo resuelven desde pendientes), como hoy — **no** al empleado.
 - **Aviso al ADMIN**: cuando entra una `POST /requests` con `approvalMode = MANUAL` (pendiente de aprobar) → push/email a **todos los admins activos** (fan‑out). En `AUTOMATIC` no se avisa al admin (nace aprobada).
 - **Preferencias de canal en Configuración (ADMIN)**: dos checkboxes **independientes** en `system_settings` — `emailNotificationsEnabled` y `pushNotificationsEnabled`. Cada canal se respeta por separado (ambos on, ambos off, o solo uno). El email queda como **fallback** natural si push no está soportado/concedido.
 - **Suscripción por usuario/dispositivo**: cada empleado (o admin) concede permiso en su navegador y registra su suscripción; puede activarla/desactivarla desde su perfil. Un mismo usuario puede tener varios dispositivos.
