@@ -91,6 +91,15 @@
   color: var(--text);
 }
 
+/* El toggle `.theme-dark` vive en <body>, pero el LIENZO (overscroll/rubber-band y el
+   flash de refresco) lo pinta <html>, que no hereda tokens de body. Fijamos el fondo y
+   el color-scheme del lienzo según el tema para que el rebote no muestre blanco en
+   oscuro (y el scrollbar salga oscuro). */
+html:has(body.theme-dark) {
+  background-color: #0a0e13;
+  color-scheme: dark;
+}
+
 /* ---------- Firma DÍA (solo tema claro): papel de ingeniería + esmalte ---------- */
 /* Rejilla técnica sutil sobre el hormigón (blueprint/graph-paper) — global. */
 .main {
