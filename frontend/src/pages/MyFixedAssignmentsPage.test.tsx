@@ -113,7 +113,9 @@ describe('MyFixedAssignmentsPage (EMPLOYEE)', () => {
 
     renderWithProviders(<MyFixedAssignmentsPage />);
 
-    expect(await screen.findByText(/plaza 1001|space 1001/i)).toBeInTheDocument();
+    // Rediseño: el número real de la plaza se muestra como marcador mono (P·1001),
+    // no como etiqueta genérica "Plaza fija".
+    expect(await screen.findByText('P·1001')).toBeInTheDocument();
     expect(screen.queryByText(/^plaza fija$|^fixed space$/i)).not.toBeInTheDocument();
   });
 
@@ -222,6 +224,9 @@ describe('MyFixedAssignmentsPage (EMPLOYEE)', () => {
     const dialog = within(await screen.findByRole('dialog'));
     // Cambia a modo "Rango".
     await user.click(dialog.getByRole('radio', { name: /rango|range/i }));
+    // Navega al mes siguiente: mes completo con ≥5 días seleccionables sea cual sea
+    // la fecha de hoy (si no, cerca de fin de mes quedan <5 días futuros y falla).
+    await user.click(dialog.getByRole('button', { name: /mes siguiente|next month/i }));
 
     const selectable = () =>
       [...document.querySelectorAll('.rc-day:not(.is-out):not(.is-disabled)')] as HTMLElement[];

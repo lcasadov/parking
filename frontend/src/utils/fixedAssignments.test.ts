@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  daysForResource,
   distinctDays,
   groupFixedAssignments,
+  indexFixedResourcesByEmployee,
   mergeFixedAssignmentDays,
+  setResourceDays,
   toggleDay,
   WEEK_DAYS,
 } from './fixedAssignments';
@@ -62,5 +65,25 @@ describe('fixedAssignments utils', () => {
   // el puesto 3 el miercoles no debe heredar ni alterar los dias del puesto 1.
   it('should_not_mix_days_from_a_different_resource_of_the_same_type', () => {
     expect(mergeFixedAssignmentDays(aliceAssignments, 'PARKING', 3, 3)).toEqual([3]);
+  });
+
+  it('should_return_sorted_days_for_a_resource_when_reading_a_day_resource_map', () => {
+    const map = { 3: 10, 1: 10, 2: 20 } as Record<number, number>;
+    expect(daysForResource(map, 10)).toEqual([1, 3]);
+    expect(daysForResource(map, 99)).toEqual([]);
+  });
+
+  it('should_set_a_resource_days_exactly_preserving_other_resources', () => {
+    const map = { 1: 10, 2: 20 } as Record<number, number>;
+    // El recurso 10 pasa a tener exactamente [2,3]: el día 1 (era 10) se retira y el día
+    // 2 (era 20) pasa a 10.
+    expect(setResourceDays(map, 10, [2, 3])).toEqual({ 2: 10, 3: 10 });
+  });
+
+  it('should_index_fixed_resources_per_employee', () => {
+    const result = indexFixedResourcesByEmployee([...aliceAssignments, bobThursday]);
+    expect(result.size).toBe(2);
+    expect(result.has(10)).toBe(true);
+    expect(result.has(11)).toBe(true);
   });
 });

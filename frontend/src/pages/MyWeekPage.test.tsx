@@ -68,6 +68,47 @@ const multiResourceWeek: MyWeekResponse = {
   ],
 };
 
+// HOY con plaza y puesto aprobados (héroe shield con acciones "Liberar"); los días
+// siguientes pueblan la lista semanal (nodos HOY/MAÑANA de la línea de tránsito).
+const heroTodayWeek: MyWeekResponse = {
+  weekStart: todayIso(),
+  days: [
+    {
+      date: todayIso(),
+      state: 'ASSIGNED',
+      parkingSpaceLabel: 'P-99',
+      requestStatus: 'APPROVED',
+      requestId: 77,
+      deskState: 'ASSIGNED',
+      deskLabel: 'D-05',
+      deskRequestStatus: 'APPROVED',
+      deskRequestId: 88,
+    },
+    {
+      date: addDaysIso(todayIso(), 1),
+      state: 'FREE',
+      parkingSpaceLabel: null,
+      requestStatus: null,
+      requestId: null,
+      deskState: 'FREE',
+      deskLabel: null,
+      deskRequestStatus: null,
+      deskRequestId: null,
+    },
+    {
+      date: addDaysIso(todayIso(), 2),
+      state: 'FREE',
+      parkingSpaceLabel: null,
+      requestStatus: null,
+      requestId: null,
+      deskState: 'FREE',
+      deskLabel: null,
+      deskRequestStatus: null,
+      deskRequestId: null,
+    },
+  ],
+};
+
 // Puesto fijo de un empleado (resourceType DESK) para el día indicado.
 function deskFixedAssignment(date: string, deskId: number): FixedAssignment {
   return {
@@ -84,15 +125,12 @@ function deskFixedAssignment(date: string, deskId: number): FixedAssignment {
   };
 }
 
-// Devuelve el scope (within) de la fila de recurso que contiene `text`, esperando
-// a que el contenido asincrono de la semana este montado.
-async function resourceRow(text: RegExp): Promise<ReturnType<typeof within>> {
-  const node = await screen.findByText(text);
-  const row = node.closest('li.week-resource');
-  if (!row) {
-    throw new Error(`No resource row for ${text}`);
-  }
-  return within(row as HTMLElement);
+// Rediseño Wayfinding: el slot de un recurso ES el botón accionable; su nombre
+// accesible es "Acción · Tipo · Etiqueta" (p. ej. "Liberar · Plaza de parking ·
+// Plaza P-12"). Clicarlo abre directamente la reserva/liberación (ya no hay un botón
+// "Liberar" anidado dentro de una fila). findByRole espera al montaje asíncrono.
+function slotButton(name: RegExp): Promise<HTMLElement> {
+  return screen.findByRole('button', { name });
 }
 
 function asEmployee(): void {
@@ -113,11 +151,14 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     renderWithProviders(<MyWeekPage />);
 
     // La plaza fija (P-12) y el puesto por solicitud (D-03) se muestran en paralelo.
-    expect(await screen.findByText(/plaza P-12|space P-12/i)).toBeInTheDocument();
-    expect(screen.getByText(/puesto D-03|desk D-03/i)).toBeInTheDocument();
+    // El nombre accesible del slot lleva la etiqueta completa ("… · Plaza P-12").
+    expect(await screen.findByRole('button', { name: /plaza P-12|space P-12/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /puesto D-03|desk D-03/i })).toBeInTheDocument();
     // Ambos tipos de recurso aparecen rotulados con su nombre completo en cada día.
-    expect(screen.getAllByText(/plaza de parking|parking space/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/puesto de trabajo|work desk/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /plaza de parking|parking space/i }).length)
+      .toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /puesto de trabajo|work desk/i }).length)
+      .toBeGreaterThan(0);
   });
 
   it('should_label_free_resources_with_resource_specific_text', async () => {
@@ -127,9 +168,11 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
 
     // Rediseño: un recurso libre se rotula con copy específico por tipo
     // ("Sin plaza este día" / "Sin puesto este día"), no un genérico "Libre".
-    await screen.findByText(/puesto D-03|desk D-03/i);
-    expect(screen.getAllByText(/sin plaza este día|no space this day/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/sin puesto este día|no desk this day/i).length).toBeGreaterThan(0);
+    await screen.findByRole('button', { name: /puesto D-03|desk D-03/i });
+    expect(screen.getAllByRole('button', { name: /sin plaza este día|no space this day/i }).length)
+      .toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /sin puesto este día|no desk this day/i }).length)
+      .toBeGreaterThan(0);
   });
 
   it('should_notRenderThirdPartyNames_when_showingMyWeek', async () => {
@@ -153,7 +196,8 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     );
     renderWithProviders(<MyWeekPage />);
 
-    await screen.findByText(/plaza P-12|space P-12/i);
+    // El marcador mono (P·12) siempre se renderiza, sea el slot accionable o estático.
+    await screen.findByText('P·12');
     expect(screen.queryByText('Alice Andersson')).not.toBeInTheDocument();
   });
 
@@ -181,7 +225,7 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(multiResourceWeek)));
     const user = userEvent.setup();
     renderWithProviders(<MyWeekPage />);
-    await screen.findByText(/plaza P-12|space P-12/i);
+    await screen.findByText('P·12');
 
     await user.click(screen.getByRole('button', { name: /nueva reserva|new booking/i }));
 
@@ -211,8 +255,8 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
 
     // El puesto APPROVED ya lo tienes: la fila ofrece "Liberar" (por debajo cancela
     // la solicitud propia para liberar el recurso). "Cancelar" queda solo para PENDING.
-    const deskRow = await resourceRow(/puesto D-03|desk D-03/i);
-    await user.click(deskRow.getByRole('button', { name: /^liberar$|^release$/i }));
+    const deskBtn = await slotButton(/puesto D-03|desk D-03/i);
+    await user.click(deskBtn);
 
     const dialog = within(await screen.findByRole('dialog'));
     // Reserva aprobada: el modal está en modo "liberar" (confirma con "Liberar",
@@ -236,8 +280,8 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     const user = userEvent.setup();
     renderWithProviders(<MyWeekPage />);
 
-    const parkingRow = await resourceRow(/plaza P-12|space P-12/i);
-    await user.click(await parkingRow.findByRole('button', { name: /^liberar$|^release$/i }));
+    const parkingBtn = await slotButton(/plaza P-12|space P-12/i);
+    await user.click(parkingBtn);
 
     const dialog = within(await screen.findByRole('dialog'));
     await user.click(dialog.getByRole('button', { name: /^liberar$|^release$/i }));
@@ -279,8 +323,8 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
     const user = userEvent.setup();
     renderWithProviders(<MyWeekPage />);
 
-    const deskRow = await resourceRow(/puesto D-05|desk D-05/i);
-    await user.click(await deskRow.findByRole('button', { name: /^liberar$|^release$/i }));
+    const deskBtn = await slotButton(/puesto D-05|desk D-05/i);
+    await user.click(deskBtn);
 
     const dialog = within(await screen.findByRole('dialog'));
     await user.click(dialog.getByRole('button', { name: /^liberar$|^release$/i }));
@@ -294,6 +338,55 @@ describe('MyWeekPage (EMPLOYEE) — multi-recurso', () => {
         resourceType: 'DESK',
       }),
     );
+  });
+
+  it('should_render_today_hero_shield_with_actions_and_navigate_weeks', async () => {
+    asEmployee();
+    server.use(http.get(MY_WEEK_URL, () => HttpResponse.json(heroTodayWeek)));
+    const user = userEvent.setup();
+    renderWithProviders(<MyWeekPage />);
+
+    // El héroe HOY muestra el shield con el marcador mono de la plaza (P·99).
+    expect((await screen.findAllByText('P·99')).length).toBeGreaterThan(0);
+    // Y ofrece la acción de liberar la plaza aprobada de hoy (héroe + slot semanal).
+    expect(
+      (await screen.findAllByRole('button', { name: /liberar.*plaza|release.*parking/i })).length,
+    ).toBeGreaterThan(0);
+
+    // Navegar a la semana siguiente ejercita el control de semanas sin romper (el
+    // héroe de hoy permanece).
+    await user.click(screen.getByRole('button', { name: /semana siguiente|next week/i }));
+    expect((await screen.findAllByText('P·99')).length).toBeGreaterThan(0);
+  });
+
+  it('should_release_todays_approved_parking_from_the_hero', async () => {
+    asEmployee();
+    let cancelledId: string | null = null;
+    server.use(
+      http.get(MY_WEEK_URL, () => HttpResponse.json(heroTodayWeek)),
+      http.post(`${MSW_BASE}/requests/:id/cancel`, ({ params }) => {
+        cancelledId = String(params.id);
+        return HttpResponse.json({ id: Number(params.id), status: 'CANCELLED' });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <MyWeekPage />
+        <Toast />
+      </>,
+    );
+
+    // La acción "Liberar plaza" del héroe abre el modal de liberación de la reserva
+    // aprobada de hoy (requestId 77) y, al confirmar, la cancela por debajo.
+    const releaseButtons = await screen.findAllByRole('button', {
+      name: /liberar.*plaza|release.*parking/i,
+    });
+    await user.click(releaseButtons[0]);
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.click(dialog.getByRole('button', { name: /^liberar$|^release$/i }));
+
+    await waitFor(() => expect(cancelledId).toBe('77'));
   });
 
   it('should_showEmptyState_when_noDaysReturned', async () => {

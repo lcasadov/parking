@@ -348,4 +348,64 @@ describe('MyRequestsPage (EMPLOYEE)', () => {
 
     expect(screen.queryByText(/posición|position/i)).not.toBeInTheDocument();
   });
+
+  it('should_navigate_between_months', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MyRequestsPage />);
+    await screen.findByText(requestPending1.requestedDate);
+
+    await user.click(screen.getByRole('button', { name: /mes siguiente|next month/i }));
+    await user.click(screen.getByRole('button', { name: /mes anterior|previous month/i }));
+
+    // Al volver al mes actual se vuelven a mostrar las solicitudes.
+    expect(await screen.findByText(requestPending1.requestedDate)).toBeInTheDocument();
+  });
+
+  it('should_apply_status_filter_when_it_changes', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MyRequestsPage />);
+    await screen.findByText(requestPending1.requestedDate);
+
+    const statusSelect = screen.getByRole('combobox', {
+      name: /filtrar por estado|filter by status/i,
+    });
+    await user.selectOptions(statusSelect, 'PENDING');
+    expect(statusSelect).toHaveValue('PENDING');
+  });
+
+  it('should_close_cancel_modal_without_cancelling', async () => {
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () => HttpResponse.json(pageOfRequests([pendingDistinct]))),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MyRequestsPage />);
+
+    const row = (await screen.findByText(pendingDistinct.requestedDate)).closest('tr') as HTMLElement;
+    await user.click(
+      within(row).getByRole('button', { name: /cancelar solicitud|cancel request/i }),
+    );
+    const dialog = within(await screen.findByRole('dialog'));
+
+    // El botón blanco de "volver" invoca onClose y descarta el objetivo de cancelación.
+    await user.click(dialog.getAllByRole('button')[0]);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('should_reload_when_error_and_retry_clicked', async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${MSW_BASE}/requests/mine`, () => {
+        calls += 1;
+        return calls === 1
+          ? new HttpResponse(null, { status: 500 })
+          : HttpResponse.json(pageOfRequests([pendingDistinct]));
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MyRequestsPage />);
+
+    await user.click(await screen.findByRole('button', { name: /reintentar|retry/i }));
+
+    expect(await screen.findByText(pendingDistinct.requestedDate)).toBeInTheDocument();
+  });
 });
