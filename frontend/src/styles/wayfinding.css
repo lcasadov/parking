@@ -23,10 +23,11 @@
 :root {
   color-scheme: light;
 
-  /* superficies — HORMIGÓN cálido + papel de ingeniería (no blanco plano) */
-  --bg: #e6e8e2;
+  /* superficies — BLANCO (fondo) con papel de ingeniería muy sutil; tarjetas
+     definidas por keyline + sombra. */
+  --bg: #ffffff;
   --panel: #ffffff;
-  --panel-2: #eef0ea;
+  --panel-2: #f2f4f6;
   --elev: #ffffff;
   --ink: #14181c;
   --ink-soft: #4e5a62;
@@ -996,4 +997,18 @@ body:not(.theme-dark) .portal-way .mfa-card-lamp,
 body:not(.theme-dark) .portal-way .mw-shield-state i,
 body:not(.theme-dark) .portal-way .status-badge::before {
   box-shadow: none;
+}
+
+/* =====================================================================
+   Tema CLARO: botones PRIMARIOS en VERDE ESMERALDA con texto blanco
+   (preferencia del usuario). El tema oscuro mantiene el ámbar señal.
+   ===================================================================== */
+body:not(.theme-dark) .btn-green {
+  background: #0f9e68;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(15, 158, 104, 0.5), 0 12px 26px -14px rgba(15, 158, 104, 0.55);
+}
+body:not(.theme-dark) .btn-green:hover {
+  background: #0c8557;
+  box-shadow: 0 0 0 1px rgba(15, 158, 104, 0.7), 0 16px 34px -14px rgba(15, 158, 104, 0.65);
 }
