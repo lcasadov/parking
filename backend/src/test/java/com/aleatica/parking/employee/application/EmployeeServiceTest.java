@@ -55,6 +55,9 @@ class EmployeeServiceTest {
     @Mock
     private PasswordResetNotifier passwordResetNotifier;
 
+    @Mock
+    private com.aleatica.parking.push.PushSubscriptionService pushSubscriptionService;
+
     private EmployeeService phase1Service;
 
     @BeforeEach
@@ -65,7 +68,7 @@ class EmployeeServiceTest {
     private EmployeeService newService(Phase phase) {
         return new EmployeeService(
                 employeeRepository, passwordEncoder, clock,
-                temporaryPasswordGenerator, passwordResetNotifier, phase);
+                temporaryPasswordGenerator, passwordResetNotifier, pushSubscriptionService, phase);
     }
 
     @Test
@@ -250,14 +253,14 @@ class EmployeeServiceTest {
         return new EmployeeCreateRequest(
                 "Juan", "Perez", LOGIN, EMAIL,
                 "IT", "600100200", "1234ABC", true, null, Role.EMPLOYEE,
-                EmployeeCategory.DIRECTOR_N1);
+                EmployeeCategory.DIRECTOR_N1, null, null);
     }
 
     private EmployeeUpdateRequest validUpdateRequest(String email) {
         return new EmployeeUpdateRequest(
                 "Nuevo", "Apellido", email,
                 "RRHH", "600300400", "5678DEF", false, Role.ADMIN,
-                EmployeeCategory.GERENTE);
+                EmployeeCategory.GERENTE, null, null);
     }
 
     private Employee existing() {

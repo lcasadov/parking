@@ -206,7 +206,7 @@ class EmployeeControllerTest {
         return new EmployeeResponse(
                 5L, "Juan", "Perez", LOGIN, EMAIL, "IT", "600100200", "1234ABC",
                 true, AuthOrigin.LOCAL, Role.EMPLOYEE, EmployeeCategory.DIRECTOR_N1,
-                true, true, false,
+                true, true, false, true, true,
                 Instant.parse("2026-01-01T00:00:00Z"), null);
     }
 }

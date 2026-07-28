@@ -2,7 +2,9 @@ package com.aleatica.parking.notification.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -11,13 +13,17 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
 import com.aleatica.parking.notification.NotificationEventType;
+import com.aleatica.parking.push.PushDeliveryService;
 import com.aleatica.parking.request.domain.RequestStatus;
 import com.aleatica.parking.request.dto.RequestResponse;
 import com.aleatica.parking.resource.ResourceType;
 import com.aleatica.parking.support.EmployeeTestFactory;
+import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -46,8 +52,25 @@ class NotificationDispatcherTest {
     @Mock
     private NotificationDeliveryService deliveryService;
 
+    @Mock
+    private PushDeliveryService pushDeliveryService;
+
+    @Mock
+    private SystemSettingsService systemSettingsService;
+
+    // El dispatcher gatea el email con (global.email AND empleado.email): se habilita el global y
+    // se resuelve el destinatario con su preferencia por defecto (activa). Lenient: los tests de
+    // "sin admins activos" no llegan a consultar estos stubs.
+    @BeforeEach
+    void enableEmailChannel() {
+        lenient().when(systemSettingsService.emailNotificationsEnabled()).thenReturn(true);
+        lenient().when(employeeRepository.findById(anyLong())).thenReturn(
+                Optional.of(EmployeeTestFactory.active(99L, "x", "x@aleatica.com", null, Role.EMPLOYEE)));
+    }
+
     private NotificationDispatcher dispatcher() {
-        return new NotificationDispatcher(employeeRepository, deliveryService);
+        return new NotificationDispatcher(
+                employeeRepository, deliveryService, pushDeliveryService, systemSettingsService);
     }
 
     @Test
