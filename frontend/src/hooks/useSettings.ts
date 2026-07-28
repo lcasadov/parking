@@ -14,6 +14,7 @@ import {
   updateParkingAddress,
   updateWeekendReservable,
 } from '../api/settingsApi';
+import { updateNotificationChannels } from '../api/pushApi';
 import type { ApprovalMode, ParkingLocation, SystemSettings } from '../types/settings';
 
 // Clave de cache del ajuste global (S1192: sin literales repetidos).
@@ -111,6 +112,22 @@ export function useUpdateWeekendReservable(): UseMutationResult<SystemSettings, 
     onSuccess: (data) => {
       queryClient.setQueryData(settingsQueryKey(), data);
       queryClient.setQueryData([SETTINGS_KEY, WEEKEND_SCOPE], data.weekendReservable ?? false);
+    },
+  });
+}
+
+// Interruptores globales de canal de notificación (email/push), change push-notifications.
+export function useUpdateNotificationChannels(): UseMutationResult<
+  SystemSettings,
+  unknown,
+  { email: boolean; push: boolean }
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ email, push }: { email: boolean; push: boolean }) =>
+      updateNotificationChannels(email, push),
+    onSuccess: (data) => {
+      queryClient.setQueryData(settingsQueryKey(), data);
     },
   });
 }

@@ -117,6 +117,22 @@ export const en = {
       newReservation: 'New booking',
     },
   },
+  notifications: {
+    onboarding: {
+      activateTitle: 'Turn on notifications',
+      activateBody: 'Get notified instantly when a booking is confirmed, rejected or changed.',
+      activateAction: 'Turn on notifications',
+      installTitle: 'Install the app',
+      installBody: 'Install the app for faster access and to receive notifications.',
+      installAction: 'Install',
+      iosTitle: 'Install the app to get notifications',
+      iosBody:
+        'On iPhone/iPad, tap the Share button and choose "Add to Home Screen". Then open the app and turn on notifications.',
+      deniedTitle: 'Notifications blocked',
+      deniedBody:
+        'You have blocked notifications. Turn them on from your browser settings for this site.',
+    },
+  },
   dashboard: {
     navLabel: 'Dashboard',
     eyebrow: 'Dashboard',
@@ -483,6 +499,9 @@ export const en = {
       isCorporate: 'Corporate employee',
       corporateOn: 'Yes (has EntraID)',
       corporateOff: 'No (local user)',
+      notifications: 'Notifications',
+      notifyEmail: 'Receive email notifications',
+      notifyPush: 'Receive push notifications',
       validity: 'Validity',
       validityIndefinite: 'Indefinite',
       resourceIncomplete: 'Select the resource and at least one day, or leave both empty.',
@@ -1686,6 +1705,13 @@ export const en = {
       description: 'Controls whether employees can book on Saturdays and Sundays.',
       label: 'Allow booking on Saturdays and Sundays',
       hint: 'When off, weekends are hidden and cannot be booked.',
+    },
+    notifications: {
+      heading: 'Notifications',
+      description: 'Controls the channels the system uses to notify (email and push).',
+      email: 'Send email notifications',
+      push: 'Send push notifications',
+      hint: 'Each channel is independent. An employee only gets a notification if both the global channel and theirs are on.',
     },
     approvalMode: {
       label: 'Request approval mode',

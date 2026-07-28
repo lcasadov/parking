@@ -43,6 +43,8 @@ export interface Employee {
   mobilePhone?: string | null;
   licensePlate?: string | null;
   isCorporate: boolean;
+  emailNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
   authOrigin: AuthOrigin;
   role: Role;
   category: EmployeeCategory;
@@ -63,6 +65,8 @@ export interface EmployeeCreate {
   mobilePhone?: string;
   licensePlate?: string;
   isCorporate?: boolean;
+  emailNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
   authOrigin?: AuthOrigin;
   role: Role;
   category: EmployeeCategory;
@@ -77,6 +81,8 @@ export interface EmployeeUpdate {
   mobilePhone?: string;
   licensePlate?: string;
   isCorporate?: boolean;
+  emailNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
   role?: Role;
   category: EmployeeCategory;
 }

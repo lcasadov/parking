@@ -9154,3 +9154,74 @@ body.theme-dark .auth2-spot{background:radial-gradient(560px circle at var(--mx,
 .parking-map-canvas .mapboxgl-ctrl-attrib {
   font-size: 10px;
 }
+
+/* ============================================================
+   ONBOARDING DE NOTIFICACIONES (change push-notifications, D14).
+   Tarjeta llamativa y descartable en la página principal.
+   ============================================================ */
+.push-onboarding {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+}
+.push-onboarding-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: 22px;
+}
+.push-onboarding-text {
+  flex: 1;
+  min-width: 0;
+}
+.push-onboarding-title {
+  margin: 0 0 2px;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--ink);
+}
+.push-onboarding-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+.push-onboarding-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.push-onboarding-dismiss {
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+}
+.push-onboarding-dismiss:hover {
+  color: var(--ink);
+}
+@media (max-width: 560px) {
+  .push-onboarding {
+    flex-wrap: wrap;
+  }
+  .push-onboarding-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

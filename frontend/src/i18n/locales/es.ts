@@ -117,6 +117,22 @@ export const es = {
       newReservation: 'Nueva reserva',
     },
   },
+  notifications: {
+    onboarding: {
+      activateTitle: 'Activa las notificaciones',
+      activateBody: 'Recibe al instante cuando te confirmen, rechacen o cambien una reserva.',
+      activateAction: 'Activar notificaciones',
+      installTitle: 'Instala la app',
+      installBody: 'Instala la app para acceder más rápido y recibir notificaciones.',
+      installAction: 'Instalar',
+      iosTitle: 'Instala la app para recibir avisos',
+      iosBody:
+        'En iPhone/iPad, pulsa el botón Compartir y elige "Añadir a pantalla de inicio". Luego abre la app y activa las notificaciones.',
+      deniedTitle: 'Notificaciones bloqueadas',
+      deniedBody:
+        'Has bloqueado las notificaciones. Actívalas desde los ajustes del navegador para este sitio.',
+    },
+  },
   dashboard: {
     navLabel: 'Panel',
     eyebrow: 'Panel',
@@ -483,6 +499,9 @@ export const es = {
       isCorporate: 'Empleado corporativo',
       corporateOn: 'Sí (tiene EntraID)',
       corporateOff: 'No (usuario local)',
+      notifications: 'Notificaciones',
+      notifyEmail: 'Recibir avisos por email',
+      notifyPush: 'Recibir avisos push',
       validity: 'Vigencia',
       validityIndefinite: 'Indefinida',
       resourceIncomplete: 'Selecciona el recurso y al menos un día, o deja ambos vacíos.',
@@ -1692,6 +1711,13 @@ export const es = {
       description: 'Controla si los empleados pueden reservar sábados y domingos.',
       label: 'Permitir reservar sábados y domingos',
       hint: 'Desactivado: los fines de semana no se muestran ni se pueden reservar.',
+    },
+    notifications: {
+      heading: 'Notificaciones',
+      description: 'Controla los canales por los que el sistema avisa (email y push).',
+      email: 'Enviar avisos por email',
+      push: 'Enviar avisos push',
+      hint: 'Cada canal es independiente. Un empleado solo recibe un aviso si el canal global y el suyo están activos.',
     },
     approvalMode: {
       label: 'Modo de aprobación de solicitudes',

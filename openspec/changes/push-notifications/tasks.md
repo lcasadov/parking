@@ -40,20 +40,20 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 
 ## 6. Frontend — PWA y suscripción
 
-- [ ] 6.1 `vite-plugin-pwa` (o SW a mano) + `manifest.webmanifest` (iconos, `display: standalone`).
-- [ ] 6.2 Service Worker: handlers `push` (`showNotification`) y `notificationclick` (focus/navegación a `data.url`).
-- [ ] 6.3 `VITE_VAPID_PUBLIC_KEY` en entorno; helper de suscripción (`requestPermission` → `pushManager.subscribe` → `POST /push/subscriptions`).
+- [x] 6.1 `vite-plugin-pwa` (o SW a mano) + `manifest.webmanifest` (iconos, `display: standalone`).
+- [x] 6.2 Service Worker: handlers `push` (`showNotification`) y `notificationclick` (focus/navegación a `data.url`).
+- [x] 6.3 `VITE_VAPID_PUBLIC_KEY` en entorno; helper de suscripción (`requestPermission` → `pushManager.subscribe` → `POST /push/subscriptions`).
 - [ ] 6.4 Manejo de `pushsubscriptionchange` / 410 → re-suscribir (upsert en backend).
-- [ ] 6.5 `settingsApi`/hooks para suscripción y para los flags de canal.
-- [ ] 6.6 Detección de estado/plataforma (`standalone`, iOS vs Android, `pushSupported`, `Notification.permission`) y captura del evento `beforeinstallprompt` (guardar el `deferredPrompt`).
+- [x] 6.5 `settingsApi`/hooks para suscripción y para los flags de canal.
+- [x] 6.6 Detección de estado/plataforma (`standalone`, iOS vs Android, `pushSupported`, `Notification.permission`) y captura del evento `beforeinstallprompt` (guardar el `deferredPrompt`).
 
 ## 7. Frontend — UI
 
-- [ ] 7.1 `SettingsPage` (ADMIN): dos checkboxes independientes **Email** y **Push** globales (guardado por `PUT /admin/settings/notification-channels`).
-- [ ] 7.1b `EmployeeFormModal` (ADMIN): dos checkboxes independientes **Email** y **Push** por empleado (activos por defecto), guardados con el resto del formulario del empleado.
+- [x] 7.1 `SettingsPage` (ADMIN): dos checkboxes independientes **Email** y **Push** globales (guardado por `PUT /admin/settings/notification-channels`).
+- [x] 7.1b `EmployeeFormModal` (ADMIN): dos checkboxes independientes **Email** y **Push** por empleado (activos por defecto), guardados con el resto del formulario del empleado.
 - [ ] 7.2 Perfil de usuario: toggle "Notificaciones push" con estados (no soportado / denegado / iOS sin instalar / activo + dispositivo) y baja.
-- [ ] 7.3 **Tarjetas de onboarding en la página principal** (sin auto-prompt), llamativas y descartables, según D14: "Activar notificaciones" (botón → prompt nativo), "Instalar la app" iOS (instrucciones), "Instalar la app" Android (botón → `deferredPrompt.prompt()`); ocultar cuando no aplican; recordar el descarte.
-- [ ] 7.4 i18n (es/en) de checkboxes, toggle, tarjetas de onboarding, estados y textos de las notificaciones.
+- [x] 7.3 **Tarjetas de onboarding en la página principal** (sin auto-prompt), llamativas y descartables, según D14: "Activar notificaciones" (botón → prompt nativo), "Instalar la app" iOS (instrucciones), "Instalar la app" Android (botón → `deferredPrompt.prompt()`); ocultar cuando no aplican; recordar el descarte.
+- [x] 7.4 i18n (es/en) de checkboxes, toggle, tarjetas de onboarding, estados y textos de las notificaciones.
 
 ## 8. Docs
 

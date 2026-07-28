@@ -59,6 +59,8 @@ interface FormState {
   role: Role;
   category: EmployeeCategory;
   isCorporate: boolean;
+  emailNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
 }
 
 interface ResourceOption {
@@ -144,6 +146,8 @@ function initialState(employee?: Employee | null): FormState {
     role: employee?.role ?? 'EMPLOYEE',
     category: employee?.category ?? 'EMPLEADO',
     isCorporate: employee?.isCorporate ?? false,
+    emailNotificationsEnabled: employee?.emailNotificationsEnabled ?? true,
+    pushNotificationsEnabled: employee?.pushNotificationsEnabled ?? true,
   };
 }
 
@@ -326,6 +330,19 @@ function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanel
           checked={values.isCorporate}
           onChange={(next) => onField('isCorporate', next)}
           label={corporateLabel}
+        />
+      </div>
+      <div className="auth-field">
+        <span className="field-label">{t('employees.form.notifications')}</span>
+        <Toggle
+          checked={values.emailNotificationsEnabled}
+          onChange={(next) => onField('emailNotificationsEnabled', next)}
+          label={t('employees.form.notifyEmail')}
+        />
+        <Toggle
+          checked={values.pushNotificationsEnabled}
+          onChange={(next) => onField('pushNotificationsEnabled', next)}
+          label={t('employees.form.notifyPush')}
         />
       </div>
       {isEdit ? (
@@ -702,6 +719,8 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       isCorporate: values.isCorporate,
       role: values.role,
       category: values.category,
+      emailNotificationsEnabled: values.emailNotificationsEnabled,
+      pushNotificationsEnabled: values.pushNotificationsEnabled,
     };
   }
 
@@ -716,6 +735,8 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       isCorporate: values.isCorporate,
       role: values.role,
       category: values.category,
+      emailNotificationsEnabled: values.emailNotificationsEnabled,
+      pushNotificationsEnabled: values.pushNotificationsEnabled,
     };
   }
 

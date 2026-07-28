@@ -10,11 +10,14 @@ import './styles/components.css';
 import './styles/wayfinding.css';
 import './i18n';
 import { App } from './App';
+import { registerServiceWorker } from './push/registerServiceWorker';
 
 const container = document.getElementById('root');
 if (!container) {
   throw new Error('Root container #root not found');
 }
+
+registerServiceWorker();
 
 createRoot(container).render(
   <StrictMode>
