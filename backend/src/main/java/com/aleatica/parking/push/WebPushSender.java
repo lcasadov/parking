@@ -40,8 +40,8 @@ public class WebPushSender {
         } else {
             try {
                 svc = new PushService(publicKey, privateKey, subject);
-            } catch (Exception e) {  // NOSONAR: arranque tolerante — cualquier fallo deja push off
-                log.warn("[push] No se pudo inicializar PushService (VAPID invalido?): {}", e.getMessage());
+            } catch (Throwable t) {  // NOSONAR S1181: arranque tolerante — incluso un Error de lib nativa (BC) deja push off, nunca tumba la app
+                log.warn("[push] No se pudo inicializar PushService (VAPID invalido o BouncyCastle ausente?): {}", t.getMessage());
             }
         }
         this.pushService = svc;
