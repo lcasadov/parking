@@ -14,7 +14,7 @@ export function ParkingDirectionsButton({ className }: ParkingDirectionsButtonPr
   const { t } = useTranslation();
   const { data } = useParkingAddressQuery();
   const address = data?.address?.trim();
-  const hasCoords = data?.lat != null && data?.lng != null;
+  const hasCoords = typeof data?.lat === 'number' && typeof data?.lng === 'number';
 
   if (!hasCoords && !address) {
     return null;

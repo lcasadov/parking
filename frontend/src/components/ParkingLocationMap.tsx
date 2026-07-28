@@ -74,7 +74,7 @@ export function ParkingLocationMap({
       return;
     }
     mapboxgl.accessToken = MAPBOX_TOKEN;
-    const hasPoint = lat != null && lng != null;
+    const hasPoint = lat !== null && lng !== null;
     const center: [number, number] = hasPoint ? [lng as number, lat as number] : DEFAULT_CENTER;
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -113,7 +113,7 @@ export function ParkingLocationMap({
   useEffect(() => {
     const map = mapRef.current;
     const marker = markerRef.current;
-    if (!map || !marker || lat == null || lng == null) {
+    if (!map || !marker || lat === null || lng === null) {
       return;
     }
     const pos = marker.getLngLat();
@@ -224,7 +224,7 @@ export function ParkingLocationMap({
                   : 'settings.parkingAddress.map.satellite',
               )}
             </Button>
-            {lat != null && lng != null ? (
+            {lat !== null && lng !== null ? (
               <span className="parking-map-coords">
                 {t('settings.parkingAddress.map.coords', {
                   lat: lat.toFixed(6),

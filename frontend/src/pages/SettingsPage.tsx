@@ -11,7 +11,7 @@ import {
   useUpdateParkingAddress,
   useUpdateWeekendReservable,
 } from '../hooks/useSettings';
-import type { ApprovalMode, ParkingLocation } from '../types/settings';
+import type { ApprovalMode, ParkingLocation, SystemSettings } from '../types/settings';
 
 const MODES: ApprovalMode[] = ['MANUAL', 'AUTOMATIC'];
 
@@ -110,6 +110,34 @@ function WeekendReservableCard({ enabled }: { enabled: boolean }) {
   );
 }
 
+// ¿Puede guardarse la tarjeta de ubicación? (extraído para mantener baja la complejidad
+// de ParkingAddressCard, S3776). Sucio si cambia el toggle o, estando activo, la dirección
+// o las coordenadas; y con el toggle activo hace falta una dirección no vacía.
+function canSaveParkingLocation(
+  isActive: boolean,
+  currentActive: boolean,
+  trimmed: string,
+  currentAddress: string,
+  draftCoords: { lat: number; lng: number } | null,
+  current: ParkingLocation,
+): boolean {
+  const addressChanged = trimmed !== currentAddress.trim();
+  const coordsChanged =
+    draftCoords !== null && (draftCoords.lat !== current.lat || draftCoords.lng !== current.lng);
+  const isDirty = isActive !== currentActive || (isActive && (addressChanged || coordsChanged));
+  return isDirty && (!isActive || trimmed !== '');
+}
+
+// Construye la ubicación del parking desde el ajuste global (extraído para no cargar la
+// complejidad de SettingsPage, S3776).
+function toParkingLocation(data: SystemSettings | undefined): ParkingLocation {
+  return {
+    address: data?.parkingAddress ?? null,
+    lat: data?.parkingLat ?? null,
+    lng: data?.parkingLng ?? null,
+  };
+}
+
 // Tarjeta ADMIN: ubicación del parking (dirección + punto exacto en el mapa) con guardado.
 // Self-contained para no cargar la complejidad de SettingsPage (S3776).
 function ParkingAddressCard({ current }: { current: ParkingLocation }) {
@@ -130,13 +158,14 @@ function ParkingAddressCard({ current }: { current: ParkingLocation }) {
   const lat = draftCoords ? draftCoords.lat : current.lat;
   const lng = draftCoords ? draftCoords.lng : current.lng;
 
-  const addressChanged = trimmed !== currentAddress.trim();
-  const coordsChanged =
-    draftCoords != null && (draftCoords.lat !== current.lat || draftCoords.lng !== current.lng);
-  const isDirty =
-    isActive !== currentActive || (isActive && (addressChanged || coordsChanged));
-  // Con el botón activo hay que dar una dirección para poder guardar.
-  const canSave = isDirty && (!isActive || trimmed !== '');
+  const canSave = canSaveParkingLocation(
+    isActive,
+    currentActive,
+    trimmed,
+    currentAddress,
+    draftCoords,
+    current,
+  );
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -282,15 +311,7 @@ export function SettingsPage() {
         </form>
       ) : null}
 
-      {ready ? (
-        <ParkingAddressCard
-          current={{
-            address: query.data?.parkingAddress ?? null,
-            lat: query.data?.parkingLat ?? null,
-            lng: query.data?.parkingLng ?? null,
-          }}
-        />
-      ) : null}
+      {ready ? <ParkingAddressCard current={toParkingLocation(query.data)} /> : null}
 
       {ready ? (
         <WeekendReservableCard enabled={query.data?.weekendReservable ?? false} />
