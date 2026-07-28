@@ -1,0 +1,71 @@
+# Tasks — push-notifications
+
+Orden sugerido: BD → dominio/config → envío → listener → endpoints → frontend PWA → UI → docs → tests → gates. Backend con `JAVA_HOME=<jdk21>`.
+
+## 1. Datos y configuración (backend)
+
+- [ ] 1.1 Migración `V__push_subscription.sql`: tabla `push_subscription` (`id`, `employee_id` FK→employees, `endpoint` UNIQUE, `p256dh`, `auth`, `user_agent` NULL, `created_at`), índice por `employee_id`; FK con borrado en cascada al desactivar/eliminar empleado (o borrado explícito en el servicio).
+- [ ] 1.2 Migración `V__system_settings_notification_channels.sql`: añadir `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1`.
+- [ ] 1.3 Config VAPID: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` vía entorno (`.env` gitignored, junto a SMTP); arranque tolerante si falta la privada (push desactivado de facto, solo email). Documentar en `.env.example`.
+- [ ] 1.4 Dependencia `nl.martijndwars:web-push` (o equivalente) en `backend/pom.xml`.
+
+## 2. Dominio y persistencia (backend)
+
+- [ ] 2.1 `SystemSettings`: campos `emailNotificationsEnabled`/`pushNotificationsEnabled` (+ restore/defaults/getters/método de cambio), entidad JPA, mapper, DTOs `SystemSettingsResponse`/nuevo `UpdateNotificationChannelsRequest`.
+- [ ] 2.2 `PushSubscription` (dominio + puerto `PushSubscriptionRepositoryPort`) + entidad JPA + adaptador + mapper. Upsert por `endpoint`.
+- [ ] 2.3 `NotificationRecipientResolver` reutilizable: resuelve destinatario(s) por evento (empleado del evento; admins activos para `RequestCreated` en modo MANUAL) — consumido por ambos listeners.
+
+## 3. Envío push (backend)
+
+- [ ] 3.1 `WebPushSenderPort` + adaptador con la librería web-push (firma VAPID, cifrado del payload).
+- [ ] 3.2 Borrado de suscripciones muertas ante `404/410`; log WARN (sin borrar) ante `5xx`/red.
+- [ ] 3.3 `PushContentRenderer` (título+cuerpo cortos por tipo de evento, i18n del destino, `data.url` de deep-link). Reutilizar `NotificationRenderer` donde aplique.
+
+## 4. Orquestación por eventos (backend)
+
+- [ ] 4.1 `PushNotificationListener` (`@TransactionalEventListener(AFTER_COMMIT)`) para `RequestApproved`, `RequestRejected`, `RequestAdminAssigned`, `RequestCancelled`, `WaitlistAvailable`; comprueba `pushNotificationsEnabled` antes de enviar.
+- [ ] 4.2 `onRequestCreated`: si `approvalMode == MANUAL`, fan-out a admins activos (push + email según flags); si `AUTOMATIC`, no avisar al admin.
+- [ ] 4.3 El `EmailNotificationListener` pasa a comprobar `emailNotificationsEnabled`; añadir el fan-out a admins en modo MANUAL para email también (coherencia de canal).
+
+## 5. Endpoints (backend)
+
+- [ ] 5.1 `POST /push/subscriptions` (autenticado; solo la propia) — upsert por endpoint.
+- [ ] 5.2 `DELETE /push/subscriptions` (por endpoint del propio usuario).
+- [ ] 5.3 `GET /push/vapid-public-key` (o exponer por build).
+- [ ] 5.4 `PUT /admin/settings/notification-channels` (ADMIN) — cambia los dos flags; `GET /admin/settings` los devuelve.
+- [ ] 5.5 Borrado de suscripciones al desactivar un empleado (cascada o en `EmployeeService`).
+
+## 6. Frontend — PWA y suscripción
+
+- [ ] 6.1 `vite-plugin-pwa` (o SW a mano) + `manifest.webmanifest` (iconos, `display: standalone`).
+- [ ] 6.2 Service Worker: handlers `push` (`showNotification`) y `notificationclick` (focus/navegación a `data.url`).
+- [ ] 6.3 `VITE_VAPID_PUBLIC_KEY` en entorno; helper de suscripción (`requestPermission` → `pushManager.subscribe` → `POST /push/subscriptions`).
+- [ ] 6.4 Manejo de `pushsubscriptionchange` / 410 → re-suscribir (upsert en backend).
+- [ ] 6.5 `settingsApi`/hooks para suscripción y para los flags de canal.
+
+## 7. Frontend — UI
+
+- [ ] 7.1 `SettingsPage` (ADMIN): dos checkboxes independientes **Email** y **Push** (guardado por `PUT /admin/settings/notification-channels`).
+- [ ] 7.2 Perfil de usuario: toggle "Notificaciones push" con estados (no soportado / denegado / iOS sin instalar / activo + dispositivo) y baja.
+- [ ] 7.3 i18n (es/en) de checkboxes, toggle, estados y textos de las notificaciones.
+
+## 8. Docs
+
+- [ ] 8.1 `docs/openapi.yaml`: endpoints de suscripción + VAPID + `notification-channels`; schemas `PushSubscriptionRequest`, flags en `SystemSettings`.
+- [ ] 8.2 `docs/data-model.md`: tabla `push_subscription` y columnas nuevas de `system_settings`.
+- [ ] 8.3 `docs/security-design.md`: VAPID (secretos), autenticación del alta de suscripción, RGPD del `endpoint`.
+
+## 9. Tests
+
+- [ ] 9.1 Backend unit: resolver de destinatarios (empleado / fan-out admins en MANUAL / no-admin en AUTOMATIC); flags de canal (4 combinaciones); borrado ante 410.
+- [ ] 9.2 Backend web (`@WebMvcTest`): RBAC de los endpoints (401/403), alta idempotente, baja, cambio de flags solo ADMIN.
+- [ ] 9.3 Backend IT (Testcontainers): persistencia y upsert de `push_subscription`; borrado en cascada al desactivar empleado.
+- [ ] 9.4 Frontend: flujo de permiso (mock `Notification`/`PushManager`), estados de la UI, checkboxes de canal (guardan por separado), toggle push.
+- [ ] 9.5 Cobertura ≥ umbrales (líneas ≥80 / branches ≥75 / funciones ≥80) y sin regresión.
+
+## 10. Gates (verificación final)
+
+- [ ] 10.1 Backend (JDK 21): `mvn clean verify` verde; ArchUnit/Sonar sin violations nuevas.
+- [ ] 10.2 Frontend: `npm run lint && npm test && npm run build` sin errores.
+- [ ] 10.3 Prueba manual en Chrome/Firefox (suscribir, recibir push, deep-link) y verificación de fallback email con push apagado.
+- [ ] 10.4 Actualizar este `tasks.md` y archivar el change tras merge.
