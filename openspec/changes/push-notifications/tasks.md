@@ -4,11 +4,11 @@ Orden sugerido: BD → dominio/config → envío → listener → endpoints → 
 
 ## 1. Datos y configuración (backend)
 
-- [ ] 1.1 Migración `V__push_subscription.sql`: tabla `push_subscription` (`id`, `employee_id` FK→employees, `endpoint` UNIQUE, `p256dh`, `auth`, `user_agent` NULL, `created_at`), índice por `employee_id`; FK con borrado en cascada al desactivar/eliminar empleado (o borrado explícito en el servicio).
-- [ ] 1.2 Migración `V__system_settings_notification_channels.sql`: añadir `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1`.
-- [ ] 1.2b Migración `V__employees_notification_prefs.sql`: añadir `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1` a `employees` (por defecto activos).
-- [ ] 1.3 Config VAPID: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` vía entorno (`.env` gitignored, junto a SMTP); arranque tolerante si falta la privada (push desactivado de facto, solo email). Documentar en `.env.example`.
-- [ ] 1.4 Dependencia `nl.martijndwars:web-push` (o equivalente) en `backend/pom.xml`.
+- [x] 1.1 Migración `V__push_subscription.sql`: tabla `push_subscription` (`id`, `employee_id` FK→employees, `endpoint` UNIQUE, `p256dh`, `auth`, `user_agent` NULL, `created_at`), índice por `employee_id`; FK con borrado en cascada al desactivar/eliminar empleado (o borrado explícito en el servicio).
+- [x] 1.2 Migración `V__system_settings_notification_channels.sql`: añadir `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1`.
+- [x] 1.2b Migración `V__employees_notification_prefs.sql`: añadir `email_notifications_enabled BIT NOT NULL DEFAULT 1` y `push_notifications_enabled BIT NOT NULL DEFAULT 1` a `employees` (por defecto activos).
+- [x] 1.3 Config VAPID: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` vía entorno (`.env` gitignored, junto a SMTP); arranque tolerante si falta la privada (push desactivado de facto, solo email). Documentar en `.env.example`.
+- [x] 1.4 Dependencia `nl.martijndwars:web-push` (o equivalente) en `backend/pom.xml`.
 
 ## 2. Dominio y persistencia (backend)
 

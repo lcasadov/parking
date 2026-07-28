@@ -92,6 +92,15 @@ parking:
     from: ${MAIL_FROM:no-reply@parking.aleatica.com}   # remitente de los correos
     max-attempts: 5                                     # intentos antes de descartar (FAILED)
     retry-interval-ms: 60000                            # periodo del job de reintento (1 min)
+  # Web Push (VAPID) — change push-notifications. Claves publica/privada + subject.
+  # Arranque TOLERANTE: si falta la privada (o publica), el push queda desactivado de
+  # facto y solo se envia email. Generar el par con `npx web-push generate-vapid-keys`;
+  # la privada va como secreto de entorno (nunca commitear), la publica se expone al front.
+  push:
+    vapid:
+      public-key: ${VAPID_PUBLIC_KEY:}
+      private-key: ${VAPID_PRIVATE_KEY:}
+      subject: ${VAPID_SUBJECT:mailto:no-reply@parking.aleatica.com}
 
 springdoc:
   api-docs:
