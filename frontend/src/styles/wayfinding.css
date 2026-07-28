@@ -10,13 +10,13 @@
      lámpara, etc.): scoped a `.portal-way` (el AppShell añade la clase en TODOS
      los roles), pero solo casan donde existe el markup correspondiente → hoy en
      páginas de empleado. Admin hereda la paleta; sus firmas propias están por hacer.
-   NOTA: los alias `--brand-green-*` pasan a ÁMBAR globalmente (decisión de producto:
-   admin también adopta el lenguaje). `--ok` sigue verde (success semántico).
+   ACENTO: ESMERALDA en ambos temas (preferencia del usuario) — claro #0f9e68,
+   oscuro #33d68a. Pendiente/solicitado sigue en ÁMBAR (--rel/--pend) por semántica.
 
-   Lenguaje: asfalto + ámbar señal, semántica de semáforo (verde=positivo/ocupado,
-   azul=liberado, ámbar=pendiente/solicitado, rojo=stop), numerales tipo marcador
-   kilométrico. Dos temas: claro (señalización de día) y oscuro (panel de mensaje
-   variable de noche), enganchados al toggle existente (`body.theme-dark`).
+   Lenguaje: superficie (blanco/asfalto) + acento ESMERALDA, semántica de semáforo
+   (verde=positivo/ocupado, azul=liberado, ámbar=pendiente/solicitado, rojo=stop),
+   numerales tipo marcador kilométrico. Dos temas: claro (señalización de día) y
+   oscuro (panel de noche), enganchados al toggle existente (`body.theme-dark`).
    ===================================================================== */
 
 /* ---------- CLARO (señalización de día) — GLOBAL (toda la app + modales) ---------- */
@@ -144,15 +144,15 @@ body.theme-dark {
   --field-bg: #151d28;
   --frame-bg: #06090d;
 
-  --accent: #ffb020;
-  --accent-2: #e89a10;
-  --accent-ink: #1b1204;
-  --accent-soft: rgba(255, 176, 32, 0.13);
-  --accent-line: rgba(255, 176, 32, 0.32);
-  --brand-green-deep: #ffd27a;
-  --brand-green-hover: #ffc24d;
-  --brand-green-active: #e89a10;
-  --green-focus: #ffb020;
+  --accent: #33d68a;
+  --accent-2: #27b271;
+  --accent-ink: #052015;
+  --accent-soft: rgba(51, 214, 138, 0.13);
+  --accent-line: rgba(51, 214, 138, 0.34);
+  --brand-green-deep: #a7e0bd;
+  --brand-green-hover: #3cb976;
+  --brand-green-active: #2c8f5a;
+  --green-focus: #33d68a;
 
   --ok: #22e0a1;
   --ok-soft: rgba(34, 224, 161, 0.14);
@@ -299,7 +299,7 @@ body.theme-dark {
 }
 @keyframes wayNode {
   0%, 100% { box-shadow: 0 0 0 5px var(--accent-soft), 0 0 14px var(--accent); }
-  50% { box-shadow: 0 0 0 9px rgba(255, 176, 32, 0.04), 0 0 26px var(--accent); }
+  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 5%, transparent), 0 0 26px var(--accent); }
 }
 /* Cabecera de estación: día en señalización. */
 .portal-way .mw-station .week-day-head {
