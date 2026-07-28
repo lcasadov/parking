@@ -26,7 +26,8 @@ public final class SystemSettingsMapper {
         return SystemSettings.restore(
                 entity.getId(), entity.getApprovalMode(), entity.getParkingAddress(),
                 toDouble(entity.getParkingLat()), toDouble(entity.getParkingLng()),
-                entity.isWeekendReservable(), entity.getUpdatedById(), entity.getUpdatedAt());
+                entity.isWeekendReservable(), entity.isEmailNotificationsEnabled(),
+                entity.isPushNotificationsEnabled(), entity.getUpdatedById(), entity.getUpdatedAt());
     }
 
     /**
@@ -40,7 +41,9 @@ public final class SystemSettingsMapper {
         return new SystemSettingsEntity(
                 (byte) settings.getId(), settings.getApprovalMode(), settings.getParkingAddress(),
                 toBigDecimal(settings.getParkingLat()), toBigDecimal(settings.getParkingLng()),
-                settings.isWeekendReservable(), settings.getUpdatedById(), settings.getUpdatedAt());
+                settings.isWeekendReservable(), settings.isEmailNotificationsEnabled(),
+                settings.isPushNotificationsEnabled(), settings.getUpdatedById(),
+                settings.getUpdatedAt());
     }
 
     // La columna es DECIMAL(9,6) (BigDecimal en la entidad); el dominio y los DTOs usan

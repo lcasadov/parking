@@ -44,6 +44,12 @@ public record SystemSettingsResponse(
                 example = "false")
         @JsonProperty("weekendReservable") boolean weekendReservable,
 
+        @Schema(description = "Si el canal email envia notificaciones a nivel global", example = "true")
+        @JsonProperty("emailNotificationsEnabled") boolean emailNotificationsEnabled,
+
+        @Schema(description = "Si el canal push envia notificaciones a nivel global", example = "true")
+        @JsonProperty("pushNotificationsEnabled") boolean pushNotificationsEnabled,
+
         @Schema(description = "Empleado (ADMIN) que hizo el ultimo cambio; null si nunca",
                 example = "1")
         @JsonProperty("updatedById") Long updatedById,
@@ -61,6 +67,8 @@ public record SystemSettingsResponse(
         return new SystemSettingsResponse(
                 settings.getApprovalMode(), settings.getParkingAddress(),
                 settings.getParkingLat(), settings.getParkingLng(),
-                settings.isWeekendReservable(), settings.getUpdatedById(), settings.getUpdatedAt());
+                settings.isWeekendReservable(), settings.isEmailNotificationsEnabled(),
+                settings.isPushNotificationsEnabled(), settings.getUpdatedById(),
+                settings.getUpdatedAt());
     }
 }
