@@ -217,8 +217,8 @@ export const es = {
         DESK: 'Puestos de oficina',
       },
       resourceType: {
-        PARKING: 'Plazas',
-        DESK: 'Puestos',
+        PARKING: 'Plazas de parking',
+        DESK: 'Puestos de trabajo',
       },
       resourceColumn: {
         PARKING: 'Plaza',

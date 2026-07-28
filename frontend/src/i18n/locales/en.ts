@@ -217,8 +217,8 @@ export const en = {
         DESK: 'Office desks',
       },
       resourceType: {
-        PARKING: 'Spaces',
-        DESK: 'Desks',
+        PARKING: 'Parking spaces',
+        DESK: 'Work desks',
       },
       resourceColumn: {
         PARKING: 'Space',

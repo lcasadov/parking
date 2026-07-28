@@ -42,16 +42,17 @@
   --field-bg: #ffffff;
   --frame-bg: #d6d9d1;
 
-  /* acento ÁMBAR-NARANJA de señal de carretera (más saturado en día) */
-  --accent: #e07807;
-  --accent-2: #c76a05;
-  --accent-ink: #1b1204;
-  --accent-soft: rgba(224, 120, 7, 0.12);
-  --accent-line: rgba(224, 120, 7, 0.42);
-  --brand-green-deep: #8a4e04; /* "acento como texto" legible sobre claro */
-  --brand-green-hover: #c76a05;
-  --brand-green-active: #a85a04;
-  --green-focus: #e07807;
+  /* acento ESMERALDA en tema claro (preferencia): botones/selectores/nav/foco/
+     marcadores en verde. El tema OSCURO mantiene el ámbar señal. */
+  --accent: #0f9e68;
+  --accent-2: #0c8557;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(15, 158, 104, 0.12);
+  --accent-line: rgba(15, 158, 104, 0.4);
+  --brand-green-deep: #0a6b45; /* "acento como texto" legible sobre blanco */
+  --brand-green-hover: #0c8557;
+  --brand-green-active: #0a6b45;
+  --green-focus: #0f9e68;
 
   /* semáforo PLANO de señalización (colores densos, sin neón) */
   --ok: #0fa968;
@@ -109,10 +110,10 @@ body:not(.theme-dark) .portal-way .panel {
 /* Shield = PLACA ESMALTADA en día: cara marfil, keyline ámbar gruesa, brillo
    diagonal estático (reflejo de esmalte) en vez del escaneo electrónico. */
 body:not(.theme-dark) .portal-way .mw-shield {
-  background: linear-gradient(158deg, #fffdf6, #fbf3e2);
+  background: linear-gradient(158deg, #ffffff, #f1f8f4);
   box-shadow:
     0 0 0 4px var(--accent-soft),
-    0 24px 46px -28px rgba(224, 120, 7, 0.55),
+    0 24px 46px -28px rgba(15, 158, 104, 0.45),
     inset 0 1px 0 #ffffff;
 }
 body:not(.theme-dark) .portal-way .mw-shield::after {
