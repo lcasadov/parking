@@ -1,15 +1,14 @@
-import { useRef, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
-import { InfoBanner } from '../components/InfoBanner';
-import { PageHeader } from '../components/PageHeader';
+import { PageFrame } from '../components/PageFrame';
 import { FloorPlanSurface } from '../components/FloorPlanSurface';
 import { FloorPlanFeedback, type FloorPlanFeedbackKind } from '../components/FloorPlanFeedback';
 import { FloorPlanStatus } from '../components/FloorPlanStatus';
 import { FloorPlanDatebar } from '../components/FloorPlanDatebar';
 import { FloorPlanFilters, type FloorPlanFilterValue } from '../components/FloorPlanFilters';
+import { FloorPlanMinimap } from '../components/FloorPlanMinimap';
 import { FloorPlanZoom } from '../components/FloorPlanZoom';
-import { FloorPlanCounters } from '../components/FloorPlanCounters';
 import { FloorPlanDeskList } from '../components/FloorPlanDeskList';
 import { RequestDeskConfirmModal } from '../components/RequestDeskConfirmModal';
 import { OccupancyAssignModal } from '../components/OccupancyAssignModal';
@@ -55,6 +54,8 @@ export function FloorPlanPage() {
   const [assignTarget, setAssignTarget] = useState<FloorPlanDesk | null>(null);
 
   const surfaceRef = useRef<HTMLDivElement>(null);
+  // Dimensiones del lienzo, para el minimapa que ahora vive en la columna lateral.
+  const [box, setBox] = useState({ w: 0, h: 0 });
 
   const isDateValid = isValidIsoDate(date);
   const query = useFloorPlanQuery(date, isDateValid);
@@ -174,53 +175,68 @@ export function FloorPlanPage() {
         });
   const showPlan = isDateValid && !query.isLoading && !query.isError;
 
-  // Modo vista: un botón "Editar posiciones". Modo edición: "Cancelar" (secundario)
-  // + "Guardar cambios" (primario verde). `.page-actions` ya los separa con gap.
-  function renderEditActions(): ReactElement {
-    if (!editMode) {
-      return (
-        <Button variant="white" icon="drag-drop" onClick={handleEnterEdit}>
-          {t('floorPlan.editPositions')}
-        </Button>
-      );
+  // Mide el lienzo (ancho/alto) para el minimapa, que ahora se renderiza en la columna
+  // lateral (fuera de FloorPlanSurface). Se re-observa cuando aparece el plano.
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const measure = () => setBox({ w: surface.clientWidth, h: surface.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(surface);
+    return () => observer.disconnect();
+  }, [showPlan]);
+
+  // En modo VISTA, un lápiz bajo el botón de pantalla completa para entrar en edición.
+  // En edición, las acciones (Guardar/Cancelar) viven en la barra azul superior, no aquí.
+  // `stopPropagation` evita iniciar paneo/marquee al pulsar el lápiz.
+  function renderEditOverlay(): ReactElement | null {
+    if (!canEdit || editMode) {
+      return null;
     }
     return (
-      <>
-        <Button variant="white" icon="x" onClick={handleCancelEdit} disabled={isSaving}>
-          {t('common.cancel')}
-        </Button>
-        <Button
-          variant="green"
-          icon="device-floppy"
-          onClick={handleSavePositions}
-          disabled={isSaving}
-        >
-          {t('floorPlan.saveChanges')}
-        </Button>
-      </>
+      <button
+        type="button"
+        className="floor-fullscreen-btn"
+        aria-label={t('floorPlan.editPositions')}
+        title={t('floorPlan.editPositions')}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={handleEnterEdit}
+      >
+        <i className="ti ti-pencil" aria-hidden="true" />
+      </button>
     );
   }
 
   return (
-    <section className="floor-plan-page" aria-label={t('floorPlan.title')}>
-      <PageHeader
-        eyebrow={t('floorPlan.eyebrow')}
-        title={t('floorPlan.title')}
-        description={t('floorPlan.description')}
-        actions={
-          canEdit ? renderEditActions() : undefined
-        }
-      />
-
-      <div className="floor-plan-controls">
-        <FloorPlanDatebar date={date} onChange={handleDateChange} />
-      </div>
-
+    <PageFrame
+      eyebrow={t('floorPlan.eyebrow')}
+      title={t('floorPlan.title')}
+      bodyLabel={t('floorPlan.title')}
+      subbar={
+        <div className="plano-topbar">
+          <div className="floor-plan-controls">
+            <FloorPlanDatebar date={date} onChange={handleDateChange} />
+          </div>
+        </div>
+      }
+    >
       {editMode ? (
-        <div className="floor-plan-editor-bar">
-          <InfoBanner variant="blue" icon="drag-drop">
+        <div className="floor-plan-editbar">
+          <span className="floor-plan-editbar-hint">
+            <i className="ti ti-drag-drop" aria-hidden="true" />
             {t('floorPlan.editHint')}
-          </InfoBanner>
+          </span>
+          <div className="floor-plan-editbar-actions">
+            <Button variant="white" onClick={handleCancelEdit} disabled={isSaving}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="green" icon="check" onClick={handleSavePositions} disabled={isSaving}>
+              {t('floorPlan.saveChanges')}
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -235,18 +251,8 @@ export function FloorPlanPage() {
 
       {showPlan ? (
         <>
-          <div className="floor-plan-toolbar">
-            <FloorPlanFilters desks={desks} active={filter} onToggle={toggleFilter} />
-            <FloorPlanZoom
-              scale={viewport.scale}
-              onZoomIn={viewport.zoomIn}
-              onZoomOut={viewport.zoomOut}
-              onReset={viewport.reset}
-            />
-          </div>
-
-          {/* Fila principal: mapa (con el minimapa debajo) a la izquierda y los
-              contadores grandes a la derecha (rediseño Plano §6.1–6.2). */}
+          {/* Fila principal: mapa a la izquierda; a la derecha (donde estaban los
+              contadores) el botón de editar, los filtros de estado y el zoom. */}
           <div className="plano-main">
             <div className="plano-map-col">
               <FloorPlanSurface
@@ -257,11 +263,22 @@ export function FloorPlanPage() {
                 viewport={viewport}
                 surfaceRef={surfaceRef}
                 explore={!editMode}
+                renderMinimap={false}
+                overlayActions={renderEditOverlay()}
                 onRequest={handleDeskActivate}
                 onDragStart={startDrag}
               />
             </div>
-            <FloorPlanCounters desks={desks} />
+            <aside className="plano-aside" aria-label={t('floorPlan.title')}>
+              <FloorPlanFilters desks={desks} active={filter} onToggle={toggleFilter} />
+              <FloorPlanZoom
+                scale={viewport.scale}
+                onZoomIn={viewport.zoomIn}
+                onZoomOut={viewport.zoomOut}
+                onReset={viewport.reset}
+              />
+              {!editMode ? <FloorPlanMinimap viewport={viewport} box={box} /> : null}
+            </aside>
           </div>
 
           {/* Listado de puestos a todo el ancho bajo el mapa (§6.3). En edición no se
@@ -293,6 +310,6 @@ export function FloorPlanPage() {
           onAssigned={handleAssigned}
         />
       ) : null}
-    </section>
+    </PageFrame>
   );
 }

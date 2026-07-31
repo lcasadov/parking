@@ -6,7 +6,14 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { createDesk, getDesk, listDesks, setDeskActivation, updateDesk } from '../api/desksApi';
+import {
+  createDesk,
+  deleteDesk,
+  getDesk,
+  listDesks,
+  setDeskActivation,
+  updateDesk,
+} from '../api/desksApi';
 import type { Desk, DeskCreate, DeskListParams, PageDesk } from '../types/desk';
 
 // Clave raíz de la caché de puestos (S1192: sin literales repetidos).
@@ -43,11 +50,14 @@ export function useDesksByIdsQuery(ids: number[]): Record<number, Desk> {
   return byId;
 }
 
-// Invalida toda la caché de puestos tras una mutación con éxito.
+// Invalida toda la caché de puestos tras una mutación con éxito. También invalida el
+// plano ('floor-plan'): un alta/edición/borrado de puesto cambia los marcadores del
+// plano, que debe reflejarlo sin recargar la página.
 function useInvalidateDesks(): () => void {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: [DESKS_KEY] });
+    void queryClient.invalidateQueries({ queryKey: ['floor-plan'] });
   };
 }
 
@@ -81,6 +91,14 @@ export function useSetDeskActivation(): UseMutationResult<Desk, unknown, SetDesk
   const invalidate = useInvalidateDesks();
   return useMutation({
     mutationFn: ({ id, active }: SetDeskActivationVars) => setDeskActivation(id, active),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteDesk(): UseMutationResult<void, unknown, number> {
+  const invalidate = useInvalidateDesks();
+  return useMutation({
+    mutationFn: (id: number) => deleteDesk(id),
     onSuccess: invalidate,
   });
 }

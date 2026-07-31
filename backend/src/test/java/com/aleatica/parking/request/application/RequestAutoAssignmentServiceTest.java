@@ -676,6 +676,17 @@ class RequestAutoAssignmentServiceTest {
         }
 
         @Override
+        public Page<Request> findByStatus(RequestStatus status, Pageable pageable) {
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> status == r.getStatus()).toList());
+        }
+
+        @Override
+        public Page<Request> findAll(Pageable pageable) {
+            return new PageImpl<>(List.copyOf(store.values()));
+        }
+
+        @Override
         public List<Request> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
                 RequestStatus status, ResourceType resourceType, LocalDate requestedDate) {
             return List.of();

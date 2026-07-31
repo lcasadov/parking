@@ -3,9 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Dialog } from './Dialog';
 import { Input } from './Input';
+import { VisitorVehiclesPanel } from './VisitorVehiclesPanel';
 import { getFieldErrors } from '../api/apiError';
+import { createVisitorVehicle } from '../api/visitorVehiclesApi';
 import { useCreateVisitor, useUpdateVisitor } from '../hooks/useVisitors';
 import type { Visitor, VisitorCreateRequest } from '../types/visitor';
+import type { DraftVehicle } from '../types/vehicle';
+
+type TabId = 'details' | 'vehicles';
 
 interface VisitorFormModalProps {
   visitor?: Visitor | null;
@@ -17,7 +22,6 @@ interface FormState {
   firstName: string;
   lastName: string;
   nationalId: string;
-  licensePlate: string;
   company: string;
   usualReason: string;
 }
@@ -27,7 +31,6 @@ function initialState(visitor?: Visitor | null): FormState {
     firstName: visitor?.firstName ?? '',
     lastName: visitor?.lastName ?? '',
     nationalId: visitor?.nationalId ?? '',
-    licensePlate: visitor?.licensePlate ?? '',
     company: visitor?.company ?? '',
     usualReason: visitor?.usualReason ?? '',
   };
@@ -56,7 +59,6 @@ function toRequestBody(values: FormState): VisitorCreateRequest {
     firstName: values.firstName.trim(),
     lastName: values.lastName.trim(),
     nationalId: values.nationalId.trim(),
-    licensePlate: values.licensePlate.trim() || undefined,
     company: values.company.trim() || undefined,
     usualReason: values.usualReason.trim() || undefined,
   };
@@ -64,13 +66,47 @@ function toRequestBody(values: FormState): VisitorCreateRequest {
 
 const FORM_ID = 'visitor-form';
 
-// Modal ADMIN: alta/edicion de ficha de visitante. nationalId unico -> 409
-// mostrado inline (tasks §4.2); campos obligatorios validados en cliente.
+// Tablist interno del dialogo (mismo patron/markup que EmployeeFormModal).
+function TabBar({
+  tabs,
+  active,
+  onChange,
+  ariaLabel,
+}: {
+  tabs: { id: TabId; label: string }[];
+  active: TabId;
+  onChange: (id: TabId) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="modal-tabs" role="tablist" aria-label={ariaLabel}>
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={active === tab.id}
+          className={`modal-tab${active === tab.id ? ' active' : ''}`}
+          onClick={() => onChange(tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Modal ADMIN: alta/edicion de ficha de visitante con tabs (Detalles / Vehiculos).
+// La matricula ya no es un campo del visitante: se gestiona en el tab "Vehiculos"
+// (varios vehiculos por visitante, change visitor-vehicles). nationalId unico -> 409 inline.
 export function VisitorFormModal({ visitor, onClose, onSaved }: VisitorFormModalProps) {
   const { t } = useTranslation();
   const isEdit = Boolean(visitor);
+  const [activeTab, setActiveTab] = useState<TabId>('details');
   const [values, setValues] = useState<FormState>(() => initialState(visitor));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Vehículos acumulados en memoria durante el alta (visitante aún sin id); se persisten al crear.
+  const [draftVehicles, setDraftVehicles] = useState<DraftVehicle[]>([]);
   const createMutation = useCreateVisitor();
   const updateMutation = useUpdateVisitor();
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -106,18 +142,41 @@ export function VisitorFormModal({ visitor, onClose, onSaved }: VisitorFormModal
     const mapped = mapServerErrors(getFieldErrors(error), t);
     if (Object.keys(mapped).length > 0) {
       setErrors(mapped);
+      setActiveTab('details');
     } else {
       setErrors({ form: t('visitors.form.genericError') });
     }
   }
 
+  // Persiste los vehículos acumulados en el alta contra el visitante recién creado. Best-effort:
+  // aunque algún vehículo fallase, el visitante ya está creado, así que se cierra igualmente.
+  async function persistDraftVehicles(visitorId: number): Promise<void> {
+    if (draftVehicles.length === 0) {
+      return;
+    }
+    await Promise.allSettled(
+      draftVehicles.map((vehicle) =>
+        createVisitorVehicle(visitorId, {
+          licensePlate: vehicle.licensePlate,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          color: vehicle.color,
+        }),
+      ),
+    );
+  }
+
   function persist(): void {
     const body = toRequestBody(values);
-    const handlers = { onSuccess: onSaved, onError: handleServerError };
     if (isEdit) {
-      updateMutation.mutate({ id: visitor!.id, body }, handlers);
+      updateMutation.mutate({ id: visitor!.id, body }, { onSuccess: onSaved, onError: handleServerError });
     } else {
-      createMutation.mutate(body, handlers);
+      createMutation.mutate(body, {
+        onSuccess: (created) => {
+          void persistDraftVehicles(created.id).then(onSaved);
+        },
+        onError: handleServerError,
+      });
     }
   }
 
@@ -126,21 +185,32 @@ export function VisitorFormModal({ visitor, onClose, onSaved }: VisitorFormModal
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      setActiveTab('details');
       return;
     }
     persist();
   }
 
-  const footer = (
-    <>
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'details', label: t('visitors.form.tabs.details') },
+    { id: 'vehicles', label: t('visitors.form.tabs.vehicles') },
+  ];
+
+  const footer =
+    activeTab === 'details' ? (
+      <>
+        <Button variant="white" onClick={onClose}>
+          {t('visitors.form.cancel')}
+        </Button>
+        <Button variant="green" submit form={FORM_ID} disabled={isSaving}>
+          {t('visitors.form.save')}
+        </Button>
+      </>
+    ) : (
       <Button variant="white" onClick={onClose}>
-        {t('visitors.form.cancel')}
+        {t('visitors.detail.close')}
       </Button>
-      <Button variant="green" submit form={FORM_ID} disabled={isSaving}>
-        {t('visitors.form.save')}
-      </Button>
-    </>
-  );
+    );
 
   return (
     <Dialog
@@ -153,49 +223,57 @@ export function VisitorFormModal({ visitor, onClose, onSaved }: VisitorFormModal
       title={t(isEdit ? 'visitors.form.editTitle' : 'visitors.form.createTitle')}
       footer={footer}
     >
-      <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
-        <Input
-          label={t('visitors.form.firstName')}
-          value={values.firstName}
-          error={Boolean(errors.firstName)}
-          hint={errors.firstName}
-          onChange={(event) => setField('firstName', event.target.value)}
+      <TabBar
+        tabs={tabs}
+        active={activeTab}
+        onChange={setActiveTab}
+        ariaLabel={t(isEdit ? 'visitors.form.editTitle' : 'visitors.form.createTitle')}
+      />
+      {activeTab === 'details' ? (
+        <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
+          <Input
+            label={t('visitors.form.firstName')}
+            value={values.firstName}
+            error={Boolean(errors.firstName)}
+            hint={errors.firstName}
+            onChange={(event) => setField('firstName', event.target.value)}
+          />
+          <Input
+            label={t('visitors.form.lastName')}
+            value={values.lastName}
+            error={Boolean(errors.lastName)}
+            hint={errors.lastName}
+            onChange={(event) => setField('lastName', event.target.value)}
+          />
+          <Input
+            label={t('visitors.form.nationalId')}
+            value={values.nationalId}
+            error={Boolean(errors.nationalId)}
+            hint={errors.nationalId}
+            onChange={(event) => setField('nationalId', event.target.value)}
+          />
+          <Input
+            label={t('visitors.form.company')}
+            value={values.company}
+            onChange={(event) => setField('company', event.target.value)}
+          />
+          <Input
+            label={t('visitors.form.usualReason')}
+            value={values.usualReason}
+            onChange={(event) => setField('usualReason', event.target.value)}
+          />
+          {errors.form ? (
+            <p className="form-error" role="alert">
+              {errors.form}
+            </p>
+          ) : null}
+        </form>
+      ) : (
+        <VisitorVehiclesPanel
+          visitorId={visitor?.id ?? null}
+          draft={isEdit ? undefined : { vehicles: draftVehicles, onChange: setDraftVehicles }}
         />
-        <Input
-          label={t('visitors.form.lastName')}
-          value={values.lastName}
-          error={Boolean(errors.lastName)}
-          hint={errors.lastName}
-          onChange={(event) => setField('lastName', event.target.value)}
-        />
-        <Input
-          label={t('visitors.form.nationalId')}
-          value={values.nationalId}
-          error={Boolean(errors.nationalId)}
-          hint={errors.nationalId}
-          onChange={(event) => setField('nationalId', event.target.value)}
-        />
-        <Input
-          label={t('visitors.form.licensePlate')}
-          value={values.licensePlate}
-          onChange={(event) => setField('licensePlate', event.target.value)}
-        />
-        <Input
-          label={t('visitors.form.company')}
-          value={values.company}
-          onChange={(event) => setField('company', event.target.value)}
-        />
-        <Input
-          label={t('visitors.form.usualReason')}
-          value={values.usualReason}
-          onChange={(event) => setField('usualReason', event.target.value)}
-        />
-        {errors.form ? (
-          <p className="form-error" role="alert">
-            {errors.form}
-          </p>
-        ) : null}
-      </form>
+      )}
     </Dialog>
   );
 }

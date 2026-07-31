@@ -7,12 +7,11 @@ import { Tooltip, TooltipProvider } from '../components/Tooltip';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { ExportMenu } from '../components/ExportMenu';
 import { Menu } from '../components/Menu';
-import { PageHeader } from '../components/PageHeader';
+import { PageFrame } from '../components/PageFrame';
 import { ResetPasswordModal } from '../components/ResetPasswordModal';
 import { SearchBox } from '../components/SearchBox';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
-import { Toolbar } from '../components/Toolbar';
 import { EXPORT_PATHS } from '../api/exportApi';
 import {
   useDeactivateEmployee,
@@ -198,34 +197,52 @@ export function EmployeesPage() {
   const isLast = query.data?.last ?? true;
 
   return (
-    <section className="employees-page" aria-label={t('employees.title')}>
-      <PageHeader
-        eyebrow={t('employees.eyebrow')}
-        title={t('employees.title')}
-        description={t('employees.description')}
-        actions={
-          <>
-            <ExportMenu
-              path={EXPORT_PATHS.employees}
-              fallbackBase="employees"
-              requiredRole="ADMIN"
-            />
-            <Button variant="green" icon="plus" onClick={openCreate}>
-              {t('employees.new')}
-            </Button>
-          </>
-        }
-      />
-
-      <Toolbar ariaLabel={t('employees.searchLabel')}>
-        <SearchBox
-          label={t('employees.searchLabel')}
-          placeholder={t('employees.searchPlaceholder')}
-          value={q}
-          onValueChange={handleSearch}
+    <PageFrame
+      eyebrow={t('employees.eyebrow')}
+      title={t('employees.title')}
+      bodyLabel={t('employees.title')}
+      actions={
+        <ExportMenu
+          path={EXPORT_PATHS.employees}
+          fallbackBase="employees"
+          requiredRole="ADMIN"
+          variant="green"
+          formats={['csv']}
         />
-      </Toolbar>
-
+      }
+      resourceSelector={
+        <div className="pf-lead">
+          <SearchBox
+            label={t('employees.searchLabel')}
+            placeholder={t('employees.searchPlaceholder')}
+            value={q}
+            onValueChange={handleSearch}
+          />
+        </div>
+      }
+      toolbar={
+        <Button variant="green" icon="plus" onClick={openCreate}>
+          {t('employees.new')}
+        </Button>
+      }
+      footer={
+        totalPages > 1 ? (
+          <>
+            <span className="pagination-info">
+              {t('employees.pagination.pageInfo', { page: page + 1, total: totalPages })}
+            </span>
+            <div className="pf-footer-nav">
+              <Button variant="white" disabled={isFirst} onClick={() => setPage((p) => p - 1)}>
+                {t('employees.pagination.previous')}
+              </Button>
+              <Button variant="white" disabled={isLast} onClick={() => setPage((p) => p + 1)}>
+                {t('employees.pagination.next')}
+              </Button>
+            </div>
+          </>
+        ) : undefined
+      }
+    >
       {query.isLoading ? <TableSkeleton label={t('employees.loading')} columns={8} /> : null}
 
       {query.isError ? (
@@ -354,20 +371,6 @@ export function EmployeesPage() {
         </div>
       ) : null}
 
-      {totalPages > 1 ? (
-        <nav className="pagination" aria-label={t('employees.title')}>
-          <Button variant="white" disabled={isFirst} onClick={() => setPage((p) => p - 1)}>
-            {t('employees.pagination.previous')}
-          </Button>
-          <span className="pagination-info">
-            {t('employees.pagination.pageInfo', { page: page + 1, total: totalPages })}
-          </span>
-          <Button variant="white" disabled={isLast} onClick={() => setPage((p) => p + 1)}>
-            {t('employees.pagination.next')}
-          </Button>
-        </nav>
-      ) : null}
-
       {isFormOpen ? (
         <EmployeeFormModal employee={formEmployee} onClose={closeForm} onSaved={closeForm} />
       ) : null}
@@ -385,6 +388,6 @@ export function EmployeesPage() {
           setDeactivateTarget(null);
         }}
       />
-    </section>
+    </PageFrame>
   );
 }

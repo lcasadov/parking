@@ -1093,10 +1093,29 @@ public class RequestService {
      * @param pageable pagina y tamano solicitados
      * @return pagina de solicitudes pendientes en orden FIFO (DTO)
      */
+    // Campos por los que el ADMIN puede ordenar los listados de solicitudes (whitelist): evita
+    // exponer ordenacion por propiedades arbitrarias de la entidad (change sortable-table-columns).
+    private static final Set<String> SORTABLE_REQUEST_FIELDS = Set.of("requestedDate", "createdAt");
+
+    // Resuelve el orden efectivo del Pageable: conserva solo los criterios cuyo campo esta en la
+    // whitelist; si no queda ninguno permitido, aplica el orden por defecto. Preserva pagina/tamano
+    // (y soporta un Pageable sin paginar, p. ej. Pageable.unpaged() de tests/consumos internos).
+    private static Pageable withResolvedSort(Pageable pageable, Sort defaultSort) {
+        List<Sort.Order> allowed = pageable.getSort().stream()
+                .filter(order -> SORTABLE_REQUEST_FIELDS.contains(order.getProperty()))
+                .toList();
+        Sort effective = allowed.isEmpty() ? defaultSort : Sort.by(allowed);
+        return pageable.isPaged()
+                ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), effective)
+                : Pageable.unpaged(effective);
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<RequestResponse> listPending(Pageable pageable) {
+        // Orden por defecto FIFO (createdAt ASC) salvo que el cliente pida un campo permitido.
+        Pageable resolved = withResolvedSort(pageable, Sort.by(Sort.Direction.ASC, "createdAt"));
         return PageResponse.from(
-                requestRepository.findByStatusOrderByCreatedAtAsc(RequestStatus.PENDING, pageable),
+                requestRepository.findByStatus(RequestStatus.PENDING, resolved),
                 RequestResponse::from);
     }
 
@@ -1116,9 +1135,11 @@ public class RequestService {
      */
     @Transactional(readOnly = true)
     public PageResponse<RequestResponse> listByStatus(RequestStatus status, Pageable pageable) {
+        // Orden por defecto por actividad reciente (createdAt DESC) salvo campo permitido del cliente.
+        Pageable resolved = withResolvedSort(pageable, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Request> page = status == null
-                ? requestRepository.findAllByOrderByCreatedAtDesc(pageable)
-                : requestRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
+                ? requestRepository.findAll(resolved)
+                : requestRepository.findByStatus(status, resolved);
         return enrichWithResourceNumber(page);
     }
 

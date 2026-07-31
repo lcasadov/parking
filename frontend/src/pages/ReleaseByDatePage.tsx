@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { InfoBanner } from '../components/InfoBanner';
 import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
@@ -27,10 +26,18 @@ const OCCUPANCY_KEY = 'occupancy';
 // Vista ADMIN: "Liberar por fecha". Elige una fecha, lista los recursos OCUPADOS
 // (plazas y puestos) con su titular y origen, y libera uno a uno abriendo el modal
 // administrativo pre-rellenado (tasks §Liberar por fecha).
-export function ReleaseByDatePage({ embedded = false }: { embedded?: boolean } = {}) {
+// La fecha (selector) se iza al control-row del hub (ReleaseHubPage): esta página la
+// recibe ya elegida. Si se monta suelta (no embebida) cae en hoy por defecto.
+export function ReleaseByDatePage({
+  embedded = false,
+  date: dateProp,
+}: {
+  embedded?: boolean;
+  date?: string;
+} = {}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [date, setDate] = useState(todayIso());
+  const date = dateProp ?? todayIso();
   const [prefill, setPrefill] = useState<AdministrativeReleasePrefill | null>(null);
   const [cancelPrefill, setCancelPrefill] = useState<AdminCancelRequestPrefill | null>(null);
   // Selección múltiple para liberar en lote (checkboxes por fila).
@@ -140,24 +147,6 @@ export function ReleaseByDatePage({ embedded = false }: { embedded?: boolean } =
         description={t('releases.byDate.description')}
       />
 
-      <InfoBanner variant="blue" icon="info-circle">
-        {t('releases.byDate.intro')}
-      </InfoBanner>
-
-      <div className="filter-bar">
-        <label className="field-label" htmlFor="release-by-date-date">
-          {t('releases.byDate.dateLabel')}
-        </label>
-        <input
-          id="release-by-date-date"
-          type="date"
-          className="field-input release-date-input"
-          value={date}
-          min={todayIso()}
-          onChange={(event) => setDate(event.target.value)}
-        />
-      </div>
-
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={5} /> : null}
 
       {query.isError ? (
@@ -261,6 +250,7 @@ export function ReleaseByDatePage({ embedded = false }: { embedded?: boolean } =
         }
         confirmLabel={t('releases.byDate.releaseSelected', { count: selected.size })}
         busy={batchRelease.isPending || batchReason.trim().length < 5}
+        loading={batchRelease.isPending}
         onConfirm={confirmBatch}
       />
 

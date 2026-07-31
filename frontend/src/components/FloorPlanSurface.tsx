@@ -5,6 +5,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type RefObject,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -67,6 +68,12 @@ interface FloorPlanSurfaceProps {
   // Énfasis de disponibilidad: los puestos libres/elegibles laten y el resto se
   // atenúa, para que el ojo vaya directo a lo reservable (solo en modo vista).
   emphasizeFree?: boolean;
+  // Acciones extra en la esquina superior derecha, apiladas bajo el botón de pantalla
+  // completa (p. ej. el lápiz de "Editar posiciones"). Opcional.
+  overlayActions?: ReactNode;
+  // Si es `false`, no se pinta el minimapa interno (el contenedor lo renderiza aparte,
+  // p. ej. en la columna lateral del Plano). Por defecto `true` (resto de usos intactos).
+  renderMinimap?: boolean;
   onRequest: (desk: FloorPlanDesk) => void;
   onDragStart: (desk: FloorPlanDesk, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
@@ -86,6 +93,8 @@ export function FloorPlanSurface({
   focusPulsing = false,
   explore = false,
   emphasizeFree = false,
+  overlayActions,
+  renderMinimap = true,
   onRequest,
   onDragStart,
 }: FloorPlanSurfaceProps) {
@@ -340,19 +349,10 @@ export function FloorPlanSurface({
 
         {marqueeStyle ? <div className="floor-marquee" style={marqueeStyle} aria-hidden="true" /> : null}
 
-        <button
-          type="button"
-          className="floor-fullscreen-btn"
-          aria-label={t(maximized ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter')}
-          title={t(maximized ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter')}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={toggleMaximize}
-        >
-          <i className={`ti ti-${maximized ? 'arrows-minimize' : 'arrows-maximize'}`} aria-hidden="true" />
-        </button>
+        <SurfaceTools maximized={maximized} onToggle={toggleMaximize} actions={overlayActions} />
       </div>
 
-      {exploring ? <FloorPlanMinimap viewport={viewport} box={box} /> : null}
+      {exploring && renderMinimap ? <FloorPlanMinimap viewport={viewport} box={box} /> : null}
 
       {tip && tipDesk ? (
         <FloorPlanTooltip
@@ -377,6 +377,37 @@ export function FloorPlanSurface({
           </ul>
         </aside>
       ) : null}
+    </div>
+  );
+}
+
+// Herramientas de la esquina superior derecha del lienzo: botón de pantalla completa +
+// acciones opcionales (p. ej. el lápiz de editar). Extraído para no cargar la complejidad
+// cognitiva de FloorPlanSurface (Sonar S3776).
+function SurfaceTools({
+  maximized,
+  onToggle,
+  actions,
+}: {
+  maximized: boolean;
+  onToggle: () => void;
+  actions?: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const label = t(maximized ? 'floorPlan.fullscreen.exit' : 'floorPlan.fullscreen.enter');
+  return (
+    <div className="floor-surface-tools">
+      <button
+        type="button"
+        className="floor-fullscreen-btn"
+        aria-label={label}
+        title={label}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={onToggle}
+      >
+        <i className={`ti ti-${maximized ? 'arrows-minimize' : 'arrows-maximize'}`} aria-hidden="true" />
+      </button>
+      {actions}
     </div>
   );
 }

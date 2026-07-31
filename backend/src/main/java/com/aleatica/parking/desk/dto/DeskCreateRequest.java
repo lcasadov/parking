@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -28,11 +27,10 @@ import java.math.BigDecimal;
  */
 @Schema(description = "Datos para crear un puesto de oficina")
 public record DeskCreateRequest(
-        @Schema(description = "Numero unico del puesto (1-65)", example = "12")
+        @Schema(description = "Numero unico del puesto (entero mayor que 0)", example = "12")
         @JsonProperty("number")
         @NotNull(message = "El numero del puesto es obligatorio")
-        @Min(value = 1, message = "El numero del puesto debe estar entre 1 y 65")
-        @Max(value = 65, message = "El numero del puesto debe estar entre 1 y 65")
+        @Min(value = 1, message = "El numero del puesto debe ser un entero mayor que 0")
         Integer number,
 
         @Schema(description = "Categoria del puesto", example = "STANDARD")

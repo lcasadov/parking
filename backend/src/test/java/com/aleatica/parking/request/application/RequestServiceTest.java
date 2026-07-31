@@ -63,7 +63,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
@@ -1202,11 +1204,52 @@ class RequestServiceTest {
      * contar como escritura; {@link #save}/{@link #saveAndFlush} asignan id (si falta) y cuentan
      * la invocacion para verificar los caminos que NO deben persistir.
      */
+    // --- Ordenación de columnas (change sortable-table-columns) ---
+
+    @Test
+    void listPendingWithoutSortAppliesDefaultCreatedAtAsc() {
+        newService().listPending(PageRequest.of(0, 20));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
+    }
+
+    @Test
+    void listPendingRespectsAllowedClientSort() {
+        newService().listPending(PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "requestedDate")));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.DESC, "requestedDate"));
+    }
+
+    @Test
+    void listPendingIgnoresNonWhitelistedSortAndFallsBackToDefault() {
+        newService().listPending(PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "details")));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
+    }
+
+    @Test
+    void listByStatusWithoutSortAppliesDefaultCreatedAtDesc() {
+        newService().listByStatus(RequestStatus.APPROVED, PageRequest.of(0, 20));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt"));
+    }
+
+    @Test
+    void listByStatusRespectsAllowedClientSort() {
+        newService().listByStatus(RequestStatus.APPROVED,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "createdAt")));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
+    }
+
     private static final class InMemoryRequestRepository implements RequestRepositoryPort {
 
         private final Map<Long, Request> store = new HashMap<>();
         private long sequence = 1000L;
         private int saves;
+        // Ultimo Pageable recibido por findByStatus/findAll: permite verificar el orden
+        // efectivo que resuelve RequestService (whitelist + orden por defecto).
+        private Pageable lastPageable;
 
         void seed(Request request) {
             store.put(request.getId(), request);
@@ -1214,6 +1257,10 @@ class RequestServiceTest {
 
         int saves() {
             return saves;
+        }
+
+        Pageable lastPageable() {
+            return lastPageable;
         }
 
         Request byId(Long id) {
@@ -1318,6 +1365,19 @@ class RequestServiceTest {
             return new PageImpl<>(store.values().stream()
                     .sorted(Comparator.comparing(Request::getCreatedAt).reversed())
                     .collect(java.util.stream.Collectors.toList()));
+        }
+
+        @Override
+        public Page<Request> findByStatus(RequestStatus status, Pageable pageable) {
+            this.lastPageable = pageable;
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> status == r.getStatus()).toList());
+        }
+
+        @Override
+        public Page<Request> findAll(Pageable pageable) {
+            this.lastPageable = pageable;
+            return new PageImpl<>(List.copyOf(store.values()));
         }
 
         @Override

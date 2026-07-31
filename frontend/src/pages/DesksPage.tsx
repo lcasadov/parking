@@ -1,67 +1,32 @@
 import { RESOURCE_ICON } from '../utils/resourceIcon';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { DeskCategoryBadge } from '../components/DeskCategoryBadge';
 import { DeskFormModal } from '../components/DeskFormModal';
 import { Legend } from '../components/Legend';
-import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
+import { PageFrame } from '../components/PageFrame';
 import { SearchBox } from '../components/SearchBox';
-import { StatTile } from '../components/StatTile';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
-import { Toolbar } from '../components/Toolbar';
 import { emitApiErrorToast } from '../api/events';
 import { deactivationErrorKey } from '../utils/resourceDeactivation';
 import { useDesksQuery, useSetDeskActivation } from '../hooks/useDesks';
 import type { Desk } from '../types/desk';
 
-const PAGE_SIZE = 20;
+// Sin paginación: se cargan todos los puestos en un único scroll (no hay tantos).
+const LIST_SIZE = 500;
 const COUNT_SIZE = 1;
 
-// Fila de KPIs de inventario de puestos (total / activos / inactivos). Consultas
-// de recuento propias (size=1) sobre el mismo endpoint, reflejan el inventario
-// GLOBAL con independencia del filtro visible. Subcomponente aislado (S3776).
-function DeskStats() {
-  const { t } = useTranslation();
-  const totalQuery = useDesksQuery({ page: 0, size: COUNT_SIZE });
-  const activeQuery = useDesksQuery({ page: 0, size: COUNT_SIZE, active: true });
-  const total = totalQuery.data?.totalElements;
-  const active = activeQuery.data?.totalElements;
-  if (total === undefined || active === undefined) {
-    return null;
-  }
-  const inactive = Math.max(total - active, 0);
-  const unit = t('desks.stats.unit');
-  return (
-    <div className="mgmt-stats">
-      <StatTile
-        dot="var(--ink-faint)"
-        icon={RESOURCE_ICON.DESK}
-        label={t('desks.stats.total')}
-        value={total}
-        unit={unit}
-      />
-      <StatTile
-        dot="var(--accent)"
-        icon="circle-check"
-        label={t('desks.stats.active')}
-        value={active}
-        unit={unit}
-        sub={t('desks.stats.ofTotal', { total })}
-      />
-      <StatTile
-        dot="var(--rel)"
-        icon="circle-off"
-        label={t('desks.stats.inactive')}
-        value={inactive}
-        unit={unit}
-      />
-    </div>
-  );
-}
-
 type ActiveFilter = 'all' | 'active' | 'inactive';
+
+// Color del punto por estado en los chips de filtro (mismo mapa que los KPIs).
+const ESTADO_DOT: Record<ActiveFilter, string> = {
+  all: 'var(--ink-faint)',
+  active: 'var(--accent)',
+  inactive: 'var(--rel)',
+};
+const ESTADO_FILTERS: ActiveFilter[] = ['all', 'active', 'inactive'];
 
 // Traduce el filtro de la UI al parámetro `active` del contrato.
 function filterToActive(filter: ActiveFilter): boolean | undefined {
@@ -78,24 +43,36 @@ function filterToActive(filter: ActiveFilter): boolean | undefined {
 // alta/edición y activación/desactivación. Distingue EXECUTIVE visualmente
 // (init-desks §4.1/§4.3). El plano interactivo llega en floor-plan.
 // `embedded`: montada dentro de "Recursos", sin su propia cabecera (ver ParkingSpacesPage).
-export function DesksPage({ embedded = false }: { embedded?: boolean } = {}) {
+export function DesksPage({ tabsSwitch }: { tabsSwitch?: ReactNode } = {}) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
   const [q, setQ] = useState('');
-  const [page, setPage] = useState(0);
   const [formDesk, setFormDesk] = useState<Desk | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const query = useDesksQuery({
-    page,
-    size: PAGE_SIZE,
+    page: 0,
+    size: LIST_SIZE,
     active: filterToActive(filter),
   });
+  // Recuentos GLOBALES para los contadores de los chips de estado (sustituyen a la
+  // antigua tira de KPIs): independientes del filtro visible.
+  const totalCountQuery = useDesksQuery({ page: 0, size: COUNT_SIZE });
+  const activeCountQuery = useDesksQuery({ page: 0, size: COUNT_SIZE, active: true });
+  const totalCount = totalCountQuery.data?.totalElements;
+  const activeCount = activeCountQuery.data?.totalElements;
+  const estadoCount: Record<ActiveFilter, number | undefined> = {
+    all: totalCount,
+    active: activeCount,
+    inactive:
+      totalCount !== undefined && activeCount !== undefined
+        ? Math.max(totalCount - activeCount, 0)
+        : undefined,
+  };
   const activationMutation = useSetDeskActivation();
 
   function handleFilter(value: ActiveFilter): void {
     setFilter(value);
-    setPage(0);
   }
 
   function openCreate(): void {
@@ -130,54 +107,48 @@ export function DesksPage({ embedded = false }: { embedded?: boolean } = {}) {
     ? desks.filter((desk) => String(desk.number).includes(search))
     : desks;
   const ready = !query.isLoading && !query.isError;
-  const totalPages = query.data?.totalPages ?? 0;
-  const isFirst = query.data?.first ?? true;
-  const isLast = query.data?.last ?? true;
 
   return (
-    <section className="desks-page" aria-label={t('desks.title')}>
-      <EmbeddablePageHeader
-        embedded={embedded}
-        eyebrow={t('desks.eyebrow')}
-        title={t('desks.title')}
-        description={t('desks.description')}
-        actions={
-          <Button variant="green" icon="plus" onClick={openCreate}>
-            {t('desks.new')}
-          </Button>
-        }
-      />
-
-      <DeskStats />
-
-      <div className="filter-card">
-        <div className="filter-card-head">
-          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
-          {t('common.filters')}
-        </div>
-        <Toolbar ariaLabel={t('desks.searchLabel')}>
+    <PageFrame
+      eyebrow={t('resources.eyebrow')}
+      title={t('resources.title')}
+      bodyLabel={t('desks.title')}
+      resourceSelector={tabsSwitch}
+      toolbar={
+        <Button variant="green" icon="plus" onClick={openCreate}>
+          {t('desks.new')}
+        </Button>
+      }
+      subbar={
+        <div className="mgmt-filters">
           <SearchBox
             label={t('desks.searchLabel')}
             placeholder={t('desks.searchPlaceholder')}
             value={q}
             onValueChange={setQ}
           />
-          <label className="field-label" htmlFor="desks-filter">
-            {t('desks.filterLabel')}
-          </label>
-          <select
-            id="desks-filter"
-            className="field-input"
-            value={filter}
-            onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
-          >
-            <option value="all">{t('desks.filter.all')}</option>
-            <option value="active">{t('desks.filter.active')}</option>
-            <option value="inactive">{t('desks.filter.inactive')}</option>
-          </select>
-        </Toolbar>
-      </div>
-
+          <div className="chip-filters" role="group" aria-label={t('desks.filterLabel')}>
+            {ESTADO_FILTERS.map((value) => {
+              const isActive = filter === value;
+              const count = estadoCount[value];
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className={`chip-filter${isActive ? ' is-active' : ''}`}
+                  aria-pressed={isActive}
+                  onClick={() => handleFilter(value)}
+                >
+                  <span className="cf-dot" style={{ background: ESTADO_DOT[value] }} aria-hidden="true" />
+                  {t(`desks.filter.${value}`)}
+                  {count !== undefined ? <span className="cf-count">{count}</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      }
+    >
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 
       {query.isError ? (
@@ -254,23 +225,9 @@ export function DesksPage({ embedded = false }: { embedded?: boolean } = {}) {
         </div>
       ) : null}
 
-      {totalPages > 1 ? (
-        <nav className="pagination" aria-label={t('desks.title')}>
-          <Button variant="white" disabled={isFirst} onClick={() => setPage((p) => p - 1)}>
-            {t('desks.pagination.previous')}
-          </Button>
-          <span className="pagination-info">
-            {t('desks.pagination.pageInfo', { page: page + 1, total: totalPages })}
-          </span>
-          <Button variant="white" disabled={isLast} onClick={() => setPage((p) => p + 1)}>
-            {t('desks.pagination.next')}
-          </Button>
-        </nav>
-      ) : null}
-
       {isFormOpen ? (
         <DeskFormModal desk={formDesk} onClose={closeForm} onSaved={closeForm} />
       ) : null}
-    </section>
+    </PageFrame>
   );
 }

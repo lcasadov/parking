@@ -1335,6 +1335,48 @@ body.theme-dark .segmented button.active {
   white-space: nowrap;
 }
 
+/* Cabecera de columna ordenable (SortableTh): botón que hereda el estilo del <th> con
+   un icono de orden (neutro atenuado; activo en verde de marca). */
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+.th-sort:hover {
+  color: var(--ink);
+}
+.th-sort.is-active {
+  color: var(--ink);
+}
+.th-sort-icon {
+  font-size: 15px;
+  color: var(--ink-faint);
+  opacity: 0.55;
+  transition:
+    color 120ms ease,
+    opacity 120ms ease;
+}
+.th-sort:hover .th-sort-icon {
+  opacity: 0.9;
+}
+.th-sort.is-active .th-sort-icon {
+  color: var(--brand-green);
+  opacity: 1;
+}
+.th-sort:focus-visible {
+  outline: 2px solid var(--brand-green);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .table-row {
   border-bottom: 1px solid var(--line-soft);
   transition: background var(--dur-fast) var(--ease-standard);
@@ -1699,6 +1741,11 @@ body.theme-dark .segmented button.active {
   color: var(--green-dark);
   background: var(--green-soft);
   border-color: var(--green-border);
+}
+.status-badge.status-in-progress {
+  color: var(--info, #1d4ed8);
+  background: var(--info-soft, #dbeafe);
+  border-color: var(--info-border, #bfdbfe);
 }
 .status-badge.status-rejected {
   color: var(--red-text);
@@ -4390,10 +4437,143 @@ button.pop-row.pop-danger:disabled {
   -webkit-appearance: none;
   padding-right: var(--space-6);
 }
-.release-employee-input:focus-visible {
-  outline: 2px solid var(--green-focus);
-  outline-offset: 2px;
+/* El foco se pinta en el contenedor (focus-within), no en el <select>: el outline
+   propio del select se veía como un doble borde dentro de la caja. La neutralización
+   del outline del select vive en page-frame.css (último import) para ganarle a la
+   regla global `.portal-way :focus-visible` de wayfinding.css (misma especificidad). */
+.release-employee-select:focus-within {
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Buscador de persona (combobox): disparador "pill" + popover con buscador y listado.
+   Usado en el control-row de Liberar (empleado) y ampliable a visitantes. */
+.person-select {
+  position: relative;
+}
+.person-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  min-width: 280px;
+  max-width: 460px;
+  padding: 0 var(--space-3);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--ink);
+}
+.person-select-avatar-empty {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  font-size: 15px;
+}
+.person-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.person-select-value.is-placeholder {
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.person-select-caret {
+  flex: none;
+  font-size: 20px;
+  color: var(--ink-faint);
+}
+/* Popover bajo el disparador, anclado a la derecha (el disparador va a la derecha del
+   control-row). Por encima del body gracias al z-index del .pf-controls. */
+.person-select-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: min(360px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.18));
+}
+.person-select-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.person-select-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
   border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+}
+.person-select-option:hover {
+  background: var(--panel);
+}
+.person-select-option.is-selected {
+  background: var(--green-soft);
+}
+.person-select-option-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.person-select-option-name {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-select-option-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-label);
+  color: var(--ink-faint);
+}
+.person-select-option-check {
+  flex: none;
+  color: var(--brand-green);
+  font-size: 18px;
+}
+.person-select-empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: var(--text-sm);
 }
 .release-employee-caret {
   position: absolute;
@@ -4409,11 +4589,7 @@ button.pop-row.pop-danger:disabled {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  padding: var(--space-3) var(--space-4);
   margin-bottom: 22px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
 }
 .release-week-nav-controls {
   display: inline-flex;
@@ -4521,6 +4697,235 @@ button.pop-row.pop-danger:disabled {
 .release-cell.is-checked {
   background: var(--green-soft);
   border-color: var(--green-border);
+}
+/* Margen bajo el banner de resultado de la liberación (recuento liberadas/fallidas). */
+.release-feedback {
+  margin-bottom: var(--space-4);
+}
+
+/* 2ª fila de "Por empleado": conmutador Semana/Rango anclado a la izquierda y, a su
+   derecha en la MISMA fila, el navegador de semana o el selector de rango (aprovecha
+   el ancho). En pantallas estrechas, envuelve. */
+.release-mode-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.release-mode-row .release-mode-toggle,
+.release-mode-row .release-week-nav,
+.release-mode-row .release-range-bar {
+  margin-bottom: 0;
+}
+.release-mode-row .release-week-nav,
+.release-mode-row .release-range-bar {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+/* Conmutador Semana ⇄ Rango, subordinado a las pestañas: segmentado compacto. */
+.release-mode-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.release-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+.release-mode-btn:hover {
+  color: var(--ink);
+}
+.release-mode-btn.is-active {
+  background: var(--bg-card);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.08));
+}
+.release-mode-btn .ti {
+  font-size: 17px;
+}
+
+/* Selector de rango Desde/Hasta ("Por empleado · Rango"): campos + presets, misma fila. */
+.release-range-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  margin-bottom: 22px;
+}
+.release-range-fields {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* Grupo etiqueta + pill de fecha en LÍNEA (no apilado) para una barra compacta. El
+   pill reutiliza .release-date-control (icono de calendario + input, 40px). */
+.release-range-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+.release-range-caption {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.release-range-sep {
+  font-size: 18px;
+  color: var(--ink-faint);
+}
+.release-range-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.release-range-preset {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.release-range-preset:hover {
+  background: var(--accent-soft);
+  border-color: var(--brand-green);
+}
+
+/* Contador de días junto al de reservas en la barra de acción ("N reservas · M días"). */
+.release-batch-days {
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+/* ---- Tab "Vehículos" del formulario de empleado (change employee-vehicles) ---- */
+.vehicles-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.vehicles-add {
+  display: flex;
+  justify-content: flex-end;
+}
+/* Histórico de un vehículo (timeline en el modal de validación). */
+.vehicle-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.vehicle-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--line);
+}
+.vehicle-history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.vehicle-history-event {
+  font-weight: 600;
+}
+.vehicle-history-actor {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+.vehicle-history-note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+/* "Mis vehículos" (self-service del empleado): tarjetas con estado + motivo de rechazo. */
+.mv-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.mv-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-2);
+}
+.mv-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.mv-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.mv-plate {
+  font-weight: 600;
+}
+.mv-card-meta {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.mv-card-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+@media (max-width: 620px) {
+  .mv-card {
+    flex-direction: column;
+  }
+  .mv-card-actions {
+    align-self: flex-end;
+  }
+}
+.vehicles-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+@media (max-width: 620px) {
+  .vehicles-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .release-cell-input {
   position: absolute;
@@ -6573,6 +6978,40 @@ button.pop-row.pop-danger:disabled {
 }
 .filter-card .toolbar {
   margin-bottom: 10px;
+}
+
+/* ---- Recursos (Plazas/Puestos): KPIs + filtros compactos, lenguaje de Ocupación ---- */
+/* Fila de filtros compacta (vive en la subbar del marco): buscador (izq) + chips de
+   estado + selector de planta (dcha), sin el panel "FILTROS" alto ni etiquetas sueltas. */
+.mgmt-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+/* Filtros de Registros (Auditoría/Accesos): campos etiquetados (label sobre input) en
+   una fila compacta, alineados por abajo, sin el panel "FILTROS" alto. */
+.mgmt-filters.records-filters {
+  align-items: flex-end;
+}
+.records-filters .auth-field {
+  gap: 4px;
+  width: 180px;
+}
+.records-filters .auth-field .field-input {
+  height: 40px;
+}
+.mgmt-filters .search-box {
+  flex: 0 1 320px;
+}
+.mgmt-filters .chip-filters {
+  flex-wrap: wrap;
+}
+.mgmt-floor-select {
+  height: 40px;
+  width: auto;
+  min-width: 180px;
+  margin-left: auto;
 }
 
 /* ---- Tira de resumen de registros (Auditoría): recuento + rango ---- */

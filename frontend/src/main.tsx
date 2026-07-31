@@ -8,6 +8,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
 import './styles/wayfinding.css';
+import './styles/page-frame.css';
 import './i18n';
 import { App } from './App';
 import { registerServiceWorker } from './push/registerServiceWorker';
