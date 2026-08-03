@@ -85,7 +85,7 @@ public class PushContentRenderer {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {  // NOSONAR: mapa de strings, no deberia fallar
-            return "{\"title\":\"Parking\",\"body\":\"" + content.title() + "\",\"url\":\"" + content.url() + "\"}";
+            return "{\"title\":\"Nexo\",\"body\":\"" + content.title() + "\",\"url\":\"" + content.url() + "\"}";
         }
     }
 
