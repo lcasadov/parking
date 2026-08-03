@@ -48,12 +48,13 @@ class PushSubscriptionServiceTest {
     @Test
     void shouldUpsertWhenEndpointExists_whenSubscribing() {
         given(employeeRepository.findByLogin("u10")).willReturn(Optional.of(emp(10L)));
+        // El endpoint existe pero pertenece a otro empleado (99): se reemplaza (borra + guarda).
         given(subscriptionRepository.findByEndpoint("e"))
                 .willReturn(Optional.of(PushSubscription.of(99L, "e", "x", "y", null)));
 
         service().subscribe("u10", "e", "p", "a", "ua");
 
-        verify(subscriptionRepository).deleteByEndpoint("e");
+        verify(subscriptionRepository).delete(any(PushSubscription.class));
         verify(subscriptionRepository).save(any(PushSubscription.class));
     }
 

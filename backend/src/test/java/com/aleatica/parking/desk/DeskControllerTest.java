@@ -108,11 +108,11 @@ class DeskControllerTest {
     }
 
     @Test
-    void shouldReturn400_whenDeskNumberOutOfRange() throws Exception {
-        // Act / Assert: numero 70 fuera del rango 1-65
+    void shouldReturn400_whenDeskNumberNotPositive() throws Exception {
+        // Act / Assert: el numero de puesto debe ser >= 1 (@Min(1)); el tope superior se quito (V34).
         mockMvc.perform(post(BASE_URL).with(user(ADMIN).roles(ROLE_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"number\":70,\"category\":\"STANDARD\"}"))
+                        .content("{\"number\":0,\"category\":\"STANDARD\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.fields.number").exists());

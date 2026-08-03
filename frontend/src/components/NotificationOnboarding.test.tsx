@@ -10,8 +10,7 @@ vi.mock('../hooks/usePush', () => ({
   useInstallPrompt: () => mockUseInstallPrompt(),
 }));
 
-// Importar tras el mock.
-// eslint-disable-next-line import/first
+// Importar tras el mock (vitest eleva vi.mock automáticamente).
 import { NotificationOnboarding } from './NotificationOnboarding';
 
 describe('NotificationOnboarding', () => {

@@ -87,12 +87,12 @@ class DeskManagementIT extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldReturn400_whenDeskNumberOutOfRange() throws Exception {
-        // Act / Assert: numero 70 fuera del rango 1-65
-        createDesk(adminSession, 70, "STANDARD")
+    void shouldReturn400_whenDeskNumberNotPositive() throws Exception {
+        // Act / Assert: el numero de puesto debe ser >= 1 (@Min(1)); el tope superior se quito (V34).
+        createDesk(adminSession, 0, "STANDARD")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fields.number").exists());
-        assertThat(deskCount(70)).isZero();
+        assertThat(deskCount(0)).isZero();
     }
 
     @Test
