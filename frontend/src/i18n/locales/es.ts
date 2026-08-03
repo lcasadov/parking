@@ -1,7 +1,7 @@
 export const es = {
   common: {
-    appName: 'Reservas',
-    brandSub: 'Nexo',
+    appName: 'Nexo',
+    brandSub: 'ALEATICA',
     sortBy: 'Ordenar por {{column}}',
     logout: 'Cerrar sesión',
     language: 'Idioma',
@@ -43,8 +43,8 @@ export const es = {
     loginTitle: 'Iniciar sesión',
     loginSubtitle: 'Gestión de parking',
     loginDescription: 'Acceso con tu usuario corporativo.',
-    brandTitleLead: 'Gestión de',
-    brandTitleHighlight: 'plazas y puestos',
+    brandTitleLead: '',
+    brandTitleHighlight: 'Nexo',
     brandSubtitle: 'Reserva tu plaza de parking o puesto de trabajo en segundos.',
     secureFooter: 'Acceso seguro',
     loginField: 'Usuario',
