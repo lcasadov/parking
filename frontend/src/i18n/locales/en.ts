@@ -1,7 +1,7 @@
 export const en = {
   common: {
     appName: 'Reservas',
-    brandSub: 'ALEATICA',
+    brandSub: 'Nexo',
     sortBy: 'Sort by {{column}}',
     logout: 'Log out',
     language: 'Language',

@@ -40,7 +40,7 @@ export function Sidebar({
         <img src="/logo-aleatica-mini.png" alt="ALEATICA" className="sidebar-mark" />
         <div className="sidebar-brand-text">
           <b className="sidebar-brand-name">{t('common.appName')}</b>
-          <span className="sidebar-brand-sub">ALEATICA</span>
+          <span className="sidebar-brand-sub">{t('common.brandSub')}</span>
         </div>
       </div>
       {cta ? <div className="sidebar-cta">{cta}</div> : null}

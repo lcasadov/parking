@@ -111,7 +111,7 @@ export function AppShell({ nav }: AppShellProps) {
           <img src="/logo-aleatica-mini.png" alt="ALEATICA" className="shell-topbar-mark" />
           <div className="shell-topbar-brand-text">
             <b className="shell-topbar-name">{t('common.appName')}</b>
-            <span className="shell-topbar-sub">ALEATICA</span>
+            <span className="shell-topbar-sub">{t('common.brandSub')}</span>
           </div>
         </div>
       </header>
