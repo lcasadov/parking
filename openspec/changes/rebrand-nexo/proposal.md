@@ -7,7 +7,7 @@ El producto se muestra hoy al usuario como **"ALEATICA"** (título de la web, lo
 - Se introduce **Nexo** como **nombre de producto** de la aplicación. **ALEATICA** se mantiene como **empresa/entidad** propietaria (no desaparece del dominio legal ni de la infraestructura).
 - **Título de la web** (`frontend/index.html` `<title>`): `Reservas · ALEATICA` → `Nexo` (a secas, sin prefijo "Reservas ·").
 - **PWA** (`manifest.webmanifest`): `name` y `short_name` → "Nexo"; `description` con "Nexo".
-- **Lockup de marca en la app**: subtítulo de marca de producto (`brandSub` i18n es/en) en `AppShell`, `Sidebar`, `BrandCurve` → "Nexo". **El logotipo de ALEATICA se mantiene** (arte PNG y `alt` sin cambios); no se tocan assets ni las aserciones de tests sobre el `alt` del logo.
+- **Lockup de marca en la app**: la **línea principal** (`common.appName` i18n es/en) muestra el producto **"Nexo"** y el **subtítulo** (`common.brandSub`) muestra la empresa **"ALEATICA"**, en `AppShell`, `Sidebar` y `BrandCurve`. **El logotipo de ALEATICA se mantiene** (arte PNG y `alt` sin cambios); no se tocan assets ni las aserciones de tests sobre el `alt` del logo.
 - **Emails transaccionales** (10 plantillas Thymeleaf): la referencia de marca de producto en cabecera/pie pasa a Nexo (la dirección remitente y el dominio NO cambian).
 - **Documentación de API** (`OpenApiConfig`): título/descripción del OpenAPI → Nexo.
 - **Notificaciones push**: el nombre de app mostrado en el título de las notificaciones → Nexo.

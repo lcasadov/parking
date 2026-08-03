@@ -16,7 +16,7 @@ El nombre de producto "Nexo" SHALL aparecer de forma consistente en el lockup de
 
 #### Scenario: Lockup de marca en la interfaz
 - **WHEN** se renderiza el shell autenticado o la pantalla de login
-- **THEN** el subtítulo/lockup de marca muestra "Nexo" como nombre de producto
+- **THEN** la línea principal del lockup muestra "Nexo" (producto) y el subtítulo muestra "ALEATICA" (empresa)
 - **AND** el logotipo (imagen y su `alt`) se conserva el de ALEATICA de momento (estado transitorio aceptado)
 
 #### Scenario: Email transaccional

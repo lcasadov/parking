@@ -22,8 +22,8 @@ El negocio quiere renombrar el **producto** a "Nexo". ALEATICA es la **empresa**
 **D1 — "Nexo" es nombre de producto; "ALEATICA" permanece como empresa.**
 El renombrado toca solo superficies donde aparece el *nombre del producto*. Donde el texto se refiere a la *empresa* (landing SSO, dominio de correo, entidad legal) se mantiene ALEATICA. Alternativa descartada: rebrand total (eliminar ALEATICA de todo) — introduce cambios de infraestructura (dominios, cuentas) fuera del espíritu de "cambiar el título de la web" y con riesgo operativo alto.
 
-**D2 — Fuente única del nombre en frontend.**
-El texto de marca del frontend se centraliza en la clave i18n `brandSub` (ya existente en `es.ts`/`en.ts`). Los componentes (`AppShell`, `Sidebar`, `BrandCurve`, `AuthShell`) deben consumir esa clave en lugar de literales. Donde hoy hay literal "ALEATICA" hardcodeado se sustituye por la clave. El `<title>` de `index.html` y el `manifest.webmanifest` son estáticos (fuera de i18n) y se editan directamente.
+**D2 — Lockup de dos líneas: producto arriba, empresa debajo.**
+El lockup de marca se compone de la **línea principal** `common.appName` = **"Nexo"** (producto) y el **subtítulo** `common.brandSub` = **"ALEATICA"** (empresa). `AppShell` y `Sidebar` consumen ambas claves i18n; `BrandCurve`/`BrandLogo` (sin i18n) usa los literales "Nexo"/"ALEATICA". El `<title>` de `index.html` y el `manifest.webmanifest` son estáticos (fuera de i18n) y muestran "Nexo" a secas.
 
 **D3 — El logo de ALEATICA se mantiene (arte y `alt`); solo cambia el texto del nombre. [RESUELTA]**
 Decisión del negocio: de momento se conserva el logotipo actual de ALEATICA (ficheros PNG **y** su `alt`). El renombrado toca únicamente el **texto** del nombre de producto (`brandSub`, título, PWA, emails, API, push) → "Nexo". Se asume conscientemente el estado transitorio "texto Nexo + logotipo ALEATICA" hasta que exista arte de Nexo. Esto minimiza el cambio y no toca ningún activo gráfico ni las aserciones de tests sobre el `alt` del logo.
