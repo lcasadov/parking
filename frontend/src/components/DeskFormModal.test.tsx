@@ -34,7 +34,7 @@ describe('DeskFormModal', () => {
     expect(sent).toMatchObject({ number: 7, category: 'STANDARD', active: true });
   });
 
-  it('should_show_range_error_when_number_out_of_range', async () => {
+  it('should_show_range_error_when_number_not_positive', async () => {
     let posted = false;
     server.use(
       http.post(DESKS_URL, () => {
@@ -45,11 +45,12 @@ describe('DeskFormModal', () => {
     const user = userEvent.setup();
     renderWithProviders(<DeskFormModal onClose={vi.fn()} onSaved={vi.fn()} />);
 
-    await user.type(screen.getByLabelText(/número del puesto|desk number/i), '70');
+    // El nº de puesto ya no tiene tope superior (V34): solo debe ser entero > 0.
+    await user.type(screen.getByLabelText(/número del puesto|desk number/i), '0');
     await user.click(screen.getByRole('button', { name: /guardar|save/i }));
 
     expect(
-      await screen.findByText(/debe estar entre 1 y 65|must be between 1 and 65/i),
+      await screen.findByText(/mayor que 0|positive integer/i),
     ).toBeInTheDocument();
     expect(posted).toBe(false);
   });
@@ -69,8 +70,8 @@ describe('DeskFormModal', () => {
     ).toBeInTheDocument();
   });
 
-  it('should_return_400_when_desk_number_out_of_range_from_server', async () => {
-    // El cliente valida el rango, pero además un 400 del servidor se mapea a rango.
+  it('should_return_400_when_desk_number_invalid_from_server', async () => {
+    // Un 400 del servidor (validación de número) se mapea al error de número inline.
     server.use(
       http.post(DESKS_URL, () => HttpResponse.json(apiError('OUT_OF_RANGE'), { status: 400 })),
     );
@@ -81,7 +82,7 @@ describe('DeskFormModal', () => {
     await user.click(screen.getByRole('button', { name: /guardar|save/i }));
 
     expect(
-      await screen.findByText(/debe estar entre 1 y 65|must be between 1 and 65/i),
+      await screen.findByText(/mayor que 0|positive integer/i),
     ).toBeInTheDocument();
   });
 

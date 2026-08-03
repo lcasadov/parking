@@ -140,4 +140,71 @@ describe('VehicleReviewPage', () => {
     await waitFor(() => expect(abiertos).toHaveTextContent('6'));
     expect(screen.getByRole('tab', { name: /aprobados|approved/i })).toHaveTextContent('5');
   });
+
+  it('should_open_history_modal_with_events', async () => {
+    const user = userEvent.setup();
+    server.use(
+      ...listOf([row()]),
+      http.get(`${URL}/7/history`, () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            eventType: 'CREATED',
+            actorRole: 'EMPLOYEE',
+            fromStatus: null,
+            toStatus: 'PENDING',
+            note: null,
+            previousData: null,
+            createdAt: '2026-07-31T09:00:00Z',
+          },
+        ]),
+      ),
+    );
+
+    renderWithProviders(<VehicleReviewPage />);
+    const tr = (await screen.findByText('1234ABC')).closest('tr') as HTMLElement;
+    await user.click(within(tr).getByRole('button', { name: /histórico|history/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/alta del veh|vehicle created/i)).toBeInTheDocument();
+  });
+
+  it('should_confirm_deletion_of_a_pending_deletion_vehicle', async () => {
+    const user = userEvent.setup();
+    let deleted = false;
+    server.use(
+      ...listOf([row({ status: 'PENDING_DELETION' })]),
+      http.post(`${URL}/7/confirm-deletion`, () => {
+        deleted = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    renderWithProviders(<VehicleReviewPage />);
+    const tr = (await screen.findByText('1234ABC')).closest('tr') as HTMLElement;
+    await user.click(within(tr).getByRole('button', { name: /confirmar borrado|confirm deletion/i }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: /sí, borrar|yes, delete/i }));
+
+    await waitFor(() => expect(deleted).toBe(true));
+  });
+
+  it('should_restore_a_pending_deletion_vehicle', async () => {
+    const user = userEvent.setup();
+    let restored = false;
+    server.use(
+      ...listOf([row({ status: 'PENDING_DELETION' })]),
+      http.post(`${URL}/7/restore`, () => {
+        restored = true;
+        return HttpResponse.json(row({ status: 'APPROVED' }));
+      }),
+    );
+
+    renderWithProviders(<VehicleReviewPage />);
+    const tr = (await screen.findByText('1234ABC')).closest('tr') as HTMLElement;
+    await user.click(within(tr).getByRole('button', { name: /restaurar|restore/i }));
+
+    await waitFor(() => expect(restored).toBe(true));
+  });
 });

@@ -112,4 +112,36 @@ describe('EmployeeVehiclesPanel', () => {
 
     await waitFor(() => expect(deleted).toBe(true));
   });
+
+  it('should_show_status_column_and_open_history', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(VEHICLES_URL, () => HttpResponse.json([vehicle({ status: 'APPROVED' })])),
+      http.get(`${MSW_BASE}/employee-vehicles/3/history`, () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            eventType: 'CREATED',
+            actorRole: 'ADMIN',
+            fromStatus: null,
+            toStatus: 'APPROVED',
+            note: null,
+            previousData: null,
+            createdAt: '2026-01-01T00:00:00Z',
+          },
+        ]),
+      ),
+    );
+
+    renderWithProviders(<EmployeeVehiclesPanel employeeId={EMPLOYEE_ID} />);
+
+    // Columna Estado (showStatus) visible en el tab admin.
+    expect(await screen.findByText(/^aprobado$|^approved$/i)).toBeInTheDocument();
+
+    const row = (await screen.findByText('1234ABC')).closest('tr') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: /histórico|history/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/alta del veh|vehicle created/i)).toBeInTheDocument();
+  });
 });

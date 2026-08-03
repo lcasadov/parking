@@ -6,13 +6,10 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
-  approveVehicle,
   changeVehicleStatus,
   confirmVehicleDeletion,
   listVehicleReview,
-  markVehicleInProgress,
   pendingVehicleCount,
-  rejectVehicle,
   restoreVehicle,
   vehicleHistory,
   vehicleStatusCounts,
@@ -69,27 +66,6 @@ function useReviewAction<TResult>(
 ): UseMutationResult<TResult, unknown, number> {
   const invalidate = useInvalidateReview();
   return useMutation({ mutationFn: action, onSuccess: invalidate });
-}
-
-export function useMarkVehicleInProgress(): UseMutationResult<VehicleReviewRow, unknown, number> {
-  return useReviewAction(markVehicleInProgress);
-}
-
-export function useApproveVehicle(): UseMutationResult<VehicleReviewRow, unknown, number> {
-  return useReviewAction(approveVehicle);
-}
-
-export interface RejectVehicleVars {
-  vehicleId: number;
-  reason: string;
-}
-
-export function useRejectVehicle(): UseMutationResult<VehicleReviewRow, unknown, RejectVehicleVars> {
-  const invalidate = useInvalidateReview();
-  return useMutation({
-    mutationFn: ({ vehicleId, reason }: RejectVehicleVars) => rejectVehicle(vehicleId, reason),
-    onSuccess: invalidate,
-  });
 }
 
 export function useConfirmVehicleDeletion(): UseMutationResult<void, unknown, number> {

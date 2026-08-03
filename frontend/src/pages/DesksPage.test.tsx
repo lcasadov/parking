@@ -131,10 +131,8 @@ describe('DesksPage', () => {
     renderWithProviders(<DesksPage />);
     await screen.findByText('3');
 
-    await user.selectOptions(
-      screen.getByLabelText(/filtrar por estado|filter by status/i),
-      'inactive',
-    );
+    // El filtro de estado es un grupo de chips (botones), no un <select>.
+    await user.click(screen.getByRole('button', { name: /inactivos|inactive/i }));
 
     await waitFor(() => expect(receivedActive).toBe('false'));
   });

@@ -122,4 +122,31 @@ describe('MyVehiclesPage', () => {
 
     await waitFor(() => expect(deleted).toBe(true));
   });
+
+  it('should_edit_a_vehicle_prefilled_and_save', async () => {
+    const user = userEvent.setup();
+    let updatedPlate: string | null = null;
+    server.use(
+      http.get(VEHICLES_URL, () => HttpResponse.json([vehicle()])),
+      http.put(`${VEHICLES_URL}/:vehicleId`, async ({ request }) => {
+        const body = (await request.json()) as { licensePlate: string };
+        updatedPlate = body.licensePlate;
+        return HttpResponse.json(vehicle({ licensePlate: body.licensePlate }));
+      }),
+    );
+
+    renderWithProviders(<MyVehiclesPage />);
+
+    const card = (await screen.findByText('1234ABC')).closest('li') as HTMLElement;
+    await user.click(within(card).getByRole('button', { name: /^editar$|^edit$/i }));
+
+    // El formulario llega precargado con la matrícula actual (vehicleFormFrom).
+    const plate = screen.getByLabelText(/matrícula|license plate/i);
+    expect(plate).toHaveValue('1234ABC');
+    await user.clear(plate);
+    await user.type(plate, '5678XYZ');
+    await user.click(screen.getByRole('button', { name: /guardar veh|save vehicle/i }));
+
+    await waitFor(() => expect(updatedPlate).toBe('5678XYZ'));
+  });
 });

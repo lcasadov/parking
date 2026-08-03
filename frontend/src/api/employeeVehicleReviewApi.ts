@@ -41,21 +41,6 @@ export async function vehicleHistory(vehicleId: number): Promise<VehicleHistoryE
   return data;
 }
 
-export async function markVehicleInProgress(vehicleId: number): Promise<VehicleReviewRow> {
-  const { data } = await apiClient.post<VehicleReviewRow>(`${BASE}/${vehicleId}/in-progress`);
-  return data;
-}
-
-export async function approveVehicle(vehicleId: number): Promise<VehicleReviewRow> {
-  const { data } = await apiClient.post<VehicleReviewRow>(`${BASE}/${vehicleId}/approve`);
-  return data;
-}
-
-export async function rejectVehicle(vehicleId: number, reason: string): Promise<VehicleReviewRow> {
-  const { data } = await apiClient.post<VehicleReviewRow>(`${BASE}/${vehicleId}/reject`, { reason });
-  return data;
-}
-
 export async function confirmVehicleDeletion(vehicleId: number): Promise<void> {
   await apiClient.post(`${BASE}/${vehicleId}/confirm-deletion`);
 }
