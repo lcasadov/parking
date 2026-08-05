@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Reserva cancelada</title>
+</head>
+<body>
+<p>Hola <span th:text="${recipientName}">Empleado</span>,</p>
+<p>
+    Un administrador ha <strong>cancelado</strong> tu reserva
+    (referencia <strong th:text="${requestId}">0</strong>)
+    para la fecha <strong th:text="${requestedDate}">2026-01-01</strong>.
+</p>
+<p>Si crees que es un error, contacta con la administración del parking.</p>
+<p>— ALEATICA</p>
+</body>
+</html>

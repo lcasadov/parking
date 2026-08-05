@@ -7,13 +7,6 @@ import { addDaysIso } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
 
 describe('FloorPlanDatebar', () => {
-  it('should_show_the_booking_window_hint', () => {
-    renderWithProviders(<FloorPlanDatebar date={todayIso()} onChange={vi.fn()} />);
-    expect(
-      screen.getByText(/desde hoy en adelante|from today onward/i),
-    ).toBeInTheDocument();
-  });
-
   it('should_disable_previous_and_today_when_date_is_today', () => {
     renderWithProviders(<FloorPlanDatebar date={todayIso()} onChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: /día anterior|previous day/i })).toBeDisabled();

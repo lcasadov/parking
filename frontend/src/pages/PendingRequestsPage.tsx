@@ -4,20 +4,20 @@ import { ApproveRequestModal } from '../components/ApproveRequestModal';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { ExportMenu } from '../components/ExportMenu';
+import { PageFrame } from '../components/PageFrame';
 import { RejectRequestModal } from '../components/RejectRequestModal';
+import { ResourceSelector } from '../components/ResourceSelector';
 import { ResourceTypePill } from '../components/ResourceTypePill';
+import { SortableTh } from '../components/SortableTh';
 import { Spinner } from '../components/Spinner';
-import { Tabs, type TabItem } from '../components/Tabs';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useEmployeesQuery } from '../hooks/useEmployees';
 import { usePendingRequestsQuery, useRequestsByStatusQuery } from '../hooks/useRequests';
+import { useTableSort, type SortState } from '../hooks/useTableSort';
 import { weekdayIndex } from '../utils/calendar';
 import { initialsOf } from '../utils/initials';
 import type { Employee } from '../types/employee';
 import type { Request, RequestStatus, ResourceType } from '../types/request';
-
-// Filtro por recurso (plaza/puesto) + "todos".
-const RESOURCE_FILTERS: (ResourceType | 'ALL')[] = ['ALL', 'PARKING', 'DESK'];
 
 const PAGE_SIZE = 20;
 const LOOKUP_SIZE = 100;
@@ -27,6 +27,14 @@ const LOOKUP_SIZE = 100;
 type RequestTab = 'pending' | 'approved' | 'rejected' | 'all';
 const PENDING_TAB: RequestTab = 'pending';
 const TAB_ORDER: RequestTab[] = ['pending', 'approved', 'rejected', 'all'];
+
+// Punto de color por estado (mismo lenguaje visual que los filtros rápidos de Ocupación).
+const STATUS_DOT: Record<RequestTab, string> = {
+  pending: 'var(--pend)',
+  approved: 'var(--accent)',
+  rejected: 'var(--red)',
+  all: 'var(--ink-faint)',
+};
 
 // Estado por el que filtra cada pestaña en el listado por estado. 'all' no filtra
 // (status undefined = todas); 'pending' no usa este listado (tiene su cola FIFO).
@@ -128,17 +136,22 @@ interface RequestsTableProps {
   requests: Request[];
   employeeMap: Map<number, Employee>;
   emptyLabel: string;
+  sort: SortState | null;
+  onToggleSort: (field: string) => void;
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
   onCancel: (id: number) => void;
 }
 
 // Tabla de solicitudes (avatar + recurso + fechas + estado + acciones). Sirve a todas las
-// pestañas: las acciones por fila dependen del estado (ver RowActions).
+// pestañas: las acciones por fila dependen del estado (ver RowActions). Las columnas de
+// fecha (solicitada y creada) son ordenables en servidor (SortableTh).
 function RequestsTable({
   requests,
   employeeMap,
   emptyLabel,
+  sort,
+  onToggleSort,
   onApprove,
   onReject,
   onCancel,
@@ -150,9 +163,19 @@ function RequestsTable({
         <thead>
           <tr className="table-header">
             <th scope="col">{t('requests.inbox.columns.employee')}</th>
-            <th scope="col">{t('requests.inbox.columns.date')}</th>
+            <SortableTh
+              field="requestedDate"
+              label={t('requests.inbox.columns.date')}
+              sort={sort}
+              onToggle={onToggleSort}
+            />
             <th scope="col">{t('requests.inbox.columns.day')}</th>
-            <th scope="col">{t('requests.inbox.columns.created')}</th>
+            <SortableTh
+              field="createdAt"
+              label={t('requests.inbox.columns.created')}
+              sort={sort}
+              onToggle={onToggleSort}
+            />
             <th scope="col">{t('requests.inbox.columns.status')}</th>
             <th scope="col">{t('requests.inbox.columns.actions')}</th>
           </tr>
@@ -199,53 +222,28 @@ function RequestsTable({
   );
 }
 
-interface PaginationProps {
-  page: number;
-  totalPages: number;
-  isFirst: boolean;
-  isLast: boolean;
-  onChange: (updater: (previous: number) => number) => void;
-}
-
-// Controles de paginación de la bandeja (solo cuando hay más de una página).
-function InboxPagination({ page, totalPages, isFirst, isLast, onChange }: PaginationProps) {
-  const { t } = useTranslation();
-  return (
-    <nav className="pagination" aria-label={t('requests.inbox.title')}>
-      <Button variant="white" disabled={isFirst} onClick={() => onChange((p) => p - 1)}>
-        {t('requests.pagination.previous')}
-      </Button>
-      <span className="pagination-info">
-        {t('requests.pagination.pageInfo', { page: page + 1, total: totalPages })}
-      </span>
-      <Button variant="white" disabled={isLast} onClick={() => onChange((p) => p + 1)}>
-        {t('requests.pagination.next')}
-      </Button>
-    </nav>
-  );
-}
-
 interface InboxBodyProps {
   isPendingTab: boolean;
   query: ReturnType<typeof usePendingRequestsQuery>;
   visibleRequests: Request[];
   employeeMap: Map<number, Employee>;
-  page: number;
-  onPageChange: (updater: (previous: number) => number) => void;
+  sort: SortState | null;
+  onToggleSort: (field: string) => void;
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
   onCancel: (id: number) => void;
 }
 
-// Cuerpo de la bandeja: spinner / error / tabla / paginación. Sirve a todas las pestañas
+// Cuerpo de la bandeja: spinner / error / tabla (estados centrados en el body del marco).
+// La paginación vive ahora en el footer fijo del PageFrame. Sirve a todas las pestañas
 // (pendientes FIFO y aprobadas/rechazadas/todas por estado). Aísla las ramas de render.
 function InboxBody({
   isPendingTab,
   query,
   visibleRequests,
   employeeMap,
-  page,
-  onPageChange,
+  sort,
+  onToggleSort,
   onApprove,
   onReject,
   onCancel,
@@ -253,40 +251,36 @@ function InboxBody({
   const { t } = useTranslation();
 
   if (query.isLoading) {
-    return <Spinner />;
+    return (
+      <div className="pf-state">
+        <Spinner />
+      </div>
+    );
   }
   if (query.isError) {
     return (
-      <p className="form-error" role="alert">
-        {t('requests.inbox.loadError')}
-      </p>
+      <div className="pf-state">
+        <p className="form-error" role="alert">
+          {t('requests.inbox.loadError')}
+        </p>
+      </div>
     );
   }
 
-  const totalPages = query.data?.totalPages ?? 0;
   const emptyLabel = isPendingTab
     ? t('requests.inbox.empty')
     : t('requests.inbox.emptyByStatus');
   return (
-    <>
-      <RequestsTable
-        requests={visibleRequests}
-        employeeMap={employeeMap}
-        emptyLabel={emptyLabel}
-        onApprove={onApprove}
-        onReject={onReject}
-        onCancel={onCancel}
-      />
-      {totalPages > 1 ? (
-        <InboxPagination
-          page={page}
-          totalPages={totalPages}
-          isFirst={query.data?.first ?? true}
-          isLast={query.data?.last ?? true}
-          onChange={onPageChange}
-        />
-      ) : null}
-    </>
+    <RequestsTable
+      requests={visibleRequests}
+      employeeMap={employeeMap}
+      emptyLabel={emptyLabel}
+      sort={sort}
+      onToggleSort={onToggleSort}
+      onApprove={onApprove}
+      onReject={onReject}
+      onCancel={onCancel}
+    />
   );
 }
 
@@ -357,12 +351,15 @@ export function PendingRequestsPage() {
   const [cancelId, setCancelId] = useState<number | null>(null);
 
   const isPendingTab = activeTab === PENDING_TAB;
+  // Orden de las columnas (fecha solicitada / creada), en SERVIDOR. Sin orden → el backend
+  // aplica su orden por defecto (pendientes FIFO por createdAt; resto por createdAt desc).
+  const { sort, sortParam, toggle } = useTableSort();
 
   // Pendientes: cola FIFO (y fuente del contador del badge). Resto de pestañas: listado
   // por estado, sólo activo cuando la pestaña no es la de pendientes.
-  const pendingQuery = usePendingRequestsQuery({ page, size: PAGE_SIZE });
+  const pendingQuery = usePendingRequestsQuery({ page, size: PAGE_SIZE, sort: sortParam });
   const byStatusQuery = useRequestsByStatusQuery(
-    { page, size: PAGE_SIZE, status: STATUS_BY_TAB[activeTab] },
+    { page, size: PAGE_SIZE, status: STATUS_BY_TAB[activeTab], sort: sortParam },
     !isPendingTab,
   );
   const query = isPendingTab ? pendingQuery : byStatusQuery;
@@ -380,6 +377,12 @@ export function PendingRequestsPage() {
     setPage(0);
   }
 
+  // Al reordenar, vuelve a la primera página (el orden afecta a todo el conjunto).
+  function handleToggleSort(field: string): void {
+    toggle(field);
+    setPage(0);
+  }
+
   const visibleRequests = useMemo(
     () =>
       requests.filter(
@@ -394,69 +397,110 @@ export function PendingRequestsPage() {
   const rejectTarget = requests.find((request) => request.id === rejectId) ?? null;
   const cancelTarget = requests.find((request) => request.id === cancelId) ?? null;
 
-  const tabs: TabItem[] = TAB_ORDER.map((id) => ({
-    id,
-    label: t(`requests.inbox.tabs.${id}`),
-    ...(id === PENDING_TAB ? { count: pendingCount } : {}),
-  }));
+  const totalPages = query.data?.totalPages ?? 0;
 
   return (
-    <section className="pending-requests-page" aria-labelledby="pending-requests-title">
-      <header className="page-header">
-        <div className="page-heading">
-          <span className="page-eyebrow">{t('requests.inbox.eyebrow')}</span>
-          <h1 id="pending-requests-title" className="section-title">
-            {t('requests.inbox.title')}
-          </h1>
-          <p className="page-description">{t('requests.inbox.description')}</p>
-        </div>
-        <div className="page-actions">
-          <ExportMenu path={EXPORT_PATHS.requests} fallbackBase="requests" requiredRole="ADMIN" />
-        </div>
-      </header>
-
-      <div className="toolbar">
-        <Tabs
-          tabs={tabs}
-          active={activeTab}
-          onChange={(id) => handleTabChange(id as RequestTab)}
-          ariaLabel={t('requests.inbox.tabs.ariaLabel')}
+    <PageFrame
+      eyebrow={t('requests.inbox.eyebrow')}
+      title={t('requests.inbox.title')}
+      titleId="pending-requests-title"
+      bodyLabel={t('requests.inbox.title')}
+      actions={
+        <ExportMenu
+          path={EXPORT_PATHS.requests}
+          fallbackBase="requests"
+          requiredRole="ADMIN"
+          variant="green"
+          formats={['csv']}
         />
-        <div className="search-box">
-          <i className="ti ti-search" aria-hidden="true" />
-          <input
-            type="text"
-            aria-label={t('requests.inbox.search.label')}
-            placeholder={t('requests.inbox.search.placeholder')}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-        <label className="mr-status-filter">
-          <span className="sr-only">{t('requests.mine.filterResource')}</span>
-          <select
-            className="field-input"
+      }
+      toolbar={
+        <>
+          {/* Izquierda: tipo de recurso. Centro: buscador. Derecha: filtros de estado. */}
+          <ResourceSelector
+            size="lg"
+            withAll
             value={resourceFilter}
-            onChange={(event) => setResourceFilter(event.target.value as ResourceType | 'ALL')}
+            onChange={(value) => setResourceFilter(value as ResourceType | 'ALL')}
+            labels={{
+              all: t('occupancy.weekly.filters.all'),
+              parking: t('occupancy.weekly.resourceType.PARKING'),
+              desk: t('occupancy.weekly.resourceType.DESK'),
+            }}
+            ariaLabel={t('requests.mine.filterResource')}
+          />
+          <div className="search-box">
+            <i className="ti ti-search" aria-hidden="true" />
+            <input
+              type="text"
+              aria-label={t('requests.inbox.search.label')}
+              placeholder={t('requests.inbox.search.placeholder')}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <div
+            className="chip-filters"
+            role="tablist"
+            aria-label={t('requests.inbox.tabs.ariaLabel')}
           >
-            {RESOURCE_FILTERS.map((value) => (
-              <option key={value} value={value}>
-                {value === 'ALL'
-                  ? t('requests.mine.filterAllResources')
-                  : t(`requests.resourceType.${value}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
+            {TAB_ORDER.map((id) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`chip-filter${isActive ? ' is-active' : ''}`}
+                  onClick={() => handleTabChange(id)}
+                >
+                  <span
+                    className="cf-dot"
+                    style={{ background: STATUS_DOT[id] }}
+                    aria-hidden="true"
+                  />
+                  {t(`requests.inbox.tabs.${id}`)}
+                  {id === PENDING_TAB ? <span className="cf-count">{pendingCount}</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      }
+      footer={
+        totalPages > 1 ? (
+          <>
+            <span className="pagination-info">
+              {t('requests.pagination.pageInfo', { page: page + 1, total: totalPages })}
+            </span>
+            <div className="pf-footer-nav">
+              <Button
+                variant="white"
+                disabled={query.data?.first ?? true}
+                onClick={() => setPage((previous) => previous - 1)}
+              >
+                {t('requests.pagination.previous')}
+              </Button>
+              <Button
+                variant="white"
+                disabled={query.data?.last ?? true}
+                onClick={() => setPage((previous) => previous + 1)}
+              >
+                {t('requests.pagination.next')}
+              </Button>
+            </div>
+          </>
+        ) : undefined
+      }
+    >
       <InboxBody
         isPendingTab={isPendingTab}
         query={query}
         visibleRequests={visibleRequests}
         employeeMap={employeeMap}
-        page={page}
-        onPageChange={setPage}
+        sort={sort}
+        onToggleSort={handleToggleSort}
         onApprove={setApproveId}
         onReject={setRejectId}
         onCancel={setCancelId}
@@ -477,6 +521,6 @@ export function PendingRequestsPage() {
           setCancelId(null);
         }}
       />
-    </section>
+    </PageFrame>
   );
 }

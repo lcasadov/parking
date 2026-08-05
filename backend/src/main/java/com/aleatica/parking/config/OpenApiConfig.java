@@ -29,8 +29,8 @@ public class OpenApiConfig {
     public OpenAPI parkingOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("parking REST API")
-                        .description("Gestion de plazas de parking y puestos de oficina ALEATICA")
+                        .title("Nexo REST API")
+                        .description("Gestion de plazas de parking y puestos de oficina — ALEATICA")
                         .version("1.0.0")
                         .contact(new Contact().name("Administrador").email("admin@aleatica.local")))
                 .components(new Components()

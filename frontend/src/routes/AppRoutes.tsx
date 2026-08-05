@@ -6,9 +6,11 @@ import { EmployeeLayout } from '../layouts/EmployeeLayout';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { EmployeesPage } from '../pages/EmployeesPage';
+import { VehicleReviewPage } from '../pages/VehicleReviewPage';
 import { ResourcesPage } from '../pages/ResourcesPage';
 import { FloorPlanPage } from '../pages/FloorPlanPage';
 import { MyResourcesPage } from '../pages/MyResourcesPage';
+import { MyVehiclesPage } from '../pages/MyVehiclesPage';
 import { PendingRequestsPage } from '../pages/PendingRequestsPage';
 import { MyRequestsPage } from '../pages/MyRequestsPage';
 import { ReleaseHubPage } from '../pages/ReleaseHubPage';
@@ -60,6 +62,7 @@ export function AppRoutes() {
 
         {/* Gestión */}
         <Route path="employees" element={<EmployeesPage />} />
+        <Route path="vehicles" element={<VehicleReviewPage />} />
         <Route path="resources" element={<ResourcesPage />} />
         <Route path="records" element={<RecordsPage />} />
         <Route path="settings" element={<SettingsPage />} />
@@ -114,6 +117,7 @@ export function AppRoutes() {
         <Route path="floor-plan" element={<FloorPlanPage />} />
         <Route path="requests" element={<MyRequestsPage />} />
         <Route path="my-resources" element={<MyResourcesPage />} />
+        <Route path="my-vehicles" element={<MyVehiclesPage />} />
 
         {/* Rutas antiguas: redirigen a "Mis plazas" con la pestaña correcta. */}
         <Route

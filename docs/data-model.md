@@ -103,6 +103,8 @@ CREATE TABLE dbo.employees (
     role                     VARCHAR(10) NOT NULL,
     enabled                  BIT NOT NULL CONSTRAINT DF_employees_enabled DEFAULT 1,
     active                   BIT NOT NULL CONSTRAINT DF_employees_active DEFAULT 1,
+    email_notifications_enabled BIT NOT NULL CONSTRAINT DF_employees_email_notif DEFAULT 1,  -- V33: preferencia por empleado (push-notifications)
+    push_notifications_enabled  BIT NOT NULL CONSTRAINT DF_employees_push_notif DEFAULT 1,   -- V33
     failed_login_attempts    INT NOT NULL CONSTRAINT DF_employees_failed_attempts DEFAULT 0,
     locked_until             DATETIME2(3) NULL,
     last_password_change_at  DATETIME2(3) NULL,
@@ -487,6 +489,34 @@ GO
 - `parking_lat`/`parking_lng` son `DECIMAL(9,6)` (precisión ~0.1 m; rango suficiente para lat `[-90, 90]` y lng `[-180, 180]`), nullable. En la entidad JPA se mapean como `BigDecimal`; el dominio y los DTOs los exponen como `Double` (JSON limpio para el mapa). Solo se persisten junto a una `parking_address` no vacía: borrar la dirección descarta las coordenadas.
 - `weekend_reservable` gobierna si `POST /requests` acepta sábados/domingos (400 `WEEKEND_NOT_RESERVABLE` cuando es `0`).
 - `approval_mode` es leíble por cualquier autenticado en `GET /settings/approval-mode`; `parking_address`+coordenadas en `GET /settings/parking-address`; el ajuste completo (con trazabilidad) solo por `ADMIN` en `GET /admin/settings`.
+
+### 3.13 `push_subscription`
+**Purpose:** Web Push subscription of an employee's browser/device (change `push-notifications`, migration **`V31__push_subscription.sql`**). Stores the push-service `endpoint` plus the client keys (`p256dh`/`auth`) needed to encrypt the VAPID payload. An employee may have several (multi-device); unique by `endpoint` (re-subscribe = upsert). Companion to the notification channel flags added by **`V32`** to `system_settings` (`email_notifications_enabled` / `push_notifications_enabled`) and by **`V33`** to `employees` (per-employee preferences).
+
+```sql
+CREATE TABLE dbo.push_subscription (
+    id           BIGINT IDENTITY(1,1) NOT NULL,
+    employee_id  BIGINT        NOT NULL,
+    endpoint     VARCHAR(1024) NOT NULL,   -- URL del push service (única)
+    p256dh       VARCHAR(255)  NOT NULL,   -- clave pública del cliente (base64url)
+    auth         VARCHAR(255)  NOT NULL,   -- secreto de autenticación (base64url)
+    user_agent   NVARCHAR(255) NULL,       -- dispositivo/navegador (para que el usuario lo reconozca)
+    created_at   DATETIME2(3)  NOT NULL CONSTRAINT DF_push_subscription_created_at DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_push_subscription PRIMARY KEY (id),
+    CONSTRAINT UQ_push_subscription_endpoint UNIQUE (endpoint),
+    CONSTRAINT FK_push_subscription_employee FOREIGN KEY (employee_id)
+        REFERENCES dbo.employees(id) ON DELETE CASCADE
+);
+GO
+CREATE INDEX IX_push_subscription_employee ON dbo.push_subscription(employee_id);
+GO
+```
+
+**Notes**
+- **Envío por canal push** = flag global `push_notifications_enabled` (system_settings) **AND** `push_notifications_enabled` del empleado **AND** que exista suscripción. El email es un canal independiente y sirve de fallback.
+- **Limpieza:** una suscripción caducada (respuesta `404`/`410 Gone` del push service) se borra automáticamente al enviar; un `5xx` transitorio no la borra (best-effort, sin outbox en v1).
+- **Ciclo de vida:** alta idempotente por `endpoint` (`POST /push/subscriptions`); baja por `endpoint` del propio usuario (`DELETE`); borrado en bloque al **desactivar** el empleado (el soft-delete no dispara el `ON DELETE CASCADE`, se hace en `EmployeeService`).
+- **RGPD:** el `endpoint` es un identificador de dispositivo ligado al empleado; es estado vivo (no auditoría) y se borra al dar de baja, cerrar sesión y al desactivar/eliminar el empleado. Fuera del purgado histórico de 2 años.
 
 ---
 

@@ -15,6 +15,7 @@ import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRep
 import com.aleatica.parking.notification.event.RequestAdminAssignedEvent;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
+import com.aleatica.parking.notification.event.RequestAdminCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
 import com.aleatica.parking.notification.event.WaitlistAvailableEvent;
@@ -1092,10 +1093,29 @@ public class RequestService {
      * @param pageable pagina y tamano solicitados
      * @return pagina de solicitudes pendientes en orden FIFO (DTO)
      */
+    // Campos por los que el ADMIN puede ordenar los listados de solicitudes (whitelist): evita
+    // exponer ordenacion por propiedades arbitrarias de la entidad (change sortable-table-columns).
+    private static final Set<String> SORTABLE_REQUEST_FIELDS = Set.of("requestedDate", "createdAt");
+
+    // Resuelve el orden efectivo del Pageable: conserva solo los criterios cuyo campo esta en la
+    // whitelist; si no queda ninguno permitido, aplica el orden por defecto. Preserva pagina/tamano
+    // (y soporta un Pageable sin paginar, p. ej. Pageable.unpaged() de tests/consumos internos).
+    private static Pageable withResolvedSort(Pageable pageable, Sort defaultSort) {
+        List<Sort.Order> allowed = pageable.getSort().stream()
+                .filter(order -> SORTABLE_REQUEST_FIELDS.contains(order.getProperty()))
+                .toList();
+        Sort effective = allowed.isEmpty() ? defaultSort : Sort.by(allowed);
+        return pageable.isPaged()
+                ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), effective)
+                : Pageable.unpaged(effective);
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<RequestResponse> listPending(Pageable pageable) {
+        // Orden por defecto FIFO (createdAt ASC) salvo que el cliente pida un campo permitido.
+        Pageable resolved = withResolvedSort(pageable, Sort.by(Sort.Direction.ASC, "createdAt"));
         return PageResponse.from(
-                requestRepository.findByStatusOrderByCreatedAtAsc(RequestStatus.PENDING, pageable),
+                requestRepository.findByStatus(RequestStatus.PENDING, resolved),
                 RequestResponse::from);
     }
 
@@ -1115,9 +1135,11 @@ public class RequestService {
      */
     @Transactional(readOnly = true)
     public PageResponse<RequestResponse> listByStatus(RequestStatus status, Pageable pageable) {
+        // Orden por defecto por actividad reciente (createdAt DESC) salvo campo permitido del cliente.
+        Pageable resolved = withResolvedSort(pageable, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Request> page = status == null
-                ? requestRepository.findAllByOrderByCreatedAtDesc(pageable)
-                : requestRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
+                ? requestRepository.findAll(resolved)
+                : requestRepository.findByStatus(status, resolved);
         return enrichWithResourceNumber(page);
     }
 
@@ -1263,6 +1285,10 @@ public class RequestService {
         // La cancelacion admin siempre parte de una APPROVED: libera recurso y avisa a los admins
         // (design §Decisions); AFTER_COMMIT garantiza que el aviso solo sale si el commit tiene exito.
         eventPublisher.publishEvent(new RequestCancelledEvent(response));
+        // Ademas, avisa al EMPLEADO afectado de que su reserva ha sido cancelada por un admin
+        // (change push-notifications, design D12) — evento dedicado para no auto-notificar al
+        // empleado en su propia cancelacion.
+        eventPublisher.publishEvent(new RequestAdminCancelledEvent(response));
         return response;
     }
 

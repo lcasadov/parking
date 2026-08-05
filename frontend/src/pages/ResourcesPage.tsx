@@ -1,10 +1,7 @@
 import { RESOURCE_ICON } from '../utils/resourceIcon';
-import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { PageHeader } from '../components/PageHeader';
 import { SectionSwitch, type SectionSwitchItem } from '../components/SectionSwitch';
-import { DUR, EASE } from '../theme/motion';
 import { DesksPage } from './DesksPage';
 import { ParkingSpacesPage } from './ParkingSpacesPage';
 
@@ -15,13 +12,13 @@ function isResourceTab(value: string | null): value is ResourceTab {
   return value === 'parking' || value === 'desks';
 }
 
-// Destino "Recursos" (fusion de secciones): cabecera de sección (título arriba) +
-// conmutador GRANDE Plazas | Puestos (mismo lenguaje que Ocupación) SIEMPRE debajo
-// del título, y la sub-página embebida (sin su propio título). La pestaña activa se
-// refleja en `?tab=` para que las rutas antiguas redirijan aqui preseleccionada.
+// Destino "Recursos" (fusión de secciones): router fino que resuelve la pestaña desde
+// `?tab=` y monta la sub-página (Plazas | Puestos). Cada sub-página es autónoma y usa su
+// propio PageFrame (mismo patrón que Ocupación): el conmutador va en el control-row a la
+// izquierda, la tira de KPIs a la derecha, "Nuevo…" en la cabecera y los filtros en la
+// subbar. El conmutador se construye aquí (dueño del `?tab=`) y se pasa a la sub-página.
 export function ResourcesPage() {
   const { t } = useTranslation();
-  const reduceMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get('tab');
   const tab: ResourceTab = isResourceTab(requested) ? requested : DEFAULT_TAB;
@@ -37,23 +34,19 @@ export function ResourcesPage() {
     }
   }
 
-  return (
-    <section className="resources-page" aria-label={t('resources.title')}>
-      <PageHeader
-        eyebrow={t('resources.eyebrow')}
-        title={t('resources.title')}
-        description={t('resources.description')}
-      />
-      <SectionSwitch items={items} active={tab} onChange={handleChange} ariaLabel={t('resources.title')} />
-      <motion.div
-        key={tab}
-        className="tab-fade-panel"
-        initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: DUR.fast, ease: EASE.standard }}
-      >
-        {tab === 'desks' ? <DesksPage embedded /> : <ParkingSpacesPage embedded />}
-      </motion.div>
-    </section>
+  const tabsSwitch = (
+    <SectionSwitch
+      items={items}
+      active={tab}
+      onChange={handleChange}
+      ariaLabel={t('resources.title')}
+      className="pf-lead"
+    />
+  );
+
+  return tab === 'desks' ? (
+    <DesksPage tabsSwitch={tabsSwitch} />
+  ) : (
+    <ParkingSpacesPage tabsSwitch={tabsSwitch} />
   );
 }

@@ -6,12 +6,17 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  getEmployeeRangeOccupancy,
   getEmployeeWeekOccupancy,
   listSelectableReleaseEmployees,
 } from '../api/releaseSelectionApi';
 import { createAdministrativeRelease } from '../api/releasesApi';
 import { adminCancelRequest } from '../api/requestsApi';
-import type { EmployeeOption, EmployeeWeekOccupancy } from '../types/releaseSelection';
+import type {
+  EmployeeOption,
+  EmployeeRangeOccupancy,
+  EmployeeWeekOccupancy,
+} from '../types/releaseSelection';
 import type { OccupancyOrigin } from '../types/occupancy';
 import type { ResourceType } from '../types/request';
 
@@ -51,6 +56,32 @@ export function useEmployeeWeekOccupancyQuery(
     queryKey: employeeWeekOccupancyQueryKey(employeeId, weekStart),
     queryFn: () => getEmployeeWeekOccupancy(employeeId as number, weekStart),
     enabled: employeeId !== null && weekStart !== '',
+    placeholderData: (previous) => previous,
+  });
+}
+
+const RANGE_SCOPE = 'range';
+
+export function employeeRangeOccupancyQueryKey(
+  employeeId: number | null,
+  from: string,
+  to: string,
+): (string | number | null)[] {
+  return [RELEASES_KEY, EMPLOYEES_SCOPE, employeeId, OCCUPANCY_SCOPE, RANGE_SCOPE, from, to];
+}
+
+// Ocupacion del empleado en un rango [from, to] (liberacion por rango). `enabled`
+// permite activarla solo en modo rango y con empleado y fechas validas.
+export function useEmployeeRangeOccupancyQuery(
+  employeeId: number | null,
+  from: string,
+  to: string,
+  enabled: boolean,
+): UseQueryResult<EmployeeRangeOccupancy> {
+  return useQuery({
+    queryKey: employeeRangeOccupancyQueryKey(employeeId, from, to),
+    queryFn: () => getEmployeeRangeOccupancy(employeeId as number, from, to),
+    enabled: enabled && employeeId !== null && from !== '' && to !== '',
     placeholderData: (previous) => previous,
   });
 }

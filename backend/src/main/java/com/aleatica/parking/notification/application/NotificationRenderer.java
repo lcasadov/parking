@@ -92,6 +92,7 @@ public class NotificationRenderer {
             case REQUEST_ADMIN_ASSIGNED -> renderer.renderRequestAdminAssigned(
                     employee, request, resolveResource(request));
             case WAITLIST_AVAILABLE -> renderer.renderWaitlistAvailable(employee, request);
+            case REQUEST_ADMIN_CANCELLED -> renderer.renderRequestAdminCancelled(employee, request);
         };
     }
 

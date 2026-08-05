@@ -253,6 +253,12 @@ export const handlers = [
 
   http.get(`${BASE}/requests/pending`, () => HttpResponse.json(defaultPendingRequestsPage)),
 
+  // Badge de validación de vehículos en la nav admin (change employee-vehicle-self-service):
+  // se monta en cualquier vista admin, así que el contador y los recuentos por estado deben
+  // tener handler por defecto (setup con onUnhandledRequest: 'error').
+  http.get(`${BASE}/employee-vehicles/pending-count`, () => HttpResponse.json({ count: 0 })),
+  http.get(`${BASE}/employee-vehicles/counts`, () => HttpResponse.json({})),
+
   // GET /requests?status=... (ADMIN): listado por estado (aprobadas / rechazadas / todas).
   http.get(`${BASE}/requests`, ({ request }) => {
     const status = new URL(request.url).searchParams.get('status');

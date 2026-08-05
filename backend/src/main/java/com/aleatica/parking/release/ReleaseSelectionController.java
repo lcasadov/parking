@@ -1,6 +1,7 @@
 package com.aleatica.parking.release;
 
 import com.aleatica.parking.availability.application.AvailabilityService;
+import com.aleatica.parking.availability.dto.EmployeeRangeOccupancyResponse;
 import com.aleatica.parking.availability.dto.EmployeeWeekOccupancyResponse;
 import com.aleatica.parking.employee.application.EmployeeService;
 import com.aleatica.parking.employee.dto.EmployeeOptionResponse;
@@ -117,5 +118,51 @@ public class ReleaseSelectionController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
         return ResponseEntity.ok(
                 availabilityService.employeeWeekOccupancy(employeeId, weekStart));
+    }
+
+    /**
+     * Devuelve la ocupacion de un empleado en un RANGO de fechas {@code [from, to]} (ambos inclusive)
+     * para la liberacion administrativa por rango (caso "vacaciones"): plaza y puesto por dia, con
+     * origen y {@code requestId} cuando proviene de una solicitud aprobada; solo {@code ADMIN} o
+     * {@code AGENCIA}. De una sola consulta el cliente obtiene todas las reservas del rango y las
+     * libera en lote por su mecanismo.
+     *
+     * @param employeeId empleado a consultar
+     * @param from       primer dia del rango (ISO-8601, inclusive)
+     * @param to         ultimo dia del rango (ISO-8601, inclusive)
+     * @return {@code 200} con la ocupacion del empleado por cada dia del rango
+     */
+    @Operation(summary = "Ocupacion de un empleado en un rango para liberacion (ADMIN/AGENCIA)",
+            description = "Por cada dia del rango [from, to] (ambos inclusive), las reservas del "
+                    + "empleado en plaza y puesto con su origen (asignacion fija / solicitud "
+                    + "aprobada) y el requestId cuando proviene de una solicitud aprobada.",
+            security = @SecurityRequirement(name = SESSION_COOKIE))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Ocupacion del empleado en el rango"),
+            @ApiResponse(responseCode = "400", description = "Rango ausente, con formato invalido, "
+                    + "from posterior a to o rango demasiado largo",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Sin permisos (rol distinto de ADMIN/AGENCIA)",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Empleado no encontrado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @GetMapping("/employees/{employeeId}/occupancy/range")
+    @PreAuthorize("hasAnyRole('ADMIN','AGENCIA')")
+    public ResponseEntity<EmployeeRangeOccupancyResponse> getEmployeeRangeOccupancy(
+            @Parameter(description = "Id del empleado", required = true, example = "15")
+            @PathVariable Long employeeId,
+            @Parameter(description = "Primer dia del rango (ISO-8601, inclusive)", required = true,
+                    example = "2026-08-03")
+            @RequestParam(name = "from")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @Parameter(description = "Ultimo dia del rango (ISO-8601, inclusive)", required = true,
+                    example = "2026-08-14")
+            @RequestParam(name = "to")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(
+                availabilityService.employeeRangeOccupancy(employeeId, from, to));
     }
 }

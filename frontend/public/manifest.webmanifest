@@ -1,0 +1,14 @@
+{
+  "name": "Nexo",
+  "short_name": "Nexo",
+  "description": "Reserva de plazas de parking y puestos de trabajo — ALEATICA.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f9e68",
+  "icons": [
+    { "src": "/logo192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/logo512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

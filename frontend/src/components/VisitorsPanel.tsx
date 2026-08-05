@@ -1,24 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
-import { SearchBox } from './SearchBox';
 import { TableEmpty, TableError, TableSkeleton } from './TableStates';
-import { Toolbar } from './Toolbar';
-import { VisitorFormModal } from './VisitorFormModal';
 import { ReservationWizard } from './wizard/ReservationWizard';
 import { useVisitorsQuery } from '../hooks/useVisitors';
 import type { Visitor } from '../types/visitor';
 
 const PAGE_SIZE = 20;
 
-// Panel ADMIN: fichas de visitante con buscador (DNI/nombre/matricula), alta,
-// edicion, detalle y lanzamiento de reserva por fila (tasks §4.1-4.4).
-export function VisitorsPanel() {
+interface VisitorsPanelProps {
+  // Búsqueda controlada por el hub (VisitorsPage), donde vive junto al botón "Nuevo".
+  q: string;
+  onCreate: () => void;
+  onEdit: (visitor: Visitor) => void;
+}
+
+// Panel ADMIN: fichas de visitante (tabla + reserva por fila). El buscador y el botón
+// "Nuevo" viven en el control-row del hub; el alta/edición abre el modal en el hub.
+export function VisitorsPanel({ q, onCreate, onEdit }: VisitorsPanelProps) {
   const { t } = useTranslation();
-  const [q, setQ] = useState('');
   const [page, setPage] = useState(0);
-  const [formVisitor, setFormVisitor] = useState<Visitor | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [reserveVisitor, setReserveVisitor] = useState<Visitor | null>(null);
 
   const query = useVisitorsQuery({ page, size: PAGE_SIZE, q });
@@ -29,42 +30,13 @@ export function VisitorsPanel() {
   const isLast = query.data?.last ?? true;
   const none = t('visitors.detail.none');
 
-  function handleSearch(value: string): void {
-    setQ(value);
+  // La búsqueda la controla el hub; al cambiarla, volvemos a la primera página.
+  useEffect(() => {
     setPage(0);
-  }
-
-  function openCreate(): void {
-    setFormVisitor(null);
-    setIsFormOpen(true);
-  }
-
-  function openEdit(visitor: Visitor): void {
-    setFormVisitor(visitor);
-    setIsFormOpen(true);
-  }
-
-  function closeForm(): void {
-    setIsFormOpen(false);
-    setFormVisitor(null);
-  }
+  }, [q]);
 
   return (
     <div className="visitors-panel">
-      <Toolbar ariaLabel={t('visitors.searchLabel')}>
-        <SearchBox
-          label={t('visitors.searchLabel')}
-          placeholder={t('visitors.searchPlaceholder')}
-          value={q}
-          onValueChange={handleSearch}
-        />
-        <div className="toolbar-end">
-          <Button variant="green" icon="plus" onClick={openCreate}>
-            {t('visitors.newVisitor')}
-          </Button>
-        </div>
-      </Toolbar>
-
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={6} /> : null}
 
       {query.isError ? (
@@ -81,7 +53,7 @@ export function VisitorsPanel() {
             icon="user-question"
             message={t('visitors.empty')}
             action={
-              <Button variant="green" icon="plus" onClick={openCreate}>
+              <Button variant="green" icon="plus" onClick={onCreate}>
                 {t('visitors.newVisitor')}
               </Button>
             }
@@ -114,7 +86,7 @@ export function VisitorsPanel() {
                       {visitor.usualReason ?? none}
                     </td>
                     <td className="table-actions" data-label={t('visitors.columns.actions')}>
-                      <Button variant="white" icon="pencil" onClick={() => openEdit(visitor)}>
+                      <Button variant="white" icon="pencil" onClick={() => onEdit(visitor)}>
                         {t('visitors.actions.edit')}
                       </Button>
                       <Button
@@ -145,10 +117,6 @@ export function VisitorsPanel() {
             {t('visitors.pagination.next')}
           </Button>
         </nav>
-      ) : null}
-
-      {isFormOpen ? (
-        <VisitorFormModal visitor={formVisitor} onClose={closeForm} onSaved={closeForm} />
       ) : null}
 
       {reserveVisitor ? (

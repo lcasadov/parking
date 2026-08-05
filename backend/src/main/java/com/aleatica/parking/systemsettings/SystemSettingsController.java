@@ -5,6 +5,7 @@ import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import com.aleatica.parking.systemsettings.dto.SystemSettingsResponse;
 import com.aleatica.parking.systemsettings.dto.UpdateApprovalModeRequest;
 import com.aleatica.parking.systemsettings.dto.UpdateParkingAddressRequest;
+import com.aleatica.parking.systemsettings.dto.UpdateNotificationChannelsRequest;
 import com.aleatica.parking.systemsettings.dto.UpdateWeekendReservableRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -152,5 +153,31 @@ public class SystemSettingsController {
             @Valid @RequestBody UpdateWeekendReservableRequest request, Authentication authentication) {
         return ResponseEntity.ok(systemSettingsService.updateWeekendReservable(
                 request.weekendReservable(), authentication.getName()));
+    }
+
+    /**
+     * Cambia los interruptores globales de canal de notificacion (email/push), solo {@code ADMIN}
+     * (change {@code push-notifications}).
+     *
+     * @param request        los dos flags (obligatorios)
+     * @param authentication autenticacion de la sesion (actor del cambio)
+     * @return {@code 200} con el ajuste actualizado
+     */
+    @Operation(summary = "Cambia los interruptores globales de canal (email/push) (ADMIN)",
+            security = @SecurityRequirement(name = SESSION_COOKIE))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Ajuste actualizado"),
+            @ApiResponse(responseCode = "400", description = "Validacion",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "No es ADMIN",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @PutMapping("/notification-channels")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SystemSettingsResponse> updateNotificationChannels(
+            @Valid @RequestBody UpdateNotificationChannelsRequest request, Authentication authentication) {
+        return ResponseEntity.ok(systemSettingsService.updateNotificationChannels(
+                request.emailNotificationsEnabled(), request.pushNotificationsEnabled(),
+                authentication.getName()));
     }
 }

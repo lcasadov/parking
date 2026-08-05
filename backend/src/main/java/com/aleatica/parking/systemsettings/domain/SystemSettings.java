@@ -24,18 +24,23 @@ public class SystemSettings {
     private Double parkingLat;
     private Double parkingLng;
     private boolean weekendReservable;
+    private boolean emailNotificationsEnabled;
+    private boolean pushNotificationsEnabled;
     private Long updatedById;
     private Instant updatedAt;
 
     private SystemSettings(
             short id, ApprovalMode approvalMode, String parkingAddress, Double parkingLat,
-            Double parkingLng, boolean weekendReservable, Long updatedById, Instant updatedAt) {
+            Double parkingLng, boolean weekendReservable, boolean emailNotificationsEnabled,
+            boolean pushNotificationsEnabled, Long updatedById, Instant updatedAt) {
         this.id = id;
         this.approvalMode = approvalMode;
         this.parkingAddress = parkingAddress;
         this.parkingLat = parkingLat;
         this.parkingLng = parkingLng;
         this.weekendReservable = weekendReservable;
+        this.emailNotificationsEnabled = emailNotificationsEnabled;
+        this.pushNotificationsEnabled = pushNotificationsEnabled;
         this.updatedById = updatedById;
         this.updatedAt = updatedAt;
     }
@@ -53,16 +58,20 @@ public class SystemSettings {
      * @param parkingLng        longitud del punto exacto del parking; {@code null} si sin configurar
      * @param weekendReservable si se permiten reservas en sabado/domingo (change
      *                          {@code reservas-employee-admin-reassign}); por defecto {@code false}
+     * @param emailNotificationsEnabled si el canal email envia a nivel global (change
+     *                          {@code push-notifications}); por defecto {@code true}
+     * @param pushNotificationsEnabled si el canal push envia a nivel global; por defecto {@code true}
      * @param updatedById       empleado (ADMIN) que hizo el ultimo cambio; {@code null} si nunca
      * @param updatedAt         instante del ultimo cambio (UTC); {@code null} si nunca
      * @return el ajuste reconstituido
      */
     public static SystemSettings restore(
             short id, ApprovalMode approvalMode, String parkingAddress, Double parkingLat,
-            Double parkingLng, boolean weekendReservable, Long updatedById, Instant updatedAt) {
+            Double parkingLng, boolean weekendReservable, boolean emailNotificationsEnabled,
+            boolean pushNotificationsEnabled, Long updatedById, Instant updatedAt) {
         return new SystemSettings(
                 id, approvalMode, parkingAddress, parkingLat, parkingLng, weekendReservable,
-                updatedById, updatedAt);
+                emailNotificationsEnabled, pushNotificationsEnabled, updatedById, updatedAt);
     }
 
     /**
@@ -74,7 +83,7 @@ public class SystemSettings {
      */
     public static SystemSettings defaults() {
         return new SystemSettings(
-                SINGLETON_ID, ApprovalMode.MANUAL, null, null, null, false, null, null);
+                SINGLETON_ID, ApprovalMode.MANUAL, null, null, null, false, true, true, null, null);
     }
 
     /**
@@ -137,6 +146,23 @@ public class SystemSettings {
         this.updatedAt = now;
     }
 
+    /**
+     * Cambia los interruptores globales de canal de notificacion (email/push), de forma
+     * independiente, registrando el actor y el instante (change {@code push-notifications}).
+     *
+     * @param emailEnabled si el canal email envia a nivel global
+     * @param pushEnabled  si el canal push envia a nivel global
+     * @param actorId      empleado (ADMIN) que ejecuta el cambio
+     * @param now          instante del cambio (UTC)
+     */
+    public void changeNotificationChannels(
+            boolean emailEnabled, boolean pushEnabled, Long actorId, Instant now) {
+        this.emailNotificationsEnabled = emailEnabled;
+        this.pushNotificationsEnabled = pushEnabled;
+        this.updatedById = actorId;
+        this.updatedAt = now;
+    }
+
     public short getId() {
         return id;
     }
@@ -155,6 +181,14 @@ public class SystemSettings {
 
     public Double getParkingLng() {
         return parkingLng;
+    }
+
+    public boolean isEmailNotificationsEnabled() {
+        return emailNotificationsEnabled;
+    }
+
+    public boolean isPushNotificationsEnabled() {
+        return pushNotificationsEnabled;
     }
 
     public boolean isWeekendReservable() {

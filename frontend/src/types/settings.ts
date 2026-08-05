@@ -17,6 +17,9 @@ export interface SystemSettings {
   // Si se admiten reservas en fin de semana (sábado/domingo). Por defecto false:
   // el empleado no puede reservar esos días y se ocultan sus tarjetas.
   weekendReservable?: boolean;
+  // Interruptores globales de canal de notificación (change push-notifications).
+  emailNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
   updatedById?: number | null;
   updatedAt?: string | null;
 }

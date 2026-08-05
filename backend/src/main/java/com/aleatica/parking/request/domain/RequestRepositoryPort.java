@@ -142,6 +142,26 @@ public interface RequestRepositoryPort {
     Page<Request> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     /**
+     * Pagina de solicitudes en un estado, con el ORDEN que indique el {@code Pageable} (sin orden
+     * fijo en el nombre): permite que el cliente ordene por columnas permitidas (change
+     * {@code sortable-table-columns}). El caso de uso aplica el orden por defecto y la whitelist.
+     *
+     * @param status   estado por el que filtrar
+     * @param pageable pagina, tamano y orden solicitados
+     * @return pagina de solicitudes de dominio segun el orden del {@code Pageable}
+     */
+    Page<Request> findByStatus(RequestStatus status, Pageable pageable);
+
+    /**
+     * Pagina de todas las solicitudes (cualquier estado) con el ORDEN que indique el
+     * {@code Pageable} (sin orden fijo en el nombre); ver {@link #findByStatus}.
+     *
+     * @param pageable pagina, tamano y orden solicitados
+     * @return pagina de solicitudes de dominio segun el orden del {@code Pageable}
+     */
+    Page<Request> findAll(Pageable pageable);
+
+    /**
      * Candidatas a la <strong>lista de espera</strong> (change {@code waitlist-requests}) de un
      * dia y tipo de recurso: solicitudes {@code PENDING} marcadas {@code waitlisted}, en orden
      * FIFO ({@code created_at ASC}). El motor de promocion ({@code RequestService#promoteWaitlist})

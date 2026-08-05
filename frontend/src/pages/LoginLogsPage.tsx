@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
-import { StatTile } from '../components/StatTile';
+import { KpiStat } from '../components/KpiStat';
+import { PageFrame } from '../components/PageFrame';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
-import { Toolbar } from '../components/Toolbar';
 import { getStatus } from '../api/apiError';
 import { useLoginLogsQuery } from '../hooks/useAudit';
 import {
@@ -45,28 +44,10 @@ function LoginStats({ from, to, enabled }: { from: string; to: string; enabled: 
   const failed = Math.max(total - ok, 0);
   const unit = t('loginLogs.stats.unit');
   return (
-    <div className="mgmt-stats">
-      <StatTile
-        dot="var(--ink-faint)"
-        icon="login"
-        label={t('loginLogs.stats.total')}
-        value={total}
-        unit={unit}
-      />
-      <StatTile
-        dot="var(--accent)"
-        icon="circle-check"
-        label={t('loginLogs.stats.ok')}
-        value={ok}
-        unit={unit}
-      />
-      <StatTile
-        dot="var(--busy)"
-        icon="alert-triangle"
-        label={t('loginLogs.stats.failed')}
-        value={failed}
-        unit={unit}
-      />
+    <div className="occ-kpi-strip" role="group" aria-label={t('loginLogs.title')}>
+      <KpiStat dot="var(--ink-faint)" value={total} label={t('loginLogs.stats.total')} sub={unit} />
+      <KpiStat dot="var(--accent)" value={ok} label={t('loginLogs.stats.ok')} sub={unit} />
+      <KpiStat dot="var(--busy)" value={failed} label={t('loginLogs.stats.failed')} sub={unit} />
     </div>
   );
 }
@@ -169,7 +150,7 @@ function LoginLogsResults({ query, windowValid, page, onPageChange }: ResultsPro
 }
 
 // Panel ADMIN de consulta de logs de login (GET /login-logs). tasks §4.2.
-export function LoginLogsPage({ embedded = false }: { embedded?: boolean } = {}) {
+export function LoginLogsPage({ tabsSwitch }: { tabsSwitch?: ReactNode } = {}) {
   const { t } = useTranslation();
   const [result, setResult] = useState<LoginResult | ''>('');
   const [from, setFrom] = useState('');
@@ -194,24 +175,14 @@ export function LoginLogsPage({ embedded = false }: { embedded?: boolean } = {})
   }
 
   return (
-    <section className="login-logs-page" aria-label={t('loginLogs.title')}>
-      <EmbeddablePageHeader
-        embedded={embedded}
-        eyebrow={t('loginLogs.eyebrow')}
-        title={t('loginLogs.title')}
-        description={t('loginLogs.description')}
-      />
-
-      <p className="form-hint">{t('loginLogs.retentionNote')}</p>
-
-      <LoginStats from={from} to={to} enabled={windowValid} />
-
-      <div className="filter-card">
-        <div className="filter-card-head">
-          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
-          {t('common.filters')}
-        </div>
-        <Toolbar ariaLabel={t('loginLogs.title')}>
+    <PageFrame
+      eyebrow={t('records.eyebrow')}
+      title={t('records.title')}
+      bodyLabel={t('loginLogs.title')}
+      resourceSelector={tabsSwitch}
+      actions={<LoginStats from={from} to={to} enabled={windowValid} />}
+      toolbar={
+        <div className="mgmt-filters records-filters">
           <div className="auth-field">
             <label className="field-label" htmlFor="login-logs-result">
               {t('loginLogs.filters.result')}
@@ -246,15 +217,16 @@ export function LoginLogsPage({ embedded = false }: { embedded?: boolean } = {})
             value={to}
             onChange={(event) => onFilterChange(setTo, event.target.value)}
           />
-        </Toolbar>
-      </div>
-
+        </div>
+      }
+    >
+      <p className="form-hint">{t('loginLogs.retentionNote')}</p>
       <LoginLogsResults
         query={query}
         windowValid={windowValid}
         page={page}
         onPageChange={setPage}
       />
-    </section>
+    </PageFrame>
   );
 }

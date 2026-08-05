@@ -10,6 +10,7 @@ import {
   useUpdateApprovalMode,
   useUpdateParkingAddress,
   useUpdateWeekendReservable,
+  useUpdateNotificationChannels,
 } from '../hooks/useSettings';
 import type { ApprovalMode, ParkingLocation, SystemSettings } from '../types/settings';
 
@@ -128,6 +129,15 @@ function canSaveParkingLocation(
   return isDirty && (!isActive || trimmed !== '');
 }
 
+// Flags de canal de notificación (default true) — extraído para no cargar la complejidad
+// de SettingsPage (S3776).
+function toChannels(data: SystemSettings | undefined): { email: boolean; push: boolean } {
+  return {
+    email: data?.emailNotificationsEnabled ?? true,
+    push: data?.pushNotificationsEnabled ?? true,
+  };
+}
+
 // Construye la ubicación del parking desde el ajuste global (extraído para no cargar la
 // complejidad de SettingsPage, S3776).
 function toParkingLocation(data: SystemSettings | undefined): ParkingLocation {
@@ -136,6 +146,78 @@ function toParkingLocation(data: SystemSettings | undefined): ParkingLocation {
     lat: data?.parkingLat ?? null,
     lng: data?.parkingLng ?? null,
   };
+}
+
+// Tarjeta ADMIN: interruptores globales de canal de notificación (email/push), independientes
+// (change push-notifications). Se guardan juntos con un único botón.
+function NotificationChannelsCard({ email, push }: { email: boolean; push: boolean }) {
+  const { t } = useTranslation();
+  const mutation = useUpdateNotificationChannels();
+  const [emailDraft, setEmailDraft] = useState<boolean | null>(null);
+  const [pushDraft, setPushDraft] = useState<boolean | null>(null);
+  const emailValue = emailDraft ?? email;
+  const pushValue = pushDraft ?? push;
+  const isDirty = emailValue !== email || pushValue !== push;
+
+  async function save(): Promise<void> {
+    try {
+      await mutation.mutateAsync({ email: emailValue, push: pushValue });
+      setEmailDraft(null);
+      setPushDraft(null);
+      emitApiErrorToast('settings.saved', 'success');
+    } catch {
+      emitApiErrorToast('settings.saveError');
+    }
+  }
+
+  return (
+    <div className="settings-card settings-approval">
+      <div className="settings-hero">
+        <span className="settings-hero-icon">
+          <i className="ti ti-bell" aria-hidden="true" />
+        </span>
+        <div>
+          <h2 className="settings-hero-title">{t('settings.notifications.heading')}</h2>
+          <p className="settings-hero-desc">{t('settings.notifications.description')}</p>
+        </div>
+      </div>
+      <div className="switch-field">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={emailValue}
+          className={`switch${emailValue ? ' is-on' : ''}`}
+          onClick={() => setEmailDraft(!emailValue)}
+        >
+          <span className="switch-knob" />
+        </button>
+        <span>{t('settings.notifications.email')}</span>
+      </div>
+      <div className="switch-field">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={pushValue}
+          className={`switch${pushValue ? ' is-on' : ''}`}
+          onClick={() => setPushDraft(!pushValue)}
+        >
+          <span className="switch-knob" />
+        </button>
+        <span>{t('settings.notifications.push')}</span>
+      </div>
+      <p className="hint">{t('settings.notifications.hint')}</p>
+      <div className="settings-actions">
+        <Button
+          variant="green"
+          icon="check"
+          disabled={!isDirty || mutation.isPending}
+          onClick={() => void save()}
+        >
+          {t('settings.save')}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 // Tarjeta ADMIN: ubicación del parking (dirección + punto exacto en el mapa) con guardado.
@@ -315,6 +397,10 @@ export function SettingsPage() {
 
       {ready ? (
         <WeekendReservableCard enabled={query.data?.weekendReservable ?? false} />
+      ) : null}
+
+      {ready ? (
+        <NotificationChannelsCard {...toChannels(query.data)} />
       ) : null}
     </section>
   );

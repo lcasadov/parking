@@ -29,6 +29,8 @@
         <springdoc.version>2.6.0</springdoc.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <webpush.version>5.1.1</webpush.version>
+        <bouncycastle.version>1.78.1</bouncycastle.version>
         <poi.version>5.3.0</poi.version>
 
         <!-- Umbrales del Quality Gate (docs/TESTING-STRATEGY.md). -->
@@ -135,6 +137,28 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- ===================== Web Push (VAPID) — change push-notifications ===================== -->
+        <dependency>
+            <groupId>nl.martijndwars</groupId>
+            <artifactId>web-push</artifactId>
+            <version>${webpush.version}</version>
+        </dependency>
+        <!--
+          web-push:5.1.1 usa BouncyCastle (org.bouncycastle.jce.*) para las claves EC/VAPID,
+          pero su POM publicado NO declara la dependencia (bug de empaquetado). Sin esto,
+          construir PushService lanza NoClassDefFoundError en runtime. Se añade explícita.
+        -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
         </dependency>
 
         <!-- ===================== Tomcat externo (WAR) ===================== -->

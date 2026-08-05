@@ -30,3 +30,14 @@ export interface EmployeeWeekOccupancy {
   weekStart: string;
   days: EmployeeWeekDay[];
 }
+
+// EmployeeRangeOccupancy: ocupacion de un empleado en un rango [from, to] (ambos
+// inclusive), base de la liberacion por rango ("vacaciones"). Misma forma por dia
+// que la semanal. Schema #/components/schemas/EmployeeRangeOccupancy.
+export interface EmployeeRangeOccupancy {
+  employeeId: number;
+  employeeName: string;
+  from: string;
+  to: string;
+  days: EmployeeWeekDay[];
+}

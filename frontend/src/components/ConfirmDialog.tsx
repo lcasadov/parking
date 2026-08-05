@@ -12,8 +12,12 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   // 'green' acción neutra/positiva · 'red' acción destructiva.
   tone?: 'green' | 'red';
-  // Deshabilita el botón de confirmar (p.ej. mutación en curso).
+  // Deshabilita el botón de confirmar (p.ej. validación pendiente o mutación en curso).
   busy?: boolean;
+  // Si se pasa, el confirmar NO auto-cierra el diálogo: se queda abierto mostrando un
+  // spinner mientras `loading` es true (el caller cierra el diálogo en su onSuccess).
+  // Sin esta prop, el confirmar mantiene el auto-cierre de Radix (comportamiento previo).
+  loading?: boolean;
   // Icono Tabler opcional (sin prefijo "ti-").
   icon?: string;
 }
@@ -34,9 +38,19 @@ export function ConfirmDialog({
   onConfirm,
   tone = 'green',
   busy = false,
+  loading,
   icon,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
+  // Modo "asíncrono con feedback": el confirmar no cierra el diálogo (lo cierra el
+  // caller al terminar) y muestra un spinner mientras `loading` es true.
+  const controlledClose = loading !== undefined;
+  const confirmContent = (
+    <>
+      {loading ? <i className="ti ti-loader-2 btn-spin" aria-hidden="true" /> : null}
+      {confirmLabel ?? t('common.confirm')}
+    </>
+  );
   return (
     <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialog.Portal>
@@ -63,16 +77,28 @@ export function ConfirmDialog({
                 {cancelLabel ?? t('common.cancel')}
               </button>
             </AlertDialog.Cancel>
-            <AlertDialog.Action asChild>
+            {controlledClose ? (
               <button
                 type="button"
                 className={`btn btn-${tone}`}
-                disabled={busy}
+                disabled={busy || loading}
+                aria-busy={loading || undefined}
                 onClick={onConfirm}
               >
-                {confirmLabel ?? t('common.confirm')}
+                {confirmContent}
               </button>
-            </AlertDialog.Action>
+            ) : (
+              <AlertDialog.Action asChild>
+                <button
+                  type="button"
+                  className={`btn btn-${tone}`}
+                  disabled={busy}
+                  onClick={onConfirm}
+                >
+                  {confirmContent}
+                </button>
+              </AlertDialog.Action>
+            )}
           </div>
         </AlertDialog.Content>
       </AlertDialog.Portal>

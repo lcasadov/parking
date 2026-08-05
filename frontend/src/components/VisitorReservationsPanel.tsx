@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { TableEmpty, TableError, TableSkeleton } from './TableStates';
-import { Toolbar } from './Toolbar';
 import { CancelVisitorReservationModal } from './CancelVisitorReservationModal';
-import { ReservationWizard } from './wizard/ReservationWizard';
 import { useVisitorReservationsQuery } from '../hooks/useVisitorReservations';
 import { canCancelReservation } from '../utils/visitors';
 
@@ -15,13 +13,17 @@ interface CancelTarget {
   reservationDate: string;
 }
 
-// Panel ADMIN: reservas de visita con alta y anulacion de las futuras
+interface VisitorReservationsPanelProps {
+  // El alta ("Nueva reserva") vive en el control-row del hub; el asistente lo abre allí.
+  onCreate: () => void;
+}
+
+// Panel ADMIN: reservas de visita con anulacion de las futuras
 // (DELETE /visitor-reservations/{id}); las pasadas no son anulables y su boton
-// se muestra deshabilitado (tasks §4.5).
-export function VisitorReservationsPanel() {
+// se muestra deshabilitado (tasks §4.5). El botón "Nueva reserva" vive en el hub.
+export function VisitorReservationsPanel({ onCreate }: VisitorReservationsPanelProps) {
   const { t } = useTranslation();
   const [page, setPage] = useState(0);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
 
   const query = useVisitorReservationsQuery({ page, size: PAGE_SIZE });
@@ -33,14 +35,6 @@ export function VisitorReservationsPanel() {
 
   return (
     <div className="visitor-reservations-panel">
-      <Toolbar ariaLabel={t('visitors.tabs.reservations')}>
-        <div className="toolbar-end">
-          <Button variant="green" icon="calendar-plus" onClick={() => setIsCreateOpen(true)}>
-            {t('visitors.newReservation')}
-          </Button>
-        </div>
-      </Toolbar>
-
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={5} /> : null}
 
       {query.isError ? (
@@ -56,7 +50,7 @@ export function VisitorReservationsPanel() {
           icon="calendar-off"
           message={t('visitors.reservations.empty')}
           action={
-            <Button variant="green" icon="calendar-plus" onClick={() => setIsCreateOpen(true)}>
+            <Button variant="green" icon="calendar-plus" onClick={onCreate}>
               {t('visitors.newReservation')}
             </Button>
           }
@@ -124,13 +118,6 @@ export function VisitorReservationsPanel() {
             {t('visitors.pagination.next')}
           </Button>
         </nav>
-      ) : null}
-
-      {isCreateOpen ? (
-        <ReservationWizard
-          initialBeneficiaryType="VISITOR"
-          onClose={() => setIsCreateOpen(false)}
-        />
       ) : null}
 
       {cancelTarget ? (

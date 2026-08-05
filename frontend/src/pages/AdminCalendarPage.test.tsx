@@ -89,8 +89,8 @@ describe('AdminCalendarPage (ADMIN grid)', () => {
     // (2026-05-11): P-01 ASSIGNED => 1 ocupado; P-02 FREE => 1 libre. El texto
     // "Ocupados" tambien aparece en el chip de filtro, asi que acotamos la
     // busqueda al contenedor de KPIs (.occ-kpis).
-    const kpis = document.querySelector('.occ-kpis') as HTMLElement;
-    const occupied = within(kpis).getByText(/ocupados|occupied/i).closest('.occ-kpi');
+    const kpis = document.querySelector('.occ-kpi-strip') as HTMLElement;
+    const occupied = within(kpis).getByText(/ocupados|occupied/i).closest('.occ-kpi-stat');
     expect(occupied).not.toBeNull();
     expect(within(occupied as HTMLElement).getByText('1')).toBeInTheDocument();
   });

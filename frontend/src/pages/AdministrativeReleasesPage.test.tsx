@@ -1,7 +1,7 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdministrativeReleasesPage } from './AdministrativeReleasesPage';
 import { server } from '../mocks/server';
 import { MSW_BASE } from '../mocks/handlers';
@@ -64,13 +64,19 @@ function useOccupancyHandler(
   return seen;
 }
 
-async function selectEmployee(): Promise<void> {
-  const user = userEvent.setup();
-  // Las opciones llegan de forma asincrona (GET /releases/employees); esperamos a
-  // que la del empleado exista antes de seleccionarla.
-  await screen.findByRole('option', { name: 'Alice Employee' });
-  await user.selectOptions(screen.getByLabelText(/empleado|employee/i), '10');
-}
+
+// Congela el reloj a un LUNES fijo: el componente oculta los días pasados
+// (`day.date >= today`), y los fixtures colocan reservas en lunes/martes de la
+// semana. Sin congelar, el test falla cualquier día que no sea lunes. Se falsea
+// solo `Date` (no los timers) para no interferir con userEvent ni react-query.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-08-03T10:00:00Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por empleado y semana', () => {
   it('should_prompt_to_pick_employee_before_any_is_selected', async () => {
@@ -82,9 +88,7 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
 
   it('should_render_parking_and_desk_reservations_for_selected_employee_week', async () => {
     useOccupancyHandler([PARKING_FIXED], [DESK_APPROVED]);
-    renderWithProviders(<AdministrativeReleasesPage />);
-
-    await selectEmployee();
+    renderWithProviders(<AdministrativeReleasesPage employeeId={10} />);
 
     expect(await screen.findByText(/Plaza 3005 · Planta 3|Space 3005 · Floor 3/)).toBeInTheDocument();
     expect(await screen.findByText(/Puesto 12|Desk 12/)).toBeInTheDocument();
@@ -93,9 +97,7 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
 
   it('should_show_empty_state_when_employee_has_no_reservations_that_week', async () => {
     useOccupancyHandler([], []);
-    renderWithProviders(<AdministrativeReleasesPage />);
-
-    await selectEmployee();
+    renderWithProviders(<AdministrativeReleasesPage employeeId={10} />);
 
     expect(
       await screen.findByText(/no tiene reservas esta semana|has no reservations this week/i),
@@ -105,9 +107,7 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
   it('should_refetch_next_week_when_navigating_forward', async () => {
     const seen = useOccupancyHandler([PARKING_FIXED]);
     const user = userEvent.setup();
-    renderWithProviders(<AdministrativeReleasesPage />);
-
-    await selectEmployee();
+    renderWithProviders(<AdministrativeReleasesPage employeeId={10} />);
     await screen.findByText(/Plaza 3005|Space 3005/);
     const thisWeek = mondayOfWeek();
     await waitFor(() => expect(seen.weekStart).toBe(thisWeek));
@@ -127,29 +127,26 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<AdministrativeReleasesPage />);
-
-    await selectEmployee();
+    renderWithProviders(<AdministrativeReleasesPage employeeId={10} />);
     await user.click(await screen.findByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: /liberar reservas|release reservations/i }));
+    await user.click(screen.getByRole('button', { name: /liberar seleccionadas|release selected/i }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/mínimo 5 caracteres|minimum 5 characters/i);
+    // El diálogo exige motivo (≥5): el botón de confirmar queda deshabilitado sin motivo válido.
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByRole('button', { name: /liberar seleccionadas|release selected/i }))
+      .toBeDisabled();
     expect(requested).toBe(false);
   });
 
-  it('should_reject_release_when_no_reservation_selected', async () => {
+  it('should_not_offer_release_when_no_reservation_selected', async () => {
     useOccupancyHandler([PARKING_FIXED]);
-    const user = userEvent.setup();
-    renderWithProviders(<AdministrativeReleasesPage />);
-
-    await selectEmployee();
+    renderWithProviders(<AdministrativeReleasesPage employeeId={10} />);
     await screen.findByText(/Plaza 3005|Space 3005/);
-    await user.type(screen.getByLabelText(/motivo|reason/i), 'No acude esta semana');
-    await user.click(screen.getByRole('button', { name: /liberar reservas|release reservations/i }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      /al menos una reserva|at least one reservation/i,
-    );
+    // Sin selección no hay barra ni botón de liberar (no se puede liberar nada).
+    expect(
+      screen.queryByRole('button', { name: /liberar seleccionadas|release selected/i }),
+    ).toBeNull();
   });
 
   it('should_release_batch_routing_each_reservation_to_its_endpoint', async () => {
@@ -169,15 +166,15 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<AdministrativeReleasesPage />);
-
-    await selectEmployee();
+    renderWithProviders(<AdministrativeReleasesPage employeeId={10} />);
     await screen.findByText(/Puesto 12|Desk 12/);
     const checkboxes = screen.getAllByRole('checkbox');
     await user.click(checkboxes[0]);
     await user.click(checkboxes[1]);
-    await user.type(screen.getByLabelText(/motivo|reason/i), 'No acude esta semana');
-    await user.click(screen.getByRole('button', { name: /liberar reservas|release reservations/i }));
+    await user.click(screen.getByRole('button', { name: /liberar seleccionadas|release selected/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.type(within(dialog).getByLabelText(/motivo|reason/i), 'No acude esta semana');
+    await user.click(within(dialog).getByRole('button', { name: /liberar seleccionadas|release selected/i }));
 
     await waitFor(() => expect(cancelId).toBe('42'));
     expect(cancelReason).toBe('No acude esta semana');
@@ -206,15 +203,15 @@ describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por emplead
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<AdministrativeReleasesPage />);
-
-    await selectEmployee();
+    renderWithProviders(<AdministrativeReleasesPage employeeId={10} />);
     await screen.findByText(/Puesto 12|Desk 12/);
     const checkboxes = screen.getAllByRole('checkbox');
     await user.click(checkboxes[0]);
     await user.click(checkboxes[1]);
-    await user.type(screen.getByLabelText(/motivo|reason/i), 'No acude esta semana');
-    await user.click(screen.getByRole('button', { name: /liberar reservas|release reservations/i }));
+    await user.click(screen.getByRole('button', { name: /liberar seleccionadas|release selected/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.type(within(dialog).getByLabelText(/motivo|reason/i), 'No acude esta semana');
+    await user.click(within(dialog).getByRole('button', { name: /liberar seleccionadas|release selected/i }));
 
     expect(
       await screen.findByText(/1 reserva\(s\) liberada\(s\), 1 con error|1 reservation\(s\) released, 1 failed/i),

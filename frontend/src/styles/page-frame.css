@@ -1,0 +1,657 @@
+/* =====================================================================
+   Sticky Admin Frame (change: sticky-admin-frame)
+   Marco de app para las pantallas de datos: cabecera + controles FIJOS y
+   una única región scrollable (.pf-body). Se aplica SOLO en escritorio
+   (≥769px); en móvil degrada a scroll de documento (tarjetas + topbar de
+   cristal existentes) para evitar el problema de 100dvh/teclado en iOS.
+   ===================================================================== */
+
+/* ---------- Shell viewport-locked (solo escritorio) ---------- */
+@media (min-width: 769px) {
+  .app-shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .main {
+    height: 100dvh;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Página migrada: aporta su propio marco (.pf gestiona su scroll interno). */
+  .main > section.pf {
+    flex: 1;
+    min-height: 0;
+  }
+  /* Página aún NO migrada: scroll de documento dentro del marco fijo (compat
+     durante la migración incremental; su cabecera se desplaza como antes). */
+  .main > section:not(.pf) {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-8);
+  }
+  /* Banners no-scroll (NotificationOnboarding, etc.): arriba, altura natural. */
+  .main > *:not(section) {
+    flex: none;
+  }
+}
+
+/* ---------- Estructura del marco ---------- */
+.pf {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-page);
+}
+
+.pf-titlebar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 56px;
+  padding: 9px var(--space-8);
+  background: var(--bg-page);
+  border-bottom: 1px solid var(--line);
+}
+.pf-titlebar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.pf-titlebar-text .page-eyebrow {
+  line-height: 1.3;
+}
+.pf-title {
+  font-size: 20px;
+  line-height: 1.08;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pf-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pf-controls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* grupo de filtros centrado horizontalmente en la fila */
+  gap: var(--space-3);
+  padding: 8px var(--space-8);
+  background: var(--bg-page);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  /* Por encima del body para que los popovers del control-row (p. ej. el buscador de
+     persona) no queden recortados/tapados por la región scrollable. */
+  position: relative;
+  z-index: 5;
+}
+.pf-resource {
+  flex: none; /* selector plaza/puesto SIEMPRE leading del grupo centrado */
+}
+.pf-toolbar {
+  flex: 0 1 auto; /* no crece: el grupo permanece cohesionado y centrado */
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+/* El buscador dentro del control-row no estira (mantiene el grupo compacto y centrado). */
+.pf-toolbar .search-box {
+  flex: 0 1 auto;
+}
+/* Neutraliza el margen inferior del .toolbar legacy cuando se aloja en el control-row. */
+.pf-toolbar .toolbar {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.pf-subbar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 8px var(--space-8);
+  background: var(--bg-page);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Región ÚNICA con scroll. En escritorio scrollea en ambos ejes (la tabla es el
+   único elemento ancho); en móvil fluye con el documento. */
+.pf-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* Bloque contenedor: sin esto, los `.sr-only` (position:absolute) de las celdas se
+     posicionan respecto al documento y extienden su scroll (toda la pantalla scrollea)
+     porque el overflow del contenedor no recorta absolutos ajenos a su bloque. */
+  position: relative;
+  /* SIN padding-top: con él, el thead sticky (top:0) se pega tras el padding y queda una
+     banda donde asoman las filas por encima. El aire superior lo da el margen del primer
+     hijo (que scrollea), no el contenedor. */
+  padding: 0 var(--space-8) var(--space-6);
+  background: var(--bg-page);
+}
+.pf-body:not(:has(.calendar-grid-scroll)) > *:first-child {
+  margin-top: var(--space-6);
+}
+.pf-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.pf-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 8px var(--space-8);
+  background: var(--bg-page);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+.pf-footer .pagination {
+  margin: 0;
+}
+.pf-footer-nav {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* ---------- Cabecera de tabla STICKY dentro del body ---------- */
+/* El body es el contenedor de scroll: dejamos que él posea el overflow (la
+   .table-scroll deja de crear su propio scroll-Y que rompería el sticky). */
+.pf-body .table-scroll {
+  overflow: visible;
+}
+.pf-body table.table {
+  overflow: visible;
+}
+.pf-body table.table thead th,
+.pf-body table.table .table-header th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* ---------- Estados vacío / carga / error centrados en el body ---------- */
+.pf-state {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  text-align: center;
+  padding: var(--space-8);
+}
+
+/* ---------- Modo `page` (Panel / Ajustes): marco scrollea como documento ---------- */
+@media (min-width: 769px) {
+  .pf[data-scroll="contained"] {
+    height: 100%;
+    overflow: hidden;
+  }
+  .pf[data-scroll="page"] {
+    height: 100%;
+    overflow-y: auto;
+  }
+  .pf[data-scroll="page"] .pf-body {
+    overflow: visible;
+  }
+  /* En modo página, la barra de título queda sticky arriba (siempre sabes dónde estás). */
+  .pf[data-scroll="page"] .pf-titlebar {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+  }
+}
+
+/* ---------- Ocupación: tira de KPIs compacta + rejilla sticky 2 ejes ---------- */
+/* En Ocupación el control-row lleva el selector (izq) y la tira de 4 KPIs (der): NO se
+   centra como los filtros, se reparte a los extremos. */
+.pf-controls:has(.occ-kpi-strip) {
+  justify-content: space-between;
+}
+.pf-controls:has(.occ-kpi-strip) .pf-toolbar {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+/* Control-row con un elemento anclado a la izquierda (conmutador de pestañas o buscador)
+   y los controles (selector, buscador, acciones) a la derecha, en la misma fila
+   (Liberar, Visitantes, Empleados…). Con un solo hijo, space-between lo alinea a la
+   izquierda; con controles a la derecha, reparte izq/dcha. */
+.pf-controls:has(.pf-lead) {
+  justify-content: space-between;
+}
+.pf-controls:has(.pf-lead) .pf-toolbar {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+}
+
+/* Fila del selector de fecha: flechas anterior/siguiente día flanqueando el "pill". */
+.release-date-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.release-date-nav-btn {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.release-date-nav-btn:hover:not(:disabled) {
+  background: var(--line-soft);
+}
+.release-date-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Selector de fecha (pestaña "Por fecha"): "pill" compacto (40px) con icono de
+   calendario + input nativo, a juego con el buscador de persona de "Por empleado". */
+.release-date-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--ink-faint);
+}
+.release-date-control:focus-within {
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.release-date-control-input {
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  cursor: pointer;
+}
+/* Ocultamos el icono nativo del date input: ya mostramos uno propio a la izquierda
+   (a juego con el avatar del buscador de persona) y el picker se abre al hacer clic. */
+.release-date-control-input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+/* El foco lo pinta el contenedor (focus-within); el input no dibuja su propio anillo.
+   Se ancla a `.release-date-control` (0,3,0) para ganarle a `.portal-way :focus-visible`
+   (wayfinding.css) tanto en el control-row como en el selector de rango del body. */
+.release-date-control .release-date-control-input:focus,
+.release-date-control .release-date-control-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Solicitudes: control-row de 3 grupos repartidos — tipo de recurso (izquierda),
+   buscador (centro) y filtros de estado (derecha). */
+.pf-controls:has(.chip-filters) {
+  justify-content: stretch;
+}
+.pf-controls:has(.chip-filters) .pf-toolbar {
+  flex: 1 1 auto;
+  width: 100%;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+/* Filtros rápidos ubicados donde antes iba la leyenda (dentro de .week-nav, a la derecha):
+   se ahorra la fila propia; se anulan sus márgenes verticales y se empujan a la derecha. */
+.week-nav .occ-quick-filters {
+  margin: 0 0 0 auto;
+}
+
+/* Tira fina que CONSERVA los 4 contadores (total / ocupadas+% / libres / liberadas). */
+.occ-kpi-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+.occ-kpi-stat {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.occ-kpi-stat-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+.occ-kpi-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compactado de las dos filas de Ocupación (eran demasiado gruesas). */
+/* Selector plaza/puesto (Ocupación, Recursos y Solicitudes): botones más bajos y sin
+   margen extra. Se apunta a .pf-controls para cubrirlo tanto si va en el slot del selector
+   (.pf-resource) como si va inline en el toolbar (Solicitudes). */
+.pf-controls .occ-mode {
+  margin: 0;
+  padding: 3px;
+  box-shadow: var(--shadow-1);
+}
+.pf-controls .occ-mode-btn {
+  min-width: 0;
+  padding: 7px 16px;
+  font-size: var(--text-sm);
+  gap: 7px;
+}
+.pf-controls .occ-mode-btn .ti {
+  font-size: 16px;
+}
+/* Semana + filtros: SIN tarjeta (el borde ya no tiene sentido dentro del marco) y con el
+   rango de fechas más pequeño → una barra fina. */
+.pf-subbar .week-nav {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.pf-subbar .week-range {
+  font-size: var(--text-xl);
+}
+.occ-kpi-stat-text {
+  display: flex;
+  flex-direction: column;
+}
+.occ-kpi-stat-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.occ-kpi-stat-sub {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Rejilla de ocupación: el PROPIO contenedor de la rejilla es la región de scroll (no el
+   body), para que la cabecera de días se pegue al borde superior sin el desfase del padding
+   del body. Cabecera de días sticky-top + columna de recurso sticky-left + esquina por
+   encima de ambos ejes; fondos OPACOS para que no se transparente lo que scrollea debajo. */
+@media (min-width: 769px) {
+  .pf-body:has(.calendar-grid-scroll) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: var(--space-4) var(--space-8);
+  }
+  .pf-body .calendar-grid-scroll {
+    overflow: auto;
+    flex: 1;
+    min-height: 0;
+    position: relative; /* contiene los .sr-only absolutos de las celdas */
+  }
+}
+.pf-body .calendar-grid tbody th.calendar-space-cell {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--bg-card);
+}
+.pf-body .calendar-grid thead th.calendar-resource-head {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--panel-2);
+}
+/* La columna de HOY usa un tinte translúcido: al ser sticky se compone sobre un fondo
+   OPACO (tinte sobre panel-2) para que no se transparente lo que scrollea por debajo. */
+.pf-body .calendar-grid thead th.is-today {
+  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--panel-2);
+}
+
+/* ---------- Plano: fila de fecha estilo Ocupación + columna derecha ---------- */
+/* Fila fija: fecha (izquierda, estilo semana de Ocupación) + contadores compactos (derecha). */
+.plano-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  width: 100%;
+}
+.plano-topbar .floor-plan-controls {
+  margin: 0;
+}
+.plano-topbar .plano-datebar {
+  margin: 0;
+}
+/* Fecha con el mismo estilo serif que el rango de semana de Ocupación. */
+.plano-topbar .plano-datebar-date {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  text-transform: none;
+  color: var(--ink);
+}
+/* Solo la inicial en mayúscula (evita "29 De Julio De 2026"). */
+.plano-topbar .plano-datebar-date::first-letter {
+  text-transform: uppercase;
+}
+
+/* Separación entre el mapa y la tarjeta de "Puestos" de abajo. */
+.plano-desks {
+  margin-top: var(--space-5);
+}
+
+/* Cuerpo: mapa (izquierda) + columna derecha con Editar + filtros + zoom (donde antes
+   estaban los contadores). */
+.plano-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 264px;
+  min-width: 224px;
+}
+.plano-aside-actions {
+  display: flex;
+}
+.plano-aside-actions > * {
+  flex: 1 1 auto;
+}
+/* Filtros de estado: chips GRANDES a todo el ancho de la columna (dot + etiqueta a la
+   izquierda, contador a la derecha). Más presencia y legibilidad. */
+.plano-aside .chip-filters {
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.plano-aside .chip-filter {
+  width: 100%;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  padding: 11px 15px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+}
+.plano-aside .chip-filter .cf-dot {
+  width: 11px;
+  height: 11px;
+}
+.plano-aside .chip-filter .cf-count {
+  margin-left: auto;
+}
+/* Zoom: [− Zoom 100% + ⟳] en UNA fila centrada (restablecer es un icono para que entre). */
+.plano-aside .plano-zoom {
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+/* Minimapa alojado en la columna lateral (sustituye al de abajo). */
+.plano-aside .floor-mini {
+  align-self: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+}
+
+/* Herramientas de la esquina superior derecha del plano: botón de pantalla completa +
+   acciones (lápiz de editar / guardar / cancelar), apiladas en vertical. */
+.floor-surface-tools {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.floor-surface-tools .floor-fullscreen-btn {
+  position: static;
+}
+.floor-fullscreen-btn.is-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+@media (max-width: 900px) {
+  .plano-aside {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* ---------- Plano: barra azul de edición (hint + Guardar/Cancelar a la derecha) ---------- */
+.floor-plan-editbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0;
+  padding: 7px 8px 7px 14px;
+  border-radius: var(--radius-md);
+  background: var(--blue-soft);
+  border: 0.5px solid var(--blue-border);
+}
+.floor-plan-editbar-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 220px;
+  color: var(--blue-darker);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.floor-plan-editbar-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex: none;
+}
+
+/* ---------- Foco del buscador: anillo en el contenedor, no en el input interior ---------- */
+/* El input del .search-box no tiene borde: el outline global de :focus-visible se veía como
+   un recuadro doble feo al escribir. Se pinta el foco en el contenedor (focus-within). */
+.search-box:focus-within {
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.search-box input:focus,
+.search-box input:focus-visible {
+  outline: none;
+  /* Anula el anillo/borde propio del input (p. ej. .field-input) dentro del buscador:
+     el foco lo pinta el contenedor, evitando el doble recuadro. */
+  box-shadow: none;
+  border: none;
+}
+
+/* ---------- Selector plaza/puesto compacto (variante `sm`, filtros) ---------- */
+.resource-selector-sm {
+  display: inline-flex;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 2px;
+}
+.rs-sm-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 6px 13px;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.rs-sm-btn .ti {
+  font-size: 15px;
+}
+.rs-sm-btn:hover {
+  color: var(--ink);
+}
+.rs-sm-btn.is-active {
+  background: var(--panel);
+  color: var(--brand-green-deep);
+  box-shadow: var(--shadow-1);
+}
+
+/* ---------- Degradación en móvil (≤768px): scroll de documento ---------- */
+@media (max-width: 768px) {
+  .pf,
+  .pf[data-scroll="contained"],
+  .pf[data-scroll="page"] {
+    height: auto;
+    overflow: visible;
+  }
+  .pf-body {
+    overflow: visible;
+    padding: var(--space-4) 0;
+  }
+  .pf-titlebar,
+  .pf-controls,
+  .pf-subbar,
+  .pf-footer {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .pf-body .table-scroll {
+    overflow-x: auto;
+  }
+}
+

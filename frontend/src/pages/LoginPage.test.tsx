@@ -29,9 +29,9 @@ describe('LoginPage', () => {
 
   it('should_render_brand_title_and_subtitle', () => {
     renderLogin();
-    // Rediseno login: titular de marca ("... plazas y puestos") + subtitulo
+    // Rediseno login: titular de marca ("Nexo") + subtitulo
     // ("Reserva tu plaza de parking o puesto de trabajo en segundos").
-    expect(screen.getByText(/plazas y puestos|spaces and desks/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /nexo/i })).toBeInTheDocument();
     expect(
       screen.getByText(/reserva tu plaza de parking|book your parking space/i),
     ).toBeInTheDocument();

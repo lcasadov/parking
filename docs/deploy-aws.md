@@ -246,6 +246,14 @@ Variables necesarias:
 | `SMTP_STARTTLS` | `true` | backend |
 | `MSSQL_SA_PASSWORD` | Contraseña del usuario `sa` de SQL Server. **Política:** ≥8 chars con mayúsculas, minúsculas, dígitos y símbolos. | sqlserver, db-init, backend (`DB_PASSWORD`) |
 | `MAIL_FROM` | Remitente de los correos (p. ej. `no-reply@parking.aleatica.com`) | backend |
+| `VAPID_PRIVATE_KEY` | Clave privada VAPID (Web Push). **Secreta.** `npx web-push generate-vapid-keys` | backend (runtime) |
+| `VAPID_PUBLIC_KEY` | Clave pública VAPID (backend, para exponerla vía API) | backend (runtime) |
+| `VAPID_SUBJECT` | `mailto:...` de contacto VAPID | backend (runtime) |
+| `VITE_VAPID_PUBLIC_KEY` | Clave **pública** VAPID (mismo valor que `VAPID_PUBLIC_KEY`) horneada en el bundle | frontend (**build-time**, build-arg) |
+| `VITE_MAPBOX_TOKEN` | Token público de Mapbox (mapa del parking, task 18) horneado en el bundle | frontend (**build-time**, build-arg) |
+| `VITE_API_URL` | Base URL de la API si difiere del proxy por defecto (opcional) | frontend (**build-time**, build-arg) |
+
+> **build-time vs runtime.** Las variables `VITE_*` las hornea Vite en el bundle **al construir la imagen del frontend** (`docker compose build frontend`), no en ejecución. `docker-compose.app.yml` las pasa como `build.args` interpolándolas desde este mismo `.env`, y el `Dockerfile` las materializa en `.env.production` antes de `vite build`. Por eso, **si cambias una `VITE_*` hay que reconstruir la imagen del frontend** (no basta con reiniciar el contenedor). La pública VAPID va en `VAPID_PUBLIC_KEY` (backend) **y** en `VITE_VAPID_PUBLIC_KEY` (frontend) con el mismo valor.
 
 ```bash
 # En la instancia, dentro de ~/parking
@@ -263,6 +271,15 @@ MSSQL_SA_PASSWORD=<contrasena-sa-fuerte>
 
 # --- Correo ---
 MAIL_FROM=no-reply@parking.aleatica.com
+
+# --- Web Push (VAPID) — npx web-push generate-vapid-keys ---
+VAPID_PRIVATE_KEY=<clave-privada-vapid>
+VAPID_PUBLIC_KEY=<clave-publica-vapid>
+VAPID_SUBJECT=mailto:no-reply@parking.aleatica.com
+
+# --- Variables de build del frontend (VITE_) ---
+VITE_VAPID_PUBLIC_KEY=<misma-clave-publica-vapid>
+VITE_MAPBOX_TOKEN=<token-publico-mapbox>
 EOF
 
 chmod 600 .env   # solo el propietario puede leer los secretos

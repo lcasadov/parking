@@ -42,6 +42,7 @@ public class EmployeeService {
     private final ClockPort clock;
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final PasswordResetNotifier passwordResetNotifier;
+    private final com.aleatica.parking.push.PushSubscriptionService pushSubscriptionService;
     private final Phase phase;
 
     /**
@@ -58,12 +59,14 @@ public class EmployeeService {
             ClockPort clock,
             TemporaryPasswordGenerator temporaryPasswordGenerator,
             PasswordResetNotifier passwordResetNotifier,
+            com.aleatica.parking.push.PushSubscriptionService pushSubscriptionService,
             @Value("${parking.phase:PHASE_1}") Phase phase) {
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.passwordResetNotifier = passwordResetNotifier;
+        this.pushSubscriptionService = pushSubscriptionService;
         this.phase = phase;
     }
 
@@ -124,6 +127,8 @@ public class EmployeeService {
         employee.setMobilePhone(request.mobilePhone());
         employee.setLicensePlate(request.licensePlate());
         employee.setCorporate(request.corporate());
+        employee.setEmailNotificationsEnabled(request.emailNotificationsEnabledOrDefault());
+        employee.setPushNotificationsEnabled(request.pushNotificationsEnabledOrDefault());
         return EmployeeResponse.from(employeeRepository.save(employee));
     }
 
@@ -152,6 +157,8 @@ public class EmployeeService {
         employee.setCorporate(request.corporate());
         employee.setRole(request.role());
         employee.setCategory(request.category());
+        employee.setEmailNotificationsEnabled(request.emailNotificationsEnabledOrDefault());
+        employee.setPushNotificationsEnabled(request.pushNotificationsEnabledOrDefault());
         employee.setUpdatedAt(clock.now());
         return EmployeeResponse.from(employeeRepository.save(employee));
     }
@@ -168,6 +175,9 @@ public class EmployeeService {
         Employee employee = findOrThrow(id);
         employee.setActive(false);
         employeeRepository.save(employee);
+        // Un empleado dado de baja no debe recibir push: se borran sus suscripciones (el soft-delete
+        // no dispara el ON DELETE CASCADE de la FK; change push-notifications).
+        pushSubscriptionService.deleteAllForEmployee(id);
     }
 
     /**
