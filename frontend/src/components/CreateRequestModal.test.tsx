@@ -1,13 +1,26 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateRequestModal } from './CreateRequestModal';
 import { server } from '../mocks/server';
 import { MSW_BASE, waitlistConflictThenSuccessHandler } from '../mocks/handlers';
 import { pageOfRequests, requestApproved, requestPending1 } from '../mocks/requestFixtures';
 import { emptyAvailability } from '../mocks/calendarFixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
+
+// Congela el reloj a un LUNES fijo: los tests navegan el calendario por fechas
+// relativas a HOY (addDaysIso(todayIso(), n)); sin congelar, según el día en que
+// se ejecuten, la celda destino puede caer en otro mes o en un día no clicable.
+// Se falsea solo `Date` para no interferir con userEvent/react-query.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-08-03T10:00:00Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 import { addDaysIso } from '../utils/calendar';
 import { todayIso } from '../utils/requests';
 import { API_ERROR_TOAST, type ApiErrorToastDetail } from '../api/events';
