@@ -4,7 +4,7 @@
 TBD - created by archiving change align-app-shell-with-mockups. Update Purpose after archive.
 ## Requirements
 ### Requirement: Header con identidad visual del design-system
-**El header global DEBE (MUST) reproducir la identidad de los mockups: curva decorativa verde/naranja, logo, marca "parking / ALEATICA", título de la página y avatar del usuario, conservando los controles de idioma, tema, exportación y cierre de sesión.**
+**El header global DEBE (MUST) reproducir la identidad de los mockups: curva decorativa verde/naranja, logo, marca "Nexo / ALEATICA" (producto sobre empresa), título de la página y avatar del usuario, conservando los controles de idioma, tema, exportación y cierre de sesión.**
 
 #### Scenario: Header en una pantalla de administración
 - **GIVEN** un usuario autenticado en cualquier pantalla con chrome
@@ -70,13 +70,14 @@ Los modales de la aplicación (`Dialog` sobre Radix, y los modales legacy `Modal
 - **WHEN** el usuario pulsa el botón de cerrar, una acción de cierre del pie, o hace clic fuera del panel
 - **THEN** el modal se cierra con normalidad
 
-### Requirement: Marca de la aplicación "Reservas"
-La aplicación SHALL mostrarse con el nombre "Reservas" (con "ALEATICA" como subtítulo) en el
-sidebar y en el título del documento, en lugar de "parking".
+### Requirement: Marca de la aplicación "Nexo"
+La aplicación SHALL mostrarse con el nombre de producto "Nexo" (con "ALEATICA" como subtítulo)
+en el sidebar, y con "Nexo" como título del documento. (Ver la capability `app-branding` para
+el detalle de superficies y la separación producto/empresa.)
 
 #### Scenario: Marca en el sidebar
 - **WHEN** el usuario ve el sidebar
-- **THEN** la marca muestra "Reservas" y debajo "ALEATICA"
+- **THEN** la marca muestra "Nexo" y debajo "ALEATICA"
 
 ### Requirement: Cierre de sesión con confirmación
 Al accionar cerrar sesión desde la píldora de perfil, el sistema SHALL mostrar un diálogo de
