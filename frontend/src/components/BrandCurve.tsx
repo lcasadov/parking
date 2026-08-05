@@ -46,7 +46,7 @@ export function BrandLogo({ subtitle = true }: { subtitle?: boolean }) {
     <span className="brand-block">
       <span className="logo-dot" aria-hidden="true" />
       <span>
-        <span className="brand-name">parking</span>
+        <span className="brand-name">Nexo</span>
         {subtitle ? <span className="brand-sub">ALEATICA</span> : null}
       </span>
     </span>

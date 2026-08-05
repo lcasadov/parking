@@ -1,6 +1,6 @@
 export const en = {
   common: {
-    appName: 'Reservas',
+    appName: 'Nexo',
     brandSub: 'ALEATICA',
     sortBy: 'Sort by {{column}}',
     logout: 'Log out',
@@ -43,8 +43,8 @@ export const en = {
     loginTitle: 'Sign in',
     loginSubtitle: 'Parking management',
     loginDescription: 'Sign in with your corporate account.',
-    brandTitleLead: 'Manage your',
-    brandTitleHighlight: 'spaces and desks',
+    brandTitleLead: '',
+    brandTitleHighlight: 'Nexo',
     brandSubtitle: 'Book your parking space or work desk in seconds.',
     secureFooter: 'Secure access',
     loginField: 'Username',

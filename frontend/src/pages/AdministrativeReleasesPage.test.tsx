@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdministrativeReleasesPage } from './AdministrativeReleasesPage';
 import { server } from '../mocks/server';
 import { MSW_BASE } from '../mocks/handlers';
@@ -64,6 +64,19 @@ function useOccupancyHandler(
   return seen;
 }
 
+
+// Congela el reloj a un LUNES fijo: el componente oculta los días pasados
+// (`day.date >= today`), y los fixtures colocan reservas en lunes/martes de la
+// semana. Sin congelar, el test falla cualquier día que no sea lunes. Se falsea
+// solo `Date` (no los timers) para no interferir con userEvent ni react-query.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-08-03T10:00:00Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('AdministrativeReleasesPage (ADMIN/AGENCIA) — liberación por empleado y semana', () => {
   it('should_prompt_to_pick_employee_before_any_is_selected', async () => {
