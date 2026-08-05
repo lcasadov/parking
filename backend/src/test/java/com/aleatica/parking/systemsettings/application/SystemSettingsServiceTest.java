@@ -67,7 +67,7 @@ class SystemSettingsServiceTest {
     void shouldReturnPersistedMode_whenRowExists() {
         // Arrange
         settingsRepository.seed(SystemSettings.restore(
-                SystemSettings.SINGLETON_ID, ApprovalMode.AUTOMATIC, null, null, null, false,
+                SystemSettings.SINGLETON_ID, ApprovalMode.AUTOMATIC, null, null, null, false, true, true,
                 ADMIN_ID, NOW));
 
         // Act / Assert
@@ -117,7 +117,7 @@ class SystemSettingsServiceTest {
         // Arrange
         settingsRepository.seed(SystemSettings.restore(
                 SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, "Av. de Europa 18, Alcobendas",
-                null, null, false, ADMIN_ID, NOW));
+                null, null, false, true, true, ADMIN_ID, NOW));
 
         // Act / Assert
         assertThat(newService().parkingAddress().parkingAddress())
@@ -146,7 +146,7 @@ class SystemSettingsServiceTest {
         // Arrange: habia una direccion configurada
         settingsRepository.seed(SystemSettings.restore(
                 SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, "Direccion previa", null, null,
-                false, ADMIN_ID, NOW));
+                false, true, true, ADMIN_ID, NOW));
         givenAdmin();
 
         // Act: enviar blanco la borra
@@ -167,7 +167,7 @@ class SystemSettingsServiceTest {
     void shouldReturnPersistedWeekend_whenRowExists() {
         // Arrange
         settingsRepository.seed(SystemSettings.restore(
-                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, null, null, null, true,
+                SystemSettings.SINGLETON_ID, ApprovalMode.MANUAL, null, null, null, true, true, true,
                 ADMIN_ID, NOW));
 
         // Act / Assert

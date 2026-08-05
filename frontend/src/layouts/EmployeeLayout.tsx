@@ -31,6 +31,10 @@ export function EmployeeLayout() {
             <i className="ti ti-pin" aria-hidden="true" />
             {t('myResources.navLabel')}
           </NavLink>
+          <NavLink to={ROUTES.employeeMyVehicles} className={navItemClass}>
+            <i className="ti ti-car" aria-hidden="true" />
+            {t('vehicles.mine.navLabel')}
+          </NavLink>
         </>
       }
     />

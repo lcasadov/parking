@@ -32,6 +32,7 @@ public class EmailContentRenderer {
     private static final String TEMPLATE_PASSWORD_RESET = "email/password-reset";
     private static final String TEMPLATE_REQUEST_ADMIN_ASSIGNED = "email/request-admin-assigned";
     private static final String TEMPLATE_WAITLIST_AVAILABLE = "email/waitlist-available";
+    private static final String TEMPLATE_REQUEST_ADMIN_CANCELLED = "email/request-admin-cancelled";
 
     /**
      * Plantillas de asunto parametrizadas por la palabra del recurso ({@code %s} = "plaza"/"puesto",
@@ -50,6 +51,8 @@ public class EmailContentRenderer {
             "Un administrador te ha asignado una %s";
     private static final String SUBJECT_WAITLIST_AVAILABLE_FMT =
             "Se ha liberado una %s con solicitudes en lista de espera";
+    private static final String SUBJECT_REQUEST_ADMIN_CANCELLED_FMT =
+            "Un administrador ha cancelado tu reserva de %s";
 
     /** Palabra humana del recurso segun su tipo, para componer los asuntos (evita literales sueltos). */
     private static final String RESOURCE_WORD_PARKING = "plaza";
@@ -180,6 +183,22 @@ public class EmailContentRenderer {
         ctx.setVariable(VAR_REJECTION_REASON, request.rejectionReason());
         return render(
                 employee, subjectFor(SUBJECT_REQUEST_REJECTED_FMT, request), TEMPLATE_REQUEST_REJECTED, ctx);
+    }
+
+    /**
+     * Renderiza el email de "reserva cancelada por un administrador" dirigido al empleado
+     * afectado (change {@code push-notifications}, design D12).
+     *
+     * @param employee empleado afectado
+     * @param request  reserva cancelada por el admin
+     * @return el email listo para enviar
+     */
+    public EmailMessage renderRequestAdminCancelled(Employee employee, RequestResponse request) {
+        Context ctx = baseContext(employee);
+        ctx.setVariable(VAR_REQUEST_ID, request.id());
+        ctx.setVariable(VAR_REQUESTED_DATE, request.requestedDate());
+        return render(employee, subjectFor(SUBJECT_REQUEST_ADMIN_CANCELLED_FMT, request),
+                TEMPLATE_REQUEST_ADMIN_CANCELLED, ctx);
     }
 
     /**

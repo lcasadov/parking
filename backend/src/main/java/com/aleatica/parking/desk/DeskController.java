@@ -21,6 +21,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -183,5 +184,24 @@ public class DeskController {
     public ResponseEntity<DeskResponse> setDeskActivation(
             @PathVariable Long id, @Valid @RequestBody DeskActivationRequest request) {
         return ResponseEntity.ok(deskService.setActivation(id, request.active()));
+    }
+
+    @Operation(summary = "Borrar un puesto",
+            description = "Elimina un puesto por id. Solo si no tiene reservas/historial (si no, "
+                    + "409: desactivar en su lugar). Solo ADMIN.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Puesto borrado"),
+            @ApiResponse(responseCode = "403", description = "Sin permisos",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Puesto no encontrado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "El puesto tiene reservas o historial",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteDesk(@PathVariable Long id) {
+        deskService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

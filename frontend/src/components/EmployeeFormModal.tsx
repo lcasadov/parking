@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { DeskPickerModal, type PickedDesk } from './DeskPickerModal';
 import { Dialog } from './Dialog';
+import { EmployeeVehiclesPanel } from './EmployeeVehiclesPanel';
 import { FieldRow } from './FieldRow';
 import { FieldValue } from './FieldValue';
 import { InfoBanner } from './InfoBanner';
@@ -55,10 +56,11 @@ interface FormState {
   email: string;
   department: string;
   mobilePhone: string;
-  licensePlate: string;
   role: Role;
   category: EmployeeCategory;
   isCorporate: boolean;
+  emailNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
 }
 
 interface ResourceOption {
@@ -66,7 +68,7 @@ interface ResourceOption {
   label: string;
 }
 
-type TabId = 'details' | 'parking' | 'desk' | 'history';
+type TabId = 'details' | 'parking' | 'desk' | 'vehicles' | 'history';
 type ResourcePrefix = 'parking' | 'desk';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -140,10 +142,11 @@ function initialState(employee?: Employee | null): FormState {
     email: employee?.email ?? '',
     department: employee?.department ?? '',
     mobilePhone: employee?.mobilePhone ?? '',
-    licensePlate: employee?.licensePlate ?? '',
     role: employee?.role ?? 'EMPLOYEE',
     category: employee?.category ?? 'EMPLEADO',
     isCorporate: employee?.isCorporate ?? false,
+    emailNotificationsEnabled: employee?.emailNotificationsEnabled ?? true,
+    pushNotificationsEnabled: employee?.pushNotificationsEnabled ?? true,
   };
 }
 
@@ -280,11 +283,6 @@ function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanel
         />
       </FieldRow>
       <FieldRow>
-        <Input
-          label={t('employees.form.licensePlate')}
-          value={values.licensePlate}
-          onChange={(event) => onField('licensePlate', event.target.value)}
-        />
         <div className="auth-field">
           <label className="field-label" htmlFor={roleId}>
             {t('employees.form.role')}
@@ -300,8 +298,6 @@ function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanel
             <option value="AGENCIA">{t('employees.role.AGENCIA')}</option>
           </select>
         </div>
-      </FieldRow>
-      <FieldRow>
         <div className="auth-field">
           <label className="field-label" htmlFor={categoryId}>
             {t('employees.form.category')}
@@ -326,6 +322,19 @@ function DetailsPanel({ values, errors, isEdit, onField, onReset }: DetailsPanel
           checked={values.isCorporate}
           onChange={(next) => onField('isCorporate', next)}
           label={corporateLabel}
+        />
+      </div>
+      <div className="auth-field">
+        <span className="field-label">{t('employees.form.notifications')}</span>
+        <Toggle
+          checked={values.emailNotificationsEnabled}
+          onChange={(next) => onField('emailNotificationsEnabled', next)}
+          label={t('employees.form.notifyEmail')}
+        />
+        <Toggle
+          checked={values.pushNotificationsEnabled}
+          onChange={(next) => onField('pushNotificationsEnabled', next)}
+          label={t('employees.form.notifyPush')}
         />
       </div>
       {isEdit ? (
@@ -698,10 +707,11 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       email: values.email.trim(),
       department: values.department.trim() || undefined,
       mobilePhone: values.mobilePhone.trim() || undefined,
-      licensePlate: values.licensePlate.trim() || undefined,
       isCorporate: values.isCorporate,
       role: values.role,
       category: values.category,
+      emailNotificationsEnabled: values.emailNotificationsEnabled,
+      pushNotificationsEnabled: values.pushNotificationsEnabled,
     };
   }
 
@@ -712,10 +722,11 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
       email: values.email.trim(),
       department: values.department.trim() || undefined,
       mobilePhone: values.mobilePhone.trim() || undefined,
-      licensePlate: values.licensePlate.trim() || undefined,
       isCorporate: values.isCorporate,
       role: values.role,
       category: values.category,
+      emailNotificationsEnabled: values.emailNotificationsEnabled,
+      pushNotificationsEnabled: values.pushNotificationsEnabled,
     };
   }
 
@@ -868,10 +879,73 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
     });
   }
 
+  // Panel de la pestaña activa. Aislado en su propia función (cierre sobre el estado) para
+  // no cargar la complejidad cognitiva del componente (S3776) al añadir la pestaña Vehículos.
+  function renderTabPanel() {
+    if (activeTab === 'details') {
+      return (
+        <DetailsPanel
+          values={values}
+          errors={errors}
+          isEdit={isEdit}
+          onField={setField}
+          onReset={() => setIsResetOpen(true)}
+        />
+      );
+    }
+    if (activeTab === 'parking') {
+      return (
+        <ResourcePanel
+          prefix="parking"
+          fullName={fullName}
+          options={spaceOptions}
+          map={parkingMap}
+          active={activeParking}
+          error={errors.parking}
+          onActiveChange={setActiveParking}
+          onApplyAll={() => applyAll('parking')}
+          onDayResourceChange={(day, value) => setDayResource('parking', day, value)}
+          occupiedByDay={occupiedParkingByDay}
+        />
+      );
+    }
+    if (activeTab === 'desk') {
+      return (
+        <ResourcePanel
+          prefix="desk"
+          fullName={fullName}
+          options={deskOptions}
+          map={deskMap}
+          active={activeDesk}
+          error={errors.desk}
+          onActiveChange={setActiveDesk}
+          onApplyAll={() => applyAll('desk')}
+          onDayResourceChange={(day, value) => setDayResource('desk', day, value)}
+          occupiedByDay={occupiedDeskByDay}
+        />
+      );
+    }
+    if (activeTab === 'vehicles') {
+      return <EmployeeVehiclesPanel employeeId={employee?.id ?? null} />;
+    }
+    if (activeTab === 'history' && employee) {
+      return (
+        <HistoryPanel
+          employee={employee}
+          rows={assignmentsData ?? []}
+          spaceOptions={spaceOptions}
+          deskOptions={deskOptions}
+        />
+      );
+    }
+    return null;
+  }
+
   const tabs: { id: TabId; label: string }[] = [
     { id: 'details', label: t('employees.form.tabs.details') },
     { id: 'parking', label: t('employees.form.tabs.parking') },
     { id: 'desk', label: t('employees.form.tabs.desk') },
+    { id: 'vehicles', label: t('employees.form.tabs.vehicles') },
   ];
   if (isEdit) {
     tabs.push({ id: 'history', label: t('employees.form.tabs.history') });
@@ -909,51 +983,7 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: EmployeeFormMo
         ariaLabel={t(isEdit ? 'employees.form.editTitle' : 'employees.form.createTitle')}
       />
       <form id="employee-form" onSubmit={handleSubmit} noValidate>
-        {activeTab === 'details' ? (
-          <DetailsPanel
-            values={values}
-            errors={errors}
-            isEdit={isEdit}
-            onField={setField}
-            onReset={() => setIsResetOpen(true)}
-          />
-        ) : null}
-        {activeTab === 'parking' ? (
-          <ResourcePanel
-            prefix="parking"
-            fullName={fullName}
-            options={spaceOptions}
-            map={parkingMap}
-            active={activeParking}
-            error={errors.parking}
-            onActiveChange={setActiveParking}
-            onApplyAll={() => applyAll('parking')}
-            onDayResourceChange={(day, value) => setDayResource('parking', day, value)}
-            occupiedByDay={occupiedParkingByDay}
-          />
-        ) : null}
-        {activeTab === 'desk' ? (
-          <ResourcePanel
-            prefix="desk"
-            fullName={fullName}
-            options={deskOptions}
-            map={deskMap}
-            active={activeDesk}
-            error={errors.desk}
-            onActiveChange={setActiveDesk}
-            onApplyAll={() => applyAll('desk')}
-            onDayResourceChange={(day, value) => setDayResource('desk', day, value)}
-            occupiedByDay={occupiedDeskByDay}
-          />
-        ) : null}
-        {activeTab === 'history' && employee ? (
-          <HistoryPanel
-            employee={employee}
-            rows={assignmentsData ?? []}
-            spaceOptions={spaceOptions}
-            deskOptions={deskOptions}
-          />
-        ) : null}
+        {renderTabPanel()}
         {errors.form ? (
           <p className="form-error" role="alert">
             {errors.form}

@@ -37,7 +37,8 @@ describe('ParkingSpacesPage', () => {
     renderWithProviders(<ParkingSpacesPage />);
     await screen.findByText('P-01');
 
-    await user.selectOptions(screen.getByLabelText(/filtrar por estado|filter by status/i), 'active');
+    // El filtro de estado es un grupo de chips (botones), no un <select>.
+    await user.click(screen.getByRole('button', { name: /^activas|^active/i }));
 
     await waitFor(() => {
       expect(receivedActive).toBe('true');

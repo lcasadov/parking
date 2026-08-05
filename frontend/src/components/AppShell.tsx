@@ -2,6 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation } from 'react-router-dom';
+import { NotificationOnboarding } from './NotificationOnboarding';
 import { useAuth } from '../auth/useAuth';
 import { DUR, EASE, drawerVariants, scrimVariants } from '../theme/motion';
 import { LanguageToggle } from './LanguageToggle';
@@ -170,6 +171,7 @@ export function AppShell({ nav }: AppShellProps) {
       </AnimatePresence>
 
       <main className="main">
+        <NotificationOnboarding />
         <Outlet />
       </main>
     </div>

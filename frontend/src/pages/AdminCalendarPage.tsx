@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { CalendarCellView } from '../components/CalendarCellView';
-import { Legend } from '../components/Legend';
+import { KpiStat } from '../components/KpiStat';
 import { Spinner } from '../components/Spinner';
 import { ViewInPlanTrigger } from '../components/ViewInPlanTrigger';
 import {
@@ -21,13 +21,13 @@ import {
   type ReassignTarget,
   type SwapTarget,
 } from '../components/RequestManageModal';
-import { ResourceModeSwitch } from '../components/ResourceModeSwitch';
+import { PageFrame } from '../components/PageFrame';
+import { ResourceSelector } from '../components/ResourceSelector';
 import { emitApiErrorToast } from '../api/events';
 import { useAdminCalendarQuery } from '../hooks/useCalendar';
 import { useWeekendReservableQuery } from '../hooks/useSettings';
 import { useFloorPlanQuery } from '../hooks/useFloorPlan';
 import { useToast } from '../hooks/useToast';
-import { adminCalendarLegend } from '../utils/calendarLegend';
 import { summarizeDay, type DaySnapshot, buildAdminCalendarCsv } from '../utils/adminCalendar';
 import { triggerBlobDownload } from '../utils/download';
 import type { CalendarCell, CalendarCellState, CalendarRow } from '../types/calendar';
@@ -37,7 +37,6 @@ import {
   addDaysIso,
   calendarStateKey,
   dayMonth,
-  isoWeekNumber,
   mondayOfWeek,
   weekdayIndex,
   weekRangeLabel,
@@ -281,7 +280,6 @@ export function AdminCalendarPage() {
 
   const rangeLabel =
     days.length > 0 ? weekRangeLabel(days[0], days[days.length - 1], i18n.language) : '';
-  const weekNumber = isoWeekNumber(weekStart);
 
   function goPrevious(): void {
     setWeekStart((current) => addDaysIso(current, -WEEK_LENGTH));
@@ -401,130 +399,127 @@ export function AdminCalendarPage() {
   const showGrid = !query.isLoading && !query.isError;
 
   return (
-    <section className="admin-calendar-page occ-weekly" aria-labelledby="admin-calendar-title">
-      {/* Hero MODO-EXPLÍCITO: el titulo grande dice qué se está viendo (Plazas de
-          parking / Puestos de oficina) y cambia con el conmutador. */}
-      <header className="occ-hero">
-        <div className="occ-hero-text">
-          <span className="page-eyebrow">{t('occupancy.title')}</span>
-          <h1 id="admin-calendar-title" className="occ-hero-title" aria-live="polite">
-            {t(`occupancy.weekly.modeTitle.${resourceType}`)}
-          </h1>
-          <p className="occ-hero-sub">{t('occupancy.weekly.actionableHint')}</p>
+    <PageFrame
+      eyebrow={t('occupancy.title')}
+      title={t(`occupancy.weekly.modeTitle.${resourceType}`)}
+      titleId="admin-calendar-title"
+      titleAriaLive="polite"
+      bodyLabel={t('calendar.admin.title')}
+      actions={
+        <Button variant="green" icon="download" disabled={rows.length === 0} onClick={handleExport}>
+          {t('calendar.actions.export')}
+        </Button>
+      }
+      resourceSelector={
+        <ResourceSelector
+          size="lg"
+          value={resourceType}
+          onChange={(value) => setResourceType(value as ResourceType)}
+          labels={{
+            parking: t('occupancy.weekly.resourceType.PARKING'),
+            desk: t('occupancy.weekly.resourceType.DESK'),
+          }}
+          ariaLabel={t('occupancy.weekly.modeSwitchLabel')}
+        />
+      }
+      toolbar={
+        <div className="occ-kpi-strip" role="group" aria-label={t('occupancy.title')}>
+          <KpiStat
+            dot="var(--ink-faint)"
+            value={kpi.snapshot.total}
+            label={t(`occupancy.weekly.kpi.totalLabel.${resourceType}`)}
+            sub={t('occupancy.weekly.kpi.inInventory')}
+          />
+          <KpiStat
+            dot="var(--accent)"
+            value={kpi.snapshot.occupied}
+            label={t('occupancy.weekly.kpi.occupied', { day: dayTag })}
+            sub={t('occupancy.weekly.kpi.ofOccupancy', { pct: kpi.occupancyPct })}
+          />
+          <KpiStat
+            dot="var(--info)"
+            value={kpi.snapshot.free}
+            label={t('occupancy.weekly.kpi.free', { day: dayTag })}
+            sub={t('occupancy.weekly.kpi.availableNow')}
+          />
+          <KpiStat
+            dot="var(--rel)"
+            value={kpi.snapshot.released}
+            label={t('occupancy.weekly.kpi.released', { day: dayTag })}
+            sub={t('occupancy.weekly.kpi.releasedSub')}
+          />
         </div>
-        <div className="occ-hero-actions">
-          <Button
-            variant="green"
-            icon="download"
-            disabled={rows.length === 0}
-            onClick={handleExport}
+      }
+      subbar={
+        <nav className="week-nav" aria-label={t('calendar.admin.title')}>
+          <div className="week-nav-controls">
+            <Button
+              variant="white"
+              className="btn-icon-only"
+              icon="chevron-left"
+              aria-label={t('calendar.toolbar.previous')}
+              onClick={goPrevious}
+            />
+            <Button variant="white" onClick={goToday}>
+              {t('calendar.toolbar.today')}
+            </Button>
+            <Button
+              variant="white"
+              className="btn-icon-only"
+              icon="chevron-right"
+              aria-label={t('calendar.toolbar.next')}
+              onClick={goNext}
+            />
+          </div>
+          <div className="week-nav-range">
+            <span className="week-range" aria-live="polite">
+              {rangeLabel || t('calendar.toolbar.weekOf', { date: weekStart })}
+            </span>
+          </div>
+          {/* Filtros rápidos donde antes iba la leyenda (ahorra una fila): segmento de
+              selección única que filtra la rejilla al instante (oculta recursos + atenúa
+              celdas que no cumplen). "Solo libres" replica la antigua vista Disponibilidad. */}
+          <div
+            className="chip-filters occ-quick-filters"
+            role="group"
+            aria-label={t('occupancy.weekly.filterLabel')}
           >
-            {t('calendar.actions.export')}
-          </Button>
+            {QUICK_FILTERS.map((filter) => {
+              const isActive = quickFilter === filter;
+              return (
+                <button
+                  key={filter}
+                  type="button"
+                  className={`chip-filter${isActive ? ' is-active' : ''}`}
+                  aria-pressed={isActive}
+                  onClick={() => setQuickFilter(filter)}
+                >
+                  <span
+                    className="cf-dot"
+                    style={{ background: QUICK_FILTER_DOT[filter] }}
+                    aria-hidden="true"
+                  />
+                  {t(`occupancy.weekly.filters.${filter}`)}
+                  <span className="cf-count">{filterCounts[filter]}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      }
+    >
+      {query.isLoading ? (
+        <div className="pf-state">
+          <Spinner />
         </div>
-      </header>
-
-      {/* Selector GRANDE plaza/puesto: imposible de ignorar. Al cambiarlo cambian
-          titulo, KPIs y rejilla. */}
-      <ResourceModeSwitch
-        value={resourceType}
-        onChange={setResourceType}
-        ariaLabel={t('occupancy.weekly.modeSwitchLabel')}
-      />
-
-      {/* KPIs del modo activo, referidos a HOY (datos reales de la rejilla). */}
-      <div className="occ-kpis">
-        <KpiCard
-          dot="var(--ink-faint)"
-          label={t(`occupancy.weekly.kpi.totalLabel.${resourceType}`)}
-          value={kpi.snapshot.total}
-          sub={t('occupancy.weekly.kpi.inInventory')}
-        />
-        <KpiCard
-          dot="var(--accent)"
-          label={t('occupancy.weekly.kpi.occupied', { day: dayTag })}
-          value={kpi.snapshot.occupied}
-          sub={t('occupancy.weekly.kpi.ofOccupancy', { pct: kpi.occupancyPct })}
-        />
-        <KpiCard
-          dot="var(--info)"
-          label={t('occupancy.weekly.kpi.free', { day: dayTag })}
-          value={kpi.snapshot.free}
-          sub={t('occupancy.weekly.kpi.availableNow')}
-        />
-        <KpiCard
-          dot="var(--rel)"
-          label={t('occupancy.weekly.kpi.released', { day: dayTag })}
-          value={kpi.snapshot.released}
-          sub={t('occupancy.weekly.kpi.releasedSub')}
-        />
-      </div>
-
-      <nav className="week-nav" aria-label={t('calendar.admin.title')}>
-        <div className="week-nav-controls">
-          <Button
-            variant="white"
-            className="btn-icon-only"
-            icon="chevron-left"
-            aria-label={t('calendar.toolbar.previous')}
-            onClick={goPrevious}
-          />
-          <Button
-            variant="white"
-            className="btn-icon-only"
-            icon="chevron-right"
-            aria-label={t('calendar.toolbar.next')}
-            onClick={goNext}
-          />
-          <Button variant="white" onClick={goToday}>
-            {t('calendar.toolbar.today')}
-          </Button>
-        </div>
-        <div className="week-nav-range">
-          <span className="week-range" aria-live="polite">
-            {rangeLabel || t('calendar.toolbar.weekOf', { date: weekStart })}
-          </span>
-          <span className="week-number">{t('calendar.weekNav.week', { number: weekNumber })}</span>
-        </div>
-        <Legend items={adminCalendarLegend(t)} />
-      </nav>
-
-      {/* Filtros rápidos SIEMPRE visibles: segmento de selección única que filtra
-          la rejilla al instante (oculta recursos + atenúa celdas que no cumplen).
-          "Solo libres" replica la antigua vista Disponibilidad. */}
-      <div
-        className="chip-filters occ-quick-filters"
-        role="group"
-        aria-label={t('occupancy.weekly.filterLabel')}
-      >
-        {QUICK_FILTERS.map((filter) => {
-          const isActive = quickFilter === filter;
-          return (
-            <button
-              key={filter}
-              type="button"
-              className={`chip-filter${isActive ? ' is-active' : ''}`}
-              aria-pressed={isActive}
-              onClick={() => setQuickFilter(filter)}
-            >
-              <span
-                className="cf-dot"
-                style={{ background: QUICK_FILTER_DOT[filter] }}
-                aria-hidden="true"
-              />
-              {t(`occupancy.weekly.filters.${filter}`)}
-              <span className="cf-count">{filterCounts[filter]}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {query.isLoading ? <Spinner /> : null}
+      ) : null}
 
       {query.isError ? (
-        <p className="form-error" role="alert">
-          {t('calendar.loadError')}
-        </p>
+        <div className="pf-state">
+          <p className="form-error" role="alert">
+            {t('calendar.loadError')}
+          </p>
+        </div>
       ) : null}
 
       {showGrid ? (
@@ -640,32 +635,7 @@ export function AdminCalendarPage() {
           onCancelled={handleCancelled}
         />
       ) : null}
-    </section>
+    </PageFrame>
   );
 }
 
-// Tarjeta KPI (mismo lenguaje que el Dashboard: punto de color + etiqueta +
-// numeral Geist Mono tabular + sublinea). El color solo tiñe el punto; el
-// numeral queda en tinta para legibilidad en claro y oscuro.
-function KpiCard({
-  dot,
-  label,
-  value,
-  sub,
-}: {
-  dot: string;
-  label: string;
-  value: number;
-  sub: string;
-}) {
-  return (
-    <div className="card occ-kpi">
-      <div className="occ-kpi-lbl">
-        <span className="occ-kpi-dot" style={{ background: dot }} />
-        {label}
-      </div>
-      <div className="occ-kpi-val mono">{value}</div>
-      <div className="occ-kpi-sub">{sub}</div>
-    </div>
-  );
-}

@@ -33,9 +33,13 @@ export function FloorPlanZoom({ scale, onZoomIn, onZoomOut, onReset }: FloorPlan
         disabled={scale >= ZOOM_MAX}
         onClick={onZoomIn}
       />
-      <Button variant="white" icon="focus-centered" aria-label={t('floorPlan.zoom.reset')} onClick={onReset}>
-        {t('floorPlan.zoom.resetShort')}
-      </Button>
+      <Button
+        variant="white"
+        icon="refresh"
+        aria-label={t('floorPlan.zoom.reset')}
+        title={t('floorPlan.zoom.reset')}
+        onClick={onReset}
+      />
     </div>
   );
 }

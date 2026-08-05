@@ -54,3 +54,8 @@ export async function setDeskActivation(id: number, active: boolean): Promise<De
   const { data } = await apiClient.patch<Desk>(`${DESKS}/${id}/activation`, { active });
   return data;
 }
+
+// Borra un puesto (hard delete). 409 si tiene reservas/historial (desactivar en su lugar).
+export async function deleteDesk(id: number): Promise<void> {
+  await apiClient.delete(`${DESKS}/${id}`);
+}

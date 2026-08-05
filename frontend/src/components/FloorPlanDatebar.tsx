@@ -42,9 +42,6 @@ export function FloorPlanDatebar({ date, onChange }: FloorPlanDatebarProps) {
       <p className="plano-datebar-date" aria-live="polite">
         {longDate(date, i18n.language)}
       </p>
-      <p className="plano-datebar-window">
-        {t('floorPlan.datebar.window')}
-      </p>
     </div>
   );
 }

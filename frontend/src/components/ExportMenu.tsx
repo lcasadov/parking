@@ -13,12 +13,22 @@ interface ExportMenuProps {
   // Si se indica, el menu solo se renderiza para ese rol (defensa en profundidad;
   // el backend sigue siendo la autoridad). tasks §4.6.
   requiredRole?: Role;
+  // Estilo de los botones (por defecto blanco; verde para la acción primaria).
+  variant?: 'white' | 'green';
+  // Formatos ofrecidos (por defecto CSV + XLSX). Permite ocultar formatos puntualmente.
+  formats?: ExportFormat[];
 }
 
 // Menu reutilizable de exportacion: selector de formato (CSV / XLSX) que dispara
 // la descarga del fichero binario. Deshabilita los botones mientras descarga y
 // delega el manejo de 429/errores en useExport. tasks §4.1.
-export function ExportMenu({ path, fallbackBase, requiredRole }: ExportMenuProps) {
+export function ExportMenu({
+  path,
+  fallbackBase,
+  requiredRole,
+  variant = 'white',
+  formats = ['csv', 'xlsx'],
+}: ExportMenuProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const mutation = useExport(path, fallbackBase);
@@ -33,24 +43,22 @@ export function ExportMenu({ path, fallbackBase, requiredRole }: ExportMenuProps
     mutation.mutate(format);
   }
 
+  // Con un único formato el botón dice simplemente "Exportar" (consistente en todas las
+  // pantallas); con varios, cada uno lleva su formato ("Exportar CSV" / "Exportar XLSX").
+  const single = formats.length === 1;
+
   return (
     <div className="export-menu" role="group" aria-label={t('exports.groupLabel')}>
-      <Button
-        variant="white"
-        icon="download"
-        disabled={isBusy}
-        onClick={() => download('csv')}
-      >
-        {t('exports.csv')}
-      </Button>
-      <Button
-        variant="white"
-        icon="download"
-        disabled={isBusy}
-        onClick={() => download('xlsx')}
-      >
-        {t('exports.xlsx')}
-      </Button>
+      {formats.includes('csv') ? (
+        <Button variant={variant} icon="download" disabled={isBusy} onClick={() => download('csv')}>
+          {single ? t('exports.export') : t('exports.csv')}
+        </Button>
+      ) : null}
+      {formats.includes('xlsx') ? (
+        <Button variant={variant} icon="download" disabled={isBusy} onClick={() => download('xlsx')}>
+          {single ? t('exports.export') : t('exports.xlsx')}
+        </Button>
+      ) : null}
     </div>
   );
 }

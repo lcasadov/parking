@@ -15,14 +15,21 @@ export function SectionSwitch({
   active,
   onChange,
   ariaLabel,
+  className,
 }: {
   items: SectionSwitchItem[];
   active: string;
   onChange: (id: string) => void;
   ariaLabel: string;
+  // Clase extra opcional (p. ej. para anclar el conmutador a un lado del control-row).
+  className?: string;
 }) {
   return (
-    <div className="occ-mode section-switch" role="group" aria-label={ariaLabel}>
+    <div
+      className={`occ-mode section-switch${className ? ` ${className}` : ''}`}
+      role="group"
+      aria-label={ariaLabel}
+    >
       {items.map((item) => {
         const isActive = item.id === active;
         return (

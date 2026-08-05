@@ -145,6 +145,32 @@ public class SystemSettingsService {
     }
 
     /**
+     * Interruptor global del canal email (change {@code push-notifications}); por defecto
+     * {@code true} si la fila unica aun no existe (retrocompatible).
+     *
+     * @return {@code true} si el canal email envia a nivel global
+     */
+    @Transactional(readOnly = true)
+    public boolean emailNotificationsEnabled() {
+        return settingsRepository.find()
+                .map(SystemSettings::isEmailNotificationsEnabled)
+                .orElse(true);
+    }
+
+    /**
+     * Interruptor global del canal push (change {@code push-notifications}); por defecto
+     * {@code true} si la fila unica aun no existe.
+     *
+     * @return {@code true} si el canal push envia a nivel global
+     */
+    @Transactional(readOnly = true)
+    public boolean pushNotificationsEnabled() {
+        return settingsRepository.find()
+                .map(SystemSettings::isPushNotificationsEnabled)
+                .orElse(true);
+    }
+
+    /**
      * Devuelve el permiso de reservas de fin de semana vigente, sin trazabilidad, para que la UI
      * decida si ofrecer sabado/domingo (legible por cualquier empleado autenticado; change
      * {@code reservas-employee-admin-reassign}).
@@ -171,6 +197,28 @@ public class SystemSettingsService {
         Long actorId = resolveEmployeeId(adminLogin);
         SystemSettings settings = settingsRepository.find().orElseGet(SystemSettings::defaults);
         settings.changeWeekendReservable(weekendReservable, actorId, clock.now());
+        SystemSettingsResponse response =
+                SystemSettingsResponse.from(settingsRepository.save(settings));
+        eventPublisher.publishEvent(new SystemSettingsAuditEvent(response));
+        return response;
+    }
+
+    /**
+     * Cambia los interruptores globales de canal de notificacion (email/push), de forma
+     * independiente (change {@code push-notifications}), registrando el actor y disparando la
+     * auditoria del cambio.
+     *
+     * @param emailEnabled si el canal email envia a nivel global
+     * @param pushEnabled  si el canal push envia a nivel global
+     * @param adminLogin   login del administrador que ejecuta el cambio
+     * @return el ajuste actualizado (DTO)
+     */
+    @Transactional
+    public SystemSettingsResponse updateNotificationChannels(
+            boolean emailEnabled, boolean pushEnabled, String adminLogin) {
+        Long actorId = resolveEmployeeId(adminLogin);
+        SystemSettings settings = settingsRepository.find().orElseGet(SystemSettings::defaults);
+        settings.changeNotificationChannels(emailEnabled, pushEnabled, actorId, clock.now());
         SystemSettingsResponse response =
                 SystemSettingsResponse.from(settingsRepository.save(settings));
         eventPublisher.publishEvent(new SystemSettingsAuditEvent(response));

@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -24,6 +25,7 @@ import com.aleatica.parking.employee.EmployeeCategory;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.fixedassignment.infrastructure.FixedAssignmentJpaRepository;
 import com.aleatica.parking.notification.event.RequestApprovedEvent;
+import com.aleatica.parking.notification.event.RequestAdminCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCancelledEvent;
 import com.aleatica.parking.notification.event.RequestCreatedEvent;
 import com.aleatica.parking.notification.event.RequestRejectedEvent;
@@ -61,7 +63,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
@@ -731,13 +735,17 @@ class RequestServiceTest {
         // Act
         newService().adminCancel(REQUEST_ID, ADMIN_LOGIN, VALID_REASON);
 
-        // Assert
-        verify(eventPublisher).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getValue()).isInstanceOfSatisfying(RequestCancelledEvent.class,
-                event -> {
-                    assertThat(event.request().id()).isEqualTo(REQUEST_ID);
-                    assertThat(event.request().status()).isEqualTo(RequestStatus.CANCELLED);
-                });
+        // Assert: adminCancel publica DOS eventos — aviso a admins (RequestCancelledEvent, recurso
+        // liberado) y aviso al empleado afectado (RequestAdminCancelledEvent, design D12).
+        verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
+        RequestCancelledEvent cancelled = eventCaptor.getAllValues().stream()
+                .filter(RequestCancelledEvent.class::isInstance)
+                .map(RequestCancelledEvent.class::cast)
+                .findFirst()
+                .orElseThrow();
+        assertThat(cancelled.request().id()).isEqualTo(REQUEST_ID);
+        assertThat(cancelled.request().status()).isEqualTo(RequestStatus.CANCELLED);
+        assertThat(eventCaptor.getAllValues()).anyMatch(RequestAdminCancelledEvent.class::isInstance);
     }
 
     @Test
@@ -1196,11 +1204,52 @@ class RequestServiceTest {
      * contar como escritura; {@link #save}/{@link #saveAndFlush} asignan id (si falta) y cuentan
      * la invocacion para verificar los caminos que NO deben persistir.
      */
+    // --- Ordenación de columnas (change sortable-table-columns) ---
+
+    @Test
+    void listPendingWithoutSortAppliesDefaultCreatedAtAsc() {
+        newService().listPending(PageRequest.of(0, 20));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
+    }
+
+    @Test
+    void listPendingRespectsAllowedClientSort() {
+        newService().listPending(PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "requestedDate")));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.DESC, "requestedDate"));
+    }
+
+    @Test
+    void listPendingIgnoresNonWhitelistedSortAndFallsBackToDefault() {
+        newService().listPending(PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "details")));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
+    }
+
+    @Test
+    void listByStatusWithoutSortAppliesDefaultCreatedAtDesc() {
+        newService().listByStatus(RequestStatus.APPROVED, PageRequest.of(0, 20));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt"));
+    }
+
+    @Test
+    void listByStatusRespectsAllowedClientSort() {
+        newService().listByStatus(RequestStatus.APPROVED,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "createdAt")));
+        assertThat(requestRepository.lastPageable().getSort())
+                .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
+    }
+
     private static final class InMemoryRequestRepository implements RequestRepositoryPort {
 
         private final Map<Long, Request> store = new HashMap<>();
         private long sequence = 1000L;
         private int saves;
+        // Ultimo Pageable recibido por findByStatus/findAll: permite verificar el orden
+        // efectivo que resuelve RequestService (whitelist + orden por defecto).
+        private Pageable lastPageable;
 
         void seed(Request request) {
             store.put(request.getId(), request);
@@ -1208,6 +1257,10 @@ class RequestServiceTest {
 
         int saves() {
             return saves;
+        }
+
+        Pageable lastPageable() {
+            return lastPageable;
         }
 
         Request byId(Long id) {
@@ -1312,6 +1365,19 @@ class RequestServiceTest {
             return new PageImpl<>(store.values().stream()
                     .sorted(Comparator.comparing(Request::getCreatedAt).reversed())
                     .collect(java.util.stream.Collectors.toList()));
+        }
+
+        @Override
+        public Page<Request> findByStatus(RequestStatus status, Pageable pageable) {
+            this.lastPageable = pageable;
+            return new PageImpl<>(store.values().stream()
+                    .filter(r -> status == r.getStatus()).toList());
+        }
+
+        @Override
+        public Page<Request> findAll(Pageable pageable) {
+            this.lastPageable = pageable;
+            return new PageImpl<>(List.copyOf(store.values()));
         }
 
         @Override

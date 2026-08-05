@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 import { AppShell } from '../components/AppShell';
 import { PendingRequestsBadge } from '../components/PendingRequestsBadge';
+import { VehicleReviewBadge } from '../components/VehicleReviewBadge';
 import { SidebarSection } from '../components/Sidebar';
 import { ROUTES } from '../routes/paths';
 
@@ -50,6 +51,11 @@ export function AdminLayout() {
           <NavLink to={ROUTES.adminEmployees} className={navItemClass}>
             <i className="ti ti-users" aria-hidden="true" />
             {t('employees.navLabel')}
+          </NavLink>
+          <NavLink to={ROUTES.adminVehicles} className={navItemClass}>
+            <i className="ti ti-car" aria-hidden="true" />
+            {t('vehicles.review.navLabel')}
+            <VehicleReviewBadge />
           </NavLink>
           <NavLink to={ROUTES.adminResources} className={navItemClass}>
             <i className="ti ti-parking" aria-hidden="true" />

@@ -53,5 +53,21 @@ public record EmployeeUpdateRequest(
         @NotNull Role role,
 
         @Schema(description = "Categoria jerarquica (rango organizativo)")
-        @NotNull EmployeeCategory category) {
+        @NotNull EmployeeCategory category,
+
+        @Schema(description = "Recibe avisos por email; null => true (change push-notifications)")
+        @JsonProperty("emailNotificationsEnabled") Boolean emailNotificationsEnabled,
+
+        @Schema(description = "Recibe avisos por push; null => true")
+        @JsonProperty("pushNotificationsEnabled") Boolean pushNotificationsEnabled) {
+
+    /** @return preferencia de email; por defecto {@code true} si se omite. */
+    public boolean emailNotificationsEnabledOrDefault() {
+        return emailNotificationsEnabled == null || emailNotificationsEnabled;
+    }
+
+    /** @return preferencia de push; por defecto {@code true} si se omite. */
+    public boolean pushNotificationsEnabledOrDefault() {
+        return pushNotificationsEnabled == null || pushNotificationsEnabled;
+    }
 }

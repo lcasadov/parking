@@ -256,8 +256,10 @@ Justificación de cada flag:
 | Clave de firma del JWT SSO 🔵 | Vault corporativo *(futuro)* / variable de entorno por entorno | `application-{env}.yml` (referencia) |
 | Credenciales SMTP | **Ethereal** en LOCAL/DES/PRE (en `.env` local, excluido de git); **SMTP corporativo** solo en PRO | Variables de entorno (`SMTP_*`) → `application-{env}.yml` (referencia, nunca el valor) |
 | Token de GitHub de `lcasadov` | Keyring de `gh` (no en el repo) | Lo usa `gh` para Issues/PRs/Projects; **no** es un secreto en tiempo de ejecución de la app |
+| Claves VAPID (Web Push) 🔔 | **Privada** y `subject` en `.env` local (excluido de git), como SMTP; **pública** puede versionarse | Backend: `VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` → `parking.push.vapid.*` (referencia). Frontend: `VITE_VAPID_PUBLIC_KEY` (pública, expuesta al cliente por diseño) |
 
 - **Nunca commitear secretos.** `.gitignore` debe excluir `.env` y `application-local.yml`.
+- **VAPID (change `push-notifications`):** par de claves ECDSA P-256 generado una vez por entorno (`npx web-push generate-vapid-keys`). La **pública** se expone al navegador (no es secreta); la **privada** firma cada envío y es secreta. Rotar la privada **invalida todas las suscripciones** existentes (habría que re-suscribir). Arranque **tolerante**: si falta la privada, el canal push queda deshabilitado y el sistema sigue con email. El alta de suscripción (`POST /push/subscriptions`) exige **sesión autenticada** y solo permite registrar la del propio usuario; el endpoint del cliente se guarda cifrado extremo-a-extremo por el estándar Web Push (el backend nunca ve el contenido descifrado más allá del payload que él mismo emite, y este no lleva datos sensibles innecesarios).
 - *Por qué env var / yml referenciado en vez de hardcode:* desacopla el secreto del artefacto desplegable (el mismo WAR sirve a todos los entornos).
 - **Vault corporativo:** marcado como **futuro** — la línea base implementable hoy es inyección por variable de entorno; el almacén centralizado se adopta cuando exista infraestructura corporativa para ello.
 
@@ -303,8 +305,11 @@ Justificación de cada flag:
 | Matrícula (`license_plate`) | Alta admin | Verificar plaza ocupada | Solo admins |
 | Departamento (`department`) | Alta admin / 🔵 SSO | Organización | Empleado + admins |
 | Documento de identidad de visitante (`national_id`) | Alta admin | Control de acceso físico | Solo admins |
+| Suscripción Web Push (`push_subscription.endpoint` + claves) 🔔 | Opt-in del propio empleado en su navegador | Enviar avisos push | Solo el propio empleado (nunca se expone a otros) |
 
 > El empleado **no** ve datos personales de otros empleados (la vista "Mi Semana" no muestra nombres ajenos). Los datos marcados "Solo admins" no se exponen a `EMPLOYEE` en ningún DTO.
+>
+> **Suscripciones push (change `push-notifications`):** el `endpoint` es un identificador de dispositivo ligado al empleado; es **estado vivo** (no auditoría) y se elimina al dar de baja la suscripción, cerrar sesión y al **desactivar/eliminar** el empleado (borrado en cascada). Queda fuera del purgado histórico de 2 años. El payload del push se limita a título/cuerpo cortos, sin datos personales innecesarios.
 
 ---
 

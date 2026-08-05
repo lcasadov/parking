@@ -88,6 +88,60 @@ describe('VisitorFormModal', () => {
     expect(posted).toBe(false);
   });
 
+  it('should_let_add_vehicles_in_draft_mode_while_creating_without_saving_first', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<VisitorFormModal onClose={noop} onSaved={noop} />);
+
+    await user.click(screen.getByRole('tab', { name: /veh[íi]culos|vehicles/i }));
+
+    // Sin guardar antes: hay botón de añadir (modo borrador), no el aviso "guarda primero".
+    expect(
+      screen.queryByText(/guarda primero el visitante|save the visitor first/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /añadir|add vehicle/i })).toBeInTheDocument();
+  });
+
+  it('should_create_visitor_then_persist_draft_vehicles', async () => {
+    const user = userEvent.setup();
+    let visitorBody: Record<string, unknown> | null = null;
+    const createdVehicles: Record<string, unknown>[] = [];
+    let saved = false;
+    server.use(
+      http.post(VISITORS_URL, async ({ request }) => {
+        visitorBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...visitorCarla, ...visitorBody, id: 77 }, { status: 201 });
+      }),
+      http.post(`${VISITORS_URL}/77/vehicles`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        createdVehicles.push(body);
+        return HttpResponse.json({ id: 5, visitorId: 77, ...body }, { status: 201 });
+      }),
+    );
+    renderWithProviders(<VisitorFormModal onClose={noop} onSaved={() => (saved = true)} />);
+
+    // Datos mínimos del visitante.
+    await user.type(screen.getByLabelText(/^nombre$|^first name$/i), 'Nora');
+    await user.type(screen.getByLabelText(/^apellidos$|^last name$/i), 'Nieto');
+    await user.type(screen.getByLabelText(/dni|document/i), '55555555K');
+
+    // Añade un vehículo en borrador (sin guardar antes el visitante).
+    await user.click(screen.getByRole('tab', { name: /veh[íi]culos|vehicles/i }));
+    await user.click(screen.getByRole('button', { name: /añadir|add vehicle/i }));
+    await user.type(screen.getByLabelText(/matrícula|license plate/i), '4321DCB');
+    await user.click(screen.getByRole('button', { name: /guardar veh|save vehicle/i }));
+    expect(await screen.findByText('4321DCB')).toBeInTheDocument();
+
+    // Guarda el visitante desde la pestaña de detalles.
+    await user.click(screen.getByRole('tab', { name: /detalles|details/i }));
+    await user.click(screen.getByRole('button', { name: /^guardar$|^save$/i }));
+
+    await waitFor(() => expect(saved).toBe(true));
+    expect(visitorBody).toMatchObject({ firstName: 'Nora', nationalId: '55555555K' });
+    expect(createdVehicles).toEqual([
+      expect.objectContaining({ licensePlate: '4321DCB' }),
+    ]);
+  });
+
   it('should_update_visitor_when_editing_existing_card', async () => {
     const user = userEvent.setup();
     let putId: string | undefined;

@@ -123,6 +123,9 @@ export interface RequestListParams {
   // selector de mes de "Mis solicitudes".
   from?: string;
   to?: string;
+  // Orden en formato Spring Pageable `campo,dir` (p. ej. `requestedDate,desc`). El
+  // backend solo respeta campos permitidos; si se omite, aplica su orden por defecto.
+  sort?: string;
 }
 
 // SuggestedParkingSpace: vista previa de la plaza que la auto-asignacion daria a

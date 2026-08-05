@@ -103,6 +103,16 @@ public class RequestPersistenceAdapter implements RequestRepositoryPort {
     }
 
     @Override
+    public Page<Request> findByStatus(RequestStatus status, Pageable pageable) {
+        return jpaRepository.findByStatus(status, pageable).map(RequestMapper::toDomain);
+    }
+
+    @Override
+    public Page<Request> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable).map(RequestMapper::toDomain);
+    }
+
+    @Override
     public List<Request> findByStatusAndWaitlistedTrueAndResourceTypeAndRequestedDateOrderByCreatedAtAsc(
             RequestStatus status, ResourceType resourceType, LocalDate requestedDate) {
         return jpaRepository

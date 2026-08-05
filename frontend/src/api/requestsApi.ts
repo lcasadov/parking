@@ -37,6 +37,9 @@ function buildListParams(params: RequestListParams): Record<string, string | num
   if (params.to !== undefined) {
     query.to = params.to;
   }
+  if (params.sort !== undefined) {
+    query.sort = params.sort;
+  }
   return query;
 }
 

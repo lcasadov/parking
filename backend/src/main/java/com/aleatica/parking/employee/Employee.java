@@ -79,6 +79,12 @@ public class Employee {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
+    @Column(name = "email_notifications_enabled", nullable = false)
+    private boolean emailNotificationsEnabled = true;
+
+    @Column(name = "push_notifications_enabled", nullable = false)
+    private boolean pushNotificationsEnabled = true;
+
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts;
 
@@ -213,6 +219,22 @@ public class Employee {
 
     public boolean isActive() {
         return active;
+    }
+
+    public boolean isEmailNotificationsEnabled() {
+        return emailNotificationsEnabled;
+    }
+
+    public void setEmailNotificationsEnabled(boolean emailNotificationsEnabled) {
+        this.emailNotificationsEnabled = emailNotificationsEnabled;
+    }
+
+    public boolean isPushNotificationsEnabled() {
+        return pushNotificationsEnabled;
+    }
+
+    public void setPushNotificationsEnabled(boolean pushNotificationsEnabled) {
+        this.pushNotificationsEnabled = pushNotificationsEnabled;
     }
 
     public int getFailedLoginAttempts() {

@@ -4,128 +4,116 @@ import com.aleatica.parking.employee.Employee;
 import com.aleatica.parking.employee.EmployeeRepository;
 import com.aleatica.parking.employee.Role;
 import com.aleatica.parking.notification.NotificationEventType;
+import com.aleatica.parking.push.PushDeliveryService;
 import com.aleatica.parking.request.dto.RequestResponse;
+import com.aleatica.parking.systemsettings.application.SystemSettingsService;
 import org.springframework.stereotype.Service;
 
 /**
  * Traduce cada evento de dominio de notificacion en una o varias {@link NotificationCommand}
- * y las entrega a {@link NotificationDeliveryService}, que las renderiza y envia (o encola
- * para reintento). No renderiza ni resuelve el recurso: eso lo hace {@link NotificationRenderer}
- * de forma compartida entre el envio inmediato y el reintento (evita duplicar el renderizado y
- * el riesgo de divergencia).
+ * y las entrega por los canales habilitados. Resolucion de destinatarios en un unico punto
+ * (aqui); entrega en dos canales independientes: email ({@link NotificationDeliveryService},
+ * con reintento via outbox) y push ({@link PushDeliveryService}, best-effort).
  *
- * <p>Resolucion del conjunto de destinatarios (design §Decisions): "nueva solicitud" -> una
- * orden por cada {@code Employee} con {@code role = ADMIN} y {@code active = true} en el
- * momento del envio (excluye admins inactivos; si no hay ninguno, no se emite ninguna orden);
- * el resto de eventos -> el empleado afectado. Cada orden lleva solo el id del destinatario;
- * su email/nombre se resuelven al renderizar.</p>
+ * <p>Regla de entrega efectiva por canal (change {@code push-notifications}): email si
+ * {@code global.email AND empleado.email}; push si {@code global.push AND empleado.push AND
+ * tiene suscripcion} (esto ultimo lo comprueba el propio {@link PushDeliveryService}).</p>
+ *
+ * <p>Destinatarios (design): "nueva solicitud"/"cancelada"/"lista de espera" -> cada
+ * {@code Employee} con {@code role = ADMIN} y {@code active = true}; "cancelacion admin de una
+ * aprobada" -> el empleado afectado (design D12); el resto -> el empleado de la solicitud.</p>
  */
 @Service
 public class NotificationDispatcher {
 
     private final EmployeeRepository employeeRepository;
     private final NotificationDeliveryService deliveryService;
+    private final PushDeliveryService pushDeliveryService;
+    private final SystemSettingsService systemSettingsService;
 
-    /**
-     * @param employeeRepository repositorio de empleados (resolucion del conjunto de admins)
-     * @param deliveryService    servicio de entrega/encolado resiliente
-     */
     public NotificationDispatcher(
             EmployeeRepository employeeRepository,
-            NotificationDeliveryService deliveryService) {
+            NotificationDeliveryService deliveryService,
+            PushDeliveryService pushDeliveryService,
+            SystemSettingsService systemSettingsService) {
         this.employeeRepository = employeeRepository;
         this.deliveryService = deliveryService;
+        this.pushDeliveryService = pushDeliveryService;
+        this.systemSettingsService = systemSettingsService;
     }
 
-    /**
-     * Notifica la creacion de una solicitud a todos los administradores activos. Si no hay
-     * administradores activos no se emite ninguna orden (el flujo no falla).
-     *
-     * @param request solicitud creada
-     */
+    /** Nueva solicitud pendiente -> todos los administradores activos. */
     public void requestCreated(RequestResponse request) {
-        for (Employee admin : employeeRepository.findByRoleAndActiveTrue(Role.ADMIN)) {
-            deliveryService.dispatch(
-                    new NotificationCommand(NotificationEventType.REQUEST_CREATED, admin.getId(), request));
-        }
+        deliverToActiveAdmins(NotificationEventType.REQUEST_CREATED, request);
     }
 
-    /**
-     * Notifica a todos los administradores activos que un empleado ha cancelado una solicitud
-     * {@code APPROVED} (recurso liberado). Emite una orden {@code REQUEST_CANCELLED} por cada
-     * {@code Employee} con {@code role = ADMIN} y {@code active = true}; si no hay ninguno no se
-     * emite ninguna orden (el flujo no falla), igual que {@link #requestCreated(RequestResponse)}.
-     *
-     * @param request solicitud cancelada (estado previo {@code APPROVED})
-     */
+    /** Cancelacion (recurso liberado) -> todos los administradores activos. */
     public void requestCancelled(RequestResponse request) {
-        for (Employee admin : employeeRepository.findByRoleAndActiveTrue(Role.ADMIN)) {
-            deliveryService.dispatch(
-                    new NotificationCommand(NotificationEventType.REQUEST_CANCELLED, admin.getId(), request));
-        }
+        deliverToActiveAdmins(NotificationEventType.REQUEST_CANCELLED, request);
     }
 
-    /**
-     * Notifica la aprobacion de una solicitud a su empleado solicitante (con tono formal, el
-     * numero real del recurso, la nota del admin y el plano adjunto, resueltos al renderizar).
-     * Cubre por igual la aprobacion manual y la auto-aprobacion (ambas emiten
-     * {@code RequestApprovedEvent}).
-     *
-     * @param request solicitud aprobada
-     */
+    /** Aprobacion/auto-aprobacion -> empleado solicitante. */
     public void requestApproved(RequestResponse request) {
-        deliveryService.dispatch(
-                new NotificationCommand(NotificationEventType.REQUEST_APPROVED, request.employeeId(), request));
+        deliver(new NotificationCommand(
+                NotificationEventType.REQUEST_APPROVED, request.employeeId(), request));
     }
 
-    /**
-     * Notifica el rechazo de una solicitud a su empleado solicitante (con el motivo).
-     *
-     * @param request solicitud rechazada
-     */
+    /** Rechazo -> empleado solicitante. */
     public void requestRejected(RequestResponse request) {
-        deliveryService.dispatch(
-                new NotificationCommand(NotificationEventType.REQUEST_REJECTED, request.employeeId(), request));
+        deliver(new NotificationCommand(
+                NotificationEventType.REQUEST_REJECTED, request.employeeId(), request));
     }
 
-    /**
-     * Notifica al empleado afectado la revocacion de su asignacion fija.
-     *
-     * @param employeeId empleado afectado
-     */
+    /** Revocacion de asignacion fija -> empleado afectado. */
     public void assignmentRevoked(Long employeeId) {
-        deliveryService.dispatch(
-                new NotificationCommand(NotificationEventType.ASSIGNMENT_REVOKED, employeeId, null));
+        deliver(new NotificationCommand(NotificationEventType.ASSIGNMENT_REVOKED, employeeId, null));
     }
 
-    /**
-     * Notifica al empleado destino que un {@code ADMIN} le ha asignado puntualmente un recurso
-     * para una fecha concreta (change {@code restructure-admin-workflows}, capability
-     * {@code admin-punctual-assignment}), con una plantilla propia (distinta de
-     * {@link #requestApproved(RequestResponse)}: el empleado no inicio la peticion).
-     *
-     * @param request asignacion puntual, ya {@code APPROVED}
-     */
+    /** Asignacion puntual del admin -> empleado destino (plantilla propia). */
     public void requestAdminAssigned(RequestResponse request) {
-        deliveryService.dispatch(new NotificationCommand(
+        deliver(new NotificationCommand(
                 NotificationEventType.REQUEST_ADMIN_ASSIGNED, request.employeeId(), request));
     }
 
     /**
-     * Notifica a todos los administradores activos que un recurso (plaza/puesto) ha quedado
-     * libre para una fecha con solicitudes en lista de espera, estando el sistema en modo
-     * {@code MANUAL} (change {@code waitlist-requests}): el sistema no auto-asigna, por lo que
-     * un administrador debe resolver desde la bandeja de pendientes. Emite una orden
-     * {@code WAITLIST_AVAILABLE} por cada {@code Employee} con {@code role = ADMIN} y
-     * {@code active = true}; si no hay ninguno no se emite ninguna orden (el flujo no falla),
-     * igual que {@link #requestCreated(RequestResponse)}.
+     * Cancelacion administrativa de una reserva {@code APPROVED} -> el <strong>empleado
+     * afectado</strong> (change {@code push-notifications}, design D12). El aviso de liberacion
+     * del recurso a los admins lo cubre {@link #requestCancelled(RequestResponse)}.
      *
-     * @param topWaitlistedRequest solicitud en cabeza de la lista de espera de ese dia/tipo
+     * @param request reserva cancelada por el admin (estado previo {@code APPROVED})
      */
+    public void requestAdminCancelled(RequestResponse request) {
+        deliver(new NotificationCommand(
+                NotificationEventType.REQUEST_ADMIN_CANCELLED, request.employeeId(), request));
+    }
+
+    /** Hueco de lista de espera disponible -> todos los administradores activos. */
     public void waitlistAvailable(RequestResponse topWaitlistedRequest) {
+        deliverToActiveAdmins(NotificationEventType.WAITLIST_AVAILABLE, topWaitlistedRequest);
+    }
+
+    /** Emite una orden por cada administrador activo (fan-out); si no hay, no emite ninguna. */
+    private void deliverToActiveAdmins(NotificationEventType eventType, RequestResponse request) {
         for (Employee admin : employeeRepository.findByRoleAndActiveTrue(Role.ADMIN)) {
-            deliveryService.dispatch(new NotificationCommand(
-                    NotificationEventType.WAITLIST_AVAILABLE, admin.getId(), topWaitlistedRequest));
+            deliver(new NotificationCommand(eventType, admin.getId(), request));
         }
+    }
+
+    /** Entrega una orden por los canales habilitados: email (gateado) + push (auto-gateado). */
+    private void deliver(NotificationCommand command) {
+        if (emailEnabledFor(command.recipientEmployeeId())) {
+            deliveryService.dispatch(command);
+        }
+        pushDeliveryService.dispatch(command);
+    }
+
+    /** Email habilitado para el destinatario = interruptor global AND preferencia del empleado. */
+    private boolean emailEnabledFor(Long employeeId) {
+        if (!systemSettingsService.emailNotificationsEnabled()) {
+            return false;
+        }
+        return employeeRepository.findById(employeeId)
+                .map(Employee::isEmailNotificationsEnabled)
+                .orElse(false);
     }
 }

@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Button } from '../components/Button';
 import { ExportMenu } from '../components/ExportMenu';
 import { Input } from '../components/Input';
-import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
+import { PageFrame } from '../components/PageFrame';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
-import { Toolbar } from '../components/Toolbar';
 import { getStatus } from '../api/apiError';
 import { EXPORT_PATHS } from '../api/exportApi';
 import { useAuditQuery } from '../hooks/useAudit';
@@ -131,7 +130,7 @@ function AuditResults({ query, windowValid, page, onPageChange }: ResultsProps) 
 }
 
 // Panel ADMIN de consulta de auditoria funcional (GET /audit). tasks §4.1.
-export function AuditPage({ embedded = false }: { embedded?: boolean } = {}) {
+export function AuditPage({ tabsSwitch }: { tabsSwitch?: ReactNode } = {}) {
   const { t } = useTranslation();
   const [actorId, setActorId] = useState('');
   const [action, setAction] = useState('');
@@ -158,23 +157,22 @@ export function AuditPage({ embedded = false }: { embedded?: boolean } = {}) {
   }
 
   return (
-    <section className="audit-page" aria-label={t('audit.title')}>
-      <EmbeddablePageHeader
-        embedded={embedded}
-        eyebrow={t('audit.eyebrow')}
-        title={t('audit.title')}
-        description={t('audit.description')}
-        actions={<ExportMenu path={EXPORT_PATHS.audit} fallbackBase="audit" requiredRole="ADMIN" />}
-      />
-
-      <p className="form-hint">{t('audit.retentionNote')}</p>
-
-      <div className="filter-card">
-        <div className="filter-card-head">
-          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
-          {t('common.filters')}
-        </div>
-        <Toolbar ariaLabel={t('audit.title')}>
+    <PageFrame
+      eyebrow={t('records.eyebrow')}
+      title={t('records.title')}
+      bodyLabel={t('audit.title')}
+      resourceSelector={tabsSwitch}
+      actions={
+        <ExportMenu
+          path={EXPORT_PATHS.audit}
+          fallbackBase="audit"
+          requiredRole="ADMIN"
+          variant="green"
+          formats={['csv']}
+        />
+      }
+      toolbar={
+        <div className="mgmt-filters records-filters">
           <Input
             id="audit-actor"
             type="number"
@@ -204,10 +202,11 @@ export function AuditPage({ embedded = false }: { embedded?: boolean } = {}) {
             value={to}
             onChange={(event) => onFilterChange(setTo, event.target.value)}
           />
-        </Toolbar>
-      </div>
-
+        </div>
+      }
+    >
+      <p className="form-hint">{t('audit.retentionNote')}</p>
       <AuditResults query={query} windowValid={windowValid} page={page} onPageChange={setPage} />
-    </section>
+    </PageFrame>
   );
 }

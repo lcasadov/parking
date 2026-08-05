@@ -8,7 +8,8 @@ import { InfoBanner } from './InfoBanner';
 import { Input } from './Input';
 import { Toggle } from './Toggle';
 import { getFieldErrors, getStatus } from '../api/apiError';
-import { useCreateDesk, useUpdateDesk } from '../hooks/useDesks';
+import { useCreateDesk, useDeleteDesk, useUpdateDesk } from '../hooks/useDesks';
+import { useToast } from '../hooks/useToast';
 import type { Desk, DeskCategory, DeskCreate } from '../types/desk';
 
 interface DeskFormModalProps {
@@ -20,7 +21,6 @@ interface DeskFormModalProps {
 const HTTP_CONFLICT = 409;
 const HTTP_BAD_REQUEST = 400;
 const DESK_MIN = 1;
-const DESK_MAX = 65;
 
 const DESK_CATEGORIES: DeskCategory[] = ['STANDARD', 'EXECUTIVE'];
 
@@ -43,11 +43,14 @@ function initialState(desk?: Desk | null): FormState {
 // centra por defecto en el alta (init-desks §4.1).
 export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
   const { t } = useTranslation();
+  const toast = useToast();
   const isEdit = Boolean(desk);
   const [values, setValues] = useState<FormState>(() => initialState(desk));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const createMutation = useCreateDesk();
   const updateMutation = useUpdateDesk();
+  const deleteMutation = useDeleteDesk();
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   function setNumber(value: string): void {
@@ -76,7 +79,7 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
     const parsed = Number(trimmed);
     if (trimmed === '' || Number.isNaN(parsed)) {
       next.number = t('desks.form.required');
-    } else if (!Number.isInteger(parsed) || parsed < DESK_MIN || parsed > DESK_MAX) {
+    } else if (!Number.isInteger(parsed) || parsed < DESK_MIN) {
       next.number = t('desks.form.numberRange');
     }
     return next;
@@ -107,12 +110,40 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
       ...(isEdit && desk ? { coordX: desk.coordX, coordY: desk.coordY } : {}),
       active: values.active,
     };
-    const options = { onSuccess: onSaved, onError: handleServerError };
+    const options = {
+      onSuccess: () => {
+        toast.success(isEdit ? 'desks.toast.updated' : 'desks.toast.created');
+        onSaved();
+      },
+      onError: handleServerError,
+    };
     if (isEdit && desk) {
       updateMutation.mutate({ id: desk.id, body }, options);
     } else {
       createMutation.mutate(body, options);
     }
+  }
+
+  // Borra el puesto (hard delete). Un 409 = tiene reservas/historial → sugerir desactivar.
+  function handleDelete(): void {
+    if (!desk) {
+      return;
+    }
+    deleteMutation.mutate(desk.id, {
+      onSuccess: () => {
+        toast.success('desks.toast.deleted');
+        onSaved();
+      },
+      onError: (error) => {
+        setConfirmingDelete(false);
+        setErrors({
+          form:
+            getStatus(error) === HTTP_CONFLICT
+              ? t('desks.form.deleteHasHistory')
+              : t('desks.form.deleteError'),
+        });
+      },
+    });
   }
 
   // Valida y envia; compartida por el onSubmit del form (tecla Enter) y el boton
@@ -131,8 +162,36 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
     trySubmit();
   }
 
-  const footer = (
+  const footer = confirmingDelete ? (
     <>
+      <Button
+        variant="white"
+        onClick={() => setConfirmingDelete(false)}
+        disabled={deleteMutation.isPending}
+      >
+        {t('desks.form.cancel')}
+      </Button>
+      <Button
+        variant="red"
+        icon="trash"
+        onClick={handleDelete}
+        disabled={deleteMutation.isPending}
+      >
+        {t('desks.form.deleteConfirmYes')}
+      </Button>
+    </>
+  ) : (
+    <>
+      {isEdit ? (
+        <Button
+          variant="red"
+          icon="trash"
+          onClick={() => setConfirmingDelete(true)}
+          style={{ marginRight: 'auto' }}
+        >
+          {t('desks.form.delete')}
+        </Button>
+      ) : null}
       <Button variant="white" onClick={onClose}>
         {t('desks.form.cancel')}
       </Button>
@@ -157,15 +216,20 @@ export function DeskFormModal({ desk, onClose, onSaved }: DeskFormModalProps) {
       footer={footer}
     >
       <form id="desk-form" onSubmit={handleSubmit} noValidate>
+        {confirmingDelete ? (
+          <InfoBanner variant="red" icon="alert-triangle">
+            {t('desks.form.deleteConfirm')}
+          </InfoBanner>
+        ) : null}
         <FieldRow>
           <Input
             label={t('desks.form.number')}
             type="number"
             min={DESK_MIN}
-            max={DESK_MAX}
             value={values.number}
+            disabled={isEdit}
             error={Boolean(errors.number)}
-            hint={errors.number}
+            hint={isEdit ? t('desks.form.numberImmutable') : errors.number}
             onChange={(event) => setNumber(event.target.value)}
           />
           <div className="auth-field">

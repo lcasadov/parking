@@ -1,14 +1,12 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/Button';
 import { Legend } from '../components/Legend';
-import { EmbeddablePageHeader } from '../components/EmbeddablePageHeader';
+import { PageFrame } from '../components/PageFrame';
 import { ParkingSpaceFormModal } from '../components/ParkingSpaceFormModal';
 import { SearchBox } from '../components/SearchBox';
-import { StatTile } from '../components/StatTile';
 import { StatusPill } from '../components/StatusPill';
 import { TableEmpty, TableError, TableSkeleton } from '../components/TableStates';
-import { Toolbar } from '../components/Toolbar';
 import { emitApiErrorToast } from '../api/events';
 import { deactivationErrorKey } from '../utils/resourceDeactivation';
 import { useParkingSpacesQuery, useUpdateParkingSpace } from '../hooks/useParkingSpaces';
@@ -17,50 +15,26 @@ import type { ParkingSpace } from '../types/parkingSpace';
 const PAGE_SIZE = 20;
 const COUNT_SIZE = 1;
 
-// Fila de KPIs de inventario (total / activas / inactivas). Usa consultas de
-// recuento propias (size=1) contra el mismo endpoint para reflejar el inventario
-// GLOBAL con independencia del filtro/planta visible en la tabla. Aislada como
-// subcomponente para no cargar la complejidad de la vista (S3776).
-function ParkingStats() {
-  const { t } = useTranslation();
-  const totalQuery = useParkingSpacesQuery({ page: 0, size: COUNT_SIZE });
-  const activeQuery = useParkingSpacesQuery({ page: 0, size: COUNT_SIZE, active: true });
-  const total = totalQuery.data?.totalElements;
-  const active = activeQuery.data?.totalElements;
-  if (total === undefined || active === undefined) {
-    return null;
-  }
-  const inactive = Math.max(total - active, 0);
-  const unit = t('parkingSpaces.stats.unit');
-  return (
-    <div className="mgmt-stats">
-      <StatTile
-        dot="var(--ink-faint)"
-        icon="parking"
-        label={t('parkingSpaces.stats.total')}
-        value={total}
-        unit={unit}
-      />
-      <StatTile
-        dot="var(--accent)"
-        icon="circle-check"
-        label={t('parkingSpaces.stats.active')}
-        value={active}
-        unit={unit}
-        sub={t('parkingSpaces.stats.ofTotal', { total })}
-      />
-      <StatTile
-        dot="var(--rel)"
-        icon="circle-off"
-        label={t('parkingSpaces.stats.inactive')}
-        value={inactive}
-        unit={unit}
-      />
-    </div>
-  );
-}
-
 type ActiveFilter = 'all' | 'active' | 'inactive';
+
+// Color del punto por estado en los chips de filtro (mismo mapa que los KPIs).
+const ESTADO_DOT: Record<ActiveFilter, string> = {
+  all: 'var(--ink-faint)',
+  active: 'var(--accent)',
+  inactive: 'var(--rel)',
+};
+const ESTADO_FILTERS: ActiveFilter[] = ['all', 'active', 'inactive'];
+
+// Recuentos por estado para los contadores de los chips (all/active/inactive); el de
+// inactivas se deriva de total − activas. `undefined` mientras aún no hay datos.
+function estadoCounts(
+  total: number | undefined,
+  active: number | undefined,
+): Record<ActiveFilter, number | undefined> {
+  const inactive =
+    total !== undefined && active !== undefined ? Math.max(total - active, 0) : undefined;
+  return { all: total, active, inactive };
+}
 
 // Traduce el filtro de la UI al parametro `active` del contrato.
 function filterToActive(filter: ActiveFilter): boolean | undefined {
@@ -96,7 +70,7 @@ function buildFloorOptions(spaces: ParkingSpace[], selected: FloorFilter): numbe
 // `embedded`: cuando se monta dentro de la sección "Recursos", no pinta su propia
 // cabecera (el contenedor aporta el título de sección + el conmutador); solo la
 // acción de crear en una barra compacta, para evitar títulos duplicados.
-export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } = {}) {
+export function ParkingSpacesPage({ tabsSwitch }: { tabsSwitch?: ReactNode } = {}) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActiveFilter>('all');
   const [floor, setFloor] = useState<FloorFilter>(ALL_FLOORS);
@@ -111,6 +85,14 @@ export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } =
     active: filterToActive(filter),
     floor: floorToParam(floor),
   });
+  // Recuentos GLOBALES de inventario (independientes del filtro visible) para los
+  // contadores de los chips de estado, que sustituyen a la antigua tira de KPIs.
+  const totalCountQuery = useParkingSpacesQuery({ page: 0, size: COUNT_SIZE });
+  const activeCountQuery = useParkingSpacesQuery({ page: 0, size: COUNT_SIZE, active: true });
+  const estadoCount = estadoCounts(
+    totalCountQuery.data?.totalElements,
+    activeCountQuery.data?.totalElements,
+  );
   const updateMutation = useUpdateParkingSpace();
 
   function handleFilter(value: ActiveFilter): void {
@@ -166,53 +148,48 @@ export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } =
   const floorSelectValue = floor === ALL_FLOORS ? ALL_FLOORS : String(floor);
 
   return (
-    <section className="parking-spaces-page" aria-label={t('parkingSpaces.title')}>
-      <EmbeddablePageHeader
-        embedded={embedded}
-        eyebrow={t('parkingSpaces.eyebrow')}
-        title={t('parkingSpaces.title')}
-        description={t('parkingSpaces.description')}
-        actions={
-          <Button variant="green" icon="plus" onClick={openCreate}>
-            {t('parkingSpaces.new')}
-          </Button>
-        }
-      />
-
-      <ParkingStats />
-
-      <div className="filter-card">
-        <div className="filter-card-head">
-          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
-          {t('common.filters')}
-        </div>
-        <Toolbar ariaLabel={t('parkingSpaces.searchLabel')}>
+    <PageFrame
+      eyebrow={t('resources.eyebrow')}
+      title={t('resources.title')}
+      bodyLabel={t('parkingSpaces.title')}
+      resourceSelector={tabsSwitch}
+      toolbar={
+        <Button variant="green" icon="plus" onClick={openCreate}>
+          {t('parkingSpaces.new')}
+        </Button>
+      }
+      subbar={
+        <div className="mgmt-filters">
           <SearchBox
             label={t('parkingSpaces.searchLabel')}
             placeholder={t('parkingSpaces.searchPlaceholder')}
             value={q}
             onValueChange={setQ}
           />
-          <label className="field-label" htmlFor="parking-spaces-filter">
-            {t('parkingSpaces.filterLabel')}
-          </label>
-          <select
-            id="parking-spaces-filter"
-            className="field-input"
-            value={filter}
-            onChange={(event) => handleFilter(event.target.value as ActiveFilter)}
-          >
-            <option value="all">{t('parkingSpaces.filter.all')}</option>
-            <option value="active">{t('parkingSpaces.filter.active')}</option>
-            <option value="inactive">{t('parkingSpaces.filter.inactive')}</option>
-          </select>
-          <label className="field-label" htmlFor="parking-spaces-floor">
-            {t('parkingSpaces.filterFloorLabel')}
-          </label>
+          <div className="chip-filters" role="group" aria-label={t('parkingSpaces.filterLabel')}>
+            {ESTADO_FILTERS.map((value) => {
+              const isActive = filter === value;
+              const count = estadoCount[value];
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className={`chip-filter${isActive ? ' is-active' : ''}`}
+                  aria-pressed={isActive}
+                  onClick={() => handleFilter(value)}
+                >
+                  <span className="cf-dot" style={{ background: ESTADO_DOT[value] }} aria-hidden="true" />
+                  {t(`parkingSpaces.filter.${value}`)}
+                  {count !== undefined ? <span className="cf-count">{count}</span> : null}
+                </button>
+              );
+            })}
+          </div>
           <select
             id="parking-spaces-floor"
-            className="field-input"
+            className="field-input mgmt-floor-select"
             value={floorSelectValue}
+            aria-label={t('parkingSpaces.filterFloorLabel')}
             onChange={(event) => handleFloor(event.target.value)}
           >
             <option value={ALL_FLOORS}>{t('parkingSpaces.floorFilter.all')}</option>
@@ -222,9 +199,26 @@ export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } =
               </option>
             ))}
           </select>
-        </Toolbar>
-      </div>
-
+        </div>
+      }
+      footer={
+        totalPages > 1 ? (
+          <>
+            <span className="pagination-info">
+              {t('parkingSpaces.pagination.pageInfo', { page: page + 1, total: totalPages })}
+            </span>
+            <div className="pf-footer-nav">
+              <Button variant="white" disabled={isFirst} onClick={() => setPage((p) => p - 1)}>
+                {t('parkingSpaces.pagination.previous')}
+              </Button>
+              <Button variant="white" disabled={isLast} onClick={() => setPage((p) => p + 1)}>
+                {t('parkingSpaces.pagination.next')}
+              </Button>
+            </div>
+          </>
+        ) : undefined
+      }
+    >
       {query.isLoading ? <TableSkeleton label={t('common.loading')} columns={4} /> : null}
 
       {query.isError ? (
@@ -309,23 +303,9 @@ export function ParkingSpacesPage({ embedded = false }: { embedded?: boolean } =
         )
       ) : null}
 
-      {totalPages > 1 ? (
-        <nav className="pagination" aria-label={t('parkingSpaces.title')}>
-          <Button variant="white" disabled={isFirst} onClick={() => setPage((p) => p - 1)}>
-            {t('parkingSpaces.pagination.previous')}
-          </Button>
-          <span className="pagination-info">
-            {t('parkingSpaces.pagination.pageInfo', { page: page + 1, total: totalPages })}
-          </span>
-          <Button variant="white" disabled={isLast} onClick={() => setPage((p) => p + 1)}>
-            {t('parkingSpaces.pagination.next')}
-          </Button>
-        </nav>
-      ) : null}
-
       {isFormOpen ? (
         <ParkingSpaceFormModal space={formSpace} onClose={closeForm} onSaved={closeForm} />
       ) : null}
-    </section>
+    </PageFrame>
   );
 }

@@ -48,6 +48,12 @@ public class SystemSettingsEntity {
     @Column(name = "weekend_reservable", nullable = false)
     private boolean weekendReservable;
 
+    @Column(name = "email_notifications_enabled", nullable = false)
+    private boolean emailNotificationsEnabled;
+
+    @Column(name = "push_notifications_enabled", nullable = false)
+    private boolean pushNotificationsEnabled;
+
     @Column(name = "updated_by_id")
     private Long updatedById;
 
@@ -74,13 +80,16 @@ public class SystemSettingsEntity {
      */
     public SystemSettingsEntity(
             Byte id, ApprovalMode approvalMode, String parkingAddress, BigDecimal parkingLat,
-            BigDecimal parkingLng, boolean weekendReservable, Long updatedById, Instant updatedAt) {
+            BigDecimal parkingLng, boolean weekendReservable, boolean emailNotificationsEnabled,
+            boolean pushNotificationsEnabled, Long updatedById, Instant updatedAt) {
         this.id = id;
         this.approvalMode = approvalMode;
         this.parkingAddress = parkingAddress;
         this.parkingLat = parkingLat;
         this.parkingLng = parkingLng;
         this.weekendReservable = weekendReservable;
+        this.emailNotificationsEnabled = emailNotificationsEnabled;
+        this.pushNotificationsEnabled = pushNotificationsEnabled;
         this.updatedById = updatedById;
         this.updatedAt = updatedAt;
     }
@@ -107,6 +116,14 @@ public class SystemSettingsEntity {
 
     public boolean isWeekendReservable() {
         return weekendReservable;
+    }
+
+    public boolean isEmailNotificationsEnabled() {
+        return emailNotificationsEnabled;
+    }
+
+    public boolean isPushNotificationsEnabled() {
+        return pushNotificationsEnabled;
     }
 
     public Long getUpdatedById() {

@@ -111,6 +111,16 @@ public interface RequestJpaRepository extends JpaRepository<RequestEntity, Long>
     Page<RequestEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     /**
+     * Pagina de solicitudes en un estado, con el ORDEN que traiga el {@code Pageable} (sin orden
+     * fijo en el nombre): base de la ordenacion por columnas (change {@code sortable-table-columns}).
+     *
+     * @param status   estado por el que filtrar
+     * @param pageable pagina, tamano y orden solicitados
+     * @return pagina de solicitudes segun el orden del {@code Pageable}
+     */
+    Page<RequestEntity> findByStatus(RequestStatus status, Pageable pageable);
+
+    /**
      * Indica si el empleado ya tiene una solicitud en el estado dado para la fecha.
      *
      * @param employeeId    empleado propietario

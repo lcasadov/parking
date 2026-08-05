@@ -49,5 +49,13 @@ public enum NotificationEventType {
      * del modo {@code AUTOMATIC}, que reutiliza {@code REQUEST_APPROVED}); se notifica a cada
      * administrador activo para que resuelva desde la bandeja de pendientes.
      */
-    WAITLIST_AVAILABLE
+    WAITLIST_AVAILABLE,
+
+    /**
+     * Reserva {@code APPROVED} cancelada por un {@code ADMIN} (change {@code push-notifications},
+     * design D12); se notifica al <strong>empleado afectado</strong> (a diferencia de
+     * {@code REQUEST_CANCELLED}, que avisa a los admins de la liberacion del recurso). No aplica a
+     * la cancelacion que inicia el propio empleado (ese no se auto-notifica).
+     */
+    REQUEST_ADMIN_CANCELLED
 }

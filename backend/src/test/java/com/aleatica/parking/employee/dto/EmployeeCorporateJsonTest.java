@@ -31,7 +31,7 @@ class EmployeeCorporateJsonTest {
         EmployeeResponse response = new EmployeeResponse(
                 1L, "Juan", "Perez", "jperez", "jperez@aleatica.com",
                 "IT", "600100200", "1234ABC", true, AuthOrigin.ENTRA_ID,
-                Role.EMPLOYEE, EmployeeCategory.EMPLEADO, true, true, false,
+                Role.EMPLOYEE, EmployeeCategory.EMPLEADO, true, true, false, true, true,
                 Instant.parse("2026-01-01T00:00:00Z"), null);
 
         // Act

@@ -64,6 +64,8 @@ tags:
     description: Auditoría funcional y logs de login
   - name: SystemSettings
     description: Ajuste global del sistema (modo de aprobación de solicitudes)
+  - name: Push
+    description: Suscripciones Web Push (change push-notifications)
   - name: Exports
     description: Exportaciones a CSV/XLSX
   - name: Health
@@ -2011,6 +2013,85 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/ServerError' }
 
+  /admin/settings/notification-channels:
+    put:
+      tags: [SystemSettings]
+      operationId: updateNotificationChannels
+      summary: Cambia los interruptores globales de canal email/push (ADMIN)
+      description: >
+        Change `push-notifications`. Activa/desactiva de forma independiente cada canal global
+        (email y push). Las cuatro combinaciones son válidas. Queda trazado en `audit_log`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNotificationChannelsRequest'
+      responses:
+        '200':
+          description: Ajuste global actualizado (incluye los dos flags de canal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSettings'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /push/subscriptions:
+    post:
+      tags: [Push]
+      operationId: subscribePush
+      summary: Registra la suscripción Web Push del usuario (autenticado)
+      description: >
+        Change `push-notifications`. Alta idempotente (upsert por `endpoint`) de la suscripción del
+        navegador del usuario autenticado. Un usuario puede tener varias (multi-dispositivo).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscriptionRequest'
+      responses:
+        '204': { description: Suscripción registrada }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    delete:
+      tags: [Push]
+      operationId: unsubscribePush
+      summary: Da de baja una suscripción Web Push del usuario (autenticado)
+      description: >
+        Change `push-notifications`. Baja por `endpoint` de una suscripción del propio usuario. No
+        hace nada si el endpoint no existe o pertenece a otro empleado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushUnsubscribeRequest'
+      responses:
+        '204': { description: Suscripción dada de baja (o inexistente) }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /push/vapid-public-key:
+    get:
+      tags: [Push]
+      operationId: getVapidPublicKey
+      summary: Clave pública VAPID para suscribir el navegador (autenticado)
+      description: >
+        Change `push-notifications`. Devuelve la clave pública VAPID (base64url) que el cliente usa
+        en `PushManager.subscribe`. La privada nunca se expone. Vacía si push no está configurado.
+      responses:
+        '200':
+          description: Clave pública VAPID vigente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VapidKeyResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
   /settings/approval-mode:
     get:
       tags: [SystemSettings]
@@ -2297,6 +2378,12 @@ components:
         enabled: { type: boolean }
         active: { type: boolean }
         passwordMustChange: { type: boolean }
+        emailNotificationsEnabled:
+          type: boolean
+          description: 'Recibe avisos por email (change push-notifications); por defecto true.'
+        pushNotificationsEnabled:
+          type: boolean
+          description: 'Recibe avisos por push (change push-notifications); por defecto true.'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time, nullable: true }
     EmployeeCreate:
@@ -2850,6 +2937,20 @@ components:
             `false`, `POST /requests` rechaza fechas de fin de semana con 400
             `WEEKEND_NOT_RESERVABLE` (change `reservas-employee-admin-reassign`).
           example: false
+        emailNotificationsEnabled:
+          type: boolean
+          description: >
+            Interruptor GLOBAL del canal email (change `push-notifications`). Por defecto `true`
+            (retrocompatible). Un aviso llega por email solo si este flag y el del empleado están
+            activos.
+          example: true
+        pushNotificationsEnabled:
+          type: boolean
+          description: >
+            Interruptor GLOBAL del canal push (change `push-notifications`). Por defecto `true`. Un
+            aviso llega por push solo si este flag, el del empleado y una suscripción activa lo
+            permiten.
+          example: true
         updatedById: { type: integer, format: int64, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
     ParkingAddressResponse:
@@ -2895,6 +2996,58 @@ components:
           type: boolean
           description: true para permitir reservas en sábado/domingo.
           example: true
+    UpdateNotificationChannelsRequest:
+      type: object
+      required: [emailNotificationsEnabled, pushNotificationsEnabled]
+      description: >
+        Cambio de los interruptores globales de canal (change `push-notifications`). Ambos
+        obligatorios; envoltorios booleanos para distinguir "ausente" de `false`.
+      properties:
+        emailNotificationsEnabled:
+          type: boolean
+          description: Si el canal email envía a nivel global.
+          example: true
+        pushNotificationsEnabled:
+          type: boolean
+          description: Si el canal push envía a nivel global.
+          example: true
+    PushSubscriptionRequest:
+      type: object
+      required: [endpoint, keys]
+      description: >
+        Suscripción Web Push del navegador (change `push-notifications`): el objeto que produce
+        `PushManager.subscribe(...).toJSON()`.
+      properties:
+        endpoint:
+          type: string
+          description: Endpoint del push service (único).
+          example: 'https://fcm.googleapis.com/fcm/send/abc123'
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+              description: Clave pública del cliente (base64url).
+            auth:
+              type: string
+              description: Secreto de autenticación del cliente (base64url).
+    PushUnsubscribeRequest:
+      type: object
+      required: [endpoint]
+      description: 'Baja de una suscripción Web Push por endpoint (change `push-notifications`).'
+      properties:
+        endpoint:
+          type: string
+          description: Endpoint de la suscripción a dar de baja.
+    VapidKeyResponse:
+      type: object
+      description: 'Clave pública VAPID (change `push-notifications`).'
+      properties:
+        publicKey:
+          type: string
+          description: Clave pública VAPID en base64url; vacía si push no está configurado.
+          example: 'BEl62iUYgUiv...'
     SuggestedResource:
       type: object
       description: >

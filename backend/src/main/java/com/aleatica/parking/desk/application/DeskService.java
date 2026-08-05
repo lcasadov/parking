@@ -131,6 +131,20 @@ public class DeskService {
         return DeskResponse.from(deskRepository.save(desk));
     }
 
+    /**
+     * Borra un puesto por id (hard delete), como alternativa a la desactivacion. Si el
+     * puesto tiene reservas/asignaciones (FK), la BD impide el borrado y la violacion de
+     * integridad se mapea a 409 en el GlobalExceptionHandler (desactivar en su lugar).
+     *
+     * @param id id del puesto a borrar
+     * @throws EntityNotFoundException si el puesto no existe
+     */
+    @Transactional
+    public void delete(Long id) {
+        Desk desk = findOrThrow(id);
+        deskRepository.delete(desk);
+    }
+
     private Desk findOrThrow(Long id) {
         return deskRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(MSG_NOT_FOUND + id));

@@ -353,6 +353,9 @@ public class RequestController {
      * @return {@code 200} con la pagina de solicitudes pendientes
      */
     @Operation(summary = "Solicitudes pendientes, orden FIFO (ADMIN)",
+            description = "Orden por defecto FIFO (createdAt ASC). Admite ordenar con "
+                    + "`sort=campo,dir` por los campos permitidos `requestedDate` o `createdAt`; "
+                    + "cualquier otro campo de orden se ignora y se aplica el orden por defecto.",
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pagina de solicitudes pendientes"),
@@ -380,6 +383,9 @@ public class RequestController {
      * @return {@code 200} con la pagina de solicitudes en ese estado
      */
     @Operation(summary = "Solicitudes por estado, orden actividad reciente (ADMIN)",
+            description = "Orden por defecto por actividad reciente (createdAt DESC). Admite ordenar "
+                    + "con `sort=campo,dir` por los campos permitidos `requestedDate` o `createdAt`; "
+                    + "cualquier otro campo de orden se ignora y se aplica el orden por defecto.",
             security = @SecurityRequirement(name = SESSION_COOKIE))
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pagina de solicitudes por estado"),

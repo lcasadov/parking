@@ -135,7 +135,8 @@ describe('EmployeesPage', () => {
     renderWithProviders(<EmployeesPage />);
     await screen.findByText('Alice Andersson');
 
-    await user.click(screen.getByRole('button', { name: /exportar csv|export csv/i }));
+    // Con un único formato el botón dice simplemente "Exportar".
+    await user.click(screen.getByRole('button', { name: /^exportar$|^export$/i }));
 
     await waitFor(() => {
       expect(exportFormat).toBe('csv');

@@ -8,7 +8,9 @@ import com.aleatica.parking.availability.dto.AdminWeeklyCalendarResponse;
 import com.aleatica.parking.availability.dto.AvailabilityItemResponse;
 import com.aleatica.parking.availability.dto.AvailabilityResponse;
 import com.aleatica.parking.availability.dto.CalendarCellResponse;
+import com.aleatica.parking.audit.application.InvalidDateRangeException;
 import com.aleatica.parking.availability.dto.CalendarRowResponse;
+import com.aleatica.parking.availability.dto.EmployeeRangeOccupancyResponse;
 import com.aleatica.parking.availability.dto.EmployeeWeekDayResponse;
 import com.aleatica.parking.availability.dto.EmployeeWeekOccupancyResponse;
 import com.aleatica.parking.availability.dto.MyWeekDayResponse;
@@ -38,6 +40,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -50,6 +53,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,6 +85,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class AvailabilityService {
 
     private static final int WEEK_DAYS = 7;
+    // Tope del rango de liberacion por rango (change admin-release-by-range): acota el coste de la
+    // consulta y refleja que no hay caso legitimo de liberacion mayor a ~2 meses (vacaciones/ausencias).
+    private static final long MAX_RANGE_DAYS = 62;
+    private static final String MSG_INVALID_RANGE = "El rango de fechas es invalido: 'from' debe ser anterior o igual a 'to'.";
+    private static final String MSG_RANGE_TOO_LONG = "El rango no puede superar los " + MAX_RANGE_DAYS + " dias.";
     private static final String MSG_ACTOR_NOT_FOUND = "Usuario de sesion no encontrado: ";
     private static final String MSG_EMPLOYEE_NOT_FOUND = "Empleado no encontrado: ";
 
@@ -677,16 +686,58 @@ public class AvailabilityService {
         LocalDate weekStart = mondayOf(weekStartInput);
         LocalDate weekEnd = weekStart.plusDays(WEEK_DAYS - 1L);
 
+        WeekOccupancyContext context = occupancyContext(employeeId, employee, weekStart, weekEnd);
+        List<EmployeeWeekDayResponse> days = weekDays(weekStart).stream()
+                .map(day -> new EmployeeWeekDayResponse(day, dayReservations(day, context)))
+                .toList();
+        return new EmployeeWeekOccupancyResponse(
+                employeeId, context.employeeName(), weekStart, days);
+    }
+
+    /**
+     * Ocupacion del empleado en un RANGO de fechas {@code [from, to]} (ambos inclusive) para la
+     * liberacion administrativa por rango (change {@code admin-release-by-range}, caso "vacaciones").
+     * Aplica la misma precedencia por dia que {@link #employeeWeekOccupancy} (solicitud
+     * {@code APPROVED} &gt; asignacion fija vigente no liberada), pero sobre un rango arbitrario: de
+     * UNA sola consulta el cliente obtiene todas las reservas del empleado en el rango y las libera en
+     * lote. Carga por rango (una consulta por entidad, sin N+1) y ensambla en memoria.
+     *
+     * @param employeeId empleado a consultar
+     * @param from       primer dia del rango (inclusive)
+     * @param to         ultimo dia del rango (inclusive)
+     * @return la ocupacion del empleado por cada dia del rango (listas posiblemente vacias)
+     * @throws EntityNotFoundException  si el empleado no existe
+     * @throws InvalidDateRangeException si {@code from} es posterior a {@code to} o el rango supera el tope
+     */
+    @Transactional(readOnly = true)
+    public EmployeeRangeOccupancyResponse employeeRangeOccupancy(Long employeeId, LocalDate from, LocalDate to) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException(MSG_EMPLOYEE_NOT_FOUND + employeeId));
+        validateRange(from, to);
+
+        WeekOccupancyContext context = occupancyContext(employeeId, employee, from, to);
+        List<EmployeeWeekDayResponse> days = daysBetween(from, to).stream()
+                .map(day -> new EmployeeWeekDayResponse(day, dayReservations(day, context)))
+                .toList();
+        return new EmployeeRangeOccupancyResponse(
+                employeeId, context.employeeName(), from, to, days);
+    }
+
+    // Ensambla el contexto de ocupacion del empleado en el rango [from, to] (una consulta por
+    // entidad: asignaciones fijas activas, solicitudes APPROVED y liberaciones), reutilizado por la
+    // vista semanal y la de rango para no duplicar la carga ni la regla de precedencia (S1192/DRY).
+    private WeekOccupancyContext occupancyContext(
+            Long employeeId, Employee employee, LocalDate from, LocalDate to) {
         List<FixedAssignmentEntity> fixed = fixedAssignmentRepository
                 .findByEmployeeIdAndActiveTrueOrderByDayOfWeekAsc(employeeId);
         List<RequestEntity> approved = requestRepository
-                .findByEmployeeIdAndRequestedDateBetween(employeeId, weekStart, weekEnd).stream()
+                .findByEmployeeIdAndRequestedDateBetween(employeeId, from, to).stream()
                 .filter(r -> r.getStatus() == RequestStatus.APPROVED)
                 .toList();
         List<ReleaseEntity> releases = releaseRepository
-                .findByEmployeeIdAndReleaseDateBetween(employeeId, weekStart, weekEnd);
+                .findByEmployeeIdAndReleaseDateBetween(employeeId, from, to);
 
-        WeekOccupancyContext context = new WeekOccupancyContext(
+        return new WeekOccupancyContext(
                 employeeId, fullName(employee),
                 fixed.stream().collect(Collectors.toMap(
                         fa -> new TypeDow(fa.getResourceType(), fa.getDayOfWeek()),
@@ -698,12 +749,22 @@ public class AvailabilityService {
                         .map(r -> new TypeResourceDate(r.getResourceType(), r.getResourceId(), r.getReleaseDate()))
                         .collect(Collectors.toSet()),
                 resolveResources(fixed, approved));
+    }
 
-        List<EmployeeWeekDayResponse> days = weekDays(weekStart).stream()
-                .map(day -> new EmployeeWeekDayResponse(day, dayReservations(day, context)))
-                .toList();
-        return new EmployeeWeekOccupancyResponse(
-                employeeId, context.employeeName(), weekStart, days);
+    // Valida el rango: 'from' <= 'to' y span dentro del tope. 400 Bad Request via el manejador global.
+    private static void validateRange(LocalDate from, LocalDate to) {
+        if (to.isBefore(from)) {
+            throw new InvalidDateRangeException(MSG_INVALID_RANGE);
+        }
+        if (ChronoUnit.DAYS.between(from, to) + 1 > MAX_RANGE_DAYS) {
+            throw new InvalidDateRangeException(MSG_RANGE_TOO_LONG);
+        }
+    }
+
+    // Todos los dias del rango [from, to] (ambos inclusive), en orden.
+    private static List<LocalDate> daysBetween(LocalDate from, LocalDate to) {
+        long count = ChronoUnit.DAYS.between(from, to) + 1;
+        return LongStream.range(0, count).mapToObj(from::plusDays).toList();
     }
 
     private List<OccupancyItemResponse> dayReservations(LocalDate day, WeekOccupancyContext context) {

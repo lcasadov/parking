@@ -19,6 +19,7 @@ export const ROUTES = {
   adminVisitors: '/admin/visitors',
   // Gestión (destinos nuevos/canonicos)
   adminEmployees: '/admin/employees',
+  adminVehicles: '/admin/vehicles',
   adminResources: '/admin/resources',
   adminRecords: '/admin/records',
   adminSettings: '/admin/settings',
@@ -36,6 +37,7 @@ export const ROUTES = {
   employeeFloorPlan: '/employee/floor-plan',
   employeeRequests: '/employee/requests',
   employeeMyResources: '/employee/my-resources',
+  employeeMyVehicles: '/employee/my-vehicles',
   // Rutas antiguas: redirigen a "Mis plazas" con la pestaña correspondiente.
   employeeFixedAssignments: '/employee/fixed-assignments',
   employeeReleases: '/employee/releases',
